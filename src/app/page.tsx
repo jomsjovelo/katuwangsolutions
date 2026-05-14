@@ -110,19 +110,8 @@ export default function Home() {
                 </p>
               </div>
 
-              {/* Hero Image Container */}
-              <div className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl mb-10 relative aspect-[4/3]">
-                <Image 
-                  src={handshakeImg?.imageUrl || ''} 
-                  alt="Business Handshake"
-                  fill
-                  className="object-cover"
-                  data-ai-hint="handshake business"
-                />
-              </div>
-
-              {/* Primary CTA with Price Anchoring */}
-              <div className="w-full space-y-4 px-4">
+              {/* Primary CTA Above the Fold */}
+              <div className="w-full space-y-4 px-4 mb-10">
                 <Button 
                   className={cn(
                     "w-full h-16 rounded-[12px] text-lg font-bold bg-gradient-to-r from-[#06B6D4] to-[#0891B2] text-white hover:opacity-95 transition-all active:scale-[0.98] joy-glow flex items-center justify-between px-6 border-none"
@@ -141,6 +130,17 @@ export default function Home() {
                 <p className="text-[10px] text-[#94A3B8] uppercase tracking-[0.2em] font-semibold">
                   Walang setup fee. Cancel anytime.
                 </p>
+              </div>
+
+              {/* Hero Image Container (Product Mockup / Culturally Relevant) */}
+              <div className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl mb-10 relative aspect-[4/3] bg-slate-50">
+                <Image 
+                  src={handshakeImg?.imageUrl || ''} 
+                  alt="Katuwang Mobile Interface"
+                  fill
+                  className="object-cover"
+                  data-ai-hint="market vendor"
+                />
               </div>
             </section>
 
@@ -198,9 +198,6 @@ export default function Home() {
               </div>
 
               <div className="flex flex-col gap-4">
-                <Button variant="outline" className="h-14 rounded-xl font-bold border-[#06B6D4] text-[#06B6D4] hover:bg-[#06B6D4]/5">
-                  Request a Demo
-                </Button>
                 <Button className="h-14 rounded-xl font-bold bg-[#1E293B] text-white" onClick={() => setView('tenant')}>
                   Enter Portal
                 </Button>
