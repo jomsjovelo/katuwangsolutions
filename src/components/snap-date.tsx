@@ -15,13 +15,15 @@ interface SnapDateProps {
 export function SnapDate({ date, onSelect, className }: SnapDateProps) {
   const [month, setMonth] = React.useState<Date | null>(null);
   const [today, setToday] = React.useState<Date | null>(null);
+  const [mounted, setMounted] = React.useState(false);
   
   React.useEffect(() => {
     setMonth(new Date());
     setToday(startOfToday());
+    setMounted(true);
   }, []);
 
-  if (!month || !today) return <div className="h-64 animate-pulse bg-secondary/20 rounded-2xl" />;
+  if (!mounted || !month || !today) return <div className="h-64 animate-pulse bg-secondary/20 rounded-2xl" />;
 
   const quickChips = [
     { label: 'Today', value: today },

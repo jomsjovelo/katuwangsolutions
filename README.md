@@ -19,10 +19,10 @@ Your project is now successfully linked to GitHub. You can continue developing l
 
 2. **AI-Powered Insights**
    - Run `npm run genkit:dev` to launch the Genkit UI (Port 4000).
-   - Your `GEMINI_API_KEY` is already configured in the `.env` file to enable the "Antigravity" AI features.
+   - Your `GEMINI_API_KEY` is configured in the `.env` file.
 
 3. **Deploying to the Cloud**
-   - When you are ready for users, you can deploy this Next.js app to **Firebase App Hosting** or **Vercel** with a single click from your GitHub repo.
+   - Follow the **Deployment Guide** below to host your app on Firebase.
 
 ---
 
@@ -32,6 +32,17 @@ Your project is now successfully linked to GitHub. You can continue developing l
 - **Start Dev Server:** `npm run dev`
 - **Launch AI UI:** `npm run genkit:dev`
 - **Push Updates:** `git add . && git commit -m "Your Message" && git push`
+
+---
+
+## ☁️ Deployment Guide (Firebase App Hosting)
+
+If you see a "waiting for permissions" error in the Firebase Console:
+1. **Refresh the page** after 60 seconds.
+2. **Click "Connect to GitHub"** again to re-trigger the link.
+3. **Select Repository:** Choose `jomsjovelo/katuwangsolutions`.
+4. **Root Directory:** Keep it as `/` (default).
+5. **App Hosting ID:** Give it a name like `katuwang-prod`.
 
 ---
 
