@@ -53,11 +53,15 @@ export default function TenantDashboard() {
             <p className="text-muted-foreground text-sm">Select a business profile to enter the Katuwang Environment.</p>
           </div>
           <div className="grid gap-4">
-            {allTenants.map(t => (
+            {allTenants.map((t, index) => (
               <Button 
                 key={t.id} 
                 variant="outline" 
-                className="h-20 flex justify-between items-center group hover:border-primary px-6 rounded-2xl w-full"
+                className={cn(
+                  "h-20 flex justify-between items-center group hover:border-primary px-6 rounded-2xl w-full transition-all active:scale-95",
+                  index % 2 === 0 ? "antigravity-float" : "antigravity-float-slow"
+                )}
+                style={{ animationDelay: `${index * 0.2}s` }}
                 onClick={() => setCurrentTenant(t)}
               >
                 <div className="text-left">
@@ -76,7 +80,7 @@ export default function TenantDashboard() {
   if (currentTenant.subscriptionStatus === 'suspended') {
     return (
       <div className="flex-1 flex items-center justify-center p-6 bg-background">
-        <Card className="w-full bg-card border-destructive overflow-hidden shadow-2xl">
+        <Card className="w-full bg-card border-destructive overflow-hidden shadow-2xl antigravity-float">
           <div className="bg-destructive p-4 flex items-center justify-center">
             <AlertTriangle className="text-white h-12 w-12" />
           </div>
@@ -95,7 +99,7 @@ export default function TenantDashboard() {
                 <span className="font-headline font-bold text-xl text-primary">₱{currentTenant.pricingTier === 'promo_99' ? '99.00' : '199.00'}</span>
               </div>
             </div>
-            <Button className="w-full h-14 rounded-2xl font-bold text-lg gap-2 active:scale-95 transition-transform">
+            <Button className="w-full h-14 rounded-2xl font-bold text-lg gap-2 active:scale-95 transition-transform joy-glow">
               <CreditCard className="h-5 w-5" />
               Renew Access
             </Button>
@@ -146,7 +150,7 @@ export default function TenantDashboard() {
         </section>
 
         <div className="grid grid-cols-2 gap-3">
-          <Card className="bg-primary/5 border-primary/20 shadow-none">
+          <Card className="bg-primary/5 border-primary/20 shadow-none antigravity-float">
             <CardHeader className="p-3 pb-0">
               <CardDescription className="text-[9px] font-black uppercase tracking-wider text-primary">Sales</CardDescription>
               <CardTitle className="text-xl font-black">₱4.2k</CardTitle>
@@ -158,7 +162,7 @@ export default function TenantDashboard() {
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-secondary/20 border-border shadow-none">
+          <Card className="bg-secondary/20 border-border shadow-none antigravity-float-slow">
             <CardHeader className="p-3 pb-0">
               <CardDescription className="text-[9px] font-black uppercase tracking-wider">Orders</CardDescription>
               <CardTitle className="text-xl font-black">24</CardTitle>
@@ -206,7 +210,7 @@ export default function TenantDashboard() {
           <Button variant="ghost" size="icon" className="h-12 w-12 rounded-2xl">
             <ShoppingCart className="h-5 w-5" />
           </Button>
-          <div className="bg-primary p-4 rounded-2xl -mt-12 shadow-xl shadow-primary/30 active:scale-95 transition-transform cursor-pointer">
+          <div className="bg-primary p-4 rounded-2xl -mt-12 shadow-xl shadow-primary/30 active:scale-95 transition-transform cursor-pointer antigravity-float-fast">
             <UserPlus className="h-6 w-6 text-white" />
           </div>
           <Button variant="ghost" size="icon" className="h-12 w-12 rounded-2xl">

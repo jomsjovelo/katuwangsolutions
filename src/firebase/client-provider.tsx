@@ -15,14 +15,13 @@ export function FirebaseClientProvider({ children }: { children: React.ReactNode
   } | null>(null);
 
   useEffect(() => {
+    // Only initialize on the client
     const { app, db, auth } = initializeFirebase();
     setServices({ app, db, auth });
   }, []);
 
-  // During SSR (Server Side Rendering), services will be null.
-  // We MUST render the children so the server-rendered HTML matches the structure.
-  // The Firebase context will be provided with undefined values initially, 
-  // which will be updated once hydration completes and the services are initialized.
+  // During initial render (SSR and first hydration), we render the provider
+  // with undefined values. The provider handles this gracefully.
   return (
     <FirebaseProvider 
       app={services?.app as any} 

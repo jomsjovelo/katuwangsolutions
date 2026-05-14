@@ -29,14 +29,6 @@
     --chart-4: 47 93% 58%;
     --chart-5: 0 84.2% 60.2%;
     --radius: 0.75rem;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 188 86% 43%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 40% 96%;
-    --sidebar-accent-foreground: 222 47% 11%;
-    --sidebar-border: 214 32% 91%;
-    --sidebar-ring: 188 86% 43%;
   }
 }
 
@@ -65,12 +57,22 @@
   100% { transform: translateY(0px); }
 }
 
+@keyframes antigravity-fast {
+  0% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(-15px) scale(1.02); }
+  100% { transform: translateY(0px) scale(1); }
+}
+
 .antigravity-float {
   animation: antigravity 5s ease-in-out infinite;
 }
 
 .antigravity-float-slow {
   animation: antigravity-slow 8s ease-in-out infinite;
+}
+
+.antigravity-float-fast {
+  animation: antigravity-fast 3s ease-in-out infinite;
 }
 
 .joy-glow {
