@@ -114,11 +114,11 @@ export default function Home() {
         <SocialProofBar />
 
         {/* App Suite — Grouped by Industry */}
-        <section id="products" className="py-16 md:py-24 px-5 bg-slate-50">
+        <section id="products" className="py-10 md:py-16 px-4 sm:px-5 bg-slate-50">
           <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-12 space-y-3">
-              <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight">Katuwang App Suite</h2>
-              <p className="text-sm text-slate-500 font-bold uppercase tracking-[0.2em]">15 Industry Specific Modules</p>
+            <div className="text-center mb-8 md:mb-12 space-y-2">
+              <h2 className="text-2xl sm:text-3xl md:text-5xl font-black text-slate-900 tracking-tight">Katuwang App Suite</h2>
+              <p className="text-xs sm:text-sm text-slate-500 font-bold uppercase tracking-[0.2em]">15 Industry Specific Modules</p>
             </div>
 
             <div className="flex flex-col gap-16">
@@ -127,7 +127,7 @@ export default function Home() {
                 return (
                   <div key={group.groupName}>
                     {/* Group Header */}
-                    <div className="flex items-center gap-4 mb-6 pb-4 border-b-2" style={{ borderColor: group.accentColor }}>
+                    <div className="flex items-center gap-3 mb-4 sm:mb-6 pb-3 sm:pb-4 border-b-2" style={{ borderColor: group.accentColor }}>
                       <div className="h-11 w-11 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${group.accentColor}18` }}>
                         <GroupIcon className="h-6 w-6" style={{ color: group.accentColor }} strokeWidth={2} />
                       </div>
@@ -137,8 +137,8 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* App Cards Grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {/* App Cards Grid — 1 col mobile, 2 col tablet, 3-4 col desktop */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                       {group.apps.map((app) => (
                         <AppCard
                           key={app.name}
