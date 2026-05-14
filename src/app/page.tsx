@@ -2,7 +2,7 @@
 
 import TenantDashboard from './dashboard/page';
 import AdminKillSwitch from './admin/page';
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { 
@@ -33,8 +33,14 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 export default function Home() {
   const [view, setView] = useState<'landing' | 'admin' | 'tenant'>('landing');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handshakeImg = PlaceHolderImages.find(img => img.id === 'handshake');
+  const heroImageSrc = handshakeImg?.imageUrl || 'https://picsum.photos/seed/katuwang-fallback/800/600';
 
   const appGrid = [
     { name: 'Benta Snap', icon: ShoppingCart, category: 'Retail' },
@@ -54,10 +60,13 @@ export default function Home() {
     { name: 'Biyahe Sync', icon: Truck, category: 'Business' },
   ];
 
+  if (!mounted) {
+    return <div className="flex-1 bg-white min-h-screen" />;
+  }
+
   if (view === 'landing') {
     return (
       <div className="flex-1 bg-white flex flex-col overflow-x-hidden font-body">
-        {/* Header Nav */}
         <header className="flex justify-between items-center p-6 border-b border-border/5">
           <div className="flex items-center gap-2">
             <Handshake className="h-6 w-6 text-[#06B6D4]" strokeWidth={1} />
@@ -91,7 +100,6 @@ export default function Home() {
           </div>
         </header>
 
-        {/* Hero Marketing Section */}
         <main className="flex-1 flex flex-col">
           <section className="p-8 text-center py-12 flex flex-col items-center">
             <div className="space-y-6 max-w-[340px] mb-8">
@@ -107,7 +115,6 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Primary CTA Above the Fold */}
             <div className="w-full space-y-4 px-4 mb-10">
               <Button 
                 className={cn(
@@ -129,20 +136,19 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Hero Image Container with Antigravity Float */}
             <div className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl mb-10 relative aspect-[4/3] bg-slate-50 antigravity-float">
               <Image 
-                src={handshakeImg?.imageUrl || ''} 
+                src={heroImageSrc} 
                 alt="Katuwang Mobile Interface"
                 fill
                 className="object-cover"
                 data-ai-hint="market vendor"
+                priority
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
             </div>
           </section>
 
-          {/* App Suite Showcase Grid */}
           <section className="px-6 py-16 bg-slate-50/50">
             <div className="text-center mb-10 space-y-2">
               <h2 className="text-2xl font-bold text-[#1E293B] tracking-tight">Katuwang App Suite</h2>
@@ -167,7 +173,6 @@ export default function Home() {
             </div>
           </section>
 
-          {/* Integrated Advantage Section */}
           <section className="px-8 py-20 space-y-16">
             <div className="grid gap-12">
               <div className="flex flex-col items-center text-center space-y-4">
@@ -203,7 +208,6 @@ export default function Home() {
           </section>
         </main>
 
-        {/* Footer Branding */}
         <footer className="p-8 mt-auto border-t border-border/10 bg-slate-50/30">
           <p className="text-[#94A3B8] text-[8px] font-bold uppercase tracking-[0.4em] opacity-40 text-center leading-loose">
             Katuwang Solutions<br/>Enterprise Grade Framework v1.2

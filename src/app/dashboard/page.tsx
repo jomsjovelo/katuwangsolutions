@@ -29,10 +29,16 @@ import { cn } from '@/lib/utils';
 export default function TenantDashboard() {
   const { currentTenant, setCurrentTenant, allTenants } = useTenant();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     setSelectedDate(new Date());
   }, []);
+
+  if (!mounted) {
+    return <div className="flex-1 bg-background min-h-screen" />;
+  }
 
   if (!currentTenant) {
     return (
