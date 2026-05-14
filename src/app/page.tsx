@@ -1,4 +1,3 @@
-
 "use client"
 
 import { TenantProvider } from './lib/tenant-context';
@@ -132,8 +131,8 @@ export default function Home() {
                 </p>
               </div>
 
-              {/* Hero Image Container (Product Mockup / Culturally Relevant) */}
-              <div className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl mb-10 relative aspect-[4/3] bg-slate-50">
+              {/* Hero Image Container with Antigravity Float */}
+              <div className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl mb-10 relative aspect-[4/3] bg-slate-50 antigravity-float">
                 <Image 
                   src={handshakeImg?.imageUrl || ''} 
                   alt="Katuwang Mobile Interface"
@@ -141,6 +140,7 @@ export default function Home() {
                   className="object-cover"
                   data-ai-hint="market vendor"
                 />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
               </div>
             </section>
 
