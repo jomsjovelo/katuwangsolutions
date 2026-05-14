@@ -53,17 +53,32 @@
 }
 
 @keyframes antigravity {
+  0% { transform: translateY(0px) rotate(0deg); }
+  33% { transform: translateY(-12px) rotate(1deg); }
+  66% { transform: translateY(-6px) rotate(-1deg); }
+  100% { transform: translateY(0px) rotate(0deg); }
+}
+
+@keyframes antigravity-slow {
   0% { transform: translateY(0px); }
-  50% { transform: translateY(-15px); }
+  50% { transform: translateY(-20px); }
   100% { transform: translateY(0px); }
 }
 
 .antigravity-float {
-  animation: antigravity 6s ease-in-out infinite;
+  animation: antigravity 5s ease-in-out infinite;
+}
+
+.antigravity-float-slow {
+  animation: antigravity-slow 8s ease-in-out infinite;
 }
 
 .joy-glow {
   box-shadow: 0 15px 30px -10px rgba(6, 182, 212, 0.4);
+}
+
+.joy-glow-yellow {
+  box-shadow: 0 15px 30px -10px rgba(250, 204, 21, 0.4);
 }
 
 .no-scrollbar::-webkit-scrollbar {

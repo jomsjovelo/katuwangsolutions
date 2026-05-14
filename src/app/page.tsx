@@ -25,7 +25,8 @@ import {
   Truck,
   Layers,
   BarChart3,
-  Globe
+  Globe,
+  Zap
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -38,6 +39,17 @@ export default function Home() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  if (!mounted) {
+    return (
+      <div className="flex-1 bg-white min-h-screen flex items-center justify-center">
+        <div className="animate-pulse flex flex-col items-center gap-4">
+          <Handshake className="h-12 w-12 text-primary opacity-20" />
+          <div className="h-2 w-32 bg-secondary/20 rounded" />
+        </div>
+      </div>
+    );
+  }
 
   const handshakeImg = PlaceHolderImages.find(img => img.id === 'handshake');
   const heroImageSrc = handshakeImg?.imageUrl || 'https://picsum.photos/seed/katuwang-fallback/800/600';
@@ -59,10 +71,6 @@ export default function Home() {
     { name: 'Ledger Flow', icon: BookText, category: 'Business' },
     { name: 'Biyahe Sync', icon: Truck, category: 'Business' },
   ];
-
-  if (!mounted) {
-    return <div className="flex-1 bg-white min-h-screen" />;
-  }
 
   if (view === 'landing') {
     return (
@@ -104,6 +112,7 @@ export default function Home() {
           <section className="p-8 text-center py-12 flex flex-col items-center">
             <div className="space-y-6 max-w-[340px] mb-8">
               <Badge variant="outline" className="rounded-full border-transparent bg-[#FEF9C3] px-6 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#713F12]">
+                <Zap className="h-3 w-3 mr-2 inline" />
                 Mura. Mabilis. Maaasahan.
               </Badge>
               
@@ -118,7 +127,7 @@ export default function Home() {
             <div className="w-full space-y-4 px-4 mb-10">
               <Button 
                 className={cn(
-                  "w-full h-16 rounded-[12px] text-lg font-bold bg-gradient-to-r from-[#06B6D4] to-[#0891B2] text-white hover:opacity-95 transition-all active:scale-[0.98] joy-glow flex items-center justify-between px-6 border-none"
+                  "w-full h-16 rounded-[12px] text-lg font-bold bg-gradient-to-r from-[#06B6D4] to-[#0891B2] text-white hover:opacity-95 transition-all active:scale-[0.98] joy-glow flex items-center justify-between px-6 border-none antigravity-float"
                 )}
                 onClick={() => setView('tenant')}
               >
@@ -136,7 +145,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl mb-10 relative aspect-[4/3] bg-slate-50 antigravity-float">
+            <div className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl mb-10 relative aspect-[4/3] bg-slate-50 antigravity-float-slow">
               <Image 
                 src={heroImageSrc} 
                 alt="Katuwang Mobile Interface"
@@ -156,10 +165,14 @@ export default function Home() {
             </div>
             
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-              {appGrid.map((app) => (
+              {appGrid.map((app, index) => (
                 <div 
                   key={app.name} 
-                  className="bg-white border border-border/50 p-4 rounded-xl flex flex-col items-center justify-center text-center space-y-3 hover:scale-105 transition-transform cursor-default group"
+                  className={cn(
+                    "bg-white border border-border/50 p-4 rounded-xl flex flex-col items-center justify-center text-center space-y-3 transition-transform cursor-default group",
+                    index % 2 === 0 ? "antigravity-float" : "antigravity-float-slow"
+                  )}
+                  style={{ animationDelay: `${index * 0.1}s` }}
                 >
                   <div className="p-3 bg-slate-50 rounded-full group-hover:bg-[#06B6D4]/10 transition-colors">
                     <app.icon className="h-5 w-5 text-[#06B6D4]" strokeWidth={1.5} />
@@ -175,24 +188,24 @@ export default function Home() {
 
           <section className="px-8 py-20 space-y-16">
             <div className="grid gap-12">
-              <div className="flex flex-col items-center text-center space-y-4">
-                <div className="p-4 bg-[#06B6D4]/5 rounded-2xl">
+              <div className="flex flex-col items-center text-center space-y-4 antigravity-float">
+                <div className="p-4 bg-[#06B6D4]/5 rounded-2xl joy-glow">
                   <Globe className="h-8 w-8 text-[#06B6D4]" />
                 </div>
                 <h3 className="text-xl font-bold uppercase tracking-tighter">Unified Ecosystem</h3>
                 <p className="text-sm text-slate-500 leading-relaxed">One login for all your business apps. Seamlessly switch between retail, payroll, and logistics without missing a beat.</p>
               </div>
 
-              <div className="flex flex-col items-center text-center space-y-4">
-                <div className="p-4 bg-[#06B6D4]/5 rounded-2xl">
-                  <BarChart3 className="h-8 w-8 text-[#06B6D4]" />
+              <div className="flex flex-col items-center text-center space-y-4 antigravity-float-slow">
+                <div className="p-4 bg-[#FACC15]/5 rounded-2xl joy-glow-yellow">
+                  <BarChart3 className="h-8 w-8 text-[#FACC15]" />
                 </div>
                 <h3 className="text-xl font-bold uppercase tracking-tighter">Advanced Analytics</h3>
                 <p className="text-sm text-slate-500 leading-relaxed">Real-time sales and inventory tracking. Get deep insights into your business performance with automated reporting.</p>
               </div>
 
-              <div className="flex flex-col items-center text-center space-y-4">
-                <div className="p-4 bg-[#06B6D4]/5 rounded-2xl">
+              <div className="flex flex-col items-center text-center space-y-4 antigravity-float">
+                <div className="p-4 bg-[#06B6D4]/5 rounded-2xl joy-glow">
                   <Layers className="h-8 w-8 text-[#06B6D4]" />
                 </div>
                 <h3 className="text-xl font-bold uppercase tracking-tighter">Deep Industry Solutions</h3>
@@ -201,7 +214,7 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col gap-4">
-              <Button className="h-14 rounded-xl font-bold bg-[#1E293B] text-white" onClick={() => setView('tenant')}>
+              <Button className="h-14 rounded-xl font-bold bg-[#1E293B] text-white joy-glow active:scale-95 transition-transform" onClick={() => setView('tenant')}>
                 Enter Portal
               </Button>
             </div>
