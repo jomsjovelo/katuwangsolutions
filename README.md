@@ -14,7 +14,39 @@ Katuwang Solutions is a mobile-first, multi-tenant SaaS platform designed to mod
 - **Mobile-First Design:** Optimized for 430px viewports, perfect for one-handed operation in busy environments.
 - **Advanced Analytics:** Real-time tracking of sales, inventory, and "utang" (credit).
 - **Joyful Growth Palette:** High-energy Turquoise (#06B6D4) and Sunflower Yellow (#FACC15) UI to drive positive business outcomes.
-- **Antigravity Experience:** Lightweight, fast, and intuitive interactions designed for the Filipino market. Features "floating" UI elements and seamless transitions.
+- **Antigravity Experience:** Lightweight, fast, and intuitive interactions. Features "floating" UI elements and seamless transitions that feel weightless.
+
+---
+
+## 🛠 Terminal Guide (Step-by-Step)
+
+Follow these steps to get your environment running:
+
+1. **Setup Dependencies**
+   Install all required packages for the Next.js frontend and Firebase/Genkit backend:
+   ```bash
+   npm install
+   ```
+
+2. **Run Development Server**
+   Start the app in development mode with Turbopack for lightning-fast refreshes:
+   ```bash
+   npm run dev
+   ```
+   *Access the app at:* `http://localhost:9002`
+
+3. **Launch AI Developer UI**
+   Start Genkit to build and test AI-powered business insights:
+   ```bash
+   npm run genkit:dev
+   ```
+   *Access Genkit at:* `http://localhost:4000`
+
+4. **Build for Production**
+   Check for type safety and generate a production-ready bundle:
+   ```bash
+   npm run build
+   ```
 
 ---
 
@@ -25,32 +57,6 @@ Katuwang Solutions is a mobile-first, multi-tenant SaaS platform designed to mod
 - **Styling:** Tailwind CSS + ShadCN UI
 - **Backend:** Firebase (Auth, Firestore)
 - **AI Integration:** Google Genkit (for advanced business insights)
-
----
-
-## 🚀 Getting Started
-
-1. **Install Dependencies:**
-   ```bash
-   npm install
-   ```
-
-2. **Environment Setup:**
-   Create a `.env.local` file with your Firebase and Google AI credentials:
-   ```env
-   NEXT_PUBLIC_FIREBASE_API_KEY=...
-   GEMINI_API_KEY=...
-   ```
-
-3. **Run Development Server:**
-   ```bash
-   npm run dev
-   ```
-
-4. **Run Genkit UI (for AI Workflows):**
-   ```bash
-   npm run genkit:dev
-   ```
 
 ---
 
