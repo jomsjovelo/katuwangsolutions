@@ -1,36 +1,34 @@
 "use client"
 
+import React, { useState, useEffect } from 'react';
 import TenantDashboard from './dashboard/page';
 import AdminKillSwitch from './admin/page';
-import React, { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { 
-  Handshake, 
-  ChevronRight, 
-  ShoppingCart, 
-  Leaf, 
-  Hammer, 
-  Sprout, 
-  Utensils, 
-  Coffee, 
-  UtensilsCrossed, 
-  RotateCcw, 
-  Droplets, 
-  Sparkles, 
-  Sun, 
-  Wrench, 
-  Banknote, 
-  BookText, 
-  Truck,
-  Layers,
-  BarChart3,
-  Globe,
-  Zap
-} from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { Handshake, ShoppingCart, Leaf, Hammer, Sprout, Utensils, Coffee, UtensilsCrossed, RotateCcw, Droplets, Sparkles, Sun, Wrench, Banknote, BookText, Truck } from 'lucide-react';
+import { Hero } from '@/components/marketing/hero';
+import { SocialProofBar } from '@/components/marketing/social-proof-bar';
+import { Features } from '@/components/marketing/features';
+import { Testimonials } from '@/components/marketing/testimonials';
+import { PricingCta } from '@/components/marketing/pricing-cta';
+import { AppCard } from '@/components/marketing/app-card';
+
+const appModules = [
+  { name: 'Benta Snap', icon: ShoppingCart, category: 'Retail', tagline: 'I-snap ang benta, real-time.', imageSrc: '/apps/benta-snap.png' },
+  { name: 'Fresh Tally', icon: Leaf, category: 'Retail', tagline: 'Alamin ang stock mo agad.', imageSrc: '/apps/fresh-tally.png' },
+  { name: 'Build Stack', icon: Hammer, category: 'Retail', tagline: 'I-track ang materyales, walang sayang.', imageSrc: '/apps/build-stack.png' },
+  { name: 'Ani Grow', icon: Sprout, category: 'Retail', tagline: 'Mula sa bukid hanggang bodega.', imageSrc: '/apps/ani-grow.png' },
+  { name: 'Bite Snap', icon: Utensils, category: 'Food', tagline: 'Order, bayad, at resibo — in seconds.', imageSrc: '/apps/bite-snap.png' },
+  { name: 'Timpla Track', icon: Coffee, category: 'Food', tagline: 'Cafe operations, simplified.', imageSrc: '/apps/timpla-track.png' },
+  { name: 'Handa Flow', icon: UtensilsCrossed, category: 'Food', tagline: 'I-manage ang event, walang stress.', imageSrc: '/apps/handa-flow.png' },
+  { name: 'Spin Snap', icon: RotateCcw, category: 'Service', tagline: 'Track laundry orders ng wala kang effort.', imageSrc: '/apps/spin-snap.png' },
+  { name: 'Hydro Sync', icon: Droplets, category: 'Service', tagline: 'I-manage ang deliveries mo, auto.', imageSrc: '/apps/hydro-sync.png' },
+  { name: 'Shine Sync', icon: Sparkles, category: 'Service', tagline: 'Track slots. Track bayad. Maliwanag.', imageSrc: '/apps/shine-sync.png' },
+  { name: 'Glow Sync', icon: Sun, category: 'Service', tagline: 'Booking at bayad, sa isang lugar.', imageSrc: '/apps/glow-sync.png' },
+  { name: 'Rep Sync', icon: Wrench, category: 'Service', tagline: 'Membership. Attendance. Payments.', imageSrc: '/apps/rep-sync.png' },
+  { name: 'Sahod Flow', icon: Banknote, category: 'Business', tagline: 'Tama ang sahod, on time palagi.', imageSrc: '/apps/sahod-flow.png' },
+  { name: 'Ledger Flow', icon: BookText, category: 'Business', tagline: 'Panoorin ang pera mo lumago.', imageSrc: '/apps/ledger-flow.png' },
+  { name: 'Biyahe Sync', icon: Truck, category: 'Business', tagline: 'Track biyahe, real-time.', imageSrc: '/apps/biyahe-sync.png' },
+];
 
 export default function Home() {
   const [view, setView] = useState<'landing' | 'admin' | 'tenant'>('landing');
@@ -51,182 +49,53 @@ export default function Home() {
     );
   }
 
-  const heroImageSrc = '/katuwang-partnership.png';
-
-  const appGrid = [
-    { name: 'Benta Snap', icon: ShoppingCart, category: 'Retail' },
-    { name: 'Fresh Tally', icon: Leaf, category: 'Retail' },
-    { name: 'Build Stack', icon: Hammer, category: 'Retail' },
-    { name: 'Ani Grow', icon: Sprout, category: 'Retail' },
-    { name: 'Bite Snap', icon: Utensils, category: 'Food' },
-    { name: 'Timpla Track', icon: Coffee, category: 'Food' },
-    { name: 'Handa Flow', icon: UtensilsCrossed, category: 'Food' },
-    { name: 'Spin Snap', icon: RotateCcw, category: 'Service' },
-    { name: 'Hydro Sync', icon: Droplets, category: 'Service' },
-    { name: 'Shine Sync', icon: Sparkles, category: 'Service' },
-    { name: 'Glow Sync', icon: Sun, category: 'Service' },
-    { name: 'Rep Sync', icon: Wrench, category: 'Service' },
-    { name: 'Sahod Flow', icon: Banknote, category: 'Business' },
-    { name: 'Ledger Flow', icon: BookText, category: 'Business' },
-    { name: 'Biyahe Sync', icon: Truck, category: 'Business' },
-  ];
-
   if (view === 'landing') {
     return (
-      <div className="flex-1 bg-white flex flex-col overflow-x-hidden font-body">
-        <header className="flex justify-between items-center p-6 border-b border-border/5">
-          <div className="flex items-center gap-2">
-            <Handshake className="h-6 w-6 text-[#06B6D4]" strokeWidth={1} />
-            <div className="flex flex-col">
-              <span className="text-xs font-bold tracking-[0.1em] text-[#06B6D4] uppercase leading-none">
-                Katuwang
-              </span>
-              <span className="text-[8px] font-light uppercase tracking-[0.3em] text-[#94A3B8] mt-1">
-                Solutions
-              </span>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-1">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="text-[10px] font-bold h-8 px-3 rounded-md text-[#1E293B] hover:bg-slate-50 uppercase tracking-widest"
-              onClick={() => setView('tenant')}
-            >
-              Portal
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="text-[10px] font-bold h-8 px-3 rounded-md text-[#1E293B] hover:bg-slate-50 uppercase tracking-widest"
-              onClick={() => setView('admin')}
-            >
-              Admin
-            </Button>
-          </div>
-        </header>
+      <div className="flex-1 bg-white flex flex-col overflow-x-hidden font-body selection:bg-primary/20 selection:text-primary">
+        
+        <Hero 
+          onEnterPortal={() => setView('tenant')} 
+          onAdminLogin={() => setView('admin')} 
+        />
+        
+        <SocialProofBar />
 
-        <main className="flex-1 flex flex-col">
-          <section className="p-8 text-center py-12 flex flex-col items-center">
-            <div className="space-y-6 max-w-[340px] mb-8">
-              <Badge variant="outline" className="rounded-full border-transparent bg-[#FEF9C3] px-6 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#713F12]">
-                <Zap className="h-3 w-3 mr-2 inline" />
-                Mura. Mabilis. Maaasahan.
-              </Badge>
-              
-              <h1 className="text-4xl font-bold text-[#1E293B] leading-[1.15] tracking-tight">
-                Ang Katuwang ng Negosyo Mo.
-              </h1>
-              <p className="text-[#475569] text-[15px] leading-[1.6] opacity-90">
-                Upgrade your daily operations. Walang kahirap-hirap na sales, inventory, at utang tracking para sa mga tindahan, palengke, at services.
-              </p>
-            </div>
-
-            <div className="w-full space-y-4 px-4 mb-10">
-              <Button 
-                className={cn(
-                  "w-full h-16 rounded-[12px] text-lg font-bold bg-gradient-to-r from-[#06B6D4] to-[#0891B2] text-white hover:opacity-95 transition-all active:scale-[0.98] joy-glow flex items-center justify-between px-6 border-none"
-                )}
-                onClick={() => setView('tenant')}
-              >
-                <span className="tracking-tight">Magsimula Ngayon</span>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-xs font-medium line-through text-white/50">₱199</span>
-                    <span className="text-sm font-bold text-[#FACC15] tracking-tight">₱99/month</span>
-                  </div>
-                  <ChevronRight className="h-4 w-4 opacity-80" />
-                </div>
-              </Button>
-              <p className="text-[10px] text-[#94A3B8] uppercase tracking-[0.2em] font-semibold">
-                Walang setup fee. Cancel anytime.
-              </p>
-            </div>
-
-            <div className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl mb-10 relative aspect-[4/3] bg-slate-50">
-              <Image 
-                src={heroImageSrc} 
-                alt="Katuwang Mobile Interface"
-                fill
-                className="object-cover"
-                data-ai-hint="market vendor"
-                priority
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent pointer-events-none flex flex-col justify-end p-6">
-                <p className="text-white text-[10px] font-bold tracking-[0.3em] uppercase opacity-90 drop-shadow-md">
-                  Kasama mo sa bawat hakbang.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <section className="px-6 py-16 bg-slate-50/50">
-            <div className="text-center mb-10 space-y-2">
-              <h2 className="text-2xl font-bold text-[#1E293B] tracking-tight">Katuwang App Suite</h2>
-              <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">15 Industry Specific Modules</p>
+        <section id="products" className="py-24 md:py-32 px-6 bg-white">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-16 md:mb-24 space-y-4">
+              <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight">Katuwang App Suite</h2>
+              <p className="text-sm md:text-base text-slate-500 font-bold uppercase tracking-[0.2em]">15 Industry Specific Modules</p>
             </div>
             
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-              {appGrid.map((app, index) => (
-                <div 
-                  key={app.name} 
-                  className={cn(
-                    "bg-white border border-border/50 p-4 rounded-xl flex flex-col items-center justify-center text-center space-y-3 transition-transform cursor-default group"
-                  )}
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  <div className="p-3 bg-slate-50 rounded-full group-hover:bg-[#06B6D4]/10 transition-colors">
-                    <app.icon className="h-5 w-5 text-[#06B6D4]" strokeWidth={1.5} />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="text-[10px] font-bold text-[#06B6D4] uppercase tracking-tighter">{app.name}</div>
-                    <div className="text-[8px] text-muted-foreground font-black uppercase tracking-widest opacity-60">{app.category}</div>
-                  </div>
-                </div>
+            <div className="flex flex-col gap-8 md:gap-16">
+              {appModules.map((app, index) => (
+                <AppCard 
+                  key={app.name}
+                  {...app}
+                  onSelect={() => setView('tenant')}
+                  reverse={index % 2 !== 0}
+                />
               ))}
             </div>
-          </section>
+          </div>
+        </section>
 
-          <section className="px-8 py-20 space-y-16">
-            <div className="grid gap-12">
-              <div className="flex flex-col items-center text-center space-y-4">
-                <div className="p-4 bg-[#06B6D4]/5 rounded-2xl joy-glow">
-                  <Globe className="h-8 w-8 text-[#06B6D4]" />
-                </div>
-                <h3 className="text-xl font-bold uppercase tracking-tighter">Unified Ecosystem</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">One login for all your business apps. Seamlessly switch between retail, payroll, and logistics without missing a beat.</p>
-              </div>
+        <Features />
+        
+        <Testimonials />
 
-              <div className="flex flex-col items-center text-center space-y-4">
-                <div className="p-4 bg-[#FACC15]/5 rounded-2xl joy-glow-yellow">
-                  <BarChart3 className="h-8 w-8 text-[#FACC15]" />
-                </div>
-                <h3 className="text-xl font-bold uppercase tracking-tighter">Advanced Analytics</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">Real-time sales and inventory tracking. Get deep insights into your business performance with automated reporting.</p>
-              </div>
+        <PricingCta onEnterPortal={() => setView('tenant')} />
 
-              <div className="flex flex-col items-center text-center space-y-4">
-                <div className="p-4 bg-[#06B6D4]/5 rounded-2xl joy-glow">
-                  <Layers className="h-8 w-8 text-[#06B6D4]" />
-                </div>
-                <h3 className="text-xl font-bold uppercase tracking-tighter">Deep Industry Solutions</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">Bespoke tools designed specifically for the Filipino market. From wet markets to hardware stores, we have you covered.</p>
-              </div>
+        <footer className="py-12 md:py-16 bg-slate-950 border-t border-slate-900">
+          <div className="max-w-6xl mx-auto px-6 text-center flex flex-col items-center gap-6">
+            <div className="flex items-center gap-2 grayscale opacity-50">
+              <Handshake className="h-6 w-6 text-white" strokeWidth={1.5} />
+              <span className="text-sm font-black tracking-[0.1em] text-white uppercase">Katuwang</span>
             </div>
-
-            <div className="flex flex-col gap-4">
-              <Button className="h-14 rounded-xl font-bold bg-[#1E293B] text-white joy-glow active:scale-95 transition-transform" onClick={() => setView('tenant')}>
-                Enter Portal
-              </Button>
-            </div>
-          </section>
-        </main>
-
-        <footer className="p-8 mt-auto border-t border-border/10 bg-slate-50/30">
-          <p className="text-[#94A3B8] text-[8px] font-bold uppercase tracking-[0.4em] opacity-40 text-center leading-loose">
-            Katuwang Solutions<br/>Enterprise Grade Framework v1.2
-          </p>
+            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em] leading-loose max-w-sm">
+              Katuwang Solutions<br/>Enterprise Grade Framework v1.2<br/>&copy; {new Date().getFullYear()} All Rights Reserved.
+            </p>
+          </div>
         </footer>
       </div>
     );
@@ -236,7 +105,7 @@ export default function Home() {
     <div className="flex-1 relative font-body">
       {view === 'admin' ? <AdminKillSwitch /> : <TenantDashboard />}
       <div className="absolute top-4 right-4 z-[9999]">
-         <Button variant="secondary" size="sm" onClick={() => setView('landing')} className="rounded-full font-bold shadow-md h-8 text-[10px] bg-white hover:bg-slate-50 text-[#06B6D4] border border-[#06B6D4]/10">
+         <Button variant="secondary" size="sm" onClick={() => setView('landing')} className="rounded-full font-bold shadow-md h-8 text-[10px] bg-white hover:bg-slate-50 text-primary border border-primary/10">
             EXIT
          </Button>
       </div>
