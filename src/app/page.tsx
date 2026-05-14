@@ -13,7 +13,7 @@ export default function Home() {
   if (view === 'landing') {
     return (
       <TenantProvider>
-        <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 space-y-12">
+        <div className="flex-1 bg-background flex flex-col items-center justify-center p-6 space-y-12">
           <div className="text-center space-y-4">
             <div className="flex justify-center mb-6">
               <div className="bg-primary p-4 rounded-3xl shadow-2xl shadow-primary/20">
@@ -24,9 +24,9 @@ export default function Home() {
             <h2 className="text-2xl font-headline font-bold text-muted-foreground uppercase tracking-widest">Solutions</h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl">
+          <div className="flex flex-col gap-4 w-full px-2">
             <Button 
-              className="h-32 rounded-3xl text-xl font-bold flex flex-col gap-2 group border-2 border-transparent hover:border-primary transition-all"
+              className="w-full h-32 rounded-3xl text-xl font-bold flex flex-col gap-2 group border-2 border-transparent hover:border-primary transition-all shadow-lg active:scale-95"
               onClick={() => setView('tenant')}
             >
               <LayoutDashboard className="h-8 w-8 text-primary group-hover:scale-110 transition-transform" />
@@ -34,7 +34,7 @@ export default function Home() {
             </Button>
             <Button 
               variant="outline"
-              className="h-32 rounded-3xl text-xl font-bold flex flex-col gap-2 group bg-secondary/20"
+              className="w-full h-32 rounded-3xl text-xl font-bold flex flex-col gap-2 group bg-secondary/20 border-border hover:border-chart-2 transition-all shadow-lg active:scale-95"
               onClick={() => setView('admin')}
             >
               <Database className="h-8 w-8 text-chart-2 group-hover:scale-110 transition-transform" />
@@ -42,8 +42,8 @@ export default function Home() {
             </Button>
           </div>
 
-          <p className="text-muted-foreground text-sm font-medium opacity-50">
-            Powered by Isolation Shield Architecture & SnapDate UI
+          <p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em] opacity-50 text-center">
+            Isolation Shield Architecture<br/>SnapDate UI v1.0
           </p>
         </div>
       </TenantProvider>
@@ -52,11 +52,13 @@ export default function Home() {
 
   return (
     <TenantProvider>
-      {view === 'admin' ? <AdminKillSwitch /> : <TenantDashboard />}
-      <div className="fixed top-4 right-4 z-[9999]">
-         <Button variant="secondary" size="sm" onClick={() => setView('landing')} className="rounded-full font-bold">
-            Exit Session
-         </Button>
+      <div className="flex-1 relative">
+        {view === 'admin' ? <AdminKillSwitch /> : <TenantDashboard />}
+        <div className="absolute top-4 right-4 z-[9999]">
+           <Button variant="secondary" size="sm" onClick={() => setView('landing')} className="rounded-full font-bold shadow-md">
+              Exit
+           </Button>
+        </div>
       </div>
     </TenantProvider>
   );
