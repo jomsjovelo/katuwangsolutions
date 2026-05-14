@@ -1,7 +1,8 @@
 "use client"
 
 import React, { useState } from 'react';
-import { useTenant, SubscriptionStatus, PricingTier } from '@/app/lib/tenant-context';
+import { useTenant } from '@/app/lib/tenant-context';
+import { cn } from "@/lib/utils";
 import { 
   Table, 
   TableBody, 

@@ -1,6 +1,7 @@
 import type {Metadata} from 'next';
 import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { TenantProvider } from './lib/tenant-context';
 
 export const metadata: Metadata = {
   title: 'Katuwang Solutions | Multi-Tenant SaaS',
@@ -21,10 +22,12 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased bg-zinc-100 flex justify-center min-h-screen overflow-x-hidden">
         <FirebaseClientProvider>
-          {/* Mobile-First Root Wrapper: Max-width 430px with device-mimic frame */}
-          <div className="w-full max-w-[430px] min-h-screen bg-background shadow-[0_0_50px_rgba(0,0,0,0.1)] border-x border-border/50 relative flex flex-col overflow-x-hidden mx-auto">
-            {children}
-          </div>
+          <TenantProvider>
+            {/* Mobile-First Root Wrapper: Max-width 430px with device-mimic frame */}
+            <div className="w-full max-w-[430px] min-h-screen bg-background shadow-[0_0_50px_rgba(0,0,0,0.1)] border-x border-border/50 relative flex flex-col overflow-x-hidden mx-auto">
+              {children}
+            </div>
+          </TenantProvider>
         </FirebaseClientProvider>
       </body>
     </html>

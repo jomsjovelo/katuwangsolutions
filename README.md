@@ -2,77 +2,47 @@
 
 **Industrial-Grade SaaS Framework for Filipino Businesses**
 
-Katuwang Solutions is a mobile-first, multi-tenant SaaS platform designed to modernize micro, small, and medium enterprises (MSMEs) in the Philippines. From wet market vendors to construction hardware stores, Katuwang provides a unified ecosystem of 15+ industry-specific modules.
+Katuwang Solutions is a mobile-first, multi-tenant SaaS platform designed to modernize micro, small, and medium enterprises (MSMEs) in the Philippines.
 
-**GitHub Repository:** [jomsjovelo/katuwangsolutions](https://github.com/jomsjovelo/katuwangsolutions)
-
----
-
-## ✨ Key Features
-
-- **Unified Ecosystem:** One identity across all business modules (Retail, Food, Logistics, Payroll).
-- **Mobile-First Design:** Optimized for 430px viewports, perfect for one-handed operation in busy environments.
-- **Advanced Analytics:** Real-time tracking of sales, inventory, and "utang" (credit).
-- **Joyful Growth Palette:** High-energy Turquoise (#06B6D4) and Sunflower Yellow (#FACC15) UI to drive positive business outcomes.
-- **Antigravity Experience:** Lightweight, fast, and intuitive interactions. Features "floating" UI elements and seamless transitions that feel weightless.
+**GitHub Repository:** [https://github.com/jomsjovelo/katuwangsolutions](https://github.com/jomsjovelo/katuwangsolutions)
 
 ---
 
-## 🛠 Terminal Guide (Step-by-Step)
+## 🚀 What's Next? (Deployment & AI)
 
-Follow these steps to get your environment running:
+### 1. Push to GitHub
+Run these commands in your terminal to sync your code with your repository:
+```bash
+git init
+git remote add origin https://github.com/jomsjovelo/katuwangsolutions.git
+git add .
+git commit -m "Initialize Katuwang Solutions with Mobile-First UI and Firebase"
+git branch -M main
+git push -u origin main
+```
 
-1. **Setup Dependencies**
-   Install all required packages for the Next.js frontend and Firebase/Genkit backend:
-   ```bash
-   npm install
-   ```
-
-2. **Run Development Server**
-   Start the app in development mode with Turbopack for lightning-fast refreshes:
-   ```bash
-   npm run dev
-   ```
-   *Access the app at:* `http://localhost:9002`
-
-3. **Launch AI Developer UI**
-   Start Genkit to build and test AI-powered business insights:
-   ```bash
-   npm run genkit:dev
-   ```
-   *Access Genkit at:* `http://localhost:4000`
-
-4. **Build for Production**
-   Check for type safety and generate a production-ready bundle:
-   ```bash
-   npm run build
-   ```
+### 2. Configure Genkit AI
+To fix the `GEMINI_API_KEY` error:
+1. Go to [Google AI Studio](https://aistudio.google.com/) and create an API Key.
+2. Create a file named `.env` in the root folder.
+3. Add this line: `GEMINI_API_KEY=your_actual_key_here`
 
 ---
 
-## 🛠 Tech Stack
+## 🛠 Terminal Guide (Daily Workflow)
 
-- **Framework:** Next.js 15 (App Router)
-- **Language:** TypeScript
-- **Styling:** Tailwind CSS + ShadCN UI
-- **Backend:** Firebase (Auth, Firestore)
-- **AI Integration:** Google Genkit (for advanced business insights)
-
----
-
-## 📦 Modules Included
-
-- **Benta Snap:** Retail Point of Sale
-- **Fresh Tally:** Market Vendor Inventory
-- **Build Stack:** Hardware & Construction Management
-- **Sahod Flow:** Simplified Payroll
-- **...and 11 more!**
+- **Install Dependencies:** `npm install`
+- **Run Dev Server:** `npm run dev` (Access at port 9002)
+- **Launch AI UI:** `npm run genkit:dev` (Access at port 4000)
+- **Build App:** `npm run build`
 
 ---
 
-## ⚖️ License
-
-Distributed under the MIT License. See `LICENSE` for more information.
+## ✨ Tech Stack & Design
+- **Antigravity Experience:** Lightweight, fast, and intuitive interactions with floating UI elements.
+- **Mobile-First:** Optimized for 430px viewports.
+- **Palette:** Vibrant Turquoise (#06B6D4) and Sunflower Yellow (#FACC15).
+- **Stack:** Next.js 15, Firebase, Genkit, Tailwind, ShadCN UI.
 
 ---
 
