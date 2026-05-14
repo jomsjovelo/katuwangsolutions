@@ -4,39 +4,39 @@
 
 @layer base {
   :root {
-    --background: 0 0% 98%; /* #FAFAFA */
-    --foreground: 217 33% 17%; /* #1E293B */
+    --background: 0 0% 100%; /* Pure White #FFFFFF */
+    --foreground: 222 47% 11%; /* Deep Slate #0F172A */
     --card: 0 0% 100%;
-    --card-foreground: 217 33% 17%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 217 33% 17%;
-    --primary: 25 100% 50%; /* #FF6B00 */
+    --popover-foreground: 222 47% 11%;
+    --primary: 243 75% 59%; /* Electric Indigo #4F46E5 */
     --primary-foreground: 0 0% 100%;
-    --secondary: 191 100% 42%; /* #00B4D8 */
+    --secondary: 243 75% 59%; /* Indigo secondary */
     --secondary-foreground: 0 0% 100%;
-    --muted: 215 16% 95%;
-    --muted-foreground: 215 16% 47%; /* #475569 */
-    --accent: 25 100% 50%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 337 77% 42%; /* Electric Pink #BE185D */
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 215 16% 90%;
-    --input: 215 16% 90%;
-    --ring: 25 100% 50%;
-    --chart-1: 25 100% 50%;
-    --chart-2: 191 100% 42%;
-    --chart-3: 201 79% 32%;
-    --chart-4: 43 94% 56%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 243 75% 59%;
+    --chart-1: 243 75% 59%;
+    --chart-2: 337 77% 42%;
+    --chart-3: 199 89% 48%;
+    --chart-4: 47 93% 58%;
     --chart-5: 0 84.2% 60.2%;
-    --radius: 0.75rem;
+    --radius: 0.5rem; /* Sleek 8px */
     --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 217 33% 17%;
-    --sidebar-primary: 25 100% 50%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 243 75% 59%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 215 16% 95%;
-    --sidebar-accent-foreground: 217 33% 17%;
-    --sidebar-border: 215 16% 90%;
-    --sidebar-ring: 25 100% 50%;
+    --sidebar-accent: 210 40% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 243 75% 59%;
   }
 }
 
@@ -52,7 +52,7 @@
   }
 }
 
-/* Custom Utilities for SnapDate */
+/* Custom Utilities */
 .snapdate-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -62,4 +62,20 @@
 .touch-target-48 {
   min-height: 48px;
   min-width: 48px;
+}
+
+.glow-text {
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
+}
+
+.cta-shadow {
+  box-shadow: 0 10px 15px -3px rgba(79, 102, 229, 0.3);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
