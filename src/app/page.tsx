@@ -1,3 +1,4 @@
+
 "use client"
 
 import { TenantProvider } from './lib/tenant-context';
@@ -5,7 +6,7 @@ import TenantDashboard from './dashboard/page';
 import AdminKillSwitch from './admin/page';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Shield, LayoutDashboard, Database } from 'lucide-react';
+import { Handshake, LayoutDashboard, Database } from 'lucide-react';
 
 export default function Home() {
   const [view, setView] = useState<'landing' | 'admin' | 'tenant'>('landing');
@@ -13,38 +14,47 @@ export default function Home() {
   if (view === 'landing') {
     return (
       <TenantProvider>
-        <div className="flex-1 bg-background flex flex-col items-center justify-center p-6 space-y-12">
-          <div className="text-center space-y-4">
-            <div className="flex justify-center mb-6">
-              <div className="bg-primary p-4 rounded-3xl shadow-2xl shadow-primary/20">
-                <Shield className="h-16 w-16 text-white" />
-              </div>
+        <div className="flex-1 bg-background flex flex-col items-center justify-center p-8 space-y-20">
+          <div className="text-center space-y-8">
+            <div className="flex justify-center">
+              <Handshake 
+                className="h-20 w-20 text-primary" 
+                strokeWidth={1.5} 
+              />
             </div>
-            <h1 className="text-6xl font-headline font-black tracking-tighter uppercase leading-none italic">Katuwang</h1>
-            <h2 className="text-2xl font-headline font-bold text-muted-foreground uppercase tracking-widest">Solutions</h2>
+            <div className="space-y-2">
+              <h1 className="text-5xl font-headline font-bold tracking-[0.2em] text-foreground uppercase">
+                Katuwang
+              </h1>
+              <h2 className="text-sm font-headline font-normal uppercase tracking-[0.4em] text-[#266867]">
+                Solutions
+              </h2>
+            </div>
           </div>
 
-          <div className="flex flex-col gap-4 w-full px-2">
+          <div className="flex flex-col gap-6 w-full px-4">
             <Button 
-              className="w-full h-32 rounded-3xl text-xl font-bold flex flex-col gap-2 group border-2 border-transparent hover:border-primary transition-all shadow-lg active:scale-95"
+              className="w-full h-16 rounded-[12px] text-lg font-bold flex items-center justify-center gap-3 bg-primary text-white hover:bg-primary/90 transition-all active:scale-[0.98] shadow-xl shadow-primary/10"
               onClick={() => setView('tenant')}
             >
-              <LayoutDashboard className="h-8 w-8 text-primary group-hover:scale-110 transition-transform" />
+              <LayoutDashboard className="h-5 w-5" />
               Tenant Portal
             </Button>
             <Button 
               variant="outline"
-              className="w-full h-32 rounded-3xl text-xl font-bold flex flex-col gap-2 group bg-secondary/20 border-border hover:border-chart-2 transition-all shadow-lg active:scale-95"
+              className="w-full h-16 rounded-[12px] text-lg font-bold flex items-center justify-center gap-3 bg-transparent border-[#266867] text-white hover:bg-[#266867]/10 transition-all active:scale-[0.98]"
               onClick={() => setView('admin')}
             >
-              <Database className="h-8 w-8 text-chart-2 group-hover:scale-110 transition-transform" />
+              <Database className="h-5 w-5 text-[#266867]" />
               Admin Control
             </Button>
           </div>
 
-          <p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em] opacity-50 text-center">
-            Isolation Shield Architecture<br/>SnapDate UI v1.0
-          </p>
+          <div className="pt-12">
+            <p className="text-muted-foreground text-[9px] font-bold uppercase tracking-[0.3em] opacity-40 text-center">
+              Isolation Shield Architecture<br/>Enterprise Grade v1.0
+            </p>
+          </div>
         </div>
       </TenantProvider>
     );
