@@ -29,33 +29,50 @@
     --chart-4: 47 93% 58%;
     --chart-5: 0 84.2% 60.2%;
     --radius: 0.75rem;
+
+    /* Safe area insets for PWA / iPhone notch support */
+    --sat: env(safe-area-inset-top, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
   }
 }
 
 @layer base {
   * {
     @apply border-border;
+    /* Remove browser tap highlight — makes touch feel native */
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+  html {
+    scroll-behavior: smooth;
+    overscroll-behavior: none;
   }
   body {
     @apply bg-background text-foreground font-body;
+    -webkit-overflow-scrolling: touch;
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-headline;
   }
 }
 
-.joy-glow {
-  box-shadow: 0 15px 30px -10px rgba(6, 182, 212, 0.4);
-}
+/* ── Safe area padding utilities ── */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+.mb-safe { margin-bottom: env(safe-area-inset-bottom, 0px); }
 
-.joy-glow-yellow {
-  box-shadow: 0 15px 30px -10px rgba(250, 204, 21, 0.4);
-}
+/* ── Space for fixed bottom nav (56px nav + safe area) ── */
+.pb-nav { padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 16px); }
 
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+/* ── No scrollbar (for carousels) ── */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Joy glow effects ── */
+.joy-glow { box-shadow: 0 15px 30px -10px rgba(6, 182, 212, 0.4); }
+.joy-glow-yellow { box-shadow: 0 15px 30px -10px rgba(250, 204, 21, 0.4); }
+
+/* ── Tap press feedback ── */
+.tap-target { @apply active:scale-95 transition-transform duration-100; }
