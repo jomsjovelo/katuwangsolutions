@@ -4,6 +4,8 @@
 
 Katuwang Solutions is a mobile-first, multi-tenant SaaS platform designed to modernize micro, small, and medium enterprises (MSMEs) in the Philippines. From wet market vendors to construction hardware stores, Katuwang provides a unified ecosystem of 15+ industry-specific modules.
 
+**GitHub Repository:** [jomsjovelo/katuwangsolutions](https://github.com/jomsjovelo/katuwangsolutions)
+
 ---
 
 ## ✨ Key Features
@@ -11,8 +13,8 @@ Katuwang Solutions is a mobile-first, multi-tenant SaaS platform designed to mod
 - **Unified Ecosystem:** One identity across all business modules (Retail, Food, Logistics, Payroll).
 - **Mobile-First Design:** Optimized for 430px viewports, perfect for one-handed operation in busy environments.
 - **Advanced Analytics:** Real-time tracking of sales, inventory, and "utang" (credit).
-- **Joyful Growth Palette:** High-energy Turquoise and Sunflower Yellow UI to drive positive business outcomes.
-- **Antigravity Experience:** Lightweight, fast, and intuitive interactions designed for the Filipino market.
+- **Joyful Growth Palette:** High-energy Turquoise (#06B6D4) and Sunflower Yellow (#FACC15) UI to drive positive business outcomes.
+- **Antigravity Experience:** Lightweight, fast, and intuitive interactions designed for the Filipino market. Features "floating" UI elements and seamless transitions.
 
 ---
 
