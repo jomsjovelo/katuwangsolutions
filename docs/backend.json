@@ -1,0 +1,49 @@
+{
+  "entities": {
+    "Tenant": {
+      "title": "Tenant",
+      "description": "A business entity or module instance in the Katuwang ecosystem.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the business."
+        },
+        "moduleType": {
+          "type": "string",
+          "enum": [
+            "Benta Snap", "Fresh Tally", "Build Stack", "Ani Grow", 
+            "Bite Snap", "Timpla Track", "Handa Flow", 
+            "Spin Snap", "Hydro Sync", "Shine Sync", "Glow Sync", "Rep Sync",
+            "Sahod Flow", "Ledger Flow", "Biyahe Sync", "Admin"
+          ],
+          "description": "The specific Katuwang module being used."
+        },
+        "subscriptionStatus": {
+          "type": "string",
+          "enum": ["active", "suspended", "trial"],
+          "description": "Current billing status."
+        },
+        "pricingTier": {
+          "type": "string",
+          "enum": ["promo_99", "standard_199"],
+          "description": "The current pricing plan."
+        },
+        "ownerUid": {
+          "type": "string",
+          "description": "The Firebase Auth UID of the owner."
+        }
+      },
+      "required": ["name", "moduleType", "subscriptionStatus", "pricingTier", "ownerUid"]
+    }
+  },
+  "auth": {
+    "providers": ["google.com"]
+  },
+  "firestore": {
+    "/tenants/{tenantId}": {
+      "schema": "#/entities/Tenant",
+      "description": "The collection of business tenants."
+    }
+  }
+}
