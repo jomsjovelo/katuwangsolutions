@@ -14,17 +14,19 @@ interface SnapDateProps {
 
 export function SnapDate({ date, onSelect, className }: SnapDateProps) {
   const [month, setMonth] = React.useState<Date | null>(null);
+  const [today, setToday] = React.useState<Date | null>(null);
   
   React.useEffect(() => {
     setMonth(new Date());
+    setToday(startOfToday());
   }, []);
 
-  if (!month) return <div className="h-64 animate-pulse bg-secondary/20 rounded-2xl" />;
+  if (!month || !today) return <div className="h-64 animate-pulse bg-secondary/20 rounded-2xl" />;
 
   const quickChips = [
-    { label: 'Today', value: startOfToday() },
-    { label: 'Yesterday', value: addDays(startOfToday(), -1) },
-    { label: 'Last 7 Days', value: addDays(startOfToday(), -7) },
+    { label: 'Today', value: today },
+    { label: 'Yesterday', value: addDays(today, -1) },
+    { label: 'Last 7 Days', value: addDays(today, -7) },
   ];
 
   const daysInView = Array.from({ length: 35 }).map((_, i) => addDays(month, i - 15));
@@ -79,7 +81,7 @@ export function SnapDate({ date, onSelect, className }: SnapDateProps) {
         <div className="grid grid-cols-7 gap-2">
           {daysInView.map((d, i) => {
             const isSelected = isSameDay(d, date);
-            const isToday = isSameDay(d, new Date());
+            const isToday = isSameDay(d, today);
             return (
               <Button
                 key={i}

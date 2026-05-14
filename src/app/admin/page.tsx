@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { cn } from "@/lib/utils";
 import { 
@@ -29,6 +29,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 export default function AdminKillSwitch() {
   const { allTenants, updateTenantStatus, updateTenantPricing } = useTenant();
   const [search, setSearch] = useState("");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
 
   const filteredTenants = allTenants.filter(t => 
     t.name.toLowerCase().includes(search.toLowerCase()) || 
