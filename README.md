@@ -8,48 +8,44 @@ Katuwang Solutions is a mobile-first, multi-tenant SaaS platform designed to mod
 
 ---
 
-## ✅ Project Status: INITIALIZED & SYNCED
-Your project is now successfully linked to GitHub. You can continue developing locally and push your changes whenever you reach a new milestone.
+## 🛰️ THE ANTIGRAVITY FLIGHT PLAN (Deployment Guide)
 
-### 🚀 What's Next?
+To move your code from GitHub into the live **Antigravity Environment** (Firebase App Hosting), follow these exact steps:
 
-1. **Local Development**
-   - Run `npm run dev` to start the dashboard (Port 9002).
-   - Navigate to `/admin` to use the Owner Control Panel (Kill Switch).
-
-2. **AI-Powered Insights**
-   - Run `npm run genkit:dev` to launch the Genkit UI (Port 4000).
-   - Your `GEMINI_API_KEY` is configured in the `.env` file.
-
-3. **Deploying to the Cloud**
-   - Follow the **Deployment Guide** below to host your app on Firebase.
-
----
-
-## 🛠 Terminal Guide (Quick Reference)
-
-- **Install Dependencies:** `npm install`
-- **Start Dev Server:** `npm run dev`
-- **Launch AI UI:** `npm run genkit:dev`
-- **Push Updates:** `git add . && git commit -m "Your Message" && git push`
-
----
-
-## ☁️ Deployment Guide (Firebase App Hosting)
-
+### 1. Resolve GitHub Permissions
 If you see a "waiting for permissions" error in the Firebase Console:
-1. **Refresh the page** after 60 seconds.
-2. **Click "Connect to GitHub"** again to re-trigger the link.
-3. **Select Repository:** Choose `jomsjovelo/katuwangsolutions`.
-4. **Root Directory:** Keep it as `/` (default).
-5. **App Hosting ID:** Give it a name like `katuwang-prod`.
+- **Click "Connect to GitHub"** again to re-trigger the authorization.
+- In the GitHub popup, ensure you select the `jomsjovelo/katuwangsolutions` repository specifically.
+- **Refresh the Firebase page** after 60 seconds.
+
+### 2. Finalize App Hosting Setup
+- **App Hosting ID:** Use `katuwang-prod`.
+- **Root Directory:** Keep it as `/`.
+- **Environment Variables:** Once the app is created, go to the **Settings** tab in App Hosting and add:
+  - `GEMINI_API_KEY`: `AIzaSyD5dZeMncsVFwkhNFtkH0jnYJSPBZozfYk`
+
+### 3. Automatic "Joy-Glow" Updates
+Every time you run the following commands in your terminal, your live site will automatically rebuild and deploy:
+```bash
+git add .
+git commit -m "Update Antigravity UI"
+git push
+```
+
+---
+
+## 🛠 Terminal Guide (Local Development)
+
+- **Start Dev Server:** `npm run dev` (Port 9002)
+- **Launch AI UI:** `npm run genkit:dev` (Port 4000)
+- **Fix Port Busy Error:** If you see `EADDRINUSE`, run `fuser -k 9002/tcp` or wait 30 seconds.
 
 ---
 
 ## ✨ Design Philosophy
 - **Antigravity Experience:** Floating UI elements and high-energy transitions using Turquoise (#06B6D4) and Sunflower Yellow (#FACC15).
-- **Mobile-First Core:** Specifically architected for the 430px "Palengke" viewport.
-- **Unified Ecosystem:** 15 industry-specific modules running on a single, secure multi-tenant backbone.
+- **Mobile-First Core:** Optimized for the 430px "Palengke" viewport.
+- **Unified Ecosystem:** 15 industry-specific modules on a secure multi-tenant backbone.
 
 ---
 

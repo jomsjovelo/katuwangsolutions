@@ -23,7 +23,11 @@ export function SnapDate({ date, onSelect, className }: SnapDateProps) {
     setMounted(true);
   }, []);
 
-  if (!mounted || !month || !today) return <div className="h-64 animate-pulse bg-secondary/20 rounded-2xl" />;
+  if (!mounted || !month || !today) return (
+    <div className="w-full h-64 bg-secondary/10 rounded-2xl animate-pulse flex items-center justify-center">
+      <span className="text-xs text-muted-foreground font-black uppercase tracking-widest">Loading Calendar...</span>
+    </div>
+  );
 
   const quickChips = [
     { label: 'Today', value: today },
@@ -41,7 +45,7 @@ export function SnapDate({ date, onSelect, className }: SnapDateProps) {
             key={chip.label}
             variant={isSameDay(date, chip.value) ? "default" : "secondary"}
             size="sm"
-            className="rounded-full whitespace-nowrap touch-target-48 px-6 font-medium"
+            className="rounded-full whitespace-nowrap px-6 font-medium h-10"
             onClick={() => onSelect(chip.value)}
           >
             {chip.label}
@@ -58,23 +62,23 @@ export function SnapDate({ date, onSelect, className }: SnapDateProps) {
             <Button
               variant="outline"
               size="icon"
-              className="touch-target-48 rounded-xl"
+              className="h-10 w-10 rounded-xl"
               onClick={() => setMonth(addDays(month, -30))}
             >
-              <ChevronLeft className="h-6 w-6" />
+              <ChevronLeft className="h-5 w-5" />
             </Button>
             <Button
               variant="outline"
               size="icon"
-              className="touch-target-48 rounded-xl"
+              className="h-10 w-10 rounded-xl"
               onClick={() => setMonth(addDays(month, 30))}
             >
-              <ChevronRight className="h-6 w-6" />
+              <ChevronRight className="h-5 w-5" />
             </Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-7 gap-2 text-center text-xs font-bold text-muted-foreground mb-2">
+        <div className="grid grid-cols-7 gap-2 text-center text-[10px] font-black text-muted-foreground mb-2">
           {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
             <div key={i}>{d}</div>
           ))}
@@ -89,7 +93,7 @@ export function SnapDate({ date, onSelect, className }: SnapDateProps) {
                 key={i}
                 variant={isSelected ? "default" : "ghost"}
                 className={cn(
-                  "touch-target-48 p-0 h-12 w-full rounded-xl transition-all font-medium",
+                  "p-0 h-10 w-full rounded-xl transition-all font-medium",
                   isSelected && "bg-primary text-primary-foreground scale-105 shadow-lg",
                   !isSelected && isToday && "text-primary border border-primary/20",
                   !isSelected && !isToday && "text-foreground hover:bg-secondary"
@@ -103,7 +107,7 @@ export function SnapDate({ date, onSelect, className }: SnapDateProps) {
         </div>
 
         <div className="mt-8 flex justify-center pt-4 border-t border-border/50">
-          <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
             Selected: {format(date, "PPP")}
           </p>
         </div>

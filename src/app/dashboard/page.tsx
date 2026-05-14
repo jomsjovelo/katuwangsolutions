@@ -36,6 +36,7 @@ export default function TenantDashboard() {
     setSelectedDate(new Date());
   }, []);
 
+  // Prevent hydration mismatch by only rendering after mount
   if (!mounted) {
     return (
       <div className="flex-1 bg-background min-h-screen flex items-center justify-center">
