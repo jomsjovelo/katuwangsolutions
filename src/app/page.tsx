@@ -1,4 +1,3 @@
-
 "use client"
 
 import { TenantProvider } from './lib/tenant-context';
@@ -6,7 +5,7 @@ import TenantDashboard from './dashboard/page';
 import AdminKillSwitch from './admin/page';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Handshake, Database, LayoutDashboard, ChevronRight } from 'lucide-react';
+import { Handshake, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 export default function Home() {
@@ -67,15 +66,18 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Primary High-Visibility CTA */}
+            {/* Primary High-Visibility CTA with Price Anchoring */}
             <div className="w-full space-y-4">
               <Button 
                 className="w-full h-16 rounded-[12px] text-lg font-bold bg-primary text-white hover:bg-primary/90 transition-all active:scale-[0.98] shadow-2xl shadow-primary/20 flex items-center justify-between px-6"
                 onClick={() => setView('tenant')}
               >
                 <span>Magsimula Ngayon</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-normal opacity-80">₱99/month</span>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[10px] font-normal line-through opacity-70">₱199</span>
+                    <span className="text-xs font-bold">₱99/month</span>
+                  </div>
                   <ChevronRight className="h-5 w-5" />
                 </div>
               </Button>
