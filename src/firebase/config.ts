@@ -1,8 +1,12 @@
+import { initializeApp, getApps, getApp } from "firebase/app";
+
 export const firebaseConfig = {
-  apiKey: "AIzaSyD5dZeMncsVFwkhNFtkH0jnYJSPBZozfYk",
+  apiKey: "AIzaSyDcP6Q6qSqWuBcUkSXGQpU-gsH_mlwSYq4",
   authDomain: "studio-5538116689-bdfb2.firebaseapp.com",
   projectId: "studio-5538116689-bdfb2",
   storageBucket: "studio-5538116689-bdfb2.firebasestorage.app",
   messagingSenderId: "329117415291",
   appId: "1:329117415291:web:cf4f536ae994daf68d6fde"
 };
+
+export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();

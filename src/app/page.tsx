@@ -154,7 +154,11 @@ export default function Home() {
                 data-ai-hint="market vendor"
                 priority
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent pointer-events-none flex flex-col justify-end p-6">
+                <p className="text-white text-[10px] font-bold tracking-[0.3em] uppercase opacity-90 drop-shadow-md">
+                  Kasama mo sa bawat hakbang.
+                </p>
+              </div>
             </div>
           </section>
 

@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --- HELPER FUNCTIONS ---
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getTenantData(tenantId) {
+      return get(/databases/$(database)/documents/tenants/$(tenantId)).data;
+    }
+
+    function isMasterAdmin() {
+      // Security: Only allow specific Hardcoded Master UID for system-wide access
+      return isAuthenticated() && request.auth.uid == 'KATUWANG_MASTER_ADMIN_UID';
+    }
+
+    function hasTenantAccess(tenantId) {
+      let tenant = getTenantData(tenantId);
+      return isAuthenticated() && (
+        request.auth.uid == tenant.ownerUid || 
+        request.auth.uid in tenant.staffUids ||
+        isMasterAdmin()
+      );
+    }
+
+    // --- COLLECTION RULES ---
+
+    // 1. Tenants Collection (The Isolation Shield)
+    match /tenants/{tenantId} {
+      // Allow users to read their own tenant metadata
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.ownerUid || 
+        request.auth.uid in resource.data.staffUids ||
+        isMasterAdmin()
+      );
+      
+      // Allow users to create their own tenant document
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.ownerUid;
+      
+      // Only the owner or Master Admin can update the tenant configuration
+      allow update, delete: if isAuthenticated() && (
+        request.auth.uid == resource.data.ownerUid || 
+        isMasterAdmin()
+      );
+
+      // 2. Sub-collections (Universal Inventory, Sales, etc.)
+      match /{allSubcollections=**} {
+        // Strict isolation: Access granted only to verified tenant owners/staff
+        allow read, write: if hasTenantAccess(tenantId);
+      }
+    }
+
+    // 3. System Collection (Internal usage, only Master Admin)
+    match /system/{document=**} {
+      allow read, write: if isMasterAdmin();
+    }
+
+    // 4. Default Deny
+    match /{document=**} {
+      allow read, write: if isMasterAdmin();
+    }
+  }
+}
