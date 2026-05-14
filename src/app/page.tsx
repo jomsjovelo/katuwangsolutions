@@ -6,7 +6,8 @@ import TenantDashboard from './dashboard/page';
 import AdminKillSwitch from './admin/page';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Handshake, LayoutDashboard, Database } from 'lucide-react';
+import { Handshake, Database, LayoutDashboard, ChevronRight } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 export default function Home() {
   const [view, setView] = useState<'landing' | 'admin' | 'tenant'>('landing');
@@ -14,47 +15,82 @@ export default function Home() {
   if (view === 'landing') {
     return (
       <TenantProvider>
-        <div className="flex-1 bg-background flex flex-col items-center justify-center p-8 space-y-20">
-          <div className="text-center space-y-8">
-            <div className="flex justify-center">
-              <Handshake 
-                className="h-20 w-20 text-primary" 
-                strokeWidth={1.5} 
-              />
+        <div className="flex-1 bg-background flex flex-col overflow-x-hidden">
+          {/* Minimalist Header Navigation */}
+          <header className="flex justify-between items-center p-4 border-b border-border/10">
+            <div className="flex items-center gap-2">
+              <Handshake className="h-5 w-5 text-primary" strokeWidth={1} />
+              <div className="flex flex-col">
+                <span className="text-xs font-headline font-bold tracking-widest text-foreground uppercase leading-none">
+                  Katuwang
+                </span>
+                <span className="text-[7px] font-headline font-normal uppercase tracking-[0.2em] text-[#266867]">
+                  Solutions
+                </span>
+              </div>
             </div>
-            <div className="space-y-2">
-              <h1 className="text-5xl font-headline font-bold tracking-[0.2em] text-foreground uppercase">
-                Katuwang
-              </h1>
-              <h2 className="text-sm font-headline font-normal uppercase tracking-[0.4em] text-[#266867]">
-                Solutions
-              </h2>
+            
+            <div className="flex items-center gap-1">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-[10px] font-bold h-8 px-3 rounded-md hover:bg-secondary/50"
+                onClick={() => setView('tenant')}
+              >
+                PORTAL
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-[10px] font-bold h-8 px-3 rounded-md border-[#266867]/30 bg-transparent text-muted-foreground hover:text-white"
+                onClick={() => setView('admin')}
+              >
+                ADMIN
+              </Button>
             </div>
-          </div>
+          </header>
 
-          <div className="flex flex-col gap-6 w-full px-4">
-            <Button 
-              className="w-full h-16 rounded-[12px] text-lg font-bold flex items-center justify-center gap-3 bg-primary text-white hover:bg-primary/90 transition-all active:scale-[0.98] shadow-xl shadow-primary/10"
-              onClick={() => setView('tenant')}
-            >
-              <LayoutDashboard className="h-5 w-5" />
-              Tenant Portal
-            </Button>
-            <Button 
-              variant="outline"
-              className="w-full h-16 rounded-[12px] text-lg font-bold flex items-center justify-center gap-3 bg-transparent border-[#266867] text-white hover:bg-[#266867]/10 transition-all active:scale-[0.98]"
-              onClick={() => setView('admin')}
-            >
-              <Database className="h-5 w-5 text-[#266867]" />
-              Admin Control
-            </Button>
-          </div>
+          {/* Hero Marketing Section */}
+          <main className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-10">
+            <div className="space-y-6">
+              <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-4 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-primary">
+                Mura. Mabilis. Maaasahan.
+              </Badge>
+              
+              <div className="space-y-4">
+                <h1 className="text-5xl font-headline font-bold text-white leading-tight tracking-tighter">
+                  Ang Katuwang ng Negosyo Mo.
+                </h1>
+                <p className="text-muted-foreground text-sm max-w-[320px] mx-auto leading-relaxed">
+                  Upgrade your daily operations. Walang kahirap-hirap na sales, inventory, at utang tracking para sa mga tindahan, palengke, at services.
+                </p>
+              </div>
+            </div>
 
-          <div className="pt-12">
-            <p className="text-muted-foreground text-[9px] font-bold uppercase tracking-[0.3em] opacity-40 text-center">
-              Isolation Shield Architecture<br/>Enterprise Grade v1.0
+            {/* Primary High-Visibility CTA */}
+            <div className="w-full space-y-4">
+              <Button 
+                className="w-full h-16 rounded-[12px] text-lg font-bold bg-primary text-white hover:bg-primary/90 transition-all active:scale-[0.98] shadow-2xl shadow-primary/20 flex items-center justify-between px-6"
+                onClick={() => setView('tenant')}
+              >
+                <span>Magsimula Ngayon</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-normal opacity-80">₱99/month</span>
+                  <ChevronRight className="h-5 w-5" />
+                </div>
+              </Button>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">
+                Walang setup fee. Cancel anytime.
+              </p>
+            </div>
+          </main>
+
+          {/* Footer Branding */}
+          <footer className="p-8 border-t border-border/5">
+            <p className="text-muted-foreground text-[8px] font-bold uppercase tracking-[0.3em] opacity-30 text-center">
+              Katuwang Isolation Shield<br/>Enterprise Grade Framework v1.0
             </p>
-          </div>
+          </footer>
         </div>
       </TenantProvider>
     );
@@ -65,8 +101,8 @@ export default function Home() {
       <div className="flex-1 relative">
         {view === 'admin' ? <AdminKillSwitch /> : <TenantDashboard />}
         <div className="absolute top-4 right-4 z-[9999]">
-           <Button variant="secondary" size="sm" onClick={() => setView('landing')} className="rounded-full font-bold shadow-md">
-              Exit
+           <Button variant="secondary" size="sm" onClick={() => setView('landing')} className="rounded-full font-bold shadow-md h-8 text-[10px]">
+              EXIT
            </Button>
         </div>
       </div>
