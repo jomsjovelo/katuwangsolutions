@@ -24,8 +24,11 @@ export function FirebaseProvider({
   db: Firestore;
   auth: Auth;
 }) {
+  // Use useMemo to stabilize the context value and prevent unnecessary re-renders.
+  const value = React.useMemo(() => ({ app, db, auth }), [app, db, auth]);
+
   return (
-    <FirebaseContext.Provider value={{ app, db, auth }}>
+    <FirebaseContext.Provider value={value}>
       {children}
     </FirebaseContext.Provider>
   );
@@ -33,7 +36,9 @@ export function FirebaseProvider({
 
 export function useFirebase() {
   const context = useContext(FirebaseContext);
-  if (!context) throw new Error('useFirebase must be used within a FirebaseProvider');
+  if (!context) {
+    throw new Error('useFirebase must be used within a FirebaseProvider');
+  }
   return context;
 }
 

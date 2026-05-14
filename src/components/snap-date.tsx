@@ -1,9 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format, addDays, startOfToday, isSameDay } from "date-fns"
 import { cn } from "@/lib/utils"
 
@@ -14,16 +13,20 @@ interface SnapDateProps {
 }
 
 export function SnapDate({ date, onSelect, className }: SnapDateProps) {
-  const [month, setMonth] = React.useState(new Date());
+  const [month, setMonth] = React.useState<Date | null>(null);
   
+  React.useEffect(() => {
+    setMonth(new Date());
+  }, []);
+
+  if (!month) return <div className="h-64 animate-pulse bg-secondary/20 rounded-2xl" />;
+
   const quickChips = [
     { label: 'Today', value: startOfToday() },
     { label: 'Yesterday', value: addDays(startOfToday(), -1) },
     { label: 'Last 7 Days', value: addDays(startOfToday(), -7) },
   ];
 
-  // Helper to generate a 7-column grid of days for the current month view
-  // For demo, we just show a simplified interaction
   const daysInView = Array.from({ length: 35 }).map((_, i) => addDays(month, i - 15));
 
   return (
@@ -95,7 +98,6 @@ export function SnapDate({ date, onSelect, className }: SnapDateProps) {
           })}
         </div>
 
-        {/* Bottom-weighted navigation for one-handed use */}
         <div className="mt-8 flex justify-center pt-4 border-t border-border/50">
           <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">
             Selected: {format(date, "PPP")}

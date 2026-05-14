@@ -19,10 +19,16 @@ export function FirebaseClientProvider({ children }: { children: React.ReactNode
     setServices({ app, db, auth });
   }, []);
 
-  if (!services) return null;
-
+  // During SSR (Server Side Rendering), services will be null.
+  // We MUST render the children so the server-rendered HTML matches the structure.
+  // The Firebase context will be provided with undefined values initially, 
+  // which will be updated once hydration completes and the services are initialized.
   return (
-    <FirebaseProvider app={services.app} db={services.db} auth={services.auth}>
+    <FirebaseProvider 
+      app={services?.app as any} 
+      db={services?.db as any} 
+      auth={services?.auth as any}
+    >
       {children}
     </FirebaseProvider>
   );

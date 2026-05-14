@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { SnapDate } from '@/components/snap-date';
 import { 
@@ -28,9 +28,12 @@ import { cn } from '@/lib/utils';
 
 export default function TenantDashboard() {
   const { currentTenant, setCurrentTenant, allTenants } = useTenant();
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
-  // If no tenant is selected, show a selector (simulating Dynamic Module Router)
+  useEffect(() => {
+    setSelectedDate(new Date());
+  }, []);
+
   if (!currentTenant) {
     return (
       <div className="flex-1 flex flex-col p-6 bg-background">
@@ -60,7 +63,6 @@ export default function TenantDashboard() {
     );
   }
 
-  // Hardened Billing Gateway check
   if (currentTenant.subscriptionStatus === 'suspended') {
     return (
       <div className="flex-1 flex items-center justify-center p-6 bg-background">
@@ -96,7 +98,6 @@ export default function TenantDashboard() {
     );
   }
 
-  // Mock Universal Inventory Engine Data
   const inventoryItems = [
     { name: "Premium Flour 25kg", stock: 12, min: 20 },
     { name: "Sugar Refined 50kg", stock: 5, min: 10 },
@@ -105,7 +106,6 @@ export default function TenantDashboard() {
 
   return (
     <div className="flex-1 flex flex-col bg-background pb-24">
-      {/* Dynamic Header */}
       <header className="sticky top-0 z-50 bg-secondary/80 backdrop-blur-md border-b border-border px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-primary rounded-lg shadow-lg shadow-primary/20">
@@ -127,16 +127,14 @@ export default function TenantDashboard() {
       </header>
 
       <main className="p-4 space-y-6">
-        {/* Katuwang SnapDate for Mobile Reports */}
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-headline font-bold">Quick Tally</h3>
             <Badge className="bg-chart-2/20 text-chart-2 border-chart-2/40 text-[9px] font-black uppercase">Live</Badge>
           </div>
-          <SnapDate date={selectedDate} onSelect={setSelectedDate} />
+          {selectedDate && <SnapDate date={selectedDate} onSelect={setSelectedDate} />}
         </section>
 
-        {/* Sales Snapshot */}
         <div className="grid grid-cols-2 gap-3">
           <Card className="bg-primary/5 border-primary/20 shadow-none">
             <CardHeader className="p-3 pb-0">
@@ -161,7 +159,6 @@ export default function TenantDashboard() {
           </Card>
         </div>
 
-        {/* Universal Inventory Engine: Low Stock Alerts */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-headline font-bold">Inventory</h3>
@@ -192,7 +189,6 @@ export default function TenantDashboard() {
           </div>
         </section>
 
-        {/* Mobile Navigation Bar (Constrained to Parent) */}
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-48px)] max-w-[382px] flex items-center justify-between bg-secondary/90 backdrop-blur-xl border border-primary/20 p-2 rounded-3xl shadow-2xl z-50">
           <Button variant="ghost" size="icon" className="h-12 w-12 rounded-2xl text-primary">
             <Box className="h-5 w-5" />
