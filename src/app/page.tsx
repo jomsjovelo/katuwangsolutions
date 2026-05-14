@@ -51,8 +51,7 @@ export default function Home() {
     );
   }
 
-  const handshakeImg = PlaceHolderImages.find(img => img.id === 'handshake');
-  const heroImageSrc = handshakeImg?.imageUrl || 'https://picsum.photos/seed/katuwang-fallback/800/600';
+  const heroImageSrc = '/katuwang-partnership.png';
 
   const appGrid = [
     { name: 'Benta Snap', icon: ShoppingCart, category: 'Retail' },
