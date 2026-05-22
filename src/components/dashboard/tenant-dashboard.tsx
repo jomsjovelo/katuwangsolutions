@@ -16,6 +16,7 @@ import { PayrollDashboard } from '@/components/dashboard/finance/payroll-dashboa
 import { FoodDashboard } from '@/components/dashboard/food/food-dashboard';
 import { TimplaDashboard } from '@/components/dashboard/food/timpla-dashboard';
 import { GanapDashboard } from '@/components/dashboard/events/ganap-dashboard';
+import { SpinDashboard } from '@/components/dashboard/service/spin-dashboard';
 import { FleetDashboard } from '@/components/dashboard/logistics/fleet-dashboard';
 import { KatuwangErrorBoundary } from '@/components/common/error-boundary';
 import { SnapDate } from '@/components/snap-date';
@@ -159,7 +160,11 @@ export function TenantDashboard({ activeTab }: { activeTab?: string }) {
       return <HiramDashboard />;
     }
 
-    const serviceModules = ['spin-snap', 'hydro-sync', 'shine-sync', 'glow-sync', 'rep-sync'];
+    if (currentTenant.moduleType === 'spin-snap') {
+      return <SpinDashboard />;
+    }
+
+    const serviceModules = ['hydro-sync', 'shine-sync', 'glow-sync', 'rep-sync'];
     if (serviceModules.includes(currentTenant.moduleType || '')) {
       return <ServiceDashboard />;
     }

@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Package, Truck, HardHat, TrendingUp, Plus } from "lucide-react";
 import { useProjects } from '@/hooks/use-projects';
-import { useInventory } from '@/firebase/firestore/use-inventory';
+import { useInventory } from '@/hooks/use-inventory';
 import { useFirestore } from '@/firebase/provider';
 import { doc, collection, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';

@@ -65,7 +65,7 @@ const appGroups: AppGroup[] = [
     apps: [
       { name: 'Bite Snap',    icon: Utensils,        tagline: 'Order, bayad, at resibo — in seconds.', imageSrc: '/apps/bite-snap.png' },
       { name: 'Timpla Track', icon: Coffee,           tagline: 'Cafe operations, simplified.',          imageSrc: '/apps/timpla-track.png' },
-      { name: 'Ganap Master',   icon: CalendarHeart, tagline: 'Design the venue. Master the event.',     imageSrc: '/apps/ganap-master.png' },
+      { name: 'Ganap Master',   icon: CalendarHeart, tagline: 'Plan the details. Master the event.',     imageSrc: '/apps/ganap-master.png' },
     ],
   },
   {

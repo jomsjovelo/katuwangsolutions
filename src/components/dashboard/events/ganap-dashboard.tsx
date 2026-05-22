@@ -119,7 +119,7 @@ export function GanapDashboard() {
         role: newVendorRole,
         name: newVendorName,
         contact: newVendorContact,
-        status: 'Pending'
+        status: 'Pending' as const
       };
       const updatedVendors = [...(selectedEvent.vendors || []), newVendor];
       
