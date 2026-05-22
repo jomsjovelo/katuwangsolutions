@@ -73,6 +73,26 @@
 /* ── Joy glow effects ── */
 .joy-glow { box-shadow: 0 15px 30px -10px rgba(6, 182, 212, 0.4); }
 .joy-glow-yellow { box-shadow: 0 15px 30px -10px rgba(250, 204, 21, 0.4); }
+.joy-glow-emerald { box-shadow: 0 15px 30px -10px rgba(16, 185, 129, 0.4); }
+.joy-glow-indigo { box-shadow: 0 15px 30px -10px rgba(99, 102, 241, 0.4); }
+.joy-glow-blue { box-shadow: 0 15px 30px -10px rgba(59, 130, 246, 0.4); }
+.joy-glow-blue-deep { box-shadow: 0 15px 30px -10px rgba(37, 99, 235, 0.4); }
+.joy-glow-amber { box-shadow: 0 15px 30px -10px rgba(217, 119, 6, 0.4); }
+.joy-glow-orange { box-shadow: 0 15px 30px -10px rgba(249, 115, 22, 0.4); }
+.joy-glow-red { box-shadow: 0 15px 30px -10px rgba(239, 68, 68, 0.4); }
+.joy-glow-violet { box-shadow: 0 15px 30px -10px rgba(139, 92, 246, 0.4); }
+.joy-glow-sky { box-shadow: 0 15px 30px -10px rgba(2, 132, 199, 0.4); }
+.joy-glow-pink { box-shadow: 0 15px 30px -10px rgba(236, 72, 153, 0.4); }
 
 /* ── Tap press feedback ── */
 .tap-target { @apply active:scale-95 transition-transform duration-100; }
+
+/* ── Barcode Scanner Laser Sweep ── */
+@keyframes laser-sweep {
+  0% { top: 0%; opacity: 0.8; }
+  50% { top: 100%; opacity: 1; }
+  100% { top: 0%; opacity: 0.8; }
+}
+.animate-scanner-laser {
+  animation: laser-sweep 1.8s infinite linear;
+}

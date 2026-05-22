@@ -1,7 +1,12 @@
 'use client';
 
-import React from 'react';
-import { ChevronLeft } from 'lucide-react';
+import React, { useState } from 'react';
+import { ChevronLeft, WifiOff, BookOpen } from 'lucide-react';
+import { Logo } from '@/components/ui/logo';
+import { useOnlineStatus } from '@/hooks/use-online-status';
+import { useTenant } from '@/app/lib/tenant-context';
+import { getModuleTheme } from '@/lib/theme-utils';
+import { ModuleGuide } from '@/components/common/module-guide';
 
 interface AppHeaderProps {
   title: string;
@@ -11,25 +16,60 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ title, subtitle, onBack, rightAction }: AppHeaderProps) {
+  const isOnline = useOnlineStatus();
+  const { currentTenant } = useTenant();
+  const theme = getModuleTheme(currentTenant?.moduleType);
+  const [showGuide, setShowGuide] = useState(false);
+
   return (
     <header
-      className="sticky top-0 z-40 bg-white/95 backdrop-blur-xl border-b border-slate-100"
+      className="sticky top-0 z-40 bg-white/95 backdrop-blur-xl border-b border-slate-100 transition-colors duration-300"
       style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
-      <div className="flex items-center h-12 px-4 gap-3">
+      <div className="flex items-center h-12 px-6 gap-3">
         {/* Back button */}
         {onBack && (
           <button
             onClick={onBack}
-            className="h-9 w-9 rounded-xl flex items-center justify-center -ml-1 active:bg-slate-100 transition-colors active:scale-95"
+            className="h-9 w-9 rounded-xl flex items-center justify-center -ml-1 active:bg-slate-100 transition-colors active:scale-95 border-none cursor-pointer"
           >
             <ChevronLeft className="h-5 w-5 text-slate-700" strokeWidth={2.5} />
           </button>
         )}
 
+        <Logo className="h-7 w-7 flex-shrink-0 animate-in fade-in" />
+
         {/* Title block */}
         <div className="flex-1 min-w-0">
-          <h1 className="text-sm font-black text-slate-900 tracking-tight truncate">{title}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-sm font-black text-slate-900 tracking-tight truncate">{title}</h1>
+            
+            {/* Real-time Network Connection Pill */}
+            {isOnline ? (
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+            ) : (
+              <span className="flex items-center gap-0.5 bg-amber-500 text-white font-black text-[7px] px-1.5 py-0.5 rounded-full tracking-widest uppercase animate-pulse shadow-sm shadow-amber-500/20 select-none">
+                <WifiOff className="h-2 w-2" /> Offline
+              </span>
+            )}
+
+            {/* Quick Gabay / Guide Help Capsule Button */}
+            {currentTenant && (
+              <button
+                onClick={() => setShowGuide(true)}
+                className="h-5 px-2 rounded-full flex items-center justify-center gap-0.5 text-[8px] font-black uppercase tracking-wider transition-all duration-300 hover:scale-105 active:scale-95 border-none cursor-pointer select-none"
+                style={{ 
+                  backgroundColor: `${theme.primary}12`, 
+                  color: theme.primary 
+                }}
+              >
+                <BookOpen className="h-2.5 w-2.5" /> Gabay
+              </button>
+            )}
+          </div>
           {subtitle && (
             <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest -mt-0.5 truncate">{subtitle}</p>
           )}
@@ -38,6 +78,9 @@ export function AppHeader({ title, subtitle, onBack, rightAction }: AppHeaderPro
         {/* Right action slot */}
         {rightAction && <div className="flex-shrink-0">{rightAction}</div>}
       </div>
+
+      {/* Slide-down Premium Help Overlay Sheet */}
+      <ModuleGuide isOpen={showGuide} onClose={() => setShowGuide(false)} />
     </header>
   );
 }

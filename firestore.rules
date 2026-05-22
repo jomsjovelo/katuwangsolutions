@@ -13,8 +13,8 @@ service cloud.firestore {
     }
 
     function isMasterAdmin() {
-      // Security: Only allow specific Hardcoded Master UID for system-wide access
-      return isAuthenticated() && request.auth.uid == 'KATUWANG_MASTER_ADMIN_UID';
+      // Security: Verify user exists in the admins collection
+      return isAuthenticated() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
     function hasTenantAccess(tenantId) {
@@ -27,6 +27,12 @@ service cloud.firestore {
     }
 
     // --- COLLECTION RULES ---
+
+    // 0. Admins Collection
+    match /admins/{uid} {
+      allow read: if isAuthenticated() && request.auth.uid == uid;
+      allow write: if isMasterAdmin();
+    }
 
     // 1. Tenants Collection (The Isolation Shield)
     match /tenants/{tenantId} {
@@ -58,9 +64,11 @@ service cloud.firestore {
       allow read, write: if isMasterAdmin();
     }
 
-    // 4. Default Deny
+    // 4. True Default Deny — FIX S1-6: Changed from isMasterAdmin() wildcard to if false.
+    // Master admin access to all paths was a security risk \u2014 a compromised admin account
+    // would expose all tenant data. Master admin access is now only via explicit rules above.
     match /{document=**} {
-      allow read, write: if isMasterAdmin();
+      allow read, write: if false;
     }
   }
 }

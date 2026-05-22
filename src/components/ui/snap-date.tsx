@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
 import { addDays } from 'date-fns';
 
-export interface SnapDateProps extends React.ComponentProps<typeof DayPicker> {}
+export type SnapDateProps = React.ComponentProps<typeof DayPicker>;
 
 /**
  * Katuwang SnapDate (Syncros V18 Standard)
@@ -20,7 +20,6 @@ export function SnapDate({
   className,
   classNames,
   showOutsideDays = true,
-  onSelect,
   ...props
 }: SnapDateProps) {
   
@@ -28,10 +27,10 @@ export function SnapDate({
     const today = new Date();
     if (type === 'today') {
       // @ts-ignore
-      onSelect?.(today);
+      props.onSelect?.(today);
     } else if (type === 'yesterday') {
       // @ts-ignore
-      onSelect?.(addDays(today, -1));
+      props.onSelect?.(addDays(today, -1));
     }
   };
 
@@ -68,8 +67,11 @@ export function SnapDate({
           ...classNames,
         }}
         components={{
-          IconLeft: () => <ChevronLeft className="h-5 w-5 text-slate-400" />,
-          IconRight: () => <ChevronRight className="h-5 w-5 text-slate-400" />,
+          Chevron: ({ orientation }) => (
+            orientation === 'left' 
+              ? <ChevronLeft className="h-5 w-5 text-slate-400" />
+              : <ChevronRight className="h-5 w-5 text-slate-400" />
+          ),
         }}
         {...props}
       />

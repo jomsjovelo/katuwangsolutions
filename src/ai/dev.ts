@@ -2,4 +2,5 @@
 import './genkit';
 
 // You can import your flows here as you create them:
-// import './flows/your-flow';
+import './flows/advisor';
+

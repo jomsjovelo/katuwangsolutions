@@ -54,28 +54,10 @@ export function SnapDate({ date, onSelect, className }: SnapDateProps) {
       </div>
 
       <div className="bg-card border rounded-2xl p-4 shadow-xl">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-center mb-6">
           <h3 className="font-headline text-lg font-bold">
             {format(month, "MMMM yyyy")}
           </h3>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-10 w-10 rounded-xl"
-              onClick={() => setMonth(addDays(month, -30))}
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-10 w-10 rounded-xl"
-              onClick={() => setMonth(addDays(month, 30))}
-            >
-              <ChevronRight className="h-5 w-5" />
-            </Button>
-          </div>
         </div>
 
         <div className="grid grid-cols-7 gap-2 text-center text-[10px] font-black text-muted-foreground mb-2">
@@ -106,12 +88,34 @@ export function SnapDate({ date, onSelect, className }: SnapDateProps) {
           })}
         </div>
 
-        <div className="mt-8 flex justify-center pt-4 border-t border-border/50">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
-            Selected: {format(date, "PPP")}
-          </p>
+        {/* Bottom-Weighted Navigation */}
+        <div className="mt-6 flex items-center justify-between pt-4 border-t border-border/50">
+          <Button
+            variant="secondary"
+            size="icon"
+            className="h-12 w-12 rounded-2xl shadow-sm active:scale-90"
+            onClick={() => setMonth(addDays(month, -30))}
+          >
+            <ChevronLeft className="h-6 w-6" />
+          </Button>
+          
+          <div className="text-center">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
+              {format(date, "PPP")}
+            </p>
+          </div>
+
+          <Button
+            variant="secondary"
+            size="icon"
+            className="h-12 w-12 rounded-2xl shadow-sm active:scale-90"
+            onClick={() => setMonth(addDays(month, 30))}
+          >
+            <ChevronRight className="h-6 w-6" />
+          </Button>
         </div>
       </div>
+
     </div>
   )
 }

@@ -34,7 +34,7 @@ export function AppSuiteCarousel({ groups, onSelect }: AppSuiteCarouselProps) {
       {/* Section heading */}
       <div className="px-5 mb-5">
         <h2 className="text-xl font-black text-slate-900 tracking-tight">Katuwang App Suite</h2>
-        <p className="text-xs text-slate-500 font-semibold uppercase tracking-widest mt-0.5">15 Industry Specific Modules</p>
+        <p className="text-xs text-slate-500 font-semibold uppercase tracking-widest mt-0.5">16 Industry Specific Modules</p>
       </div>
 
       {/* Group tab pills — horizontally scrollable */}

@@ -1,7 +1,10 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { useTenant } from '@/app/lib/tenant-context';
+import { useRouter } from 'next/navigation';
+import { getAuth, signOut } from 'firebase/auth';
+import { initializeFirebase } from '@/firebase';
+import { useAdminTenants } from '@/hooks/use-admin-tenants';
 import { cn } from "@/lib/utils";
 import { 
   Table, 
@@ -27,9 +30,20 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 export default function AdminKillSwitch() {
-  const { allTenants, updateTenantStatus, updateTenantPricing } = useTenant();
+  const { tenants, updateTenantStatus, updateTenantPricing } = useAdminTenants();
   const [search, setSearch] = useState("");
   const [mounted, setMounted] = useState(false);
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    try {
+      const { auth } = initializeFirebase();
+      await signOut(auth);
+      router.push('/');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -37,7 +51,7 @@ export default function AdminKillSwitch() {
 
   if (!mounted) return null;
 
-  const filteredTenants = allTenants.filter(t => 
+  const filteredTenants = tenants.filter(t => 
     t.name.toLowerCase().includes(search.toLowerCase()) || 
     t.id.toLowerCase().includes(search.toLowerCase())
   );
@@ -54,9 +68,14 @@ export default function AdminKillSwitch() {
               Owner Control Panel
             </h1>
           </div>
-          <p className="text-muted-foreground max-w-md">
-            Master control for the Katuwang Isolation Shield. Manage tenant status, subscriptions, and global pricing tiers.
-          </p>
+          <div className="flex flex-col gap-2">
+            <p className="text-muted-foreground max-w-md">
+              Master control for the Katuwang Isolation Shield. Manage tenant status, subscriptions, and global pricing tiers.
+            </p>
+            <Button variant="outline" size="sm" onClick={handleSignOut} className="w-fit border-destructive text-destructive hover:bg-destructive hover:text-white">
+              <Power className="mr-2 h-4 w-4" /> Sign Out
+            </Button>
+          </div>
         </div>
 
         <div className="relative w-full md:w-96">
@@ -86,7 +105,7 @@ export default function AdminKillSwitch() {
         <Card className="bg-secondary/20 border-secondary">
           <CardHeader className="pb-2">
             <CardDescription className="font-bold uppercase tracking-widest text-[10px]">Active Tenants</CardDescription>
-            <CardTitle className="text-3xl font-headline font-black">{allTenants.filter(t => t.subscriptionStatus === 'active').length}</CardTitle>
+            <CardTitle className="text-3xl font-headline font-black">{tenants.filter(t => t.subscriptionStatus === 'active').length}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2 text-chart-2 font-bold text-sm">
@@ -98,7 +117,7 @@ export default function AdminKillSwitch() {
         <Card className="bg-secondary/20 border-secondary">
           <CardHeader className="pb-2">
             <CardDescription className="font-bold uppercase tracking-widest text-[10px]">Suspended</CardDescription>
-            <CardTitle className="text-3xl font-headline font-black text-destructive">{allTenants.filter(t => t.subscriptionStatus === 'suspended').length}</CardTitle>
+            <CardTitle className="text-3xl font-headline font-black text-destructive">{tenants.filter(t => t.subscriptionStatus === 'suspended').length}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2 text-muted-foreground font-bold text-sm">

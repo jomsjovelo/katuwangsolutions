@@ -1,12 +1,14 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 
+// FIX S1-5: Firebase credentials read from environment variables only.
+// NEVER hardcode these values in source code — they were previously exposed in the git repository.
 export const firebaseConfig = {
-  apiKey: "AIzaSyDcP6Q6qSqWuBcUkSXGQpU-gsH_mlwSYq4",
-  authDomain: "studio-5538116689-bdfb2.firebaseapp.com",
-  projectId: "studio-5538116689-bdfb2",
-  storageBucket: "studio-5538116689-bdfb2.firebasestorage.app",
-  messagingSenderId: "329117415291",
-  appId: "1:329117415291:web:cf4f536ae994daf68d6fde"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
 };
 
 export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();

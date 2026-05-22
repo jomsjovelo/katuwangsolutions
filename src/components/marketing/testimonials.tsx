@@ -19,7 +19,7 @@ export function Testimonials() {
             <Quote className="h-8 w-8 text-primary/20 absolute top-5 right-5" />
             <div className="space-y-5">
               <p className="text-slate-700 italic leading-relaxed text-sm md:text-base font-medium">
-                "Dati 2 oras ang counting. Ngayon, 5 minuto na lang! Nakaka-uwi na ako ng maaga sa pamilya ko."
+                "Dati inaabot ako ng hatinggabi sa pag-lista ng benta. Ngayon, 5 minuto na lang! Wala nang nawawalang resibo, at nakakauwi na ako nang maaga."
               </p>
               <div className="flex items-center gap-3 pt-3 border-t border-slate-100">
                 <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary text-sm flex-shrink-0">AR</div>
@@ -35,7 +35,7 @@ export function Testimonials() {
             <Quote className="h-8 w-8 text-primary/20 absolute top-5 right-5" />
             <div className="space-y-5">
               <p className="text-slate-700 italic leading-relaxed text-sm md:text-base font-medium">
-                "Hindi na ako nawawalan ng kita dahil sa nawawalang resibo. Lahat nakalista na sa Benta Snap."
+                "Ang laking tulong ng Utang Tracker! Dati nag-aaway pa kami ng mga suki ko dahil nawawala ang listahan. Ngayon, malinaw lahat sa Katuwang app."
               </p>
               <div className="flex items-center gap-3 pt-3 border-t border-slate-100">
                 <div className="h-10 w-10 rounded-full bg-secondary/20 flex items-center justify-center font-bold text-yellow-700 text-sm flex-shrink-0">JM</div>

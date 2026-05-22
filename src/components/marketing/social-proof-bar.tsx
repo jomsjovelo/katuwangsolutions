@@ -4,7 +4,14 @@ import { Store, Star, PhilippinePeso } from 'lucide-react';
 export function SocialProofBar() {
   return (
     <section className="w-full bg-slate-900 py-8 md:py-14 border-y border-slate-800">
-      <div className="max-w-5xl mx-auto px-4 grid grid-cols-3 gap-2 md:gap-4">
+      <div className="max-w-5xl mx-auto px-4">
+        <div className="text-center mb-6 md:mb-10">
+          <p className="text-[10px] md:text-sm text-slate-400 font-black uppercase tracking-[0.2em]">
+            Pinagkakatiwalaan ng mga palengke at sari-sari store sa buong bansa
+          </p>
+        </div>
+        
+        <div className="grid grid-cols-3 gap-2 md:gap-4">
 
         <div className="flex flex-col items-center justify-center text-center space-y-1 md:space-y-2">
           <div className="p-2 md:p-3 bg-slate-800 rounded-full mb-1 md:mb-2">
@@ -33,6 +40,7 @@ export function SocialProofBar() {
           <p className="hidden sm:block text-[9px] text-slate-400 uppercase tracking-widest font-semibold">Na-track na</p>
         </div>
 
+        </div>
       </div>
     </section>
   );

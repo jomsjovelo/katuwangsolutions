@@ -19,19 +19,22 @@ export function Features() {
             <div className="h-12 w-12 bg-green-100 rounded-2xl flex items-center justify-center mb-3">
               <ShieldCheck className="h-6 w-6 text-green-600" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900">Ligtas ang Data Mo</h3>
+            <h3 className="text-lg font-bold text-slate-900">Secured ang Listahan</h3>
             <p className="text-slate-500 leading-relaxed text-sm">
-              Protektado ng enterprise-grade security. Hindi mawawala ang records mo kahit masira ang device.
+              Kahit masira ang cellphone mo, ligtas ang lahat ng record ng benta at pautang sa cloud.
             </p>
           </div>
 
-          <div className="bg-slate-50 p-6 md:p-8 rounded-2xl md:rounded-3xl space-y-3 border border-slate-100 hover:shadow-xl transition-shadow duration-300">
-            <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center mb-3">
-              <Smartphone className="h-6 w-6 text-primary" />
+          <div className="bg-orange-50/50 p-6 md:p-8 rounded-2xl md:rounded-3xl space-y-3 border border-orange-200 hover:shadow-xl transition-shadow duration-300 relative overflow-hidden">
+            <div className="absolute top-0 right-0 px-3 py-1 bg-orange-500 text-white text-[10px] font-black uppercase tracking-widest rounded-bl-xl">
+              Pinakagusto ng Masa
             </div>
-            <h3 className="text-lg font-bold text-slate-900">Mobile-First</h3>
+            <div className="h-12 w-12 bg-orange-100 rounded-2xl flex items-center justify-center mb-3">
+              <Smartphone className="h-6 w-6 text-orange-600" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900">Utang Tracker</h3>
             <p className="text-slate-500 leading-relaxed text-sm">
-              Dinisenyo para sa isang kamay. Kaya nang mag-punch ng order o mag-check ng inventory habang abala.
+              Awtomatikong nagkukwenta ng utang ng suki mo. Siningil mo, babayaran nila. Madali nang maningil.
             </p>
           </div>
 
@@ -39,9 +42,9 @@ export function Features() {
             <div className="h-12 w-12 bg-yellow-100 rounded-2xl flex items-center justify-center mb-3">
               <Zap className="h-6 w-6 text-yellow-600" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900">Instant na Update</h3>
+            <h3 className="text-lg font-bold text-slate-900">Walang Nawawalang Benta</h3>
             <p className="text-slate-500 leading-relaxed text-sm">
-              Real-time sync kahit nasa palengke ka. Makita agad ang pumasok na pera at bawas sa stock.
+              Real-time sync. Makita agad ang pumasok na pera at bawas sa stock sa lahat ng empleyado mo.
             </p>
           </div>
         </div>

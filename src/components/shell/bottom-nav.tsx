@@ -2,6 +2,8 @@
 
 import React from 'react';
 import { Home, ShoppingCart, Package, BarChart2, User } from 'lucide-react';
+import { useTenant } from '@/app/lib/tenant-context';
+import { getModuleTheme } from '@/lib/theme-utils';
 
 const tabs = [
   { id: 'home',    label: 'Home',    Icon: Home },
@@ -19,6 +21,9 @@ interface BottomNavProps {
 }
 
 export function BottomNav({ activeTab = 'home', onTabChange }: BottomNavProps) {
+  const { currentTenant } = useTenant();
+  const theme = getModuleTheme(currentTenant?.moduleType);
+
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-t border-slate-200/80"
@@ -33,18 +38,21 @@ export function BottomNav({ activeTab = 'home', onTabChange }: BottomNavProps) {
               onClick={() => onTabChange?.(id)}
               className="flex-1 flex flex-col items-center justify-center gap-0.5 relative active:scale-95 transition-transform duration-100"
             >
-              {/* Active indicator dot */}
+              {/* Active indicator dot dynamically colored matching current tenant theme */}
               {isActive && (
-                <span className="absolute top-1.5 left-1/2 -translate-x-1/2 h-1 w-5 rounded-full bg-primary" />
+                <span 
+                  className="absolute top-1.5 left-1/2 -translate-x-1/2 h-1 w-5 rounded-full transition-colors duration-300" 
+                  style={{ backgroundColor: theme.primary }}
+                />
               )}
               <Icon
-                className="h-5 w-5 transition-colors duration-150"
+                className="h-5 w-5 transition-colors duration-300"
                 strokeWidth={isActive ? 2.5 : 1.5}
-                color={isActive ? '#06B6D4' : '#94A3B8'}
+                color={isActive ? theme.primary : '#94A3B8'}
               />
               <span
-                className="text-[9px] font-bold uppercase tracking-widest transition-colors duration-150"
-                style={{ color: isActive ? '#06B6D4' : '#94A3B8' }}
+                className="text-[9px] font-bold uppercase tracking-widest transition-colors duration-300"
+                style={{ color: isActive ? theme.primary : '#94A3B8' }}
               >
                 {label}
               </span>

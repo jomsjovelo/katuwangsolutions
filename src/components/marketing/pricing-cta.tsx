@@ -16,7 +16,7 @@ export function PricingCta({ onEnterPortal }: PricingCtaProps) {
             Handa na bang palaguin ang negosyo?
           </h2>
           <p className="text-white/80 text-sm md:text-xl font-medium max-w-xl mx-auto">
-            Sumali sa libo-libong Pilipinong negosyante na gumagamit na ng Katuwang.
+            Sumali sa libo-libong Pilipinong negosyante na gumagamit na ng Katuwang. Mas mura pa sa kape mo araw-araw!
           </p>
         </div>
 
@@ -37,12 +37,12 @@ export function PricingCta({ onEnterPortal }: PricingCtaProps) {
             className="w-full h-14 rounded-2xl text-base font-bold bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-all active:scale-[0.98] shadow-xl flex items-center justify-center gap-2"
             onClick={onEnterPortal}
           >
-            Magsimula Ngayon
+            Libre Subukan
             <ChevronRight className="h-5 w-5" />
           </Button>
 
           <p className="text-[10px] text-white/50 uppercase tracking-[0.2em] font-bold">
-            Walang setup fee. Cancel anytime. 7-day free trial.
+            No credit card required. Cancel anytime.
           </p>
         </div>
       </div>
