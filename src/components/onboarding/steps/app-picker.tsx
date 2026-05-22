@@ -3,7 +3,7 @@
 import React from 'react';
 import { 
   ShoppingCart, Leaf, Hammer, Sprout,
-  Utensils, Coffee, UtensilsCrossed, RotateCcw, Droplets,
+  Utensils, Coffee, ChefHat, CalendarHeart, RotateCcw, Droplets,
   Sparkles, Sun, Wrench, Banknote, BookText, Truck, Wallet
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -23,7 +23,7 @@ const apps = [
     items: [
       { id: 'bite-snap', name: 'Bite Snap', icon: Utensils, desc: 'Para sa mga kainan — order, bayad, at resibo sa seconds.' },
       { id: 'timpla-track', name: 'Timpla Track', icon: Coffee, desc: 'Para sa mga café — simpleng pag-manage ng operasyon.' },
-      { id: 'handa-flow', name: 'Handa Flow', icon: UtensilsCrossed, desc: 'Para sa catering — i-manage ang booking, walang stress.' },
+      { id: 'ganap-master', name: 'Ganap Master', icon: CalendarHeart, desc: 'Para sa events — i-manage ang layout at food, walang stress.' },
     ]
   },
   { 

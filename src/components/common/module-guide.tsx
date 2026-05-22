@@ -80,7 +80,7 @@ const MODULE_GUIDES: Record<string, GuideContent> = {
       'Tingnan ang active tickets para ihanda ang kape ng walang kalituhan.'
     ]
   },
-  'handa-flow': {
+  'ganap-master': {
     tagline: 'I-manage ang event catering at bulk orders, walang stress.',
     steps: [
       'Magtala ng bagong bulk order ng handaan at kailan ang schedule ng event.',

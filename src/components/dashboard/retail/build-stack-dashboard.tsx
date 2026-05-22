@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Package, Truck, HardHat, TrendingUp, Plus } from "lucide-react";
 import { useProjects } from '@/hooks/use-projects';
+import { useInventory } from '@/firebase/firestore/use-inventory';
 import { useFirestore } from '@/firebase/provider';
 import { doc, collection, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -37,8 +38,8 @@ export function BuildStackDashboard() {
 
     setIsDispatching(true);
     try {
-      const product = products.find(p => p.id === selectedProductId);
-      const project = activeProjects.find(p => p.id === selectedProjectId);
+      const product = products.find((p: any) => p.id === selectedProductId);
+      const project = activeProjects.find((p: any) => p.id === selectedProjectId);
       if (!product || !project) throw new Error("Invalid selection");
       
       if (product.currentStock < dispatchQty) {
@@ -162,7 +163,7 @@ export function BuildStackDashboard() {
                     onChange={(e) => setSelectedProjectId(e.target.value)}
                   >
                     <option value="">-- Select Project --</option>
-                    {activeProjects.map(p => (
+                    {activeProjects.map((p: any) => (
                       <option key={p.id} value={p.id}>{p.name} ({p.contractor})</option>
                     ))}
                   </select>
@@ -176,7 +177,7 @@ export function BuildStackDashboard() {
                     onChange={(e) => setSelectedProductId(e.target.value)}
                   >
                     <option value="">-- Select Material --</option>
-                    {products.map(p => (
+                    {products.map((p: any) => (
                       <option key={p.id} value={p.id}>{p.name} ({p.currentStock} {p.unit} available)</option>
                     ))}
                   </select>
@@ -225,7 +226,7 @@ export function BuildStackDashboard() {
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
-                  {activeProjects.map(project => (
+                  {activeProjects.map((project: any) => (
                     <div key={project.id} className="p-4 hover:bg-slate-50">
                       <div className="flex justify-between items-start mb-2">
                         <div>
@@ -265,7 +266,7 @@ export function BuildStackDashboard() {
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
-                  {products.map(product => (
+                  {products.map((product: any) => (
                     <div key={product.id} className="p-4 hover:bg-slate-50 flex justify-between items-center">
                       <div>
                         <h4 className="font-bold text-slate-800">{product.name}</h4>

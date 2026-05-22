@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 
 import {
   Handshake, ShoppingCart, Leaf, Hammer, Sprout,
-  Utensils, Coffee, UtensilsCrossed, RotateCcw, Droplets,
+  Utensils, Coffee, CalendarHeart, RotateCcw, Droplets,
   Sparkles, Sun, Wrench, Banknote, BookText, Truck, Wallet
 } from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
@@ -65,7 +65,7 @@ const appGroups: AppGroup[] = [
     apps: [
       { name: 'Bite Snap',    icon: Utensils,        tagline: 'Order, bayad, at resibo — in seconds.', imageSrc: '/apps/bite-snap.png' },
       { name: 'Timpla Track', icon: Coffee,           tagline: 'Cafe operations, simplified.',          imageSrc: '/apps/timpla-track.png' },
-      { name: 'Handa Flow',   icon: UtensilsCrossed, tagline: 'I-manage ang event, walang stress.',     imageSrc: '/apps/handa-flow.png' },
+      { name: 'Ganap Master',   icon: CalendarHeart, tagline: 'Design the venue. Master the event.',     imageSrc: '/apps/ganap-master.png' },
     ],
   },
   {

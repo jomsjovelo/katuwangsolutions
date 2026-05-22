@@ -151,7 +151,7 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
   },
   
   // 9. Food Catering
-  'handa-flow': {
+  'ganap-master': {
     primary: '#EA580C',
     primaryBg: 'from-orange-600 to-orange-700',
     primaryText: 'text-orange-600',
@@ -160,7 +160,7 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
     secondaryBg: 'bg-amber-100 hover:bg-amber-200',
     secondaryText: 'text-amber-900',
     glowClass: 'joy-glow-orange',
-    name: 'Handa Flow',
+    name: 'Ganap Master',
     tagline: 'Malinamnam na pamamahala ng catering at handaan'
   },
   

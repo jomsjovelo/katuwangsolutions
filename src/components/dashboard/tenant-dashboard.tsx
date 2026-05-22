@@ -15,6 +15,7 @@ import { LedgerDashboard } from '@/components/dashboard/finance/ledger-dashboard
 import { PayrollDashboard } from '@/components/dashboard/finance/payroll-dashboard';
 import { FoodDashboard } from '@/components/dashboard/food/food-dashboard';
 import { TimplaDashboard } from '@/components/dashboard/food/timpla-dashboard';
+import { GanapDashboard } from '@/components/dashboard/events/ganap-dashboard';
 import { FleetDashboard } from '@/components/dashboard/logistics/fleet-dashboard';
 import { KatuwangErrorBoundary } from '@/components/common/error-boundary';
 import { SnapDate } from '@/components/snap-date';
@@ -175,7 +176,11 @@ export function TenantDashboard({ activeTab }: { activeTab?: string }) {
       return <TimplaDashboard />;
     }
 
-    const foodModules = ['bite-snap', 'handa-flow'];
+    if (currentTenant.moduleType === 'ganap-master') {
+      return <GanapDashboard />;
+    }
+
+    const foodModules = ['bite-snap'];
     if (foodModules.includes(currentTenant.moduleType || '')) {
       return <FoodDashboard />;
     }
