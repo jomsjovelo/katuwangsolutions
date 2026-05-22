@@ -53,7 +53,6 @@ const appGroups: AppGroup[] = [
     label: 'Retail',
     accentColor: '#06B6D4',
     apps: [
-      { name: '5-6 Tracker', icon: BookText, tagline: 'Awtomatikong listahan. Mabilisang singilan.', imageSrc: '/apps/5-6-tracker.png' },
       { name: 'Benta Snap',  icon: ShoppingCart, tagline: 'I-snap ang benta, iwas lugi.',          imageSrc: '/apps/benta-snap.png' },
       { name: 'Fresh Tally', icon: Leaf,          tagline: 'Walang napanis. Alam ang stock agad.',             imageSrc: '/apps/fresh-tally.png' },
       { name: 'Build Stack', icon: Hammer,        tagline: 'Tugma ang materyales, walang sayang.',imageSrc: '/apps/build-stack.png' },
@@ -96,7 +95,7 @@ const appGroups: AppGroup[] = [
     label: 'Pinansyal',
     accentColor: '#3B82F6',
     apps: [
-      { name: 'Hiram Snap', icon: Wallet, tagline: 'Para sa 5-6 at micro-lending.', imageSrc: '/apps/ledger-flow.png' },
+      { name: '5-6 Tracker', icon: BookText, tagline: 'Awtomatikong listahan. Mabilisang singilan.', imageSrc: '/apps/5-6-tracker.png' },
     ],
   },
 ];
