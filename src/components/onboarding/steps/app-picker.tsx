@@ -31,7 +31,7 @@ const apps = [
     items: [
       { id: 'spin-snap', name: 'Spin Snap', icon: RotateCcw, desc: 'Para sa laundry shop — track ang orders ng walang effort.' },
       { id: 'hydro-sync', name: 'Hydro Sync', icon: Droplets, desc: 'Para sa water station — i-manage ang deliveries, auto.' },
-      { id: 'shine-sync', name: 'Shine Sync', icon: Sparkles, desc: 'Para sa car wash — track slots at bayad, maliwanag.' },
+      { id: 'auto-boss', name: 'Auto Boss', icon: Sparkles, desc: 'Para sa car wash — track slots at bayad, maliwanag.' },
       { id: 'glow-sync', name: 'Glow Sync', icon: Sun, desc: 'Para sa salon at spa — booking at bayad, sa isang lugar.' },
       { id: 'rep-sync', name: 'Rep Sync', icon: Wrench, desc: 'Para sa gym at fitness — membership, attendance, payments.' },
     ]

@@ -75,7 +75,7 @@ const appGroups: AppGroup[] = [
     apps: [
       { name: 'Spin Snap',  icon: RotateCcw, tagline: 'Track laundry orders ng wala kang effort.', imageSrc: '/apps/spin-snap.png' },
       { name: 'Hydro Sync', icon: Droplets,  tagline: 'I-manage ang deliveries mo, auto.',         imageSrc: '/apps/hydro-sync.png' },
-      { name: 'Shine Sync', icon: Sparkles,  tagline: 'Track slots. Track bayad. Maliwanag.',      imageSrc: '/apps/shine-sync.png' },
+      { name: 'Auto Boss', icon: Sparkles,  tagline: 'Track slots. Track bayad. Maliwanag.',      imageSrc: '/apps/auto-boss.png' },
       { name: 'Glow Sync',  icon: Sun,       tagline: 'Booking at bayad, sa isang lugar.',         imageSrc: '/apps/glow-sync.png' },
       { name: 'Rep Sync',   icon: Wrench,    tagline: 'Membership. Attendance. Payments.',         imageSrc: '/apps/rep-sync.png' },
     ],

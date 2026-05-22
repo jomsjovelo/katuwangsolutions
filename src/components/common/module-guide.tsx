@@ -120,7 +120,7 @@ const MODULE_GUIDES: Record<string, GuideContent> = {
       'Pindutin ang "Tapusin / Complete" pag naihatid na para mag-update ang cash registry.'
     ]
   },
-  'shine-sync': {
+  'auto-boss': {
     tagline: 'Track slots ng car wash at detalye ng sasakyan. Maliwanag.',
     steps: [
       'Itala ang plaka ng sasakyan at ang napiling carwash package (Wash/Wax/Detail).',

@@ -18,6 +18,7 @@ import { TimplaDashboard } from '@/components/dashboard/food/timpla-dashboard';
 import { GanapDashboard } from '@/components/dashboard/events/ganap-dashboard';
 import { SpinDashboard } from '@/components/dashboard/service/spin-dashboard';
 import { HydroDashboard } from '@/components/dashboard/service/hydro-dashboard';
+import { AutoBossDashboard } from '@/components/dashboard/service/auto-boss-dashboard';
 import { FleetDashboard } from '@/components/dashboard/logistics/fleet-dashboard';
 import { KatuwangErrorBoundary } from '@/components/common/error-boundary';
 import { SnapDate } from '@/components/snap-date';
@@ -169,7 +170,11 @@ export function TenantDashboard({ activeTab }: { activeTab?: string }) {
       return <HydroDashboard />;
     }
 
-    const serviceModules = ['shine-sync', 'glow-sync', 'rep-sync'];
+    if (currentTenant.moduleType === 'auto-boss') {
+      return <AutoBossDashboard />;
+    }
+
+    const serviceModules = ['glow-sync', 'rep-sync'];
     if (serviceModules.includes(currentTenant.moduleType || '')) {
       return <ServiceDashboard />;
     }

@@ -193,7 +193,7 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
   },
   
   // 12. Cleaning Service
-  'shine-sync': {
+  'auto-boss': {
     primary: '#34D399',
     primaryBg: 'from-emerald-400 to-emerald-500',
     primaryText: 'text-emerald-600',
@@ -202,7 +202,7 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
     secondaryBg: 'bg-purple-400 hover:bg-purple-500',
     secondaryText: 'text-slate-900',
     glowClass: 'joy-glow-emerald',
-    name: 'Shine Sync',
+    name: 'Auto Boss',
     tagline: 'Mabilis na serbisyo sa paglilinis at katuwang sa trabaho'
   },
   
