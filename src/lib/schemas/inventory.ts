@@ -25,10 +25,13 @@ export const InventoryTransactionSchema = z.object({
   id: z.string().optional(),
   tenantId: z.string(),
   productId: z.string(),
-  type: z.enum(['sale', 'restock', 'adjustment', 'return']),
+  type: z.enum(['sale', 'restock', 'adjustment', 'return', 'dispatch']),
   
-  // Quantity changed (positive for restock, negative for sale)
+  // Quantity changed (positive for restock, negative for sale/dispatch)
   quantity: z.number().int(),
+  
+  // Optional project ID if this transaction was a dispatch to a specific project
+  projectId: z.string().optional(),
   
   // Running total after this transaction
   balanceAfter: z.number().int(),

@@ -7,6 +7,7 @@ import { initializeFirebase } from '@/firebase';
 
 import { useTenant } from '@/app/lib/tenant-context';
 import { BentaDashboard } from '@/components/dashboard/retail/benta-dashboard';
+import { BuildStackDashboard } from '@/components/dashboard/retail/build-stack-dashboard';
 import { HiramDashboard } from '@/components/dashboard/hiram-dashboard';
 import { ReportsTab } from '@/components/dashboard/reports-tab';
 import { ServiceDashboard } from '@/components/dashboard/service/service-dashboard';
@@ -177,6 +178,10 @@ export function TenantDashboard({ activeTab }: { activeTab?: string }) {
     const fleetModules = ['biyahe-sync', 'ani-grow'];
     if (fleetModules.includes(currentTenant.moduleType || '')) {
       return <FleetDashboard />;
+    }
+
+    if (currentTenant.moduleType === 'build-stack') {
+      return <BuildStackDashboard />;
     }
 
     return <BentaDashboard />;
