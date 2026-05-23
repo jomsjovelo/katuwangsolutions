@@ -4,7 +4,7 @@ import React from 'react';
 import { 
   ShoppingCart, Leaf, Hammer, Sprout,
   Utensils, Coffee, ChefHat, CalendarHeart, RotateCcw, Droplets,
-  Sparkles, Sun, Wrench, Banknote, BookText, Truck, Wallet
+  Sparkles, Sun, Wrench, Banknote, BookText, Truck, Wallet, Scissors
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -33,6 +33,7 @@ const apps = [
       { id: 'hydro-sync', name: 'Hydro Sync', icon: Droplets, desc: 'Para sa water station — i-manage ang deliveries, auto.' },
       { id: 'auto-boss', name: 'Auto Boss', icon: Sparkles, desc: 'Para sa car wash — track slots at bayad, maliwanag.' },
       { id: 'wellness-pro', name: 'Wellness Pro', icon: Sun, desc: 'Para sa spa at wellness — booking at bayad, sa isang lugar.' },
+      { id: 'trim-track', name: 'Trim Track', icon: Scissors, desc: 'Para sa salon at barbershop — track ang upuan at gupit.' },
       { id: 'rep-sync', name: 'Rep Sync', icon: Wrench, desc: 'Para sa gym at fitness — membership, attendance, payments.' },
     ]
   },

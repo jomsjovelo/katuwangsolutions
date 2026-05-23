@@ -20,6 +20,7 @@ import { SpinDashboard } from '@/components/dashboard/service/spin-dashboard';
 import { HydroDashboard } from '@/components/dashboard/service/hydro-dashboard';
 import { AutoBossDashboard } from '@/components/dashboard/service/auto-boss-dashboard';
 import { WellnessDashboard } from '@/components/dashboard/service/wellness-dashboard';
+import { TrimTrackDashboard } from '@/components/dashboard/service/trim-track-dashboard';
 import { FleetDashboard } from '@/components/dashboard/logistics/fleet-dashboard';
 import { KatuwangErrorBoundary } from '@/components/common/error-boundary';
 import { SnapDate } from '@/components/snap-date';
@@ -177,6 +178,10 @@ export function TenantDashboard({ activeTab }: { activeTab?: string }) {
 
     if (currentTenant.moduleType === 'wellness-pro') {
       return <WellnessDashboard />;
+    }
+
+    if (currentTenant.moduleType === 'trim-track') {
+      return <TrimTrackDashboard />;
     }
 
     const serviceModules = ['rep-sync'];

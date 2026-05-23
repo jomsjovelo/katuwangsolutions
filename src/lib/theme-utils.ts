@@ -220,6 +220,20 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
     tagline: 'Mabilis na serbisyo sa spa/salong katuwang sa ganda'
   },
   
+  // 14. Salon/Barbershop
+  'trim-track': {
+    primary: '#E11D48', // Rose 600
+    primaryBg: 'from-rose-500 to-rose-600',
+    primaryText: 'text-rose-600',
+    primaryBorder: 'border-rose-200',
+    secondary: '#FDA4AF', // Rose 300
+    secondaryBg: 'bg-rose-400 hover:bg-rose-500',
+    secondaryText: 'text-slate-900',
+    glowClass: 'joy-glow-rose',
+    name: 'Trim Track',
+    tagline: 'Mabilis na serbisyo sa salon at barbershop'
+  },
+  
   // 14. Technical Repair shop
   'rep-sync': {
     primary: '#475569',

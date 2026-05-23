@@ -1,0 +1,263 @@
+"use client"
+
+import React, { useState } from 'react';
+import { useTenant } from '@/app/lib/tenant-context';
+import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { useFirestore } from '@/firebase/provider';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
+import { useSalonAppointments } from '@/hooks/use-salon';
+import { useToast } from '@/hooks/use-toast';
+import { 
+  Scissors, 
+  Plus, 
+  UserCircle2,
+  Armchair,
+  CheckCircle2,
+  CircleDollarSign
+} from "lucide-react";
+
+const SERVICE_PRICES: Record<string, number> = {
+  'Haircut': 200,
+  'Shave/Beard': 150,
+  'Hair Color': 800,
+  'Treatment': 500,
+  'Rebond': 1500,
+};
+
+export function TrimTrackDashboard() {
+  const { currentTenant } = useTenant();
+  const db = useFirestore();
+  const { toast } = useToast();
+  
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const theme = getModuleTheme(currentTenant?.moduleType);
+  useDynamicThemeColor(theme);
+
+  // Salon State
+  const { waitingAppointments, inChairAppointments, doneAppointments, loading } = useSalonAppointments();
+
+  // Create Booking Form
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [customerName, setCustomerName] = useState('');
+  const [stylistName, setStylistName] = useState('');
+  const [serviceType, setServiceType] = useState('Haircut');
+  const [priceOverride, setPriceOverride] = useState<number | ''>('');
+
+  // Auto-calculate suggested price
+  const suggestedPrice = SERVICE_PRICES[serviceType] || 0;
+  const finalPrice = typeof priceOverride === 'number' ? priceOverride : suggestedPrice;
+
+  const handleAddAppointment = async () => {
+    if (!currentTenant || !db || !customerName || !stylistName) return;
+    setIsProcessing(true);
+    try {
+      const apptRef = doc(collection(db, 'tenants', currentTenant.id, 'salon_appointments'));
+      await setDoc(apptRef, {
+        tenantId: currentTenant.id,
+        customerName,
+        stylistName,
+        serviceType,
+        status: 'Waiting',
+        amountDue: finalPrice * 100, // convert to cents
+        paymentStatus: 'Unpaid',
+        createdAt: serverTimestamp(),
+      });
+      setCustomerName('');
+      setStylistName('');
+      setServiceType('Haircut');
+      setPriceOverride('');
+      setShowAddForm(false);
+      toast({ title: 'Customer Logged!', description: `${customerName} is now waiting.` });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const updateStatus = async (id: string, status: string, paymentStatus?: string) => {
+    if (!currentTenant || !db) return;
+    try {
+      const apptRef = doc(db, 'tenants', currentTenant.id, 'salon_appointments', id);
+      const updates: any = { status, updatedAt: serverTimestamp() };
+      if (paymentStatus) updates.paymentStatus = paymentStatus;
+      await updateDoc(apptRef, updates);
+      toast({ title: 'Status Updated', description: `Customer moved to ${status}.` });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const AppointmentCard = ({ appointment, actions }: { appointment: any, actions: React.ReactNode }) => (
+    <Card className="shadow-sm border-slate-200 mb-3 hover:shadow-md transition-shadow">
+      <CardContent className="p-3">
+        <div className="flex justify-between items-start mb-3">
+          <div>
+            <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+              <UserCircle2 className="h-4 w-4 text-rose-400" />
+              {appointment.customerName}
+            </h4>
+            <div className="flex items-center gap-2 mt-1.5">
+              <Badge variant="secondary" className="text-[10px] bg-rose-50 text-rose-600 border-rose-100">
+                {appointment.serviceType}
+              </Badge>
+              <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
+                by {appointment.stylistName}
+              </span>
+            </div>
+          </div>
+          <div className="text-right">
+            <Badge variant="outline" className={appointment.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}>
+              {appointment.paymentStatus}
+            </Badge>
+            <p className="text-sm font-bold text-slate-700 mt-1">₱{(appointment.amountDue / 100).toLocaleString()}</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          {actions}
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  return (
+    <div className="flex-1 flex flex-col bg-slate-50 min-h-screen">
+      <main className="p-4 space-y-4 pb-24">
+        
+        <section className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+          <div className="flex items-center gap-3">
+            <div 
+              className="p-2 rounded-xl transition-colors duration-300"
+              style={{ backgroundColor: `${theme.primary}15`, color: theme.primary }}
+            >
+              <Scissors className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-lg font-headline font-bold">{currentTenant?.name || 'Salon & Barbershop'}</h3>
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">{theme.name}</p>
+            </div>
+          </div>
+          <Button size="sm" className="h-8 w-8 rounded-full p-0" onClick={() => setShowAddForm(!showAddForm)} style={{ backgroundColor: theme.primary }}>
+            <Plus className="h-4 w-4" />
+          </Button>
+        </section>
+
+        {showAddForm && (
+          <Card className="shadow-sm border-slate-200 bg-white border-l-4" style={{ borderLeftColor: theme.primary }}>
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-sm font-bold flex items-center gap-2"><Scissors className="h-4 w-4 text-rose-500" /> New Customer</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 space-y-3 pt-0">
+              <div className="space-y-1">
+                <Label className="text-xs">Customer Name</Label>
+                <Input placeholder="e.g. John Doe" value={customerName} onChange={e => setCustomerName(e.target.value)} />
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1 space-y-1">
+                  <Label className="text-xs">Barber / Stylist</Label>
+                  <Input placeholder="e.g. Mark" value={stylistName} onChange={e => setStylistName(e.target.value)} />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <Label className="text-xs">Service</Label>
+                  <select 
+                    className="w-full border-slate-200 rounded-md border p-2 text-sm h-9"
+                    value={serviceType}
+                    onChange={(e) => setServiceType(e.target.value)}
+                  >
+                    {Object.keys(SERVICE_PRICES).map(type => (
+                      <option key={type} value={type}>{type} (₱{SERVICE_PRICES[type]})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs flex justify-between">
+                  <span>Total Price (₱)</span>
+                  <span className="text-muted-foreground">Suggested: ₱{suggestedPrice}</span>
+                </Label>
+                <Input type="number" placeholder={`₱${suggestedPrice}`} value={priceOverride} onChange={e => setPriceOverride(parseFloat(e.target.value) || '')} />
+              </div>
+              <Button 
+                className="w-full h-8 text-xs font-bold text-white" 
+                style={{ backgroundColor: theme.primary }}
+                onClick={handleAddAppointment}
+                disabled={isProcessing || !customerName || !stylistName}
+              >
+                Log Customer
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {loading ? (
+          <div className="text-center py-8 text-sm text-slate-400">Loading shop floor...</div>
+        ) : (
+          <div className="flex flex-col md:flex-row gap-4 overflow-x-auto pb-4">
+            
+            {/* Waiting Column */}
+            <div className="flex-1 min-w-[280px]">
+              <div className="flex items-center gap-2 mb-3 px-1">
+                <UserCircle2 className="h-4 w-4 text-amber-500" />
+                <h4 className="font-bold text-sm text-slate-700">Waiting Area</h4>
+                <Badge variant="secondary" className="bg-white ml-auto">{waitingAppointments.length}</Badge>
+              </div>
+              <div className="space-y-2">
+                {waitingAppointments.map(appt => (
+                  <AppointmentCard key={appt.id} appointment={appt} actions={
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-rose-600 hover:bg-rose-700" onClick={() => updateStatus(appt.id!, 'In Chair')}>
+                      <Armchair className="h-3 w-3 mr-1 text-rose-200" /> Sit In Chair
+                    </Button>
+                  } />
+                ))}
+              </div>
+            </div>
+
+            {/* In Chair Column */}
+            <div className="flex-1 min-w-[280px]">
+              <div className="flex items-center gap-2 mb-3 px-1">
+                <Armchair className="h-4 w-4 text-rose-500" />
+                <h4 className="font-bold text-sm text-slate-700">In Chair</h4>
+                <Badge variant="secondary" className="bg-white ml-auto">{inChairAppointments.length}</Badge>
+              </div>
+              <div className="space-y-2">
+                {inChairAppointments.map(appt => (
+                  <AppointmentCard key={appt.id} appointment={appt} actions={
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white" onClick={() => updateStatus(appt.id!, 'Done', 'Paid')}>
+                      <CircleDollarSign className="h-3 w-3 mr-1" /> Finish & Checkout
+                    </Button>
+                  } />
+                ))}
+              </div>
+            </div>
+
+            {/* Done Column */}
+            <div className="flex-1 min-w-[280px]">
+              <div className="flex items-center gap-2 mb-3 px-1">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                <h4 className="font-bold text-sm text-slate-700">Completed Today</h4>
+                <Badge variant="secondary" className="bg-white ml-auto">{doneAppointments.length}</Badge>
+              </div>
+              <div className="space-y-2 opacity-70">
+                {doneAppointments.map(appt => (
+                  <AppointmentCard key={appt.id} appointment={appt} actions={
+                    <Button disabled size="sm" variant="outline" className="w-full h-7 text-[10px] font-bold text-emerald-600 border-emerald-200 bg-emerald-50">
+                      Settled
+                    </Button>
+                  } />
+                ))}
+              </div>
+            </div>
+
+          </div>
+        )}
+
+      </main>
+    </div>
+  );
+}

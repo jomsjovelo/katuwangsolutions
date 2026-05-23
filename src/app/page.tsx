@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import {
   Handshake, ShoppingCart, Leaf, Hammer, Sprout,
   Utensils, Coffee, CalendarHeart, RotateCcw, Droplets,
-  Sparkles, Sun, Wrench, Banknote, BookText, Truck, Wallet
+  Sparkles, Sun, Wrench, Banknote, BookText, Truck, Wallet, Scissors
 } from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
 import { useTenant } from '@/app/lib/tenant-context';
@@ -77,6 +77,7 @@ const appGroups: AppGroup[] = [
       { name: 'Hydro Sync', icon: Droplets,  tagline: 'I-manage ang deliveries mo, auto.',         imageSrc: '/apps/hydro-sync.png' },
       { name: 'Auto Boss', icon: Sparkles,  tagline: 'Track slots. Track bayad. Maliwanag.',      imageSrc: '/apps/auto-boss.png' },
       { name: 'Wellness Pro',  icon: Sun,       tagline: 'Booking at bayad, sa isang lugar.',         imageSrc: '/apps/wellness-pro.png' },
+      { name: 'Trim Track',    icon: Scissors,  tagline: 'Track ang upuan at gupit, walang palya.',    imageSrc: '/apps/trim-track.png' },
       { name: 'Rep Sync',   icon: Wrench,    tagline: 'Membership. Attendance. Payments.',         imageSrc: '/apps/rep-sync.png' },
     ],
   },

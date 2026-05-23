@@ -136,6 +136,14 @@ const MODULE_GUIDES: Record<string, GuideContent> = {
       'I-complete ang status kapag nakapahinga at nakabayad na ang customer.'
     ]
   },
+  'trim-track': {
+    tagline: 'Track ang upuan at gupit sa salon o barbershop.',
+    steps: [
+      'Itala ang pangalan ng customer at ang piniling serbisyo (Haircut, Color, etc.).',
+      'Ilipat ang status sa "In Chair" kapag nagsimula na ang gupit.',
+      'Pagkatapos, i-click ang "Checkout" para i-record ang bayad sa ledger.'
+    ]
+  },
   'rep-sync': {
     tagline: 'Membership at repair jobs, planado at simple.',
     steps: [
