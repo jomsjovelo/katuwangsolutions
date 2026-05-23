@@ -145,11 +145,11 @@ const MODULE_GUIDES: Record<string, GuideContent> = {
     ]
   },
   'rep-sync': {
-    tagline: 'Membership at repair jobs, planado at simple.',
+    tagline: 'Repair jobs at service tickets, planado at simple.',
     steps: [
-      'Itala ang gadget o gamit na kailangang ayusin at ang pangalan ng may-ari.',
-      'Simulan ang repair task at ilagay ang pre-estimated delivery details.',
-      'Pindutin ang "Tapusin" kapag nakuha na at na-claim na ang inayos na gadget.'
+      'Ilista ang customer at detalye ng device na aayusin (Intake).',
+      'I-update ang status mula Queued patungong Repairing at Ready.',
+      'I-complete ang transaction kapag released na ang gamit at bayad na.'
     ]
   },
   'sundo-sync': {

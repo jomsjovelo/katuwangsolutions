@@ -34,7 +34,7 @@ const apps = [
       { id: 'auto-boss', name: 'Auto Boss', icon: Sparkles, desc: 'Para sa car wash — track slots at bayad, maliwanag.' },
       { id: 'wellness-pro', name: 'Wellness Pro', icon: Sun, desc: 'Para sa spa at wellness — booking at bayad, sa isang lugar.' },
       { id: 'trim-track', name: 'Trim Track', icon: Scissors, desc: 'Para sa salon at barbershop — track ang upuan at gupit.' },
-      { id: 'rep-sync', name: 'Rep Sync', icon: Wrench, desc: 'Para sa gym at fitness — membership, attendance, payments.' },
+      { id: 'rep-sync', name: 'Rep Sync', icon: Wrench, desc: 'Para sa repair shop — i-track ang gamit, status, at bayad.' },
     ]
   },
   { 
