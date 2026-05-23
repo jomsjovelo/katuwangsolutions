@@ -1,6 +1,6 @@
-import { getFirestore, doc, collection, serverTimestamp, setDoc } from 'firebase/firestore';
+import { getFirestore, doc, collection, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { initializeFirebase } from '../index';
-import { TransactionSchema, EmployeeSchema } from '@/lib/schemas/finance';
+import { TransactionSchema, EmployeeSchema, PayoutRecordSchema } from '@/lib/schemas/finance';
 import { runTransactionResilient } from './resilient-transaction';
 
 export const getKatuwangDb = () => initializeFirebase().db;
@@ -83,4 +83,55 @@ export async function addEmployee(tenantId: string, employeeData: any) {
   });
 
   return newEmpRef.id;
+}
+
+export async function updateEmployeeDays(tenantId: string, employeeId: string, daysWorked: number, valeDeduction: number) {
+  const db = getKatuwangDb();
+  const empRef = doc(db, 'tenants', tenantId, 'employees', employeeId);
+  await updateDoc(empRef, {
+    daysWorkedThisPeriod: daysWorked,
+    outstandingVale: valeDeduction * 100, // convert pesos to centavos
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function recordPayout(
+  tenantId: string,
+  employeeId: string,
+  employeeName: string,
+  daysWorked: number,
+  grossPayCentavos: number,
+  valeDeductedCentavos: number,
+  netPayCentavos: number
+) {
+  const db = getKatuwangDb();
+
+  // 1. Save payout record
+  const payoutsRef = collection(db, 'tenants', tenantId, 'employees', employeeId, 'payouts');
+  const newPayoutRef = doc(payoutsRef);
+  await setDoc(newPayoutRef, {
+    id: newPayoutRef.id,
+    tenantId,
+    employeeId,
+    employeeName,
+    daysWorked,
+    grossPay: grossPayCentavos,
+    valeDeducted: valeDeductedCentavos,
+    netPay: netPayCentavos,
+    paidAt: serverTimestamp(),
+    createdAt: serverTimestamp(),
+  });
+
+  // 2. Reset employee's period counters after payout
+  const empRef = doc(db, 'tenants', tenantId, 'employees', employeeId);
+  await updateDoc(empRef, {
+    daysWorkedThisPeriod: 0,
+    outstandingVale: 0,
+    updatedAt: serverTimestamp(),
+  });
+
+  // 3. Log the payout as an expense in the ledger
+  await addTransaction(tenantId, netPayCentavos, 'expense', `Sahod: ${employeeName}`);
+
+  return newPayoutRef.id;
 }

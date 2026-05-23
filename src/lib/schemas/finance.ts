@@ -30,15 +30,31 @@ export const EmployeeSchema = z.object({
   id: z.string().optional(),
   tenantId: z.string(),
   name: z.string().min(2, 'Employee name is required'),
+  position: z.string().default('Staff'), // Job title / position
   role: z.string().optional(),
   baseSalary: z.coerce.number().positive('Salary must be positive'), // In centavos
-  salaryType: z.enum(['daily', 'weekly', 'monthly']).default('daily'),
-  outstandingVale: z.coerce.number().default(0), // Cash advances
+  salaryType: z.enum(['daily', 'monthly']).default('daily'),
+  daysWorkedThisPeriod: z.coerce.number().min(0).default(0), // For current pay period
+  outstandingVale: z.coerce.number().default(0), // Cash advance deduction in centavos
   isActive: z.boolean().default(true),
   createdAt: z.any().optional(),
   updatedAt: z.any().optional(),
 });
 
+export const PayoutRecordSchema = z.object({
+  id: z.string().optional(),
+  tenantId: z.string(),
+  employeeId: z.string(),
+  employeeName: z.string(),
+  daysWorked: z.number(),
+  grossPay: z.number(),  // In centavos
+  valeDeducted: z.number(), // In centavos
+  netPay: z.number(),    // In centavos
+  paidAt: z.any().optional(),
+  createdAt: z.any().optional(),
+});
+
 export type Account = z.infer<typeof AccountSchema>;
 export type Transaction = z.infer<typeof TransactionSchema>;
 export type Employee = z.infer<typeof EmployeeSchema>;
+export type PayoutRecord = z.infer<typeof PayoutRecordSchema>;
