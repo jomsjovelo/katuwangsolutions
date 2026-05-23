@@ -25,6 +25,8 @@ export const TripSchema = z.object({
   origin: z.string().min(2, 'Origin is required'),
   destination: z.string().min(2, 'Destination is required'),
   loadDescription: z.string().optional(), // e.g. "50 sacks of rice"
+  deliveryFee: z.coerce.number().min(0).default(0), // Income in centavos
+  tripExpenses: z.coerce.number().min(0).default(0), // Gas/Toll in centavos
   status: TripStatusEnum.default('planned'),
   estimatedDeparture: z.any().optional(),
   actualDeparture: z.any().optional(),
