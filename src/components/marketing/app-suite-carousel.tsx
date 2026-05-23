@@ -90,10 +90,10 @@ export function AppSuiteCarousel({ groups, onSelect }: AppSuiteCarouselProps) {
             return (
               <div
                 key={app.name}
-                className="snap-start flex-shrink-0 w-[72vw] sm:w-[44vw] md:w-[28vw] bg-white rounded-2xl overflow-hidden shadow-md border border-slate-100"
+                className="snap-start flex-shrink-0 flex flex-col h-full w-[72vw] sm:w-[44vw] md:w-[28vw] bg-white rounded-2xl overflow-hidden shadow-md border border-slate-100"
               >
                 {/* Photo */}
-                <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
+                <div className="relative aspect-[4/3] w-full flex-shrink-0 overflow-hidden bg-slate-100">
                   <Image
                     src={app.imageSrc}
                     alt={app.name}
@@ -104,7 +104,7 @@ export function AppSuiteCarousel({ groups, onSelect }: AppSuiteCarouselProps) {
                 </div>
 
                 {/* Card body */}
-                <div className="p-4 space-y-2.5">
+                <div className="p-4 flex-1 flex flex-col gap-2.5">
                   {/* Icon + name */}
                   <div className="flex items-center gap-2.5">
                     <div
@@ -121,7 +121,7 @@ export function AppSuiteCarousel({ groups, onSelect }: AppSuiteCarouselProps) {
 
                   {/* CTA */}
                   <Button
-                    className="w-full h-11 rounded-xl font-bold text-xs text-white active:scale-95 transition-transform"
+                    className="w-full h-11 rounded-xl font-bold text-xs text-white active:scale-95 transition-transform mt-auto"
                     style={{ backgroundColor: activeGroup.accentColor }}
                     onClick={onSelect}
                   >
