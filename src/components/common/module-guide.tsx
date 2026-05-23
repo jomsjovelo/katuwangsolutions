@@ -128,8 +128,8 @@ const MODULE_GUIDES: Record<string, GuideContent> = {
       'Kumpletuhin ang task pag malinis na para makolekta ang bayad at pumasok sa ledger.'
     ]
   },
-  'glow-sync': {
-    tagline: 'Booking at bayad sa salon o spa, sa isang lugar.',
+  'wellness-pro': {
+    tagline: 'Booking at bayad sa spa at wellness center, sa isang lugar.',
     steps: [
       'Itala ang pangalan ng kliyente at ang piniling treatment o gupit.',
       'I-track kung sino ang stylist na hahawak sa queue list.',

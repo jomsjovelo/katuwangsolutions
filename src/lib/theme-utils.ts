@@ -207,7 +207,7 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
   },
   
   // 13. Spa/Salon appointments
-  'glow-sync': {
+  'wellness-pro': {
     primary: '#A855F7',
     primaryBg: 'from-purple-500 to-purple-600',
     primaryText: 'text-purple-600',
@@ -216,7 +216,7 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
     secondaryBg: 'bg-pink-400 hover:bg-pink-500',
     secondaryText: 'text-slate-900',
     glowClass: 'joy-glow-violet',
-    name: 'Glow Sync',
+    name: 'Wellness Pro',
     tagline: 'Mabilis na serbisyo sa spa/salong katuwang sa ganda'
   },
   
