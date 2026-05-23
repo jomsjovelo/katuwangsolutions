@@ -145,11 +145,11 @@ const MODULE_GUIDES: Record<string, GuideContent> = {
     ]
   },
   'rep-sync': {
-    tagline: 'Repair jobs at service tickets, planado at simple.',
+    tagline: 'Membership at gym attendance, planado at simple.',
     steps: [
-      'Ilista ang customer at detalye ng device na aayusin (Intake).',
-      'I-update ang status mula Queued patungong Repairing at Ready.',
-      'I-complete ang transaction kapag released na ang gamit at bayad na.'
+      'I-register ang bagong member o i-log ang daily walk-in.',
+      'I-check in ang member kapag pumasok sa gym (Attendance).',
+      'Makita ang mga active members at mga kailangan nang mag-renew.'
     ]
   },
   'sundo-sync': {

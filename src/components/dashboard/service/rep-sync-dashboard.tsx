@@ -10,17 +10,24 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
-import { useRepairJobs } from '@/hooks/use-repair';
+import { useGymMemberships } from '@/hooks/use-gym';
 import { useToast } from '@/hooks/use-toast';
 import { 
-  Wrench, 
+  Dumbbell, 
   Plus, 
   UserCircle2,
-  Settings,
-  CheckCircle2,
-  CircleDollarSign,
-  Smartphone
+  CalendarHeart,
+  Clock,
+  LogOut,
+  RefreshCw
 } from "lucide-react";
+
+const PLAN_PRICES: Record<string, number> = {
+  'Daily Drop-in': 100,
+  '1-Month Plan': 1000,
+  '3-Month Plan': 2500,
+  'Promo': 800,
+};
 
 export function RepSyncDashboard() {
   const { currentTenant } = useTenant();
@@ -32,37 +39,56 @@ export function RepSyncDashboard() {
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
 
-  // Repair Jobs State
-  const { queuedJobs, repairingJobs, readyJobs, releasedJobs, loading } = useRepairJobs();
+  // Gym State
+  const { members, activeMembers, expiredMembers, recentCheckIns, loading } = useGymMemberships();
 
-  // Create Job Form
+  // Create Form
   const [showAddForm, setShowAddForm] = useState(false);
-  const [customerName, setCustomerName] = useState('');
-  const [itemName, setItemName] = useState('');
-  const [issueDescription, setIssueDescription] = useState('');
-  const [estimatedCost, setEstimatedCost] = useState<number | ''>('');
+  const [memberName, setMemberName] = useState('');
+  const [planType, setPlanType] = useState('Daily Drop-in');
+  const [amountOverride, setAmountOverride] = useState<number | ''>('');
 
-  const handleAddJob = async () => {
-    if (!currentTenant || !db || !customerName || !itemName || !issueDescription) return;
+  const suggestedPrice = PLAN_PRICES[planType] || 0;
+  const finalPrice = typeof amountOverride === 'number' ? amountOverride : suggestedPrice;
+
+  const handleRegister = async () => {
+    if (!currentTenant || !db || !memberName) return;
     setIsProcessing(true);
     try {
-      const jobRef = doc(collection(db, 'tenants', currentTenant.id, 'repair_jobs'));
-      await setDoc(jobRef, {
+      const memberRef = doc(collection(db, 'tenants', currentTenant.id, 'gym_memberships'));
+      
+      const isDaily = planType === 'Daily Drop-in';
+      const status = isDaily ? 'Drop-in' : 'Active';
+      
+      const updates: any = {
         tenantId: currentTenant.id,
-        customerName,
-        itemName,
-        issueDescription,
-        status: 'Queued',
-        estimatedCost: (typeof estimatedCost === 'number' ? estimatedCost : 0) * 100, // convert to cents
-        paymentStatus: 'Unpaid',
+        memberName,
+        planType,
+        status,
+        amountDue: finalPrice * 100, // convert to cents
+        paymentStatus: 'Paid', // assume paid upfront
         createdAt: serverTimestamp(),
-      });
-      setCustomerName('');
-      setItemName('');
-      setIssueDescription('');
-      setEstimatedCost('');
+        lastCheckIn: serverTimestamp(), // auto check-in upon registration
+      };
+
+      if (!isDaily) {
+        // Calculate expiration date roughly 30 days or 90 days from now
+        const expiresAt = new Date();
+        if (planType === '3-Month Plan') {
+          expiresAt.setMonth(expiresAt.getMonth() + 3);
+        } else {
+          expiresAt.setMonth(expiresAt.getMonth() + 1);
+        }
+        updates.expiresAt = expiresAt;
+      }
+
+      await setDoc(memberRef, updates);
+      
+      setMemberName('');
+      setPlanType('Daily Drop-in');
+      setAmountOverride('');
       setShowAddForm(false);
-      toast({ title: 'Repair Job Added!', description: `${itemName} is now queued.` });
+      toast({ title: 'Success!', description: `${memberName} has been registered and checked in.` });
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     } finally {
@@ -70,52 +96,75 @@ export function RepSyncDashboard() {
     }
   };
 
-  const updateStatus = async (id: string, status: string, paymentStatus?: string) => {
+  const handleCheckIn = async (id: string) => {
     if (!currentTenant || !db) return;
     try {
-      const jobRef = doc(db, 'tenants', currentTenant.id, 'repair_jobs', id);
-      const updates: any = { status, updatedAt: serverTimestamp() };
-      if (paymentStatus) updates.paymentStatus = paymentStatus;
-      await updateDoc(jobRef, updates);
-      toast({ title: 'Job Updated', description: `Item moved to ${status}.` });
+      const memberRef = doc(db, 'tenants', currentTenant.id, 'gym_memberships', id);
+      await updateDoc(memberRef, { 
+        lastCheckIn: serverTimestamp(),
+        updatedAt: serverTimestamp() 
+      });
+      toast({ title: 'Checked In', description: `Member has been logged for today.` });
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     }
   };
 
-  const JobCard = ({ job, actions }: { job: any, actions: React.ReactNode }) => (
-    <Card className="shadow-sm border-slate-200 mb-3 hover:shadow-md transition-shadow">
-      <CardContent className="p-3">
-        <div className="flex justify-between items-start mb-2">
-          <div>
-            <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-              <Smartphone className="h-4 w-4 text-slate-500" />
-              {job.itemName}
-            </h4>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-[11px] text-slate-500 font-medium flex items-center gap-1">
-                <UserCircle2 className="h-3 w-3" /> {job.customerName}
-              </span>
+  const handleRenew = async (id: string, plan: string) => {
+    if (!currentTenant || !db) return;
+    try {
+      const memberRef = doc(db, 'tenants', currentTenant.id, 'gym_memberships', id);
+      const expiresAt = new Date();
+      if (plan === '3-Month Plan') {
+        expiresAt.setMonth(expiresAt.getMonth() + 3);
+      } else {
+        expiresAt.setMonth(expiresAt.getMonth() + 1);
+      }
+
+      await updateDoc(memberRef, { 
+        status: 'Active',
+        planType: plan,
+        amountDue: (PLAN_PRICES[plan] || 1000) * 100,
+        paymentStatus: 'Paid',
+        expiresAt: expiresAt,
+        lastCheckIn: serverTimestamp(),
+        updatedAt: serverTimestamp() 
+      });
+      toast({ title: 'Renewed', description: `Membership renewed to ${plan}.` });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const MemberCard = ({ member, actions }: { member: any, actions: React.ReactNode }) => {
+    const isExpired = member.status === 'Expired';
+    return (
+      <Card className="shadow-sm border-slate-200 mb-3 hover:shadow-md transition-shadow">
+        <CardContent className="p-3">
+          <div className="flex justify-between items-start mb-2">
+            <div>
+              <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                <UserCircle2 className="h-4 w-4 text-slate-500" />
+                {member.memberName}
+              </h4>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge variant="secondary" className="text-[10px] bg-slate-100 text-slate-600 border-slate-200">
+                  {member.planType}
+                </Badge>
+                {isExpired && (
+                  <Badge variant="destructive" className="text-[10px]">Expired</Badge>
+                )}
+              </div>
             </div>
           </div>
-          <div className="text-right">
-            <Badge variant="outline" className={job.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}>
-              {job.paymentStatus}
-            </Badge>
-            <p className="text-sm font-bold text-slate-700 mt-1">₱{(job.estimatedCost / 100).toLocaleString()}</p>
+          
+          <div className="flex gap-2 mt-3">
+            {actions}
           </div>
-        </div>
-        
-        <div className="bg-slate-50 p-2 rounded-md mb-3 border border-slate-100">
-          <p className="text-xs text-slate-600 font-medium leading-tight line-clamp-2">"{job.issueDescription}"</p>
-        </div>
-
-        <div className="flex gap-2">
-          {actions}
-        </div>
-      </CardContent>
-    </Card>
-  );
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-screen">
@@ -127,10 +176,10 @@ export function RepSyncDashboard() {
               className="p-2 rounded-xl transition-colors duration-300"
               style={{ backgroundColor: `${theme.primary}15`, color: theme.primary }}
             >
-              <Wrench className="h-6 w-6" />
+              <Dumbbell className="h-6 w-6" />
             </div>
             <div>
-              <h3 className="text-lg font-headline font-bold">{currentTenant?.name || 'Repair Shop'}</h3>
+              <h3 className="text-lg font-headline font-bold">{currentTenant?.name || 'Gym & Fitness'}</h3>
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">{theme.name}</p>
             </div>
           </div>
@@ -142,110 +191,96 @@ export function RepSyncDashboard() {
         {showAddForm && (
           <Card className="shadow-sm border-slate-200 bg-white border-l-4" style={{ borderLeftColor: theme.primary }}>
             <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm font-bold flex items-center gap-2"><Wrench className="h-4 w-4 text-slate-500" /> Intake Item</CardTitle>
+              <CardTitle className="text-sm font-bold flex items-center gap-2"><Dumbbell className="h-4 w-4 text-slate-500" /> New Registration</CardTitle>
             </CardHeader>
             <CardContent className="p-4 space-y-3 pt-0">
               <div className="flex gap-2">
                 <div className="flex-1 space-y-1">
-                  <Label className="text-xs">Customer Name</Label>
-                  <Input placeholder="e.g. John Doe" value={customerName} onChange={e => setCustomerName(e.target.value)} />
+                  <Label className="text-xs">Member Name</Label>
+                  <Input placeholder="e.g. John Doe" value={memberName} onChange={e => setMemberName(e.target.value)} />
                 </div>
                 <div className="flex-1 space-y-1">
-                  <Label className="text-xs">Item / Device</Label>
-                  <Input placeholder="e.g. iPhone 12" value={itemName} onChange={e => setItemName(e.target.value)} />
+                  <Label className="text-xs">Plan</Label>
+                  <select 
+                    className="w-full border-slate-200 rounded-md border p-2 text-sm h-9"
+                    value={planType}
+                    onChange={(e) => setPlanType(e.target.value)}
+                  >
+                    {Object.keys(PLAN_PRICES).map(type => (
+                      <option key={type} value={type}>{type} (₱{PLAN_PRICES[type]})</option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Issue Description</Label>
-                <Input placeholder="e.g. Broken screen, won't turn on" value={issueDescription} onChange={e => setIssueDescription(e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Estimated Cost (₱)</Label>
-                <Input type="number" placeholder="₱0.00" value={estimatedCost} onChange={e => setEstimatedCost(parseFloat(e.target.value) || '')} />
+                <Label className="text-xs">Custom Amount Paid (₱)</Label>
+                <Input type="number" placeholder={`Suggested: ₱${suggestedPrice}`} value={amountOverride} onChange={e => setAmountOverride(parseFloat(e.target.value) || '')} />
               </div>
               <Button 
                 className="w-full h-8 text-xs font-bold text-white" 
                 style={{ backgroundColor: theme.primary }}
-                onClick={handleAddJob}
-                disabled={isProcessing || !customerName || !itemName || !issueDescription}
+                onClick={handleRegister}
+                disabled={isProcessing || !memberName}
               >
-                Log Intake
+                Register & Check-in
               </Button>
             </CardContent>
           </Card>
         )}
 
         {loading ? (
-          <div className="text-center py-8 text-sm text-slate-400">Loading repair bench...</div>
+          <div className="text-center py-8 text-sm text-slate-400">Loading gym floor...</div>
         ) : (
           <div className="flex flex-col md:flex-row gap-4 overflow-x-auto pb-4">
             
-            {/* Queued Column */}
+            {/* Recent Check-ins Column */}
             <div className="flex-1 min-w-[280px]">
               <div className="flex items-center gap-2 mb-3 px-1">
-                <Wrench className="h-4 w-4 text-amber-500" />
-                <h4 className="font-bold text-sm text-slate-700">Intake Queue</h4>
-                <Badge variant="secondary" className="bg-white ml-auto">{queuedJobs.length}</Badge>
+                <Clock className="h-4 w-4 text-amber-500" />
+                <h4 className="font-bold text-sm text-slate-700">Checked In Today</h4>
+                <Badge variant="secondary" className="bg-white ml-auto">{recentCheckIns.length}</Badge>
               </div>
               <div className="space-y-2">
-                {queuedJobs.map(job => (
-                  <JobCard key={job.id} job={job} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-slate-800 hover:bg-slate-900" onClick={() => updateStatus(job.id!, 'Repairing')}>
-                      <Settings className="h-3 w-3 mr-1" /> Start Repair
+                {recentCheckIns.map(member => (
+                  <MemberCard key={member.id} member={member} actions={
+                    <Button disabled size="sm" className="w-full h-7 text-[10px] bg-slate-100 text-slate-400 hover:bg-slate-100">
+                      Inside Gym
                     </Button>
                   } />
                 ))}
               </div>
             </div>
 
-            {/* Repairing Column */}
+            {/* Active Members Column */}
             <div className="flex-1 min-w-[280px]">
               <div className="flex items-center gap-2 mb-3 px-1">
-                <Settings className="h-4 w-4 text-blue-500 animate-[spin_3s_linear_infinite]" />
-                <h4 className="font-bold text-sm text-slate-700">On The Bench</h4>
-                <Badge variant="secondary" className="bg-white ml-auto">{repairingJobs.length}</Badge>
+                <CalendarHeart className="h-4 w-4 text-emerald-500" />
+                <h4 className="font-bold text-sm text-slate-700">Active Monthly</h4>
+                <Badge variant="secondary" className="bg-white ml-auto">{activeMembers.length}</Badge>
               </div>
               <div className="space-y-2">
-                {repairingJobs.map(job => (
-                  <JobCard key={job.id} job={job} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-sky-500 hover:bg-sky-600 text-white" onClick={() => updateStatus(job.id!, 'Ready')}>
-                      <CheckCircle2 className="h-3 w-3 mr-1" /> Mark Fixed
+                {activeMembers.map(member => (
+                  <MemberCard key={member.id} member={member} actions={
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white" onClick={() => handleCheckIn(member.id!)}>
+                      <Plus className="h-3 w-3 mr-1" /> Log Attendance
                     </Button>
                   } />
                 ))}
               </div>
             </div>
 
-            {/* Ready Column */}
+            {/* Expired / Needs Renewal Column */}
             <div className="flex-1 min-w-[280px]">
               <div className="flex items-center gap-2 mb-3 px-1">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                <h4 className="font-bold text-sm text-slate-700">Ready for Pickup</h4>
-                <Badge variant="secondary" className="bg-white ml-auto">{readyJobs.length}</Badge>
+                <LogOut className="h-4 w-4 text-rose-500" />
+                <h4 className="font-bold text-sm text-slate-700">Needs Renewal</h4>
+                <Badge variant="secondary" className="bg-white ml-auto">{expiredMembers.length}</Badge>
               </div>
               <div className="space-y-2">
-                {readyJobs.map(job => (
-                  <JobCard key={job.id} job={job} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white" onClick={() => updateStatus(job.id!, 'Released', 'Paid')}>
-                      <CircleDollarSign className="h-3 w-3 mr-1" /> Pay & Release
-                    </Button>
-                  } />
-                ))}
-              </div>
-            </div>
-
-            {/* Released Column */}
-            <div className="flex-1 min-w-[280px]">
-              <div className="flex items-center gap-2 mb-3 px-1">
-                <CircleDollarSign className="h-4 w-4 text-slate-400" />
-                <h4 className="font-bold text-sm text-slate-700">Released Today</h4>
-                <Badge variant="secondary" className="bg-white ml-auto">{releasedJobs.length}</Badge>
-              </div>
-              <div className="space-y-2 opacity-60">
-                {releasedJobs.map(job => (
-                  <JobCard key={job.id} job={job} actions={
-                    <Button disabled size="sm" variant="outline" className="w-full h-7 text-[10px] font-bold text-emerald-600 border-emerald-200 bg-emerald-50">
-                      Completed
+                {expiredMembers.map(member => (
+                  <MemberCard key={member.id} member={member} actions={
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-rose-500 hover:bg-rose-600 text-white" onClick={() => handleRenew(member.id!, '1-Month Plan')}>
+                      <RefreshCw className="h-3 w-3 mr-1" /> Renew 1-Month (₱1000)
                     </Button>
                   } />
                 ))}
