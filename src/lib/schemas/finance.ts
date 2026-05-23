@@ -15,12 +15,20 @@ export const AccountSchema = z.object({
 
 export const TransactionTypeEnum = z.enum(['income', 'expense', 'transfer']);
 
+export const TransactionCategoryEnum = z.enum([
+  // Income categories
+  'Sales', 'Service', 'Collection', 'Other Income',
+  // Expense categories
+  'Supplies', 'Utilities', 'Rent', 'Salary', 'Food', 'Transport', 'Other Expense'
+]);
+
 export const TransactionSchema = z.object({
   id: z.string().optional(),
   tenantId: z.string(),
   accountId: z.string(),
   amount: z.coerce.number().positive('Amount must be positive'),
   type: TransactionTypeEnum,
+  category: TransactionCategoryEnum.optional(),
   description: z.string().optional(),
   date: z.any(), // Timestamp of transaction
   createdAt: z.any().optional(),

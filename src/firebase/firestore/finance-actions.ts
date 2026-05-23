@@ -5,7 +5,7 @@ import { runTransactionResilient } from './resilient-transaction';
 
 export const getKatuwangDb = () => initializeFirebase().db;
 
-export async function addTransaction(tenantId: string, amountCentavos: number, type: 'income' | 'expense', description: string) {
+export async function addTransaction(tenantId: string, amountCentavos: number, type: 'income' | 'expense', description: string, category?: string) {
   const db = getKatuwangDb();
   
   // 1. Validate the transaction using Zod
@@ -14,6 +14,7 @@ export async function addTransaction(tenantId: string, amountCentavos: number, t
     accountId: 'master-cash', // Hardcoded master account for MVP
     amount: amountCentavos,
     type,
+    category: category as any,
     description,
     date: new Date(),
   });
