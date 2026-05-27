@@ -40,6 +40,9 @@ export async function addBorrower(
   limitPesos: number,
   dailyDuePesos: number
 ) {
+  if (isNaN(limitPesos) || limitPesos <= 0) throw new Error("Ang credit limit ay dapat valid at higit sa zero.");
+  if (isNaN(dailyDuePesos) || dailyDuePesos <= 0) throw new Error("Ang arawang singil ay dapat valid at higit sa zero.");
+
   try {
     const borrowersRef = collection(db, 'tenants', tenantId, 'borrowers');
     const newDoc = await addDoc(borrowersRef, {
@@ -68,6 +71,10 @@ export async function recordLoan(
   interestPesos: number,
   dailyDuePesos: number
 ) {
+  if (isNaN(loanAmountPesos) || loanAmountPesos <= 0) throw new Error("Ang halaga ng pautang ay dapat valid at higit sa zero.");
+  if (isNaN(interestPesos) || interestPesos < 0) throw new Error("Ang interes ay hindi maaring negatibo o invalid.");
+  if (isNaN(dailyDuePesos) || dailyDuePesos <= 0) throw new Error("Ang arawang singil ay dapat valid at higit sa zero.");
+
   const borrowerRef = doc(db, 'tenants', tenantId, 'borrowers', borrowerId);
   const transactionsRef = collection(db, 'tenants', tenantId, 'borrowers', borrowerId, 'transactions');
   
@@ -120,6 +127,8 @@ export async function recordPayment(
   borrowerId: string,
   paymentAmountPesos: number
 ) {
+  if (isNaN(paymentAmountPesos) || paymentAmountPesos <= 0) throw new Error("Ang halaga ng bayad ay dapat valid at higit sa zero.");
+
   const borrowerRef = doc(db, 'tenants', tenantId, 'borrowers', borrowerId);
   const transactionsRef = collection(db, 'tenants', tenantId, 'borrowers', borrowerId, 'transactions');
 

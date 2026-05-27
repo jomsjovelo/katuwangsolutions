@@ -9,6 +9,7 @@ import {
   Sparkles, Sun, Wrench, Banknote, BookText, Truck, Wallet, Scissors, Dumbbell
 } from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useTenant } from '@/app/lib/tenant-context';
 
 // FIX S3-5: Use next/dynamic to lazy load large component trees and reduce main bundle size
@@ -30,6 +31,7 @@ const InvitationGuard = dynamic(() => import('@/components/auth/invitation-guard
 import { BottomNav } from '@/components/shell/bottom-nav';
 import { AppHeader } from '@/components/shell/app-header';
 import { CoPilotButton } from '@/components/ai/co-pilot-button';
+import { BrandLogo } from '@/components/ui/brand-logo';
 
 // ─── App data ────────────────────────────────────────────────────────────────
 
@@ -53,9 +55,9 @@ const appGroups: AppGroup[] = [
     label: 'Retail',
     accentColor: '#06B6D4',
     apps: [
-      { name: 'Benta Snap',  icon: ShoppingCart, tagline: 'I-snap ang benta, iwas lugi.',          imageSrc: '/apps/benta-snap.png' },
-      { name: 'Fresh Tally', icon: Leaf,          tagline: 'Walang napanis. Alam ang stock agad.',             imageSrc: '/apps/fresh-tally.png' },
-      { name: 'Build Stack', icon: Hammer,        tagline: 'Tugma ang materyales, walang sayang.',imageSrc: '/apps/build-stack.png' },
+      { name: 'Benta Snap',  icon: ShoppingCart, tagline: 'Lightning-fast retail checkout to maximize your daily sales.',          imageSrc: '/apps/benta-snap.png' },
+      { name: 'Fresh Tally', icon: Leaf,          tagline: 'Smart inventory tracking to keep your fresh produce moving.',             imageSrc: '/apps/fresh-tally.png' },
+      { name: 'Build Stack', icon: Hammer,        tagline: 'Precision material tracking for seamless construction supply.',imageSrc: '/apps/build-stack.png' },
     ],
   },
   {
@@ -63,9 +65,9 @@ const appGroups: AppGroup[] = [
     label: 'Food',
     accentColor: '#F97316',
     apps: [
-      { name: 'Bite Snap',    icon: Utensils,        tagline: 'Order, bayad, at resibo — in seconds.', imageSrc: '/apps/bite-snap.png' },
-      { name: 'Timpla Track', icon: Coffee,           tagline: 'Cafe operations, simplified.',          imageSrc: '/apps/timpla-track.png' },
-      { name: 'Ganap Master',   icon: CalendarHeart, tagline: 'Plan the details. Master the event.',     imageSrc: '/apps/ganap-master.png' },
+      { name: 'Bite Snap',    icon: Utensils,        tagline: 'Rapid order-to-kitchen flow for hungry diners.', imageSrc: '/apps/bite-snap.png' },
+      { name: 'Timpla Track', icon: Coffee,           tagline: 'Crafted cafe operations for the perfect brew every time.',          imageSrc: '/apps/timpla-track.png' },
+      { name: 'Ganap Master',   icon: CalendarHeart, tagline: 'Orchestrate unforgettable events with flawless planning.',     imageSrc: '/apps/ganap-master.png' },
     ],
   },
   {
@@ -73,12 +75,12 @@ const appGroups: AppGroup[] = [
     label: 'Serbisyo',
     accentColor: '#8B5CF6',
     apps: [
-      { name: 'Spin Snap',  icon: RotateCcw, tagline: 'Track laundry orders ng wala kang effort.', imageSrc: '/apps/spin-snap.png' },
-      { name: 'Hydro Sync', icon: Droplets,  tagline: 'I-manage ang deliveries mo, auto.',         imageSrc: '/apps/hydro-sync.png' },
-      { name: 'Auto Boss', icon: Sparkles,  tagline: 'Track slots. Track bayad. Maliwanag.',      imageSrc: '/apps/auto-boss.png' },
-      { name: 'Wellness Pro',  icon: Sun,       tagline: 'Booking at bayad, sa isang lugar.',         imageSrc: '/apps/wellness-pro.png' },
-      { name: 'Trim Track',    icon: Scissors,  tagline: 'Track ang upuan at gupit, walang palya.',    imageSrc: '/apps/trim-track.png' },
-      { name: 'Rep Sync',   icon: Dumbbell,    tagline: 'Membership. Attendance. Payments.',         imageSrc: '/apps/rep-sync.png' },
+      { name: 'Spin Snap',  icon: RotateCcw, tagline: 'Automated laundry tracking from drop-off to pickup.', imageSrc: '/apps/spin-snap.png' },
+      { name: 'Hydro Sync', icon: Droplets,  tagline: 'Streamlined water delivery logistics for thirsty neighborhoods.',         imageSrc: '/apps/hydro-sync.png' },
+      { name: 'Auto Boss', icon: Sparkles,  tagline: 'Rev up your shop with automated slot and payment tracking.',      imageSrc: '/apps/auto-boss.png' },
+      { name: 'Wellness Pro',  icon: Sun,       tagline: 'Elevate your spa experience with seamless booking and billing.',         imageSrc: '/apps/wellness-pro.png' },
+      { name: 'Trim Track',    icon: Scissors,  tagline: 'Keep your barber chairs full and your payments tracked.',    imageSrc: '/apps/trim-track.png' },
+      { name: 'Rep Sync',   icon: Dumbbell,    tagline: 'Automate gym memberships, attendance, and renewals effortlessly.',         imageSrc: '/apps/rep-sync.png' },
     ],
   },
   {
@@ -86,9 +88,9 @@ const appGroups: AppGroup[] = [
     label: 'Negosyo',
     accentColor: '#10B981',
     apps: [
-      { name: 'Sahod Flow',   icon: Banknote,  tagline: 'Tama ang sahod, on time palagi.',  imageSrc: '/apps/sahod-flow.png' },
-      { name: 'Ledger Flow',  icon: BookText,  tagline: 'Panoorin ang pera mo lumago.',      imageSrc: '/apps/ledger-flow.png' },
-      { name: 'Biyahe Sync',  icon: Truck,     tagline: 'Track biyahe, real-time.',          imageSrc: '/apps/biyahe-sync.png' },
+      { name: 'Sahod Flow',   icon: Banknote,  tagline: 'Effortless payroll management for a happy, on-time team.',  imageSrc: '/apps/sahod-flow.png' },
+      { name: 'Ledger Flow',  icon: BookText,  tagline: 'Crystal-clear financial insights to watch your profits soar.',      imageSrc: '/apps/ledger-flow.png' },
+      { name: 'Biyahe Sync',  icon: Truck,     tagline: 'Real-time fleet dispatching to keep your business moving.',          imageSrc: '/apps/biyahe-sync.png' },
     ],
   },
   {
@@ -96,7 +98,7 @@ const appGroups: AppGroup[] = [
     label: 'Pinansyal',
     accentColor: '#3B82F6',
     apps: [
-      { name: '5-6 Tracker', icon: BookText, tagline: 'Awtomatikong listahan. Mabilisang singilan.', imageSrc: '/apps/5-6-tracker.png' },
+      { name: '5-6 Tracker', icon: BookText, tagline: 'Secure, automated lending lists for faster collections.', imageSrc: '/apps/5-6-tracker.png' },
     ],
   },
 ];
@@ -111,6 +113,7 @@ export default function Home() {
   const [view, setView]     = useState<View>('landing');
   const [activeTab, setActiveTab] = useState<TabId>('home');
   const [mounted, setMounted] = useState(false);
+  const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -124,13 +127,24 @@ export default function Home() {
   if (!mounted) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="animate-pulse flex flex-col items-center gap-4">
-          <Handshake className="h-12 w-12 text-primary opacity-20" />
-          <div className="h-2 w-32 bg-secondary/20 rounded-full" />
+        <div className="flex flex-col items-center gap-6">
+          <BrandLogo showText={false} className="[&>div]:h-20 [&>div]:w-20 animate-pulse" />
+          <div className="w-32 h-0.5 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-full bg-[#00BFFF] rounded-full"
+              style={{ animation: 'loading 1.5s ease-in-out infinite' }} />
+          </div>
+          <style>{`
+            @keyframes loading {
+              0% { width: 0%; margin-left: 0%; }
+              50% { width: 60%; margin-left: 20%; }
+              100% { width: 0%; margin-left: 100%; }
+            }
+          `}</style>
         </div>
       </div>
     );
   }
+
 
   // ── LANDING PAGE ──────────────────────────────────────────────────────────
   if (view === 'landing') {
@@ -138,28 +152,42 @@ export default function Home() {
       <InvitationGuard>
         <div className="flex flex-col bg-white">
           {/* Full-screen hero */}
-          <Hero onEnterPortal={() => setView('onboarding')} />
+          <Hero onEnterPortal={() => { setSelectedAppId(null); setView('onboarding'); }} />
 
           {/* Content sections — padded at bottom for floating CTA bar */}
           <div className="pb-nav">
             <SocialProofBar />
 
-            <AppSuiteCarousel
-              groups={appGroups}
-              onSelect={() => setView('onboarding')}
-            />
+            <div className="flex flex-col items-center">
+              <AppSuiteCarousel
+                groups={appGroups}
+                onSelect={(appName) => {
+                  setSelectedAppId(appName);
+                  setView('onboarding');
+                }}
+              />
+              <Button 
+                variant="outline" 
+                className="mb-8 mt-2 rounded-xl border-slate-300 text-slate-600 font-bold px-8 hover:bg-slate-100 active:scale-95 transition-all shadow-sm"
+                onClick={() => {
+                  setSelectedAppId(null);
+                  setView('onboarding');
+                }}
+              >
+                View all Products
+              </Button>
+            </div>
 
             <Features />
 
             <Testimonials />
 
-            <PricingCta onEnterPortal={() => setView('onboarding')} />
+            <PricingCta onEnterPortal={() => { setSelectedAppId(null); setView('onboarding'); }} />
 
             <footer className="py-10 bg-slate-950">
               <div className="text-center flex flex-col items-center gap-4">
-                <div className="flex items-center gap-2 opacity-40">
-                  <Handshake className="h-5 w-5 text-white" strokeWidth={1.5} />
-                  <span className="text-xs font-black tracking-[0.1em] text-white uppercase">Katuwang</span>
+                <div className="opacity-40 hover:opacity-100 transition-opacity">
+                  <BrandLogo theme="dark" />
                 </div>
                 <p className="text-slate-500 text-[9px] font-bold uppercase tracking-[0.35em] leading-loose">
                   Katuwang Solutions · Framework v1.2<br />&copy; {new Date().getFullYear()} All Rights Reserved.
@@ -169,7 +197,7 @@ export default function Home() {
           </div>
 
           {/* Floating bottom CTA — always visible */}
-          <FloatingCta onEnterPortal={() => setView('onboarding')} />
+          <FloatingCta onEnterPortal={() => { setSelectedAppId(null); setView('onboarding'); }} />
         </div>
       </InvitationGuard>
     );
@@ -180,8 +208,12 @@ export default function Home() {
     return (
       <InvitationGuard>
         <OnboardingWizard 
+          initialAppId={selectedAppId || undefined}
           onComplete={() => setView('tenant')}
-          onCancel={() => setView('landing')}
+          onCancel={() => {
+            setSelectedAppId(null);
+            setView('landing');
+          }}
         />
       </InvitationGuard>
     );

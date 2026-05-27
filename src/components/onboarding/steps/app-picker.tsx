@@ -12,43 +12,43 @@ const apps = [
   { 
     category: 'Retail & Tindahan',
     items: [
-      { id: 'benta-snap', name: 'Benta Snap', icon: ShoppingCart, desc: 'Para sa mga tindahan — i-snap ang benta, real-time.' },
-      { id: 'fresh-tally', name: 'Fresh Tally', icon: Leaf, desc: 'Para sa palengke at talipapa — alamin ang stock mo agad.' },
-      { id: 'build-stack', name: 'Build Stack', icon: Hammer, desc: 'Para sa hardware at konstruksiyon — i-track ang materyales.' },
-      { id: 'ani-grow', name: 'Ani Grow', icon: Sprout, desc: 'Para sa mga magsasaka — mula sa bukid hanggang bodega.' },
+      { id: 'benta-snap', name: 'Benta Snap', icon: ShoppingCart, desc: 'Lightning-fast retail checkout to maximize your daily sales.' },
+      { id: 'fresh-tally', name: 'Fresh Tally', icon: Leaf, desc: 'Smart inventory tracking to keep your fresh produce moving.' },
+      { id: 'build-stack', name: 'Build Stack', icon: Hammer, desc: 'Precision material tracking for seamless construction supply.' },
+      { id: 'ani-grow', name: 'Ani Grow', icon: Sprout, desc: 'End-to-end farm-to-warehouse tracking for agriculture.' },
     ]
   },
   { 
     category: 'Pagkain & Inumin',
     items: [
-      { id: 'bite-snap', name: 'Bite Snap', icon: Utensils, desc: 'Para sa mga kainan — order, bayad, at resibo sa seconds.' },
-      { id: 'timpla-track', name: 'Timpla Track', icon: Coffee, desc: 'Para sa mga café — simpleng pag-manage ng operasyon.' },
-      { id: 'ganap-master', name: 'Ganap Master', icon: CalendarHeart, desc: 'Para sa events — i-manage ang layout at food, walang stress.' },
+      { id: 'bite-snap', name: 'Bite Snap', icon: Utensils, desc: 'Rapid order-to-kitchen flow for hungry diners.' },
+      { id: 'timpla-track', name: 'Timpla Track', icon: Coffee, desc: 'Crafted cafe operations for the perfect brew every time.' },
+      { id: 'ganap-master', name: 'Ganap Master', icon: CalendarHeart, desc: 'Orchestrate unforgettable events with flawless planning.' },
     ]
   },
   { 
     category: 'Serbisyo',
     items: [
-      { id: 'spin-snap', name: 'Spin Snap', icon: RotateCcw, desc: 'Para sa laundry shop — track ang orders ng walang effort.' },
-      { id: 'hydro-sync', name: 'Hydro Sync', icon: Droplets, desc: 'Para sa water station — i-manage ang deliveries, auto.' },
-      { id: 'auto-boss', name: 'Auto Boss', icon: Sparkles, desc: 'Para sa car wash — track slots at bayad, maliwanag.' },
-      { id: 'wellness-pro', name: 'Wellness Pro', icon: Sun, desc: 'Para sa spa at wellness — booking at bayad, sa isang lugar.' },
-      { id: 'trim-track', name: 'Trim Track', icon: Scissors, desc: 'Para sa salon at barbershop — track ang upuan at gupit.' },
-      { id: 'rep-sync', name: 'Rep Sync', icon: Dumbbell, desc: 'Para sa gym at fitness — membership, attendance, payments.' },
+      { id: 'spin-snap', name: 'Spin Snap', icon: RotateCcw, desc: 'Automated laundry tracking from drop-off to pickup.' },
+      { id: 'hydro-sync', name: 'Hydro Sync', icon: Droplets, desc: 'Streamlined water delivery logistics for thirsty neighborhoods.' },
+      { id: 'auto-boss', name: 'Auto Boss', icon: Sparkles, desc: 'Rev up your shop with automated slot and payment tracking.' },
+      { id: 'wellness-pro', name: 'Wellness Pro', icon: Sun, desc: 'Elevate your spa experience with seamless booking and billing.' },
+      { id: 'trim-track', name: 'Trim Track', icon: Scissors, desc: 'Keep your barber chairs full and your payments tracked.' },
+      { id: 'rep-sync', name: 'Rep Sync', icon: Dumbbell, desc: 'Automate gym memberships, attendance, and renewals effortlessly.' },
     ]
   },
   { 
     category: 'Pananago ng Negosyo',
     items: [
-      { id: 'sahod-flow', name: 'Sahod Flow', icon: Banknote, desc: 'Para sa lahat — tama ang sahod, on time palagi.' },
-      { id: 'ledger-flow', name: 'Ledger Flow', icon: BookText, desc: 'Para sa lahat — panoorin ang pera mo lumago.' },
-      { id: 'biyahe-sync', name: 'Biyahe Sync', icon: Truck, desc: 'Para sa delivery at logistics — track biyahe, real-time.' },
+      { id: 'sahod-flow', name: 'Sahod Flow', icon: Banknote, desc: 'Effortless payroll management for a happy, on-time team.' },
+      { id: 'ledger-flow', name: 'Ledger Flow', icon: BookText, desc: 'Crystal-clear financial insights to watch your profits soar.' },
+      { id: 'biyahe-sync', name: 'Biyahe Sync', icon: Truck, desc: 'Real-time fleet dispatching to keep your business moving.' },
     ]
   },
   {
     category: 'Pinansyal & Pagpapautang',
     items: [
-      { id: 'hiram-snap', name: 'Hiram Snap', icon: Wallet, desc: 'Para sa 5-6 at lending — i-track ang pautang at singil araw-araw.' },
+      { id: '5-6-tracker', name: '5-6 Tracker', icon: BookText, desc: 'Secure, automated lending lists for faster collections.' },
     ]
   }
 ];

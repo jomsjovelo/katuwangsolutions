@@ -114,12 +114,18 @@ export function HiramDashboard() {
         throw new Error("Mangyaring maglagay ng valid na PH mobile number (ex. 09123456789).");
       }
 
+      const limitParsed = parseFloat(newLimit);
+      const dailyDueParsed = parseFloat(newDailyDue);
+      if (isNaN(limitParsed) || limitParsed <= 0 || isNaN(dailyDueParsed) || dailyDueParsed <= 0) {
+        throw new Error("Paki-check ang limit at target. Dapat ito ay valid na numero.");
+      }
+
       await addBorrower(
         currentTenant.id,
         newName,
         phoneClean,
-        parseFloat(newLimit),
-        parseFloat(newDailyDue)
+        limitParsed,
+        dailyDueParsed
       );
 
       playSuccessBeep();
@@ -146,12 +152,20 @@ export function HiramDashboard() {
       setIsSubmitting(true);
       setErrorMsg(null);
 
+      const principalParsed = parseFloat(loanPrincipal);
+      const interestParsed = parseFloat(loanInterest);
+      const dailyDueParsed = parseFloat(loanDailyDue);
+
+      if (isNaN(principalParsed) || principalParsed <= 0 || isNaN(interestParsed) || interestParsed < 0 || isNaN(dailyDueParsed) || dailyDueParsed <= 0) {
+        throw new Error("Paki-check ang mga halaga. Siguraduhing valid ang mga inilagay na numero.");
+      }
+
       await recordLoan(
         currentTenant.id,
         selectedBorrower.id,
-        parseFloat(loanPrincipal),
-        parseFloat(loanInterest),
-        parseFloat(loanDailyDue)
+        principalParsed,
+        interestParsed,
+        dailyDueParsed
       );
 
       playSuccessBeep();
@@ -174,10 +188,15 @@ export function HiramDashboard() {
       setIsSubmitting(true);
       setErrorMsg(null);
 
+      const payParsed = parseFloat(payAmount);
+      if (isNaN(payParsed) || payParsed <= 0) {
+        throw new Error("Ang halaga ng ibabayad ay dapat higit sa zero at valid na numero.");
+      }
+
       await recordPayment(
         currentTenant.id,
         selectedBorrower.id,
-        parseFloat(payAmount)
+        payParsed
       );
 
       playPaymentSound();
@@ -228,7 +247,7 @@ export function HiramDashboard() {
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-xl font-headline font-black tracking-tight text-slate-800">Hiram Snap</h3>
+              <h3 className="text-xl font-headline font-black tracking-tight text-slate-800">5-6 Tracker</h3>
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
                 {theme.name} • Micro-Credit Ledger
               </p>
@@ -571,7 +590,7 @@ export function HiramDashboard() {
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800"
                     >
                       {borrowers.map(b => (
-                        <option key={b.id} value={b.id}>{b.name} (Bal: ₱{(b.outstanding/100).toFixed(0)})</option>
+                        <option key={b.id} value={b.id}>{b.name} (Bal: ₱{((b.outstanding || 0)/100).toFixed(0)})</option>
                       ))}
                     </select>
                   </div>

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
+import { completeServiceOrder } from '@/firebase/firestore/service-actions';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -67,6 +68,10 @@ export function HydroDashboard() {
       toast({ title: 'Error', description: 'Please enter at least 1 round or slim gallon.', variant: 'destructive' });
       return;
     }
+    if (finalPrice < 0 || isNaN(finalPrice)) {
+      toast({ title: 'Error', description: 'Invalid price.', variant: 'destructive' });
+      return;
+    }
 
     setIsProcessing(true);
     try {
@@ -81,7 +86,7 @@ export function HydroDashboard() {
         roundReturned: 0,
         slimReturned: 0,
         status: 'Pending',
-        amountDue: finalPrice * 100, // convert to cents
+        amountDue: Math.round(finalPrice * 100), // convert to cents safely
         paymentStatus: 'Unpaid',
         createdAt: serverTimestamp(),
       });
@@ -111,13 +116,28 @@ export function HydroDashboard() {
   };
 
   const handleSettleAndDeliver = async () => {
-    if (!settleOrderId) return;
+    if (!settleOrderId || !currentTenant || !db) return;
     setIsProcessing(true);
-    await updateStatus(settleOrderId, 'Delivered', {
-      paymentStatus: 'Paid',
-      roundReturned: typeof roundReturned === 'number' ? roundReturned : 0,
-      slimReturned: typeof slimReturned === 'number' ? slimReturned : 0,
-    });
+    try {
+      const orderToSettle = outForDeliveryOrders.find(o => o.id === settleOrderId);
+      if (orderToSettle) {
+        await completeServiceOrder(
+          currentTenant.id, 
+          'water_deliveries', 
+          settleOrderId, 
+          'Delivered', 
+          orderToSettle.amountDue, 
+          `Water Delivery: ${orderToSettle.customerName}`,
+          {
+            roundReturned: typeof roundReturned === 'number' ? roundReturned : 0,
+            slimReturned: typeof slimReturned === 'number' ? slimReturned : 0,
+          }
+        );
+        toast({ title: 'Delivery Updated', description: `Order moved to Delivered.` });
+      }
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
     setSettleOrderId(null);
     setRoundReturned('');
     setSlimReturned('');

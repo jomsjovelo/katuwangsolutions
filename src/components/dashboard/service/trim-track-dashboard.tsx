@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
+import { completeServiceOrder } from '@/firebase/firestore/service-actions';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -54,7 +55,10 @@ export function TrimTrackDashboard() {
   const finalPrice = typeof priceOverride === 'number' ? priceOverride : suggestedPrice;
 
   const handleAddAppointment = async () => {
-    if (!currentTenant || !db || !customerName || !stylistName) return;
+    if (!currentTenant || !db || !customerName || !stylistName || finalPrice < 0 || isNaN(finalPrice)) {
+      if (finalPrice < 0 || isNaN(finalPrice)) toast({ title: 'Error', description: 'Invalid price.', variant: 'destructive' });
+      return;
+    }
     setIsProcessing(true);
     try {
       const apptRef = doc(collection(db, 'tenants', currentTenant.id, 'salon_appointments'));
@@ -64,7 +68,7 @@ export function TrimTrackDashboard() {
         stylistName,
         serviceType,
         status: 'Waiting',
-        amountDue: finalPrice * 100, // convert to cents
+        amountDue: Math.round(finalPrice * 100), // convert to cents safely
         paymentStatus: 'Unpaid',
         createdAt: serverTimestamp(),
       });
@@ -81,13 +85,24 @@ export function TrimTrackDashboard() {
     }
   };
 
-  const updateStatus = async (id: string, status: string, paymentStatus?: string) => {
+  const updateStatus = async (appt: any, status: string, paymentStatus?: string) => {
     if (!currentTenant || !db) return;
     try {
-      const apptRef = doc(db, 'tenants', currentTenant.id, 'salon_appointments', id);
-      const updates: any = { status, updatedAt: serverTimestamp() };
-      if (paymentStatus) updates.paymentStatus = paymentStatus;
-      await updateDoc(apptRef, updates);
+      if (status === 'Done' && paymentStatus === 'Paid') {
+        await completeServiceOrder(
+          currentTenant.id, 
+          'salon_appointments', 
+          appt.id, 
+          status, 
+          appt.amountDue, 
+          `Salon: ${appt.serviceType} for ${appt.customerName}`
+        );
+      } else {
+        const apptRef = doc(db, 'tenants', currentTenant.id, 'salon_appointments', appt.id);
+        const updates: any = { status, updatedAt: serverTimestamp() };
+        if (paymentStatus) updates.paymentStatus = paymentStatus;
+        await updateDoc(apptRef, updates);
+      }
       toast({ title: 'Status Updated', description: `Customer moved to ${status}.` });
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
@@ -210,7 +225,7 @@ export function TrimTrackDashboard() {
               <div className="space-y-2">
                 {waitingAppointments.map(appt => (
                   <AppointmentCard key={appt.id} appointment={appt} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-rose-600 hover:bg-rose-700" onClick={() => updateStatus(appt.id!, 'In Chair')}>
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-rose-600 hover:bg-rose-700" onClick={() => updateStatus(appt, 'In Chair')}>
                       <Armchair className="h-3 w-3 mr-1 text-rose-200" /> Sit In Chair
                     </Button>
                   } />
@@ -228,7 +243,7 @@ export function TrimTrackDashboard() {
               <div className="space-y-2">
                 {inChairAppointments.map(appt => (
                   <AppointmentCard key={appt.id} appointment={appt} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white" onClick={() => updateStatus(appt.id!, 'Done', 'Paid')}>
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white" onClick={() => updateStatus(appt, 'Done', 'Paid')}>
                       <CircleDollarSign className="h-3 w-3 mr-1" /> Finish & Checkout
                     </Button>
                   } />

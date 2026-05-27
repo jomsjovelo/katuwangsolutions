@@ -49,9 +49,15 @@ export async function processCheckout(
   
   // We use runTransactionResilient to execute locally when offline and sync automatically
   await runTransactionResilient(db, async (transaction) => {
-    // 1. First, read all the product documents to ensure we have enough stock.
+    let secureTotalAmount = 0;
+
+    // 1. First, read all the product documents to ensure we have enough stock and get valid prices.
     const productDocs: Record<string, { ref: ReturnType<typeof doc>; newStock: number }> = {};
     for (const item of cart) {
+      if (item.quantity <= 0 || isNaN(item.quantity)) {
+        throw new Error(`Invalid quantity for ${item.name}.`);
+      }
+
       const productRef = doc(db, 'tenants', tenantId, 'products', item.productId);
       const productSnap = await transaction.get(productRef);
       
@@ -59,11 +65,17 @@ export async function processCheckout(
         throw new Error(`Product ${item.name} does not exist.`);
       }
       
-      const currentStock = productSnap.data().currentStock || 0;
+      const productData = productSnap.data();
+      const currentStock = productData.currentStock || 0;
+      const secureDbPrice = productData.salePrice || 0;
+
       if (currentStock < item.quantity) {
         throw new Error(`Not enough stock for ${item.name}. Available: ${currentStock}`);
       }
       
+      // Calculate total entirely on the server using secure DB prices
+      secureTotalAmount += secureDbPrice * item.quantity;
+
       // Store the doc reference and new stock for the write phase
       productDocs[item.productId] = {
         ref: productRef,
@@ -88,7 +100,7 @@ export async function processCheckout(
       id: newSaleRef.id,
       tenantId,
       items: cart,
-      totalAmount: totalAmountCentavos,
+      totalAmount: secureTotalAmount,
       paymentMethod,
       createdAt: serverTimestamp()
     };

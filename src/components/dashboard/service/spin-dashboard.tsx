@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
+import { completeServiceOrder } from '@/firebase/firestore/service-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -64,7 +65,7 @@ export function SpinDashboard() {
         kilos,
         serviceType,
         status: 'Queued',
-        amountDue: finalPrice * 100, // convert to cents
+        amountDue: Math.round(finalPrice * 100), // convert to cents securely
         paymentStatus: 'Unpaid',
         createdAt: serverTimestamp(),
       });
@@ -80,13 +81,25 @@ export function SpinDashboard() {
     }
   };
 
-  const updateStatus = async (id: string, status: string, paymentStatus?: string) => {
+  const updateStatus = async (order: any, status: string, paymentStatus?: string) => {
     if (!currentTenant || !db) return;
     try {
-      const orderRef = doc(db, 'tenants', currentTenant.id, 'laundry_orders', id);
-      const updates: any = { status, updatedAt: serverTimestamp() };
-      if (paymentStatus) updates.paymentStatus = paymentStatus;
-      await updateDoc(orderRef, updates);
+      if (paymentStatus === 'Paid') {
+        // ERP INTEGRATION: Complete order and collect payment
+        await completeServiceOrder(
+          currentTenant.id,
+          'laundry_orders',
+          order.id,
+          status,
+          order.amountDue || 0,
+          `Laundry: ${order.customerName} (${order.kilos}kg)`
+        );
+      } else {
+        const orderRef = doc(db, 'tenants', currentTenant.id, 'laundry_orders', order.id);
+        const updates: any = { status, updatedAt: serverTimestamp() };
+        if (paymentStatus) updates.paymentStatus = paymentStatus;
+        await updateDoc(orderRef, updates);
+      }
       toast({ title: 'Status Updated', description: `Order moved to ${status}.` });
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
@@ -199,7 +212,7 @@ export function SpinDashboard() {
               <div className="space-y-2">
                 {queuedOrders.map(order => (
                   <OrderCard key={order.id} order={order} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-slate-800" onClick={() => updateStatus(order.id!, 'Washing')}>
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-slate-800" onClick={() => updateStatus(order, 'Washing')}>
                       <Droplets className="h-3 w-3 mr-1" /> Start Washing
                     </Button>
                   } />
@@ -217,7 +230,7 @@ export function SpinDashboard() {
               <div className="space-y-2">
                 {washingOrders.map(order => (
                   <OrderCard key={order.id} order={order} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-indigo-500 hover:bg-indigo-600" onClick={() => updateStatus(order.id!, 'Ready')}>
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-indigo-500 hover:bg-indigo-600" onClick={() => updateStatus(order, 'Ready')}>
                       <CheckCircle2 className="h-3 w-3 mr-1" /> Mark Ready
                     </Button>
                   } />
@@ -235,7 +248,7 @@ export function SpinDashboard() {
               <div className="space-y-2">
                 {readyOrders.map(order => (
                   <OrderCard key={order.id} order={order} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600" onClick={() => updateStatus(order.id!, 'Claimed', 'Paid')}>
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600" onClick={() => updateStatus(order, 'Claimed', 'Paid')}>
                       <CircleDollarSign className="h-3 w-3 mr-1" /> Pay & Claim
                     </Button>
                   } />

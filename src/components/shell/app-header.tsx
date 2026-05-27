@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { ChevronLeft, WifiOff, BookOpen } from 'lucide-react';
-import { Logo } from '@/components/ui/logo';
+import { BrandLogo } from '@/components/ui/brand-logo';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { useTenant } from '@/app/lib/tenant-context';
 import { getModuleTheme } from '@/lib/theme-utils';
@@ -37,7 +37,7 @@ export function AppHeader({ title, subtitle, onBack, rightAction }: AppHeaderPro
           </button>
         )}
 
-        <Logo className="h-7 w-7 flex-shrink-0 animate-in fade-in" />
+        <BrandLogo className="flex-shrink-0 animate-in fade-in" showText={false} />
 
         {/* Title block */}
         <div className="flex-1 min-w-0">

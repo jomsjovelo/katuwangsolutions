@@ -12,7 +12,8 @@ import {
 } from 'firebase/auth';
 import { app } from '@/firebase/config';
 import { FirebaseError } from 'firebase/app';
-import { Handshake, Loader2, LogIn, Chrome } from 'lucide-react';
+import { Loader2, LogIn, Chrome } from 'lucide-react';
+import { BrandLogo } from '@/components/ui/brand-logo';
 
 import {
   Dialog,
@@ -105,8 +106,8 @@ export function LoginDialog({ children }: { children: React.ReactNode }) {
       </DialogTrigger>
       <DialogContent className="sm:max-w-md rounded-[24px] p-6 border-slate-100">
         <DialogHeader className="flex flex-col items-center text-center space-y-4 mb-6">
-          <div className="p-3 bg-primary/10 rounded-full">
-            <Handshake className="h-8 w-8 text-primary" />
+          <div className="p-3 bg-primary/5 rounded-full">
+            <BrandLogo showText={false} className="!h-10 !w-10 sm:!h-12 sm:!w-12" />
           </div>
           <div>
             <DialogTitle className="text-2xl font-black font-headline uppercase tracking-tight">

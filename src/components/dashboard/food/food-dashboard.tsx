@@ -71,7 +71,11 @@ export function FoodDashboard() {
     if (!currentTenant || !db || !newMenuName || !newMenuPrice) return;
     setIsProcessing(true);
     try {
-      const price = parseInt(newMenuPrice) * 100; // Convert to centavos
+      const parsedPrice = parseFloat(newMenuPrice);
+      if (isNaN(parsedPrice) || parsedPrice <= 0) {
+        throw new Error("Ang presyo ay dapat valid na numero at higit sa zero.");
+      }
+      const price = Math.round(parsedPrice * 100); // Convert to centavos safely
       const menuRef = doc(collection(db, 'tenants', currentTenant.id, 'menu_items'));
       await setDoc(menuRef, {
         tenantId: currentTenant.id,

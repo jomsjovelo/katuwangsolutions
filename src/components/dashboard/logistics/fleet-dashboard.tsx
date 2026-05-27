@@ -62,9 +62,14 @@ export function FleetDashboard() {
 
   const handleDispatch = async () => {
     if (!currentTenant || !origin || !destination) return;
+    const feeVal = Number(fee || 0);
+    if (feeVal < 0 || isNaN(feeVal)) {
+      toast({ title: 'Error', description: 'Invalid delivery fee amount.', variant: 'destructive' });
+      return;
+    }
     try {
       setIsProcessing(true);
-      await addTrip(currentTenant.id, origin, destination, loadDesc, driver, Number(fee || 0) * 100);
+      await addTrip(currentTenant.id, origin, destination, loadDesc, driver, Math.round(feeVal * 100));
       setOrigin(''); setDestination(''); setLoadDesc(''); setDriver(''); setFee('');
       setShowDispatchForm(false);
       toast({ title: 'Truck Dispatched!', description: `Heading to ${destination}` });
@@ -97,7 +102,7 @@ export function FleetDashboard() {
 
     try {
       setIsProcessing(true);
-      await updateTripExpenses(currentTenant.id, tripId, Number(amount) * 100);
+      await updateTripExpenses(currentTenant.id, tripId, Math.round(Number(amount) * 100));
       setExpenseInputs(prev => ({ ...prev, [tripId]: '' }));
       toast({ title: 'Expense Logged', description: `₱${amount} added to trip expenses.` });
     } catch (e: any) {

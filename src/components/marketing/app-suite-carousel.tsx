@@ -21,7 +21,7 @@ interface AppGroup {
 
 interface AppSuiteCarouselProps {
   groups: AppGroup[];
-  onSelect: () => void;
+  onSelect: (appName: string) => void;
 }
 
 export function AppSuiteCarousel({ groups, onSelect }: AppSuiteCarouselProps) {
@@ -32,17 +32,21 @@ export function AppSuiteCarousel({ groups, onSelect }: AppSuiteCarouselProps) {
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {
-      const scrollAmount = direction === 'left' ? -300 : 300;
+      // Scroll by the container's visible width to page through faster and guarantee a snap
+      const containerWidth = scrollRef.current.clientWidth;
+      const scrollDistance = Math.max(containerWidth * 0.8, 300); // Scroll 80% of the screen width
+      
+      const scrollAmount = direction === 'left' ? -scrollDistance : scrollDistance;
       scrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
     }
   };
 
   return (
-    <section id="products" className="py-10 bg-slate-50 relative">
+    <section id="products" className="py-10 bg-slate-50 relative w-full max-w-[100vw] overflow-hidden">
       {/* Section heading */}
       <div className="px-5 mb-5">
         <h2 className="text-xl font-black text-slate-900 tracking-tight">Katuwang App Suite</h2>
-        <p className="text-xs text-slate-500 font-semibold uppercase tracking-widest mt-0.5">16 Industry Specific Modules</p>
+        <p className="text-xs text-slate-500 font-semibold uppercase tracking-widest mt-0.5">16 Industry Specific Products</p>
       </div>
 
       {/* Group tab pills — horizontally scrollable */}
@@ -71,13 +75,13 @@ export function AppSuiteCarousel({ groups, onSelect }: AppSuiteCarouselProps) {
       {/* Carousel Container with optional arrows on desktop */}
       <div className="relative group">
         
-        {/* Left Scroll Arrow (Desktop Only) */}
+        {/* Left Scroll Arrow (Desktop Only) - Always visible on desktop, moved inwards to prevent scrollbar overlap */}
         <button 
           onClick={() => scroll('left')}
-          className="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 z-10 h-10 w-10 bg-white/90 backdrop-blur-sm rounded-full shadow-lg border border-slate-200 items-center justify-center text-slate-600 hover:text-slate-900 hover:scale-105 transition-all opacity-0 group-hover:opacity-100"
+          className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-20 h-12 w-12 bg-white/95 backdrop-blur-md rounded-full shadow-xl border border-slate-200 items-center justify-center text-slate-700 hover:text-slate-900 hover:scale-110 transition-all"
           aria-label="Scroll left"
         >
-          <ChevronLeft className="h-5 w-5" />
+          <ChevronLeft className="h-6 w-6" />
         </button>
 
         {/* Card carousel — horizontal swipe with peek */}
@@ -90,16 +94,16 @@ export function AppSuiteCarousel({ groups, onSelect }: AppSuiteCarouselProps) {
             return (
               <div
                 key={app.name}
-                className="snap-start flex-shrink-0 flex flex-col h-full w-[72vw] sm:w-[44vw] md:w-[28vw] bg-white rounded-2xl overflow-hidden shadow-md border border-slate-100"
+                className="snap-start flex-shrink-0 flex flex-col h-full w-[85vw] sm:w-[50vw] md:w-[28vw] bg-white rounded-2xl overflow-hidden shadow-md border border-slate-100"
               >
                 {/* Photo */}
-                <div className="relative aspect-[4/3] w-full flex-shrink-0 overflow-hidden bg-slate-100">
+                <div className="relative aspect-video sm:aspect-[4/3] w-full flex-shrink-0 overflow-hidden bg-slate-100">
                   <Image
                     src={app.imageSrc}
                     alt={app.name}
                     fill
                     className="object-cover"
-                    sizes="(max-width: 640px) 72vw, (max-width: 768px) 44vw, 28vw"
+                    sizes="(max-width: 640px) 85vw, (max-width: 768px) 50vw, 28vw"
                   />
                 </div>
 
@@ -123,7 +127,7 @@ export function AppSuiteCarousel({ groups, onSelect }: AppSuiteCarouselProps) {
                   <Button
                     className="w-full h-11 rounded-xl font-bold text-xs text-white active:scale-95 transition-transform mt-auto"
                     style={{ backgroundColor: activeGroup.accentColor }}
-                    onClick={onSelect}
+                    onClick={() => onSelect(app.name)}
                   >
                     Subukan ang {app.name}
                     <ChevronRight className="h-3.5 w-3.5 ml-1" />
@@ -137,13 +141,13 @@ export function AppSuiteCarousel({ groups, onSelect }: AppSuiteCarouselProps) {
           <div className="flex-shrink-0 w-2" />
         </div>
 
-        {/* Right Scroll Arrow (Desktop Only) */}
+        {/* Right Scroll Arrow (Desktop Only) - Always visible on desktop, moved inwards */}
         <button 
           onClick={() => scroll('right')}
-          className="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 z-10 h-10 w-10 bg-white/90 backdrop-blur-sm rounded-full shadow-lg border border-slate-200 items-center justify-center text-slate-600 hover:text-slate-900 hover:scale-105 transition-all opacity-0 group-hover:opacity-100"
+          className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 z-20 h-12 w-12 bg-white/95 backdrop-blur-md rounded-full shadow-xl border border-slate-200 items-center justify-center text-slate-700 hover:text-slate-900 hover:scale-110 transition-all"
           aria-label="Scroll right"
         >
-          <ChevronRight className="h-5 w-5" />
+          <ChevronRight className="h-6 w-6" />
         </button>
       </div>
 
@@ -151,8 +155,8 @@ export function AppSuiteCarousel({ groups, onSelect }: AppSuiteCarouselProps) {
       <div className="flex items-center justify-center gap-1.5 mt-2 text-slate-400">
         <Hand className="h-3 w-3 hidden sm:block md:hidden" />
         <p className="text-[10px] font-bold uppercase tracking-widest text-center">
-          <span className="md:hidden">Swipe to explore modules</span>
-          <span className="hidden md:inline">Scroll to explore modules</span>
+          <span className="md:hidden">Swipe to explore apps</span>
+          <span className="hidden md:inline">Scroll to explore apps</span>
         </p>
       </div>
 

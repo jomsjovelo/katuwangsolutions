@@ -7,7 +7,7 @@ import { getModuleTheme } from '@/lib/theme-utils';
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { doc, getFirestore, updateDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getFirestore, updateDoc, onSnapshot, increment } from 'firebase/firestore';
 import { app } from '@/firebase/config';
 import { useUser } from '@/firebase/auth/use-user';
 import { 
@@ -53,7 +53,7 @@ export function StockTab() {
       setIsUpdatingId(productId);
       const productRef = doc(db, 'tenants', currentTenant.id, 'products', productId);
       await updateDoc(productRef, {
-        currentStock: currentStock + 10,
+        currentStock: increment(10),
         updatedAt: new Date()
       });
     } catch (e) {

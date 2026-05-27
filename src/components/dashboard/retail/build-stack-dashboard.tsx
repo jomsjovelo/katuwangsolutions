@@ -15,7 +15,7 @@ import { Package, Truck, HardHat, TrendingUp, Plus } from "lucide-react";
 import { useProjects } from '@/hooks/use-projects';
 import { useInventory } from '@/hooks/use-inventory';
 import { useFirestore } from '@/firebase/provider';
-import { doc, collection, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { doc, collection, runTransaction, serverTimestamp, increment } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -51,17 +51,17 @@ export function BuildStackDashboard() {
         const projectRef = doc(db, 'tenants', currentTenant.id, 'projects', project.id!);
         const txRef = doc(collection(db, 'tenants', currentTenant.id, 'inventory_transactions'));
 
-        const totalCost = product.costPrice * dispatchQty; // We track cost, or maybe selling price? Let's use cost for now.
+        const totalCost = product.salePrice * dispatchQty; // Bill the project using the sale price
 
         // Update product stock
         transaction.update(productRef, {
-          currentStock: product.currentStock - dispatchQty,
+          currentStock: increment(-dispatchQty),
           updatedAt: serverTimestamp()
         });
 
         // Update project total cost
         transaction.update(projectRef, {
-          totalMaterialCost: project.totalMaterialCost + totalCost,
+          totalMaterialCost: increment(totalCost),
           updatedAt: serverTimestamp()
         });
 

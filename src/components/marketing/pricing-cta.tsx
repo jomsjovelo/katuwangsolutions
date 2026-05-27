@@ -30,19 +30,19 @@ export function PricingCta({ onEnterPortal }: PricingCtaProps) {
               <span className="text-5xl md:text-7xl font-black text-white tracking-tighter">₱99</span>
               <span className="text-lg font-medium text-white/80">/buwan</span>
             </div>
-            <p className="text-white/70 text-xs mt-1 font-medium">Lahat ng 15 modules. Isang presyo.</p>
+            <p className="text-white/70 text-xs mt-1 font-medium">₱99 bawat module. Pumili sa 16 apps.</p>
           </div>
 
           <Button
             className="w-full h-14 rounded-2xl text-base font-bold bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-all active:scale-[0.98] shadow-xl flex items-center justify-center gap-2"
             onClick={onEnterPortal}
           >
-            Libre Subukan
+            Register Now
             <ChevronRight className="h-5 w-5" />
           </Button>
 
           <p className="text-[10px] text-white/50 uppercase tracking-[0.2em] font-bold">
-            No credit card required. Cancel anytime.
+            ₱99 only for a month. No auto renew.
           </p>
         </div>
       </div>

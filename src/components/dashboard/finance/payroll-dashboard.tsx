@@ -58,13 +58,16 @@ export function PayrollDashboard() {
   const [isAdding, setIsAdding] = useState(false);
 
   const handleAddEmployee = async () => {
-    if (!currentTenant || !newName || !newRate) return;
+    if (!currentTenant || !newName || !newRate || Number(newRate) <= 0 || isNaN(Number(newRate))) {
+      toast({ title: 'Error', description: 'Please enter a valid rate greater than zero.', variant: 'destructive' });
+      return;
+    }
     setIsAdding(true);
     try {
       await addEmployee(currentTenant.id, {
         name: newName.trim(),
         position: newPosition.trim() || 'Staff',
-        baseSalary: Number(newRate) * 100, // pesos to centavos
+        baseSalary: Math.round(Number(newRate) * 100), // pesos to centavos safely
         salaryType: newSalaryType,
         daysWorkedThisPeriod: 0,
         outstandingVale: 0,
@@ -91,7 +94,7 @@ export function PayrollDashboard() {
   const handlePayNow = async (emp: any) => {
     if (!currentTenant) return;
     const days = Number(daysInputs[emp.id] ?? emp.daysWorkedThisPeriod ?? 0);
-    const vale = Number(valeInputs[emp.id] ?? (emp.outstandingVale / 100) ?? 0);
+    const vale = Number(valeInputs[emp.id] ?? ((emp.outstandingVale ?? 0) / 100));
     const ratePerDay = emp.baseSalary; // in centavos
     const grossCentavos = emp.salaryType === 'daily' ? ratePerDay * days : ratePerDay;
     const valeCentavos = vale * 100;
@@ -126,7 +129,7 @@ export function PayrollDashboard() {
   const EmployeeCard = ({ emp }: { emp: any }) => {
     const isExpanded = expandedId === emp.id;
     const days = Number(daysInputs[emp.id] ?? emp.daysWorkedThisPeriod ?? 0);
-    const vale = Number(valeInputs[emp.id] ?? (emp.outstandingVale / 100) ?? 0);
+    const vale = Number(valeInputs[emp.id] ?? ((emp.outstandingVale ?? 0) / 100));
     const rateDisplay = emp.baseSalary / 100;
     const grossPay = emp.salaryType === 'daily' ? rateDisplay * days : rateDisplay;
     const netPay = Math.max(0, grossPay - vale);
@@ -193,7 +196,7 @@ export function PayrollDashboard() {
                   type="number"
                   placeholder="0"
                   className="h-9 text-sm"
-                  value={valeInputs[emp.id] ?? (emp.outstandingVale / 100) ?? ''}
+                  value={valeInputs[emp.id] ?? ((emp.outstandingVale ?? 0) / 100)}
                   onChange={e => setValeInputs(prev => ({ ...prev, [emp.id]: parseFloat(e.target.value) || '' }))}
                 />
               </div>

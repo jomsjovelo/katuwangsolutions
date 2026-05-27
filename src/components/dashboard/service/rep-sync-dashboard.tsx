@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
+import { registerGymMember, renewGymMember } from '@/firebase/firestore/service-actions';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -55,34 +56,16 @@ export function RepSyncDashboard() {
     if (!currentTenant || !db || !memberName) return;
     setIsProcessing(true);
     try {
-      const memberRef = doc(collection(db, 'tenants', currentTenant.id, 'gym_memberships'));
-      
       const isDaily = planType === 'Daily Drop-in';
-      const status = isDaily ? 'Drop-in' : 'Active';
+      const finalPriceCentavos = Math.round(finalPrice * 100);
       
-      const updates: any = {
-        tenantId: currentTenant.id,
+      await registerGymMember(
+        currentTenant.id,
         memberName,
         planType,
-        status,
-        amountDue: finalPrice * 100, // convert to cents
-        paymentStatus: 'Paid', // assume paid upfront
-        createdAt: serverTimestamp(),
-        lastCheckIn: serverTimestamp(), // auto check-in upon registration
-      };
-
-      if (!isDaily) {
-        // Calculate expiration date roughly 30 days or 90 days from now
-        const expiresAt = new Date();
-        if (planType === '3-Month Plan') {
-          expiresAt.setMonth(expiresAt.getMonth() + 3);
-        } else {
-          expiresAt.setMonth(expiresAt.getMonth() + 1);
-        }
-        updates.expiresAt = expiresAt;
-      }
-
-      await setDoc(memberRef, updates);
+        finalPriceCentavos,
+        isDaily
+      );
       
       setMemberName('');
       setPlanType('Daily Drop-in');
@@ -110,26 +93,18 @@ export function RepSyncDashboard() {
     }
   };
 
-  const handleRenew = async (id: string, plan: string) => {
+  const handleRenew = async (member: any, plan: string) => {
     if (!currentTenant || !db) return;
     try {
-      const memberRef = doc(db, 'tenants', currentTenant.id, 'gym_memberships', id);
-      const expiresAt = new Date();
-      if (plan === '3-Month Plan') {
-        expiresAt.setMonth(expiresAt.getMonth() + 3);
-      } else {
-        expiresAt.setMonth(expiresAt.getMonth() + 1);
-      }
-
-      await updateDoc(memberRef, { 
-        status: 'Active',
-        planType: plan,
-        amountDue: (PLAN_PRICES[plan] || 1000) * 100,
-        paymentStatus: 'Paid',
-        expiresAt: expiresAt,
-        lastCheckIn: serverTimestamp(),
-        updatedAt: serverTimestamp() 
-      });
+      const finalPriceCentavos = Math.round((PLAN_PRICES[plan] || 1000) * 100);
+      
+      await renewGymMember(
+        currentTenant.id,
+        member.id,
+        member.memberName,
+        plan,
+        finalPriceCentavos
+      );
       toast({ title: 'Renewed', description: `Membership renewed to ${plan}.` });
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
@@ -279,7 +254,7 @@ export function RepSyncDashboard() {
               <div className="space-y-2">
                 {expiredMembers.map(member => (
                   <MemberCard key={member.id} member={member} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-rose-500 hover:bg-rose-600 text-white" onClick={() => handleRenew(member.id!, '1-Month Plan')}>
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-rose-500 hover:bg-rose-600 text-white" onClick={() => handleRenew(member, '1-Month Plan')}>
                       <RefreshCw className="h-3 w-3 mr-1" /> Renew 1-Month (₱1000)
                     </Button>
                   } />

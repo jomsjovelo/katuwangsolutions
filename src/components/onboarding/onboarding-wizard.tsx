@@ -19,17 +19,18 @@ type Step = 'apps' | 'business' | 'account' | 'success' | 'payment' | 'pending';
 const FORM_STEPS: Step[] = ['apps', 'business', 'account'];
 
 interface OnboardingWizardProps {
+  initialAppId?: string;
   onComplete: () => void;
   onCancel: () => void;
 }
 
-export function OnboardingWizard({ onComplete, onCancel }: OnboardingWizardProps) {
-  const [step, setStep] = useState<Step>('apps');
+export function OnboardingWizard({ initialAppId, onComplete, onCancel }: OnboardingWizardProps) {
+  const [step, setStep] = useState<Step>(initialAppId ? 'business' : 'apps');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState({
     // Business
-    appId: '',
+    appId: initialAppId || '',
     businessName: '',
     businessPhone: '',
     // Personal
@@ -72,6 +73,7 @@ export function OnboardingWizard({ onComplete, onCancel }: OnboardingWizardProps
   const back = () => {
     if (isLoading) return;
     if (step === 'apps') { onCancel(); return; }
+    if (step === 'business' && initialAppId) { onCancel(); return; }
     if (step === 'success' || step === 'payment' || step === 'pending') return; // no back on post-registration
     const all: Step[] = ['apps', 'business', 'account'];
     const idx = all.indexOf(step);

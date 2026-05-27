@@ -6,7 +6,8 @@ import { useUser } from '@/firebase/auth/use-user';
 import { useTenantStore, Tenant } from '@/store/use-tenant-store';
 import { doc, onSnapshot, getFirestore } from 'firebase/firestore';
 import { app } from '@/firebase/config';
-import { Handshake, ShieldAlert, Loader2, AlertCircle } from 'lucide-react';
+import { ShieldAlert, Loader2, AlertCircle } from 'lucide-react';
+import { BrandLogo } from '@/components/ui/brand-logo';
 
 const db = getFirestore(app, 'katuwang');
 
@@ -111,15 +112,27 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   if (authLoading || checking || isLoading || (user && isAdmin === null)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-white">
-        <div className="relative">
-          <Handshake className="h-16 w-16 text-primary animate-pulse" />
-          <div className="absolute -bottom-2 -right-2">
-             <Loader2 className="h-6 w-6 animate-spin text-secondary" />
+        <div className="relative flex flex-col items-center gap-6">
+          {/* Official brand logo, animate-pulse for loading feel */}
+          <BrandLogo showText={false} className="[&>div]:h-20 [&>div]:w-20 [&>div]:sm:h-24 [&>div]:sm:w-24 animate-pulse" />
+          <div className="flex flex-col items-center gap-2">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
+              Initializing Ecosystem...
+            </p>
+            {/* Branded loading bar */}
+            <div className="w-32 h-0.5 bg-slate-100 rounded-full overflow-hidden">
+              <div className="h-full bg-[#00BFFF] rounded-full animate-[loading_1.5s_ease-in-out_infinite]"
+                style={{ animation: 'loading 1.5s ease-in-out infinite' }} />
+            </div>
           </div>
         </div>
-        <p className="mt-6 text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
-          Initializing Ecosystem...
-        </p>
+        <style>{`
+          @keyframes loading {
+            0% { width: 0%; margin-left: 0%; }
+            50% { width: 60%; margin-left: 20%; }
+            100% { width: 0%; margin-left: 100%; }
+          }
+        `}</style>
       </div>
     );
   }

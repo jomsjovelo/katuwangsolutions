@@ -88,7 +88,7 @@ export function LedgerDashboard() {
     try {
       await addTransaction(
         currentTenant.id,
-        Number(amount) * 100, // pesos to centavos
+        Math.round(Number(amount) * 100), // pesos to centavos safely
         entryType,
         description.trim() || category || (entryType === 'income' ? 'Income' : 'Expense'),
         category

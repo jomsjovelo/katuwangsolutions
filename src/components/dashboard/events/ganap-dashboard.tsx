@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
+import { completeEvent, payEventVendor } from '@/firebase/firestore/events-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -47,6 +48,7 @@ export function GanapDashboard() {
   const [newClientName, setNewClientName] = useState('');
   const [newEventDate, setNewEventDate] = useState('');
   const [newVenue, setNewVenue] = useState('');
+  const [newContractPrice, setNewContractPrice] = useState<number | ''>('');
 
   // Selected Event Details
   const [selectedEvent, setSelectedEvent] = useState<EventModel | null>(null);
@@ -55,10 +57,15 @@ export function GanapDashboard() {
   const [newVendorRole, setNewVendorRole] = useState('');
   const [newVendorName, setNewVendorName] = useState('');
   const [newVendorContact, setNewVendorContact] = useState('');
+  const [newVendorCost, setNewVendorCost] = useState<number | ''>('');
 
   // Add Event
   const handleAddEvent = async () => {
-    if (!currentTenant || !db || !newEventTitle || !newClientName || !newEventDate) return;
+    const finalPrice = typeof newContractPrice === 'number' ? newContractPrice : 0;
+    if (!currentTenant || !db || !newEventTitle || !newClientName || !newEventDate || finalPrice < 0 || isNaN(finalPrice)) {
+      if (finalPrice < 0 || isNaN(finalPrice)) toast({ title: 'Error', description: 'Invalid price.', variant: 'destructive' });
+      return;
+    }
     setIsProcessing(true);
     try {
       const eventRef = doc(collection(db, 'tenants', currentTenant.id, 'events'));
@@ -69,6 +76,7 @@ export function GanapDashboard() {
         eventDate: newEventDate,
         venue: newVenue,
         status: 'Upcoming',
+        contractPrice: Math.round(finalPrice * 100),
         setupNotes: '',
         foodPackage: '',
         vendors: [],
@@ -78,6 +86,7 @@ export function GanapDashboard() {
       setNewClientName('');
       setNewEventDate('');
       setNewVenue('');
+      setNewContractPrice('');
       setShowAddEvent(false);
       toast({ title: 'Event Created!', description: `${newEventTitle} scheduled successfully.` });
     } catch (e: any) {
@@ -90,8 +99,12 @@ export function GanapDashboard() {
   const updateEventStatus = async (id: string, status: 'Upcoming' | 'Ongoing' | 'Done') => {
     if (!currentTenant || !db) return;
     try {
-      const eventRef = doc(db, 'tenants', currentTenant.id, 'events', id);
-      await updateDoc(eventRef, { status, updatedAt: serverTimestamp() });
+      if (status === 'Done') {
+        await completeEvent(currentTenant.id, id, selectedEvent?.contractPrice || 0, `Event: ${selectedEvent?.title}`);
+      } else {
+        const eventRef = doc(db, 'tenants', currentTenant.id, 'events', id);
+        await updateDoc(eventRef, { status, updatedAt: serverTimestamp() });
+      }
       if (selectedEvent?.id === id) {
         setSelectedEvent({ ...selectedEvent, status });
       }
@@ -113,12 +126,17 @@ export function GanapDashboard() {
   };
 
   const addVendor = async () => {
-    if (!currentTenant || !db || !selectedEvent?.id || !newVendorRole || !newVendorName) return;
+    const cost = typeof newVendorCost === 'number' ? newVendorCost : 0;
+    if (!currentTenant || !db || !selectedEvent?.id || !newVendorRole || !newVendorName || cost < 0 || isNaN(cost)) {
+      if (cost < 0 || isNaN(cost)) toast({ title: 'Error', description: 'Invalid cost.', variant: 'destructive' });
+      return;
+    }
     try {
       const newVendor = {
         role: newVendorRole,
         name: newVendorName,
         contact: newVendorContact,
+        cost: Math.round(cost * 100),
         status: 'Pending' as const
       };
       const updatedVendors = [...(selectedEvent.vendors || []), newVendor];
@@ -130,6 +148,7 @@ export function GanapDashboard() {
       setNewVendorRole('');
       setNewVendorName('');
       setNewVendorContact('');
+      setNewVendorCost('');
       toast({ title: 'Vendor Assigned', description: `${newVendorName} added.` });
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
@@ -137,16 +156,19 @@ export function GanapDashboard() {
   };
 
   const markVendorPaid = async (vendorIdx: number) => {
-    if (!currentTenant || !db || !selectedEvent?.id) return;
+    if (!currentTenant || !db || !selectedEvent?.id || !selectedEvent?.vendors) return;
     try {
-      const updatedVendors = [...(selectedEvent.vendors || [])];
+      const vendor = selectedEvent.vendors[vendorIdx];
+      await payEventVendor(currentTenant.id, selectedEvent.id, vendorIdx, vendor.cost || 0, `Vendor Payment: ${vendor.name} (${vendor.role})`);
+      
+      const updatedVendors = [...selectedEvent.vendors];
       updatedVendors[vendorIdx].status = 'Paid';
       
-      const eventRef = doc(db, 'tenants', currentTenant.id, 'events', selectedEvent.id);
-      await updateDoc(eventRef, { vendors: updatedVendors, updatedAt: serverTimestamp() });
-      
       setSelectedEvent({ ...selectedEvent, vendors: updatedVendors });
-    } catch (e: any) {}
+      toast({ title: 'Vendor Paid', description: `${vendor.name} payment recorded.` });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
   };
 
   // RENDER EVENT DETAIL VIEW
@@ -224,7 +246,7 @@ export function GanapDashboard() {
                   <div key={i} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg">
                     <div>
                       <p className="font-bold text-sm">{v.name}</p>
-                      <p className="text-xs text-slate-500">{v.role} • {v.contact}</p>
+                      <p className="text-xs text-slate-500">{v.role} • {v.contact} • ₱{((v.cost || 0) / 100).toLocaleString()}</p>
                     </div>
                     {v.status === 'Paid' ? (
                       <Badge className="bg-emerald-100 text-emerald-700 border-transparent text-[10px]">PAID</Badge>
@@ -242,7 +264,10 @@ export function GanapDashboard() {
                     <Input placeholder="Role (e.g. Florist)" className="text-xs h-8" value={newVendorRole} onChange={e=>setNewVendorRole(e.target.value)} />
                     <Input placeholder="Name" className="text-xs h-8" value={newVendorName} onChange={e=>setNewVendorName(e.target.value)} />
                   </div>
-                  <Input placeholder="Contact No." className="text-xs h-8" value={newVendorContact} onChange={e=>setNewVendorContact(e.target.value)} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input placeholder="Contact No." className="text-xs h-8" value={newVendorContact} onChange={e=>setNewVendorContact(e.target.value)} />
+                    <Input type="number" placeholder="Fee (₱)" className="text-xs h-8" value={newVendorCost} onChange={e=>setNewVendorCost(parseFloat(e.target.value) || '')} />
+                  </div>
                   <Button size="sm" variant="secondary" className="w-full h-8 text-xs" onClick={addVendor}>+ Assign</Button>
                 </div>
 
@@ -298,9 +323,15 @@ export function GanapDashboard() {
                   <Input type="date" value={newEventDate} onChange={e => setNewEventDate(e.target.value)} />
                 </div>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Venue</Label>
-                <Input placeholder="e.g. The Glass Garden" value={newVenue} onChange={e => setNewVenue(e.target.value)} />
+              <div className="flex gap-2">
+                <div className="flex-1 space-y-1">
+                  <Label className="text-xs">Venue</Label>
+                  <Input placeholder="e.g. The Glass Garden" value={newVenue} onChange={e => setNewVenue(e.target.value)} />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <Label className="text-xs">Contract Price (₱)</Label>
+                  <Input type="number" placeholder="0" value={newContractPrice} onChange={e => setNewContractPrice(parseFloat(e.target.value) || '')} />
+                </div>
               </div>
               <Button 
                 className="w-full h-8 text-xs font-bold text-white" 

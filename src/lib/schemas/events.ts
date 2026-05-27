@@ -8,6 +8,7 @@ export const EventSchema = z.object({
   eventDate: z.string(), // ISO date string or formatted date
   venue: z.string().default(''),
   status: z.enum(['Upcoming', 'Ongoing', 'Done']).default('Upcoming'),
+  contractPrice: z.coerce.number().default(0), // Revenue from client (centavos)
   
   // Setup logistics
   setupNotes: z.string().default(''), // e.g. "Main stage left, buffet line by the garden"
@@ -18,6 +19,7 @@ export const EventSchema = z.object({
     role: z.string(), // e.g., 'Florist', 'DJ', 'Caterer'
     name: z.string(),
     contact: z.string(),
+    cost: z.coerce.number().default(0), // Vendor fee (centavos)
     status: z.enum(['Pending', 'Confirmed', 'Paid']).default('Pending'),
   })).default([]),
   

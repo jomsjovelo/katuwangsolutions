@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
+import { completeServiceOrder } from '@/firebase/firestore/service-actions';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -63,7 +64,10 @@ export function AutoBossDashboard() {
   const finalPrice = typeof priceOverride === 'number' ? priceOverride : suggestedPrice;
 
   const handleAddVehicle = async () => {
-    if (!currentTenant || !db || !plateNumber) return;
+    if (!currentTenant || !db || !plateNumber || finalPrice < 0 || isNaN(finalPrice)) {
+      if (finalPrice < 0 || isNaN(finalPrice)) toast({ title: 'Error', description: 'Invalid price.', variant: 'destructive' });
+      return;
+    }
     setIsProcessing(true);
     try {
       const orderRef = doc(collection(db, 'tenants', currentTenant.id, 'carwash_orders'));
@@ -73,7 +77,7 @@ export function AutoBossDashboard() {
         vehicleType,
         servicePackage,
         status: 'Queued',
-        amountDue: finalPrice * 100, // convert to cents
+        amountDue: Math.round(finalPrice * 100), // convert to cents safely
         paymentStatus: 'Unpaid',
         createdAt: serverTimestamp(),
       });
@@ -90,13 +94,24 @@ export function AutoBossDashboard() {
     }
   };
 
-  const updateStatus = async (id: string, status: string, paymentStatus?: string) => {
+  const updateStatus = async (order: any, status: string, paymentStatus?: string) => {
     if (!currentTenant || !db) return;
     try {
-      const orderRef = doc(db, 'tenants', currentTenant.id, 'carwash_orders', id);
-      const updates: any = { status, updatedAt: serverTimestamp() };
-      if (paymentStatus) updates.paymentStatus = paymentStatus;
-      await updateDoc(orderRef, updates);
+      if (status === 'Completed' && paymentStatus === 'Paid') {
+        await completeServiceOrder(
+          currentTenant.id, 
+          'carwash_orders', 
+          order.id, 
+          status, 
+          order.amountDue, 
+          `Carwash: ${order.plateNumber}`
+        );
+      } else {
+        const orderRef = doc(db, 'tenants', currentTenant.id, 'carwash_orders', order.id);
+        const updates: any = { status, updatedAt: serverTimestamp() };
+        if (paymentStatus) updates.paymentStatus = paymentStatus;
+        await updateDoc(orderRef, updates);
+      }
       toast({ title: 'Status Updated', description: `Vehicle moved to ${status}.` });
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
@@ -219,7 +234,7 @@ export function AutoBossDashboard() {
               <div className="space-y-2">
                 {queuedOrders.map(order => (
                   <OrderCard key={order.id} order={order} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-slate-800 hover:bg-slate-700" onClick={() => updateStatus(order.id!, 'Washing')}>
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-slate-800 hover:bg-slate-700" onClick={() => updateStatus(order, 'Washing')}>
                       <Droplets className="h-3 w-3 mr-1 text-cyan-400" /> Move to Wash Bay
                     </Button>
                   } />
@@ -237,7 +252,7 @@ export function AutoBossDashboard() {
               <div className="space-y-2">
                 {washingOrders.map(order => (
                   <OrderCard key={order.id} order={order} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-cyan-600 hover:bg-cyan-700 text-white" onClick={() => updateStatus(order.id!, 'Drying')}>
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-cyan-600 hover:bg-cyan-700 text-white" onClick={() => updateStatus(order, 'Drying')}>
                       <Wind className="h-3 w-3 mr-1 text-sky-200" /> Move to Drying
                     </Button>
                   } />
@@ -255,7 +270,7 @@ export function AutoBossDashboard() {
               <div className="space-y-2">
                 {dryingOrders.map(order => (
                   <OrderCard key={order.id} order={order} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-indigo-500 hover:bg-indigo-600" onClick={() => updateStatus(order.id!, 'Ready')}>
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-indigo-500 hover:bg-indigo-600" onClick={() => updateStatus(order, 'Ready')}>
                       <CheckCircle2 className="h-3 w-3 mr-1" /> Mark Ready
                     </Button>
                   } />
@@ -273,7 +288,7 @@ export function AutoBossDashboard() {
               <div className="space-y-2">
                 {readyOrders.map(order => (
                   <OrderCard key={order.id} order={order} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600" onClick={() => updateStatus(order.id!, 'Completed', 'Paid')}>
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600" onClick={() => updateStatus(order, 'Completed', 'Paid')}>
                       <CircleDollarSign className="h-3 w-3 mr-1" /> Pay & Release
                     </Button>
                   } />

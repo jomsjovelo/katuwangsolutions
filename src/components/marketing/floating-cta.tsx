@@ -17,7 +17,7 @@ export function FloatingCta({ onEnterPortal }: FloatingCtaProps) {
           className="w-full h-14 rounded-2xl bg-primary text-white font-bold text-base flex items-center justify-between px-5 active:scale-[0.97] transition-transform shadow-xl shadow-primary/30"
         >
           <div className="flex flex-col items-start">
-            <span className="leading-tight tracking-tight">Libre Subukan</span>
+            <span className="leading-tight tracking-tight">Register Now</span>
             <span className="text-[10px] text-white/70 font-medium tracking-wide">No credit card required</span>
           </div>
           <div className="flex items-center gap-2">

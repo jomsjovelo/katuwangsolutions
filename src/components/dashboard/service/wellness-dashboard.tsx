@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
+import { completeServiceOrder } from '@/firebase/firestore/service-actions';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -64,7 +65,7 @@ export function WellnessDashboard() {
         therapistName,
         serviceType,
         status: 'Waiting',
-        amountDue: finalPrice * 100, // convert to cents
+        amountDue: Math.round(finalPrice * 100), // convert to cents securely
         paymentStatus: 'Unpaid',
         createdAt: serverTimestamp(),
       });
@@ -81,13 +82,25 @@ export function WellnessDashboard() {
     }
   };
 
-  const updateStatus = async (id: string, status: string, paymentStatus?: string) => {
+  const updateStatus = async (appt: any, status: string, paymentStatus?: string) => {
     if (!currentTenant || !db) return;
     try {
-      const apptRef = doc(db, 'tenants', currentTenant.id, 'spa_appointments', id);
-      const updates: any = { status, updatedAt: serverTimestamp() };
-      if (paymentStatus) updates.paymentStatus = paymentStatus;
-      await updateDoc(apptRef, updates);
+      if (paymentStatus === 'Paid') {
+        // ERP INTEGRATION: Complete order and collect payment
+        await completeServiceOrder(
+          currentTenant.id,
+          'spa_appointments',
+          appt.id,
+          status,
+          appt.amountDue || 0,
+          `Spa/Wellness: ${appt.clientName} (${appt.serviceType})`
+        );
+      } else {
+        const apptRef = doc(db, 'tenants', currentTenant.id, 'spa_appointments', appt.id);
+        const updates: any = { status, updatedAt: serverTimestamp() };
+        if (paymentStatus) updates.paymentStatus = paymentStatus;
+        await updateDoc(apptRef, updates);
+      }
       toast({ title: 'Status Updated', description: `Client moved to ${status}.` });
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
@@ -210,7 +223,7 @@ export function WellnessDashboard() {
               <div className="space-y-2">
                 {waitingAppointments.map(appt => (
                   <AppointmentCard key={appt.id} appointment={appt} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-purple-600 hover:bg-purple-700" onClick={() => updateStatus(appt.id!, 'In Session')}>
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-purple-600 hover:bg-purple-700" onClick={() => updateStatus(appt, 'In Session')}>
                       <Flower2 className="h-3 w-3 mr-1 text-purple-200" /> Start Session
                     </Button>
                   } />
@@ -228,7 +241,7 @@ export function WellnessDashboard() {
               <div className="space-y-2">
                 {inSessionAppointments.map(appt => (
                   <AppointmentCard key={appt.id} appointment={appt} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-sky-500 hover:bg-sky-600 text-white" onClick={() => updateStatus(appt.id!, 'Resting')}>
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-sky-500 hover:bg-sky-600 text-white" onClick={() => updateStatus(appt, 'Resting')}>
                       <Coffee className="h-3 w-3 mr-1 text-sky-100" /> Move to Resting Area
                     </Button>
                   } />
@@ -246,7 +259,7 @@ export function WellnessDashboard() {
               <div className="space-y-2">
                 {restingAppointments.map(appt => (
                   <AppointmentCard key={appt.id} appointment={appt} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white" onClick={() => updateStatus(appt.id!, 'Done', 'Paid')}>
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white" onClick={() => updateStatus(appt, 'Done', 'Paid')}>
                       <CircleDollarSign className="h-3 w-3 mr-1" /> Checkout & Pay
                     </Button>
                   } />

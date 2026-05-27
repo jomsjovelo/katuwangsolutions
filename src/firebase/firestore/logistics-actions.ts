@@ -1,4 +1,4 @@
-import { getFirestore, doc, collection, serverTimestamp, setDoc } from 'firebase/firestore';
+import { getFirestore, doc, collection, serverTimestamp, setDoc, increment } from 'firebase/firestore';
 import { initializeFirebase } from '../index';
 import { TripSchema } from '@/lib/schemas/logistics';
 import { runTransactionResilient } from './resilient-transaction';
@@ -6,6 +6,9 @@ import { runTransactionResilient } from './resilient-transaction';
 export const getKatuwangDb = () => initializeFirebase().db;
 
 export async function addTrip(tenantId: string, origin: string, destination: string, loadDescription: string, driverName: string, deliveryFeeCentavos: number) {
+  if (deliveryFeeCentavos < 0 || isNaN(deliveryFeeCentavos)) {
+    throw new Error('Invalid delivery fee.');
+  }
   const db = getKatuwangDb();
   
   // Validate using Zod schema
@@ -33,15 +36,17 @@ export async function addTrip(tenantId: string, origin: string, destination: str
 }
 
 export async function updateTripExpenses(tenantId: string, tripId: string, additionalExpensesCentavos: number) {
+  if (additionalExpensesCentavos <= 0 || isNaN(additionalExpensesCentavos)) {
+    throw new Error('Invalid expense amount.');
+  }
   const db = getKatuwangDb();
   await runTransactionResilient(db, async (transaction) => {
     const tripRef = doc(db, 'tenants', tenantId, 'trips', tripId);
     const tripSnap = await transaction.get(tripRef);
     if (!tripSnap.exists()) throw new Error('Trip not found');
     
-    const currentExpenses = tripSnap.data().tripExpenses || 0;
     transaction.update(tripRef, {
-      tripExpenses: currentExpenses + additionalExpensesCentavos,
+      tripExpenses: increment(additionalExpensesCentavos),
       updatedAt: serverTimestamp()
     });
   });
@@ -72,27 +77,26 @@ export async function updateTripStatus(tenantId: string, tripId: string, newStat
         const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
         const masterAccountSnap = await transaction.get(masterAccountRef);
         
-        let currentBalance = 0;
-        if (masterAccountSnap.exists()) {
-          currentBalance = masterAccountSnap.data().balance || 0;
-        } else {
+        const netImpact = deliveryFee - tripExpenses;
+
+        if (!masterAccountSnap.exists()) {
           transaction.set(masterAccountRef, {
             id: 'master-cash',
             tenantId,
             name: 'Main Cash Register',
             type: 'asset',
-            balance: 0,
+            balance: netImpact,
             isActive: true,
             createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          });
+        } else {
+          // Apply net impact to balance atomically
+          transaction.update(masterAccountRef, {
+            balance: increment(netImpact),
+            updatedAt: serverTimestamp()
           });
         }
-
-        // Apply net impact to balance
-        const newBalance = currentBalance + deliveryFee - tripExpenses;
-        transaction.update(masterAccountRef, {
-          balance: newBalance,
-          updatedAt: serverTimestamp()
-        });
 
         const transactionsRef = collection(db, 'tenants', tenantId, 'transactions');
 
