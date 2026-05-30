@@ -4,9 +4,9 @@ import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 
 import {
-  Handshake, ShoppingCart, Leaf, Hammer, Sprout,
+  ShoppingCart, Leaf, Hammer,
   Utensils, Coffee, CalendarHeart, RotateCcw, Droplets,
-  Sparkles, Sun, Wrench, Banknote, BookText, Truck, Wallet, Scissors, Dumbbell
+  Sparkles, Sun, Banknote, BookText, Truck, Scissors, Dumbbell
 } from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';

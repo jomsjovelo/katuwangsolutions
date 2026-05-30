@@ -14,6 +14,7 @@ export async function POST(request: Request) {
     }
 
     // Call the Genkit flow directly
+    // @ts-ignore - Genkit 1.28 Action type expects 3 arguments in some TS versions
     const result = await advisorFlow(body);
     
     return NextResponse.json(result);
