@@ -8,10 +8,10 @@ import { doc, onSnapshot, getFirestore } from 'firebase/firestore';
 import { app } from '@/firebase/config';
 import { ShieldAlert, Loader2, AlertCircle } from 'lucide-react';
 import { BrandLogo } from '@/components/ui/brand-logo';
-
-const db = getFirestore(app, 'katuwang');
+import { useFirestore } from '@/firebase/provider';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
+  const db = useFirestore();
   const { user, loading: authLoading } = useUser();
   const { activeTenant, setActiveTenant, isLoading, setLoading, error, setError } = useTenantStore();
   const router = useRouter();
