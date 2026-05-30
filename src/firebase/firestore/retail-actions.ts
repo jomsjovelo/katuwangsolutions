@@ -1,4 +1,4 @@
-import { getFirestore, doc, collection, serverTimestamp, setDoc } from 'firebase/firestore';
+import { getFirestore, doc, collection, serverTimestamp, setDoc, increment } from 'firebase/firestore';
 import { initializeFirebase } from '../index';
 import { ProductSchema } from '@/lib/schemas/inventory';
 import { runTransactionResilient } from './resilient-transaction';
@@ -111,6 +111,44 @@ export async function processCheckout(
     }
 
     transaction.set(newSaleRef, saleRecord);
+
+    // ERP INTEGRATION: Deposit the income into the Master Cash Ledger
+    if (secureTotalAmount > 0) {
+      const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+      const masterAccountSnap = await transaction.get(masterAccountRef);
+
+      if (!masterAccountSnap.exists()) {
+        transaction.set(masterAccountRef, {
+          id: 'master-cash',
+          tenantId,
+          name: 'Main Cash Register',
+          type: 'asset',
+          balance: secureTotalAmount,
+          isActive: true,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        transaction.set(masterAccountRef, {
+          balance: increment(secureTotalAmount),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      }
+
+      const transactionsRef = collection(db, 'tenants', tenantId, 'transactions');
+      const newTxRef = doc(transactionsRef);
+      transaction.set(newTxRef, {
+        id: newTxRef.id,
+        tenantId,
+        accountId: 'master-cash',
+        amount: secureTotalAmount,
+        type: 'income',
+        category: 'Sales',
+        description: `Retail Sale (${paymentMethod})`,
+        date: new Date(),
+        createdAt: serverTimestamp()
+      });
+    }
   });
 
   return saleDocId; // Return the real Firestore document ID

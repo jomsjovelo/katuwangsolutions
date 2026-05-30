@@ -9,6 +9,7 @@ export const EventSchema = z.object({
   venue: z.string().default(''),
   status: z.enum(['Upcoming', 'Ongoing', 'Done']).default('Upcoming'),
   contractPrice: z.coerce.number().default(0), // Revenue from client (centavos)
+  amountPaid: z.coerce.number().default(0), // DP or fully paid amount (centavos)
   
   // Setup logistics
   setupNotes: z.string().default(''), // e.g. "Main stage left, buffet line by the garden"

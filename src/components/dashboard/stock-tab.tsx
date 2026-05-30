@@ -31,6 +31,7 @@ export function StockTab() {
   
   const [profile, setProfile] = useState<any>(null);
   const [isUpdatingId, setIsUpdatingId] = useState<string | null>(null);
+  const [restockAmounts, setRestockAmounts] = useState<Record<string, string>>({});
 
   const theme = getModuleTheme(currentTenant?.moduleType);
 
@@ -47,15 +48,20 @@ export function StockTab() {
     return () => unsubscribe();
   }, [user]);
 
-  const handleQuickAddStock = async (productId: string, currentStock: number) => {
+  const handleCustomRestock = async (productId: string) => {
     if (!currentTenant) return;
+    const amount = parseInt(restockAmounts[productId] || '0');
+    if (isNaN(amount) || amount <= 0) return;
+    
     try {
       setIsUpdatingId(productId);
       const productRef = doc(db, 'tenants', currentTenant.id, 'products', productId);
       await updateDoc(productRef, {
-        currentStock: increment(10),
+        currentStock: increment(amount),
         updatedAt: new Date()
       });
+      // Clear input after success
+      setRestockAmounts(prev => ({...prev, [productId]: ''}));
     } catch (e) {
       console.error(e);
       alert("May error sa pag-update ng stock.");
@@ -147,20 +153,29 @@ export function StockTab() {
                         </div>
                       </div>
 
-                      {/* Stock Restock buttons */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={isUpdatingId === product.id}
-                        onClick={() => handleQuickAddStock(product.id || '', product.currentStock)}
-                        className="h-8 rounded-lg text-[10px] font-bold gap-1 text-slate-500 hover:text-white hover:bg-slate-900 border border-slate-200 transition-colors"
-                      >
-                        {isUpdatingId === product.id ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <><Plus className="h-3 w-3" /> +10 Stock</>
-                        )}
-                      </Button>
+                      {/* Stock Restock Input & Button */}
+                      <div className="flex items-center gap-1.5">
+                        <input 
+                          type="number"
+                          placeholder="+ Qty"
+                          className="w-16 h-8 text-[10px] px-2 rounded-lg border border-slate-200 text-center focus:outline-none focus:ring-1 focus:ring-slate-300"
+                          value={restockAmounts[product.id || ''] || ''}
+                          onChange={(e) => setRestockAmounts({...restockAmounts, [product.id || '']: e.target.value})}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={isUpdatingId === product.id || !restockAmounts[product.id || '']}
+                          onClick={() => handleCustomRestock(product.id || '')}
+                          className="h-8 rounded-lg text-[10px] font-bold gap-1 text-slate-500 hover:text-white hover:bg-slate-900 border border-slate-200 transition-colors"
+                        >
+                          {isUpdatingId === product.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <><Plus className="h-3 w-3" /> Add</>
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   );
                 })}

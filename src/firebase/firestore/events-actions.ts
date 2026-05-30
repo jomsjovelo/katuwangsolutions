@@ -19,15 +19,28 @@ export async function completeEvent(
   
   await runTransactionResilient(db, async (transaction) => {
     const eventRef = doc(db, 'tenants', tenantId, 'events', eventId);
-    
-    // Update the Event Status
+    const eventSnap = await transaction.get(eventRef);
+
+    if (!eventSnap.exists()) {
+      throw new Error('Event not found.');
+    }
+
+    const eventData = eventSnap.data();
+    // 2D: Compute the remaining balance server-side (do not trust caller's amountCentavos)
+    const contractPrice = eventData.contractPrice || 0;
+    const alreadyPaid = eventData.amountPaid || 0;
+    const remainingBalance = Math.max(0, contractPrice - alreadyPaid);
+    const finalAmount = remainingBalance > 0 ? remainingBalance : amountCentavos;
+
+    // Update the Event Status and mark as fully paid
     transaction.update(eventRef, { 
       status: 'Done',
+      amountPaid: contractPrice,
       updatedAt: serverTimestamp()
     });
 
-    // ERP INTEGRATION: Deposit the money into the Master Cash Ledger
-    if (amountCentavos > 0) {
+    // ERP INTEGRATION: Deposit the remaining balance into the Master Cash Ledger
+    if (finalAmount > 0) {
       const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
       const masterAccountSnap = await transaction.get(masterAccountRef);
       
@@ -37,14 +50,14 @@ export async function completeEvent(
           tenantId,
           name: 'Main Cash Register',
           type: 'asset',
-          balance: amountCentavos,
+          balance: finalAmount,
           isActive: true,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         });
       } else {
         transaction.update(masterAccountRef, {
-          balance: increment(amountCentavos),
+          balance: increment(finalAmount),
           updatedAt: serverTimestamp()
         });
       }
@@ -55,7 +68,7 @@ export async function completeEvent(
         id: newTxRef.id,
         tenantId,
         accountId: 'master-cash',
-        amount: amountCentavos,
+        amount: finalAmount, // Server-computed remaining balance
         type: 'income',
         category: 'Events',
         description,

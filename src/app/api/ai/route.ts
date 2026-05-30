@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { advisorFlow } from '@/ai/flows/advisor';
 
 export async function POST(request: Request) {
@@ -13,9 +14,27 @@ export async function POST(request: Request) {
       );
     }
 
+    const payloadSchema = z.object({
+      tenantName: z.string(),
+      moduleType: z.string(),
+      products: z.array(z.any()).optional(),
+      sales: z.array(z.any()).optional(),
+      lowStockItems: z.array(z.any()).optional(),
+      outOfStockItems: z.array(z.any()).optional(),
+      dailyTotalPesos: z.number().optional()
+    }).passthrough();
+
+    const parsedBody = payloadSchema.safeParse(body);
+    if (!parsedBody.success) {
+      return NextResponse.json(
+        { error: "Invalid AI request payload format." },
+        { status: 400 }
+      );
+    }
+
     // Call the Genkit flow directly
     // @ts-ignore - Genkit 1.28 Action type expects 3 arguments in some TS versions
-    const result = await advisorFlow(body);
+    const result = await advisorFlow(parsedBody.data);
     
     return NextResponse.json(result);
   } catch (error: any) {

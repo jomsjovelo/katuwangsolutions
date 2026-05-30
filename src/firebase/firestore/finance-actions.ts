@@ -39,10 +39,10 @@ export async function addTransaction(tenantId: string, amountCentavos: number, t
       });
     } else {
       // 4. Write Phase: Update Balance using increment
-      transaction.update(masterAccountRef, {
+      transaction.set(masterAccountRef, {
         balance: increment(type === 'income' ? amountCentavos : -amountCentavos),
         updatedAt: serverTimestamp()
-      });
+      }, { merge: true });
     }
 
     // 5. Write Phase: Record the Transaction
@@ -102,7 +102,14 @@ export async function recordPayout(
   valeDeductedCentavos: number,
   netPayCentavos: number
 ) {
-  if (daysWorked < 0 || isNaN(daysWorked) || netPayCentavos < 0 || isNaN(netPayCentavos)) {
+  // Server-side recompute to prevent client-side manipulation
+  const serverNetPay = grossPayCentavos - valeDeductedCentavos;
+  if (serverNetPay !== netPayCentavos) {
+    console.warn(`[Payroll Audit] netPay mismatch: client sent ${netPayCentavos}, server computed ${serverNetPay}. Using server value.`);
+  }
+  const finalNetPay = Math.max(0, serverNetPay); // net pay cannot be negative
+
+  if (daysWorked < 0 || isNaN(daysWorked) || finalNetPay < 0 || isNaN(finalNetPay)) {
     throw new Error("Invalid payout values.");
   }
 
@@ -123,7 +130,7 @@ export async function recordPayout(
       daysWorked,
       grossPay: grossPayCentavos,
       valeDeducted: valeDeductedCentavos,
-      netPay: netPayCentavos,
+      netPay: finalNetPay, // Always use server-computed value
       paidAt: serverTimestamp(),
       createdAt: serverTimestamp(),
     });
@@ -146,16 +153,16 @@ export async function recordPayout(
         tenantId,
         name: 'Main Cash Register',
         type: 'asset',
-        balance: -netPayCentavos, // Deduct the payout
+        balance: -finalNetPay, // Deduct the payout using server-computed value
         isActive: true,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
     } else {
-      transaction.update(masterAccountRef, {
-        balance: increment(-netPayCentavos),
+      transaction.set(masterAccountRef, {
+        balance: increment(-finalNetPay),
         updatedAt: serverTimestamp()
-      });
+      }, { merge: true });
     }
 
     // 4. Record transaction in ledger
@@ -165,7 +172,7 @@ export async function recordPayout(
       id: newTxRef.id,
       tenantId,
       accountId: 'master-cash',
-      amount: netPayCentavos,
+      amount: finalNetPay, // Use server-computed net pay
       type: 'expense',
       category: 'Salary',
       description: `Sahod: ${employeeName}`,

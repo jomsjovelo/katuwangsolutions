@@ -77,6 +77,7 @@ export function GanapDashboard() {
         venue: newVenue,
         status: 'Upcoming',
         contractPrice: Math.round(finalPrice * 100),
+        amountPaid: 0,
         setupNotes: '',
         foodPackage: '',
         vendors: [],
@@ -209,6 +210,20 @@ export function GanapDashboard() {
                 </Button>
               </div>
 
+              {/* Payment Tracking */}
+              <div className="bg-slate-100 p-3 rounded-lg border border-slate-200 flex justify-between items-center">
+                <div>
+                  <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Contract Price</p>
+                  <p className="text-lg font-black text-slate-800">₱{((selectedEvent.contractPrice || 0) / 100).toLocaleString()}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Balance</p>
+                  <p className="text-lg font-black text-rose-500">
+                    ₱{(((selectedEvent.contractPrice || 0) - (selectedEvent.amountPaid || 0)) / 100).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
               {/* Logistics & Setup */}
               <div className="space-y-3">
                 <h4 className="font-bold flex items-center gap-2"><ChefHat className="h-4 w-4 text-orange-500" /> Setup & Logistics</h4>
@@ -298,6 +313,30 @@ export function GanapDashboard() {
             </div>
           </div>
         </section>
+
+        {/* Revenue Summary */}
+        <div className="grid grid-cols-2 gap-3 mt-2">
+          <Card className="shadow-sm border-slate-200">
+            <CardHeader className="p-3 pb-1">
+              <CardTitle className="text-xs font-bold uppercase tracking-widest text-slate-500">Pipeline Value</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 pt-0">
+              <p className="text-xl font-black text-slate-800">
+                ₱{(upcomingEvents.reduce((acc, ev) => acc + (ev.contractPrice || 0), 0) / 100).toLocaleString()}
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm border-slate-200">
+            <CardHeader className="p-3 pb-1">
+              <CardTitle className="text-xs font-bold uppercase tracking-widest text-slate-500">Completed Value</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 pt-0">
+              <p className="text-xl font-black text-emerald-600">
+                ₱{(pastEvents.reduce((acc, ev) => acc + (ev.contractPrice || 0), 0) / 100).toLocaleString()}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
 
         <div className="flex justify-between items-center mt-2">
           <h3 className="font-black uppercase tracking-widest text-slate-500 text-xs">Events Board</h3>

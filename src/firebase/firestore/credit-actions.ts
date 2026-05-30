@@ -5,6 +5,7 @@ import {
   doc, 
   runTransaction,
   serverTimestamp,
+  increment,
   Timestamp
 } from 'firebase/firestore';
 import { initializeFirebase } from '../index';
@@ -100,7 +101,8 @@ export async function recordLoan(
       transaction.update(borrowerRef, {
         outstanding: newOutstanding,
         dailyDue: Math.round(dailyDuePesos * 100),
-        status: 'active'
+        status: 'active',
+        updatedAt: serverTimestamp() // 3C: audit trail
       });
 
       // Append transaction sub-collection entry
@@ -110,6 +112,43 @@ export async function recordLoan(
         amount: Math.round(loanAmountPesos * 100),
         interest: Math.round(interestPesos * 100),
         timestamp: serverTimestamp()
+      });
+
+      // ERP INTEGRATION: Deduct loan amount from master-cash (cash given to borrower)
+      const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+      const masterAccountSnap = await transaction.get(masterAccountRef);
+      const loanAmountCentavos = Math.round(loanAmountPesos * 100);
+
+      if (!masterAccountSnap.exists()) {
+        transaction.set(masterAccountRef, {
+          id: 'master-cash',
+          tenantId,
+          name: 'Main Cash Register',
+          type: 'asset',
+          balance: -loanAmountCentavos,
+          isActive: true,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        transaction.set(masterAccountRef, {
+          balance: increment(-loanAmountCentavos),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      }
+
+      const ledgerRef = collection(db, 'tenants', tenantId, 'transactions');
+      const ledgerTxRef = doc(ledgerRef);
+      transaction.set(ledgerTxRef, {
+        id: ledgerTxRef.id,
+        tenantId,
+        accountId: 'master-cash',
+        amount: loanAmountCentavos,
+        type: 'expense',
+        category: 'Lending',
+        description: `Loan Released: ${addedDebt / 100} pesos`,
+        date: new Date(),
+        createdAt: serverTimestamp()
       });
     });
     return true;
@@ -152,7 +191,8 @@ export async function recordPayment(
 
       transaction.update(borrowerRef, {
         outstanding: newOutstanding,
-        status: newStatus
+        status: newStatus,
+        updatedAt: serverTimestamp() // 3C: audit trail
       });
 
       const newTxDocRef = doc(transactionsRef);
@@ -161,6 +201,42 @@ export async function recordPayment(
         amount: paymentCentavos,
         interest: 0,
         timestamp: serverTimestamp()
+      });
+
+      // ERP INTEGRATION: Deposit payment back into master-cash (borrower returning money)
+      const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+      const masterAccountSnap = await transaction.get(masterAccountRef);
+
+      if (!masterAccountSnap.exists()) {
+        transaction.set(masterAccountRef, {
+          id: 'master-cash',
+          tenantId,
+          name: 'Main Cash Register',
+          type: 'asset',
+          balance: paymentCentavos,
+          isActive: true,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        transaction.set(masterAccountRef, {
+          balance: increment(paymentCentavos),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      }
+
+      const ledgerRef = collection(db, 'tenants', tenantId, 'transactions');
+      const ledgerTxRef = doc(ledgerRef);
+      transaction.set(ledgerTxRef, {
+        id: ledgerTxRef.id,
+        tenantId,
+        accountId: 'master-cash',
+        amount: paymentCentavos,
+        type: 'income',
+        category: 'Lending',
+        description: `Loan Payment Received`,
+        date: new Date(),
+        createdAt: serverTimestamp()
       });
     });
     return true;

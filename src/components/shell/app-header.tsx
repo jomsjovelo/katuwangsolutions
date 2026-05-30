@@ -7,6 +7,8 @@ import { useOnlineStatus } from '@/hooks/use-online-status';
 import { useTenant } from '@/app/lib/tenant-context';
 import { getModuleTheme } from '@/lib/theme-utils';
 import { ModuleGuide } from '@/components/common/module-guide';
+import { AppMarketplace } from '@/components/dashboard/app-marketplace';
+import { Grid } from 'lucide-react';
 
 interface AppHeaderProps {
   title: string;
@@ -20,6 +22,7 @@ export function AppHeader({ title, subtitle, onBack, rightAction }: AppHeaderPro
   const { currentTenant } = useTenant();
   const theme = getModuleTheme(currentTenant?.moduleType);
   const [showGuide, setShowGuide] = useState(false);
+  const [showApps, setShowApps] = useState(false);
 
   return (
     <header
@@ -58,16 +61,28 @@ export function AppHeader({ title, subtitle, onBack, rightAction }: AppHeaderPro
 
             {/* Quick Gabay / Guide Help Capsule Button */}
             {currentTenant && (
-              <button
-                onClick={() => setShowGuide(true)}
-                className="h-5 px-2 rounded-full flex items-center justify-center gap-0.5 text-[8px] font-black uppercase tracking-wider transition-all duration-300 hover:scale-105 active:scale-95 border-none cursor-pointer select-none"
-                style={{ 
-                  backgroundColor: `${theme.primary}12`, 
-                  color: theme.primary 
-                }}
-              >
-                <BookOpen className="h-2.5 w-2.5" /> Gabay
-              </button>
+              <>
+                <button
+                  onClick={() => setShowApps(true)}
+                  className="h-5 px-2 rounded-full flex items-center justify-center gap-0.5 text-[8px] font-black uppercase tracking-wider transition-all duration-300 hover:scale-105 active:scale-95 border-none cursor-pointer select-none"
+                  style={{ 
+                    backgroundColor: `${theme.primary}12`, 
+                    color: theme.primary 
+                  }}
+                >
+                  <Grid className="h-2.5 w-2.5" /> + App
+                </button>
+                <button
+                  onClick={() => setShowGuide(true)}
+                  className="h-5 px-2 rounded-full flex items-center justify-center gap-0.5 text-[8px] font-black uppercase tracking-wider transition-all duration-300 hover:scale-105 active:scale-95 border-none cursor-pointer select-none"
+                  style={{ 
+                    backgroundColor: `${theme.primary}12`, 
+                    color: theme.primary 
+                  }}
+                >
+                  <BookOpen className="h-2.5 w-2.5" /> Gabay
+                </button>
+              </>
             )}
           </div>
           {subtitle && (
@@ -81,6 +96,9 @@ export function AppHeader({ title, subtitle, onBack, rightAction }: AppHeaderPro
 
       {/* Slide-down Premium Help Overlay Sheet */}
       <ModuleGuide isOpen={showGuide} onClose={() => setShowGuide(false)} />
+      
+      {/* App Marketplace Overlay */}
+      <AppMarketplace isOpen={showApps} onClose={() => setShowApps(false)} />
     </header>
   );
 }

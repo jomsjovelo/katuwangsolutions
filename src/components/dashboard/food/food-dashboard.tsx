@@ -121,7 +121,7 @@ export function FoodDashboard() {
       setError(null);
       await addFoodOrder(
         currentTenant.id, 
-        `Takeout ${Math.floor(Math.random() * 900) + 100}`, // Random order number/identifier
+        `Takeout ${new Date().getTime().toString().slice(-4)}`, // Time-based order identifier
         cart,
         cartTotal
       );

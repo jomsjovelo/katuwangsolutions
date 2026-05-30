@@ -55,10 +55,13 @@ import { useUser } from '@/firebase/auth/use-user';
 import { ProfileTab } from '@/components/dashboard/profile-tab';
 import { StockTab } from '@/components/dashboard/stock-tab';
 
+import { useTenantStore } from '@/store/use-tenant-store';
+
 export function TenantDashboard({ activeTab }: { activeTab?: string }) {
   const { user } = useUser();
   const [profile, setProfile] = useState<any>(null);
   const { currentTenant, setCurrentTenant, allTenants, isLoading: storeLoading } = useTenant();
+  const { activeModuleOverride } = useTenantStore();
   const { loading: tenantsLoading } = useUserTenants();
   const { products, loading: inventoryLoading } = useInventory();
   
@@ -134,6 +137,8 @@ export function TenantDashboard({ activeTab }: { activeTab?: string }) {
 
   // Pure helper rendering block wrapped inside the global error boundary for modular isolation
   const renderDashboard = () => {
+    const activeModule = activeModuleOverride || currentTenant.moduleType;
+
     if (activeTab === 'profile') {
       return <ProfileTab />;
     }
@@ -161,66 +166,66 @@ export function TenantDashboard({ activeTab }: { activeTab?: string }) {
       return <ReportsTab />;
     }
 
-    if (currentTenant.moduleType === 'hiram-snap') {
+    if (activeModule === 'hiram-snap') {
       return <HiramDashboard />;
     }
 
-    if (currentTenant.moduleType === 'spin-snap') {
+    if (activeModule === 'spin-snap') {
       return <SpinDashboard />;
     }
 
-    if (currentTenant.moduleType === 'hydro-sync') {
+    if (activeModule === 'hydro-sync') {
       return <HydroDashboard />;
     }
 
-    if (currentTenant.moduleType === 'auto-boss') {
+    if (activeModule === 'auto-boss') {
       return <AutoBossDashboard />;
     }
 
-    if (currentTenant.moduleType === 'wellness-pro') {
+    if (activeModule === 'wellness-pro') {
       return <WellnessDashboard />;
     }
 
-    if (currentTenant.moduleType === 'trim-track') {
+    if (activeModule === 'trim-track') {
       return <TrimTrackDashboard />;
     }
 
-    if (currentTenant.moduleType === 'rep-sync') {
+    if (activeModule === 'rep-sync') {
       return <RepSyncDashboard />;
     }
 
     const serviceModules = ['unknown'];
-    if (serviceModules.includes(currentTenant.moduleType || '')) {
+    if (serviceModules.includes(activeModule || '')) {
       return <ServiceDashboard />;
     }
 
-    if (currentTenant.moduleType === 'ledger-flow') {
+    if (activeModule === 'ledger-flow') {
       return <LedgerDashboard />;
     }
 
-    if (currentTenant.moduleType === 'sahod-flow') {
+    if (activeModule === 'sahod-flow') {
       return <PayrollDashboard />;
     }
 
-    if (currentTenant.moduleType === 'timpla-track') {
+    if (activeModule === 'timpla-track') {
       return <TimplaDashboard />;
     }
 
-    if (currentTenant.moduleType === 'ganap-master') {
+    if (activeModule === 'ganap-master') {
       return <GanapDashboard />;
     }
 
     const foodModules = ['bite-snap'];
-    if (foodModules.includes(currentTenant.moduleType || '')) {
+    if (foodModules.includes(activeModule || '')) {
       return <FoodDashboard />;
     }
 
     const fleetModules = ['biyahe-sync', 'ani-grow'];
-    if (fleetModules.includes(currentTenant.moduleType || '')) {
+    if (fleetModules.includes(activeModule || '')) {
       return <FleetDashboard />;
     }
 
-    if (currentTenant.moduleType === 'build-stack') {
+    if (activeModule === 'build-stack') {
       return <BuildStackDashboard />;
     }
 

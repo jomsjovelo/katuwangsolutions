@@ -64,9 +64,24 @@ service cloud.firestore {
       allow read, write: if isMasterAdmin();
     }
 
-    // 4. True Default Deny — FIX S1-6: Changed from isMasterAdmin() wildcard to if false.
-    // Master admin access to all paths was a security risk \u2014 a compromised admin account
-    // would expose all tenant data. Master admin access is now only via explicit rules above.
+    // 5. Users Collection (Staff profiles and owner profiles)
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      allow read: if isAuthenticated() && 
+        resource.data.tenantId != null &&
+        hasTenantAccess(resource.data.tenantId);
+    }
+
+    // 6. Invites Collection (Staff invitation flow)
+    match /invites/{inviteId} {
+      allow read, write: if isAuthenticated() && 
+        hasTenantAccess(request.resource.data.tenantId);
+      allow read, delete: if isAuthenticated() && 
+        hasTenantAccess(resource.data.tenantId);
+      allow read: if isAuthenticated();
+    }
+
+    // 7. True Default Deny
     match /{document=**} {
       allow read, write: if false;
     }

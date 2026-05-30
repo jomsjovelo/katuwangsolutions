@@ -39,7 +39,7 @@ export async function addFoodOrder(tenantId: string, tableNumber: string, items:
     // Validate using Zod schema
     const validated = FoodOrderSchema.parse({
       tenantId,
-      orderNumber: `A${Math.floor(Math.random() * 90) + 10}`,
+      orderNumber: `A${Date.now() % 100000}`, // Time-based — collision-resistant in busy kitchens
       tableNumber,
       orderType: 'dine_in',
       status: 'pending',
@@ -75,8 +75,8 @@ export async function updateFoodOrderStatus(tenantId: string, orderId: string, n
     
     transaction.update(orderRef, updateData);
 
-    // ERP INTEGRATION: If the food is served (or paid), automatically deposit the money into the Master Cash Ledger!
-    if (newStatus === 'served' && amountCentavos !== undefined && amountCentavos > 0) {
+    // ERP INTEGRATION: If the food is PAID, automatically deposit the money into the Master Cash Ledger!
+    if (newStatus === 'paid' && amountCentavos !== undefined && amountCentavos > 0) {
       if (isNaN(amountCentavos)) {
         throw new Error("Invalid payment amount for ledger recording.");
       }

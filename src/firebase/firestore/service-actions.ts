@@ -64,10 +64,10 @@ export async function updateJobStatus(tenantId: string, jobId: string, newStatus
         });
       } else {
         // Add the income to the balance
-        transaction.update(masterAccountRef, {
+        transaction.set(masterAccountRef, {
           balance: increment(amountCentavos),
           updatedAt: serverTimestamp()
-        });
+        }, { merge: true });
       }
 
       // Record the transaction receipt
@@ -134,10 +134,10 @@ export async function completeServiceOrder(
           updatedAt: serverTimestamp()
         });
       } else {
-        transaction.update(masterAccountRef, {
+        transaction.set(masterAccountRef, {
           balance: increment(amountCentavos),
           updatedAt: serverTimestamp()
-        });
+        }, { merge: true });
       }
 
       const transactionsRef = collection(db, 'tenants', tenantId, 'transactions');
@@ -218,10 +218,10 @@ export async function registerGymMember(
           updatedAt: serverTimestamp()
         });
       } else {
-        transaction.update(masterAccountRef, {
+        transaction.set(masterAccountRef, {
           balance: increment(amountCentavos),
           updatedAt: serverTimestamp()
-        });
+        }, { merge: true });
       }
 
       const transactionsRef = collection(db, 'tenants', tenantId, 'transactions');
@@ -293,10 +293,10 @@ export async function renewGymMember(
           updatedAt: serverTimestamp()
         });
       } else {
-        transaction.update(masterAccountRef, {
+        transaction.set(masterAccountRef, {
           balance: increment(amountCentavos),
           updatedAt: serverTimestamp()
-        });
+        }, { merge: true });
       }
 
       const transactionsRef = collection(db, 'tenants', tenantId, 'transactions');

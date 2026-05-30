@@ -2,7 +2,7 @@
 
 // FIX S2-3: Static ES imports replace dynamic require() calls inside useEffect
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, where, orderBy, limit } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { useTenant } from '@/app/lib/tenant-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -126,21 +126,18 @@ export function ReportsTab() {
       setLoadingTx(false);
     });
 
-    // Fetch yesterday's aggregate for trend calculation (S4-4)
-    import('firebase/firestore').then(({ getDocs, query, where }) => {
-      const yQuery = query(
-        txRef,
-        where('createdAt', '>=', yesterdayStart),
-        where('createdAt', '<=', yesterdayEnd)
-      );
-      getDocs(yQuery).then(ySnap => {
-        let yTotal = 0;
-        ySnap.forEach(d => {
-          yTotal += (d.data().totalAmount || 0) / 100;
-        });
-        setYesterdaySalesPesos(yTotal);
-      }).catch(e => console.error("Error fetching yesterday sales", e));
-    });
+    const yQuery = query(
+      txRef,
+      where('createdAt', '>=', yesterdayStart),
+      where('createdAt', '<=', yesterdayEnd)
+    );
+    getDocs(yQuery).then(ySnap => {
+      let yTotal = 0;
+      ySnap.forEach(d => {
+        yTotal += (d.data().totalAmount || 0) / 100;
+      });
+      setYesterdaySalesPesos(yTotal);
+    }).catch(e => console.error("Error fetching yesterday sales", e));
 
     return () => unsubscribe();
   }, [currentTenant, selectedDate, txLimit]);

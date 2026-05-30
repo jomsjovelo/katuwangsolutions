@@ -120,7 +120,11 @@ export function TimplaDashboard() {
     if (!currentTenant || !db || !newMenuName || !newMenuPrice) return;
     setIsProcessing(true);
     try {
-      const price = parseInt(newMenuPrice) * 100; // Convert to centavos
+      const parsedPrice = parseFloat(newMenuPrice);
+      if (isNaN(parsedPrice) || parsedPrice <= 0) {
+        throw new Error("Ang presyo ay dapat valid na numero at higit sa zero.");
+      }
+      const price = Math.round(parsedPrice * 100); // Convert to centavos safely
       
       // Calculate cost per serving based on recipe
       let costPerServing = 0;
@@ -181,7 +185,7 @@ export function TimplaDashboard() {
       setError(null);
       await addFoodOrder(
         currentTenant.id, 
-        `Takeout ${Math.floor(Math.random() * 900) + 100}`, 
+        `Dine-In ${new Date().getTime().toString().slice(-4)}`, // Time-based order identifier
         cart,
         cartTotal
       );
