@@ -3,6 +3,7 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import {
   initializeFirestore,
+  getFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
   Firestore
@@ -16,27 +17,20 @@ let auth: Auth;
 
 export function initializeFirebase() {
   if (getApps().length === 0) {
+    // First call: initialize the Firebase app and Firestore with offline persistence.
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
-
-    // FIX S2-1: Migrate from deprecated enableMultiTabIndexedDbPersistence (removed in Firebase v10+)
-    // to initializeFirestore with persistentLocalCache + persistentMultipleTabManager.
-    // This ensures offline IndexedDB persistence works correctly on Firebase ^11.9.1.
     db = initializeFirestore(app, {
       localCache: persistentLocalCache({
         tabManager: persistentMultipleTabManager()
       })
     });
-
   } else {
+    // Subsequent calls: the app and Firestore are already initialized.
+    // We MUST use getFirestore() here — calling initializeFirestore() again
+    // throws a fatal "settings can no longer be changed" error and crashes the app.
     app = getApps()[0];
-    // FIX S2-2: Always use initializeFirestore — never getFirestore() after persistentLocalCache init
-    // getFirestore() would return a different instance without the persistence config
-    db = initializeFirestore(app, {
-      localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager()
-      })
-    });
+    db = getFirestore(app);
     auth = getAuth(app);
   }
 
