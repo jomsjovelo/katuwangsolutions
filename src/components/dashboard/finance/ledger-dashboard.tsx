@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { addTransaction } from '@/firebase/firestore/finance-actions';
 import { useCollection } from 'react-firebase-hooks/firestore';
-import { collection, query, orderBy, limit, getFirestore } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase/index';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
+import { useFirestore } from '@/firebase/provider';
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -40,7 +40,7 @@ function formatTimestamp(val: any): string {
 
 export function LedgerDashboard() {
   const { currentTenant } = useTenant();
-  const db = getFirestore(initializeFirebase().app, 'katuwang');
+  const db = useFirestore();
   const { toast } = useToast();
 
   const theme = getModuleTheme(currentTenant?.moduleType);

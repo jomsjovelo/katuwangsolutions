@@ -3,9 +3,9 @@
 import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { addEmployee, recordPayout } from '@/firebase/firestore/finance-actions';
-import { doc, updateDoc, serverTimestamp, collection, query, orderBy, getFirestore } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, collection, query, orderBy } from 'firebase/firestore';
 import { useCollection } from 'react-firebase-hooks/firestore';
-import { initializeFirebase } from '@/firebase/index';
+import { useFirestore } from '@/firebase/provider';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -28,7 +28,7 @@ import {
 
 export function PayrollDashboard() {
   const { currentTenant } = useTenant();
-  const db = getFirestore(initializeFirebase().app, 'katuwang');
+  const db = useFirestore();
   const { toast } = useToast();
   
   const theme = getModuleTheme(currentTenant?.moduleType);

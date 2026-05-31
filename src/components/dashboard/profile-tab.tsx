@@ -36,9 +36,8 @@ import {
   Store
 } from 'lucide-react';
 
-const db = getFirestore(app, 'katuwang');
-
 export function ProfileTab() {
+  const db = useFirestore();
   const { user } = useUser();
   const { currentTenant } = useTenant();
   const { reset } = useTenantStore();

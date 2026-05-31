@@ -3,8 +3,8 @@
 import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { useCollection } from 'react-firebase-hooks/firestore';
-import { collection, query, orderBy, getFirestore } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase/index';
+import { collection, query, orderBy } from 'firebase/firestore';
+import { useFirestore } from '@/firebase/provider';
 import { addJob, updateJobStatus } from '@/firebase/firestore/service-actions';
 import { JobStatus } from '@/lib/schemas/services';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -23,7 +23,7 @@ import {
 
 export function ServiceDashboard() {
   const { currentTenant } = useTenant();
-  const db = getFirestore(initializeFirebase().app, 'katuwang');
+  const db = useFirestore();
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);

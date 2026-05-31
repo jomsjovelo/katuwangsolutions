@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useInventory } from '@/hooks/use-inventory';
 import { useTenant } from '@/app/lib/tenant-context';
 import { getModuleTheme } from '@/lib/theme-utils';
+import { useFirestore } from '@/firebase/provider';
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -22,9 +23,8 @@ import {
   ShoppingBag
 } from 'lucide-react';
 
-const db = getFirestore(app, 'katuwang');
-
 export function StockTab() {
+  const db = useFirestore();
   const { user } = useUser();
   const { currentTenant } = useTenant();
   const { products, lowStockItems, outOfStockItems, loading } = useInventory();

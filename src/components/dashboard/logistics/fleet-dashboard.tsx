@@ -3,8 +3,8 @@
 import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { useCollection } from 'react-firebase-hooks/firestore';
-import { collection, query, orderBy, getFirestore } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase/index';
+import { collection, query, orderBy } from 'firebase/firestore';
+import { useFirestore } from '@/firebase/provider';
 import { addTrip, updateTripStatus, updateTripExpenses } from '@/firebase/firestore/logistics-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,7 +29,7 @@ import {
 
 export function FleetDashboard() {
   const { currentTenant } = useTenant();
-  const db = getFirestore(initializeFirebase().app, 'katuwang');
+  const db = useFirestore();
   const { toast } = useToast();
   
   const [isProcessing, setIsProcessing] = useState(false);
