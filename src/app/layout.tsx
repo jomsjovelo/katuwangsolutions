@@ -45,10 +45,12 @@ export default function RootLayout({
            rel="stylesheet"
          />
       </head>
-      <body className="font-body antialiased min-h-screen overflow-x-hidden bg-white">
+      <body className="font-body antialiased min-h-screen overflow-x-hidden bg-slate-200/50 flex justify-center selection:bg-cyan-500/30">
         <FirebaseClientProvider>
           <AuthGuard>
-            {children}
+            <div className="w-full max-w-md min-h-screen bg-white relative shadow-2xl flex flex-col">
+              {children}
+            </div>
           </AuthGuard>
         </FirebaseClientProvider>
       </body>

@@ -9,6 +9,7 @@ import { getModuleTheme } from '@/lib/theme-utils';
 import { ModuleGuide } from '@/components/common/module-guide';
 import { AppMarketplace } from '@/components/dashboard/app-marketplace';
 import { Grid } from 'lucide-react';
+import { useHaptic } from '@/hooks/use-haptic';
 
 interface AppHeaderProps {
   title: string;
@@ -23,20 +24,24 @@ export function AppHeader({ title, subtitle, onBack, rightAction }: AppHeaderPro
   const theme = getModuleTheme(currentTenant?.moduleType);
   const [showGuide, setShowGuide] = useState(false);
   const [showApps, setShowApps] = useState(false);
+  const haptic = useHaptic();
 
   return (
     <header
-      className="sticky top-0 z-40 bg-white/95 backdrop-blur-xl border-b border-slate-100 transition-colors duration-300"
+      className="sticky top-0 z-40 w-full max-w-md mx-auto bg-white/95 backdrop-blur-xl border-b border-slate-100 transition-colors duration-300"
       style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
       <div className="flex items-center h-12 px-6 gap-3">
         {/* Back button */}
         {onBack && (
           <button
-            onClick={onBack}
-            className="h-9 w-9 rounded-xl flex items-center justify-center -ml-1 active:bg-slate-100 transition-colors active:scale-95 border-none cursor-pointer"
+            onClick={() => {
+              haptic(15);
+              onBack();
+            }}
+            className="h-11 w-11 rounded-xl flex items-center justify-center -ml-2 active:bg-slate-100 transition-colors active:scale-95 border-none cursor-pointer"
           >
-            <ChevronLeft className="h-5 w-5 text-slate-700" strokeWidth={2.5} />
+            <ChevronLeft className="h-6 w-6 text-slate-700" strokeWidth={2.5} />
           </button>
         )}
 

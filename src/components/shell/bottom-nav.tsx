@@ -4,6 +4,7 @@ import React from 'react';
 import { Home, ShoppingCart, Package, BarChart2, User } from 'lucide-react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { getModuleTheme } from '@/lib/theme-utils';
+import { useHaptic } from '@/hooks/use-haptic';
 
 const tabs = [
   { id: 'home',    label: 'Home',    Icon: Home },
@@ -23,10 +24,11 @@ interface BottomNavProps {
 export function BottomNav({ activeTab = 'home', onTabChange }: BottomNavProps) {
   const { currentTenant } = useTenant();
   const theme = getModuleTheme(currentTenant?.moduleType);
+  const haptic = useHaptic();
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-t border-slate-200/80"
+      className="fixed bottom-0 w-full max-w-md left-1/2 -translate-x-1/2 z-50 bg-white/95 backdrop-blur-xl border-t border-slate-200/80"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
       <div className="flex items-stretch h-14">
@@ -35,7 +37,10 @@ export function BottomNav({ activeTab = 'home', onTabChange }: BottomNavProps) {
           return (
             <button
               key={id}
-              onClick={() => onTabChange?.(id)}
+              onClick={() => {
+                haptic(10);
+                onTabChange?.(id);
+              }}
               className="flex-1 flex flex-col items-center justify-center gap-0.5 relative active:scale-95 transition-transform duration-100"
             >
               {/* Active indicator dot dynamically colored matching current tenant theme */}

@@ -135,19 +135,51 @@ export function TenantDashboard({ activeTab }: { activeTab?: string }) {
     );
   }
 
-  // Pure helper rendering block wrapped inside the global error boundary for modular isolation
-  const renderDashboard = () => {
+  // Helper block for the active industry module
+  const renderIndustryDashboard = () => {
     const activeModule = activeModuleOverride || currentTenant.moduleType;
 
-    if (activeTab === 'profile') {
-      return <ProfileTab />;
-    }
-    if (activeTab === 'stock') {
-      return <StockTab />;
-    }
-    if (activeTab === 'ulat') {
-      if (profile?.role === 'staff') {
-        return (
+    if (activeModule === 'hiram-snap') return <HiramDashboard />;
+    if (activeModule === 'spin-snap') return <SpinDashboard />;
+    if (activeModule === 'hydro-sync') return <HydroDashboard />;
+    if (activeModule === 'auto-boss') return <AutoBossDashboard />;
+    if (activeModule === 'wellness-pro') return <WellnessDashboard />;
+    if (activeModule === 'trim-track') return <TrimTrackDashboard />;
+    if (activeModule === 'rep-sync') return <RepSyncDashboard />;
+    
+    const serviceModules = ['unknown'];
+    if (serviceModules.includes(activeModule || '')) return <ServiceDashboard />;
+    
+    if (activeModule === 'ledger-flow') return <LedgerDashboard />;
+    if (activeModule === 'sahod-flow') return <PayrollDashboard />;
+    if (activeModule === 'timpla-track') return <TimplaDashboard />;
+    if (activeModule === 'ganap-master') return <GanapDashboard />;
+    
+    const foodModules = ['bite-snap'];
+    if (foodModules.includes(activeModule || '')) return <FoodDashboard />;
+    
+    const fleetModules = ['biyahe-sync', 'ani-grow'];
+    if (fleetModules.includes(activeModule || '')) return <FleetDashboard />;
+    
+    if (activeModule === 'build-stack') return <BuildStackDashboard />;
+    
+    return <BentaDashboard />;
+  };
+
+  const isIndustryTab = !['profile', 'stock', 'ulat'].includes(activeTab || 'home');
+
+  return (
+    <KatuwangErrorBoundary>
+      <div className={activeTab === 'profile' ? 'block' : 'hidden'}>
+        <ProfileTab />
+      </div>
+      
+      <div className={activeTab === 'stock' ? 'block' : 'hidden'}>
+        <StockTab />
+      </div>
+
+      <div className={activeTab === 'ulat' ? 'block' : 'hidden'}>
+        {profile?.role === 'staff' ? (
           <div className="flex-1 flex items-center justify-center p-6 bg-slate-50 min-h-screen">
             <div className="text-center space-y-4 max-w-xs bg-white rounded-3xl p-6 border border-slate-200 shadow-sm animate-in fade-in">
               <div className="h-12 w-12 rounded-full bg-amber-50 mx-auto flex items-center justify-center">
@@ -161,80 +193,14 @@ export function TenantDashboard({ activeTab }: { activeTab?: string }) {
               </div>
             </div>
           </div>
-        );
-      }
-      return <ReportsTab />;
-    }
+        ) : (
+          <ReportsTab />
+        )}
+      </div>
 
-    if (activeModule === 'hiram-snap') {
-      return <HiramDashboard />;
-    }
-
-    if (activeModule === 'spin-snap') {
-      return <SpinDashboard />;
-    }
-
-    if (activeModule === 'hydro-sync') {
-      return <HydroDashboard />;
-    }
-
-    if (activeModule === 'auto-boss') {
-      return <AutoBossDashboard />;
-    }
-
-    if (activeModule === 'wellness-pro') {
-      return <WellnessDashboard />;
-    }
-
-    if (activeModule === 'trim-track') {
-      return <TrimTrackDashboard />;
-    }
-
-    if (activeModule === 'rep-sync') {
-      return <RepSyncDashboard />;
-    }
-
-    const serviceModules = ['unknown'];
-    if (serviceModules.includes(activeModule || '')) {
-      return <ServiceDashboard />;
-    }
-
-    if (activeModule === 'ledger-flow') {
-      return <LedgerDashboard />;
-    }
-
-    if (activeModule === 'sahod-flow') {
-      return <PayrollDashboard />;
-    }
-
-    if (activeModule === 'timpla-track') {
-      return <TimplaDashboard />;
-    }
-
-    if (activeModule === 'ganap-master') {
-      return <GanapDashboard />;
-    }
-
-    const foodModules = ['bite-snap'];
-    if (foodModules.includes(activeModule || '')) {
-      return <FoodDashboard />;
-    }
-
-    const fleetModules = ['biyahe-sync', 'ani-grow'];
-    if (fleetModules.includes(activeModule || '')) {
-      return <FleetDashboard />;
-    }
-
-    if (activeModule === 'build-stack') {
-      return <BuildStackDashboard />;
-    }
-
-    return <BentaDashboard />;
-  };
-
-  return (
-    <KatuwangErrorBoundary>
-      {renderDashboard()}
+      <div className={isIndustryTab ? 'block' : 'hidden'}>
+        {renderIndustryDashboard()}
+      </div>
     </KatuwangErrorBoundary>
   );
 }
