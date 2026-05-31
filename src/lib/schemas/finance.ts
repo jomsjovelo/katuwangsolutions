@@ -26,7 +26,7 @@ export const TransactionSchema = z.object({
   id: z.string().optional(),
   tenantId: z.string(),
   accountId: z.string(),
-  amount: z.coerce.number().positive('Amount must be positive'),
+  amount: z.coerce.number().int('Currency must be in whole centavos').positive('Amount must be positive'),
   type: TransactionTypeEnum,
   category: TransactionCategoryEnum.optional(),
   description: z.string().optional(),

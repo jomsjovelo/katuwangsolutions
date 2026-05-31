@@ -15,7 +15,8 @@ import { Package, Truck, HardHat, TrendingUp, Plus } from "lucide-react";
 import { useProjects } from '@/hooks/use-projects';
 import { useInventory } from '@/hooks/use-inventory';
 import { useFirestore } from '@/firebase/provider';
-import { doc, collection, runTransaction, serverTimestamp, increment } from 'firebase/firestore';
+import { doc, collection, serverTimestamp, increment } from 'firebase/firestore';
+import { runTransactionResilient } from '@/firebase/firestore/resilient-transaction';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -46,12 +47,12 @@ export function BuildStackDashboard() {
         throw new Error(`Insufficient stock. Only ${product.currentStock} ${product.unit} available.`);
       }
 
-      await runTransaction(db, async (transaction) => {
+      await runTransactionResilient(db, async (transaction) => {
         const productRef = doc(db, 'tenants', currentTenant.id, 'products', product.id!);
         const projectRef = doc(db, 'tenants', currentTenant.id, 'projects', project.id!);
         const txRef = doc(collection(db, 'tenants', currentTenant.id, 'inventory_transactions'));
 
-        const totalCost = product.salePrice * dispatchQty; // Bill the project using the sale price
+        const totalCost = Math.round(product.salePrice * dispatchQty); // Bill the project using the sale price and round to avoid fractional centavos
 
         // Update product stock
         transaction.update(productRef, {

@@ -73,8 +73,8 @@ export async function processCheckout(
         throw new Error(`Not enough stock for ${item.name}. Available: ${currentStock}`);
       }
       
-      // Calculate total entirely on the server using secure DB prices
-      secureTotalAmount += secureDbPrice * item.quantity;
+      // Calculate total entirely on the server using secure DB prices and round to avoid fractional centavos
+      secureTotalAmount += Math.round(secureDbPrice * item.quantity);
 
       // Store the doc reference and new stock for the write phase
       productDocs[item.productId] = {

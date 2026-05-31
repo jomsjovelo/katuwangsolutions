@@ -7,11 +7,11 @@ import {
   where, 
   getDocs,
   serverTimestamp,
-  runTransaction,
   arrayUnion,
   arrayRemove
 } from 'firebase/firestore';
 import { initializeFirebase } from '../index';
+import { runTransactionResilient } from './resilient-transaction';
 
 /**
  * Creates a new pending staff invitation.
@@ -73,7 +73,7 @@ export async function sendStaffInvite(tenantId: string, tenantName: string, modu
 export async function acceptStaffInvite(inviteId: string, userUid: string) {
   const { db } = initializeFirebase();
 
-  await runTransaction(db, async (transaction) => {
+  await runTransactionResilient(db, async (transaction) => {
     const inviteRef = doc(db, 'invites', inviteId);
     const inviteSnap = await transaction.get(inviteRef);
 
@@ -138,7 +138,7 @@ export async function rejectStaffInvite(inviteId: string) {
 export async function removeStaffMember(tenantId: string, staffUid: string) {
   const { db } = initializeFirebase();
 
-  await runTransaction(db, async (transaction) => {
+  await runTransactionResilient(db, async (transaction) => {
     const tenantRef = doc(db, 'tenants', tenantId);
     const userProfileRef = doc(db, 'users', staffUid);
 

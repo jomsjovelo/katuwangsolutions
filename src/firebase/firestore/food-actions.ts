@@ -27,7 +27,7 @@ export async function addFoodOrder(tenantId: string, tableNumber: string, items:
       }
 
       const secureDbPrice = menuSnap.data().price || 0;
-      secureTotalAmount += secureDbPrice * item.quantity;
+      secureTotalAmount += Math.round(secureDbPrice * item.quantity);
       
       // Enforce the secure price inside the items array we will save
       validatedItems.push({

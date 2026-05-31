@@ -8,6 +8,10 @@ export const getKatuwangDb = () => initializeFirebase().db;
 export async function addTransaction(tenantId: string, amountCentavos: number, type: 'income' | 'expense', description: string, category?: string) {
   const db = getKatuwangDb();
   
+  if (amountCentavos <= 0 || !Number.isInteger(amountCentavos)) {
+    throw new Error("Transaction amount must be a positive whole integer in centavos.");
+  }
+  
   // 1. Validate the transaction using Zod
   const validated = TransactionSchema.parse({
     tenantId,

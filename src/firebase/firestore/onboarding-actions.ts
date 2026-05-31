@@ -1,9 +1,9 @@
 import { 
   doc, 
-  runTransaction, 
   serverTimestamp, 
   collection 
 } from 'firebase/firestore';
+import { runTransactionResilient } from './resilient-transaction';
 import { 
   createUserWithEmailAndPassword 
 } from 'firebase/auth';
@@ -34,7 +34,7 @@ export async function registerNewTenant(onboardingData: any) {
     const uid = userCredential.user.uid;
 
     // 2. Atomic Firestore Write
-    await runTransaction(db, async (transaction) => {
+    await runTransactionResilient(db, async (transaction) => {
       // Create Tenant Doc
       const tenantRef = doc(collection(db, 'tenants'));
       const tenantId = tenantRef.id;

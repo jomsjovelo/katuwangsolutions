@@ -3,12 +3,12 @@ import {
   collection, 
   addDoc, 
   doc, 
-  runTransaction,
   serverTimestamp,
   increment,
   Timestamp
 } from 'firebase/firestore';
 import { initializeFirebase } from '../index';
+import { runTransactionResilient } from './resilient-transaction';
 
 const db = initializeFirebase().db;
 
@@ -80,7 +80,7 @@ export async function recordLoan(
   const transactionsRef = collection(db, 'tenants', tenantId, 'borrowers', borrowerId, 'transactions');
   
   try {
-    await runTransaction(db, async (transaction) => {
+    await runTransactionResilient(db, async (transaction) => {
       const bSnap = await transaction.get(borrowerRef);
       if (!bSnap.exists()) {
         throw new Error("Ang borrower ay hindi nahanap sa database.");
@@ -172,7 +172,7 @@ export async function recordPayment(
   const transactionsRef = collection(db, 'tenants', tenantId, 'borrowers', borrowerId, 'transactions');
 
   try {
-    await runTransaction(db, async (transaction) => {
+    await runTransactionResilient(db, async (transaction) => {
       const bSnap = await transaction.get(borrowerRef);
       if (!bSnap.exists()) {
         throw new Error("Ang borrower ay hindi nahanap sa database.");
