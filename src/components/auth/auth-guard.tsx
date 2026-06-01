@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useUser } from '@/firebase/auth/use-user';
 import { useTenantStore, Tenant } from '@/store/use-tenant-store';
 import { doc, onSnapshot, getFirestore } from 'firebase/firestore';
+import { getAuth, signOut } from 'firebase/auth';
 import { app } from '@/firebase/config';
 import { ShieldAlert, Loader2, AlertCircle } from 'lucide-react';
 import { BrandLogo } from '@/components/ui/brand-logo';
@@ -157,7 +158,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
               Check via Messenger
             </button>
             <button 
-              onClick={() => router.push('/')}
+              onClick={() => {
+                const auth = getAuth(app);
+                signOut(auth).then(() => {
+                  router.push('/');
+                });
+              }}
               className="w-full bg-slate-100 text-slate-600 h-12 rounded-xl font-bold"
             >
               Sign Out
@@ -188,10 +194,15 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
               Contact Support
             </button>
             <button 
-              onClick={() => router.push('/')}
+              onClick={() => {
+                const auth = getAuth(app);
+                signOut(auth).then(() => {
+                  router.push('/');
+                });
+              }}
               className="w-full bg-slate-100 text-slate-600 h-12 rounded-xl font-bold"
             >
-              Go to Landing Page
+              Sign Out & Return Home
             </button>
           </div>
         </div>
@@ -219,10 +230,15 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
               Contact Support
             </button>
             <button 
-              onClick={() => router.push('/')}
+              onClick={() => {
+                const auth = getAuth(app);
+                signOut(auth).then(() => {
+                  router.push('/');
+                });
+              }}
               className="w-full bg-slate-100 text-slate-600 h-12 rounded-xl font-bold"
             >
-              Return Home
+              Sign Out & Return Home
             </button>
           </div>
         </div>

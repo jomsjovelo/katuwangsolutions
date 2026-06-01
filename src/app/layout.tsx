@@ -18,6 +18,8 @@ export const metadata: Metadata = {
   },
   other: {
     'mobile-web-app-capable': 'yes',
+    'google': 'notranslate',
+    'Content-Language': 'fil',
   },
 };
 
@@ -36,8 +38,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fil">
+    <html lang="fil" translate="no">
       <head>
+         <meta name="google" content="notranslate" />
+         <meta httpEquiv="Content-Language" content="fil" />
          <link rel="preconnect" href="https://fonts.googleapis.com" />
          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
          <link
@@ -45,7 +49,7 @@ export default function RootLayout({
            rel="stylesheet"
          />
       </head>
-      <body className="font-body antialiased min-h-screen overflow-x-hidden bg-white selection:bg-cyan-500/30">
+      <body className="font-body antialiased min-h-screen overflow-x-hidden bg-white selection:bg-cyan-500/30" translate="no">
         <FirebaseClientProvider>
           <AuthGuard>
             <div className="w-full min-h-screen bg-white relative flex flex-col">
