@@ -190,7 +190,7 @@ export default function Home() {
                   <BrandLogo theme="dark" />
                 </div>
                 <p className="text-slate-500 text-[9px] font-bold uppercase tracking-[0.35em] leading-loose">
-                  Katuwang Solutions · Framework v1.2<br />&copy; {new Date().getFullYear()} All Rights Reserved.
+                  <span translate="no" className="notranslate">Katuwang Solutions</span> · Framework v1.2<br />&copy; {new Date().getFullYear()} All Rights Reserved.
                 </p>
               </div>
             </footer>

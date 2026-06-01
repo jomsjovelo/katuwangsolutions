@@ -28,7 +28,7 @@ export function BottomNav({ activeTab = 'home', onTabChange }: BottomNavProps) {
 
   return (
     <nav
-      className="fixed bottom-0 w-full max-w-md left-1/2 -translate-x-1/2 z-50 bg-white/95 backdrop-blur-xl border-t border-slate-200/80"
+      className="fixed bottom-0 w-full z-50 bg-white/95 backdrop-blur-xl border-t border-slate-200/80"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
       <div className="flex items-stretch h-14">

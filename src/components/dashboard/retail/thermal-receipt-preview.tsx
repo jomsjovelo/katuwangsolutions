@@ -201,7 +201,7 @@ export function ThermalReceiptPreview({
             <div className="text-center space-y-1 font-sans text-slate-400 text-[7px] font-bold">
               <p className="text-[8px] text-slate-600">Maraming Salamat Po!</p>
               <p>Salamat sa inyong pagtangkilik!</p>
-              <p>Powered by Katuwang Solutions</p>
+              <p>Powered by <span translate="no" className="notranslate">Katuwang Solutions</span></p>
             </div>
 
             {/* Jagged Serrated Tear Edge (Visual paper tear) */}

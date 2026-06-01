@@ -28,7 +28,7 @@ export function AppHeader({ title, subtitle, onBack, rightAction }: AppHeaderPro
 
   return (
     <header
-      className="sticky top-0 z-40 w-full max-w-md mx-auto bg-white/95 backdrop-blur-xl border-b border-slate-100 transition-colors duration-300"
+      className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-xl border-b border-slate-100 transition-colors duration-300"
       style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
       <div className="flex items-center h-12 px-6 gap-3">

@@ -62,7 +62,7 @@ export function PaymentStep({ data, onPaymentSent }: PaymentStepProps) {
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
               <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Account Name</p>
-              <p className="font-bold text-slate-900 text-xs">{ACCOUNT_NAME}</p>
+              <p className="font-bold text-slate-900 text-xs"><span translate="no" className="notranslate">{ACCOUNT_NAME}</span></p>
             </div>
           </div>
           <div>
@@ -88,7 +88,7 @@ export function PaymentStep({ data, onPaymentSent }: PaymentStepProps) {
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
               <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Account Name</p>
-              <p className="font-bold text-slate-900 text-xs">{ACCOUNT_NAME}</p>
+              <p className="font-bold text-slate-900 text-xs"><span translate="no" className="notranslate">{ACCOUNT_NAME}</span></p>
             </div>
           </div>
           <div>

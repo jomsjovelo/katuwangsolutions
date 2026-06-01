@@ -26,7 +26,7 @@ export function BrandLogo({ className, theme = 'light', showText = true }: Brand
       
       {/* Wordmark (KATUWANG SOLUTIONS) */}
       {showText && (
-        <div className="flex flex-col justify-center">
+        <div className="flex flex-col justify-center notranslate" translate="no">
           <span className={cn("text-lg sm:text-xl font-black leading-none tracking-tight font-sans", textColor)}>
             KATUWANG
           </span>

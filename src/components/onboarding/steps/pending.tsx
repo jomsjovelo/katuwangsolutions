@@ -63,7 +63,7 @@ export function PendingStep({ data }: PendingStepProps) {
           Contact Us on Messenger
         </a>
         <p className="text-[9px] text-slate-400 uppercase tracking-widest font-bold">
-          Katuwang Solutions · {PAYMENT_NUMBER}
+          <span translate="no" className="notranslate">Katuwang Solutions</span> · {PAYMENT_NUMBER}
         </p>
       </div>
 
