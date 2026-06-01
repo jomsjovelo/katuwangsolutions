@@ -6,23 +6,31 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 
 import { useTenant } from '@/app/lib/tenant-context';
-import { BentaDashboard } from '@/components/dashboard/retail/benta-dashboard';
-import { BuildStackDashboard } from '@/components/dashboard/retail/build-stack-dashboard';
-import { HiramDashboard } from '@/components/dashboard/hiram-dashboard';
-import { ReportsTab } from '@/components/dashboard/reports-tab';
-import { ServiceDashboard } from '@/components/dashboard/service/service-dashboard';
-import { LedgerDashboard } from '@/components/dashboard/finance/ledger-dashboard';
-import { PayrollDashboard } from '@/components/dashboard/finance/payroll-dashboard';
-import { FoodDashboard } from '@/components/dashboard/food/food-dashboard';
-import { TimplaDashboard } from '@/components/dashboard/food/timpla-dashboard';
-import { GanapDashboard } from '@/components/dashboard/events/ganap-dashboard';
-import { SpinDashboard } from '@/components/dashboard/service/spin-dashboard';
-import { HydroDashboard } from '@/components/dashboard/service/hydro-dashboard';
-import { AutoBossDashboard } from '@/components/dashboard/service/auto-boss-dashboard';
-import { WellnessDashboard } from '@/components/dashboard/service/wellness-dashboard';
-import { TrimTrackDashboard } from '@/components/dashboard/service/trim-track-dashboard';
-import { RepSyncDashboard } from '@/components/dashboard/service/rep-sync-dashboard';
-import { FleetDashboard } from '@/components/dashboard/logistics/fleet-dashboard';
+import dynamic from 'next/dynamic';
+import { useFirestoreDocument } from '@/hooks/use-firestore-subscription';
+
+// Phase 2: Lazy Load heavy module components to drastically shrink initial JS bundle
+const BentaDashboard = dynamic(() => import('@/components/dashboard/retail/benta-dashboard').then(m => m.BentaDashboard));
+const BuildStackDashboard = dynamic(() => import('@/components/dashboard/retail/build-stack-dashboard').then(m => m.BuildStackDashboard));
+const HiramDashboard = dynamic(() => import('@/components/dashboard/hiram-dashboard').then(m => m.HiramDashboard));
+const ReportsTab = dynamic(() => import('@/components/dashboard/reports-tab').then(m => m.ReportsTab));
+const ServiceDashboard = dynamic(() => import('@/components/dashboard/service/service-dashboard').then(m => m.ServiceDashboard));
+const LedgerDashboard = dynamic(() => import('@/components/dashboard/finance/ledger-dashboard').then(m => m.LedgerDashboard));
+const PayrollDashboard = dynamic(() => import('@/components/dashboard/finance/payroll-dashboard').then(m => m.PayrollDashboard));
+const FoodDashboard = dynamic(() => import('@/components/dashboard/food/food-dashboard').then(m => m.FoodDashboard));
+const TimplaDashboard = dynamic(() => import('@/components/dashboard/food/timpla-dashboard').then(m => m.TimplaDashboard));
+const GanapDashboard = dynamic(() => import('@/components/dashboard/events/ganap-dashboard').then(m => m.GanapDashboard));
+const SpinDashboard = dynamic(() => import('@/components/dashboard/service/spin-dashboard').then(m => m.SpinDashboard));
+const HydroDashboard = dynamic(() => import('@/components/dashboard/service/hydro-dashboard').then(m => m.HydroDashboard));
+const AutoBossDashboard = dynamic(() => import('@/components/dashboard/service/auto-boss-dashboard').then(m => m.AutoBossDashboard));
+const WellnessDashboard = dynamic(() => import('@/components/dashboard/service/wellness-dashboard').then(m => m.WellnessDashboard));
+const TrimTrackDashboard = dynamic(() => import('@/components/dashboard/service/trim-track-dashboard').then(m => m.TrimTrackDashboard));
+const RepSyncDashboard = dynamic(() => import('@/components/dashboard/service/rep-sync-dashboard').then(m => m.RepSyncDashboard));
+const FleetDashboard = dynamic(() => import('@/components/dashboard/logistics/fleet-dashboard').then(m => m.FleetDashboard));
+
+const ProfileTab = dynamic(() => import('@/components/dashboard/profile-tab').then(m => m.ProfileTab));
+const StockTab = dynamic(() => import('@/components/dashboard/stock-tab').then(m => m.StockTab));
+
 import { KatuwangErrorBoundary } from '@/components/common/error-boundary';
 import { SnapDate } from '@/components/snap-date';
 import { 
@@ -52,14 +60,16 @@ import { useUserTenants } from '@/hooks/use-user-tenants';
 import { useInventory } from '@/hooks/use-inventory';
 import { useSales } from '@/hooks/use-sales';
 import { useUser } from '@/firebase/auth/use-user';
-import { ProfileTab } from '@/components/dashboard/profile-tab';
-import { StockTab } from '@/components/dashboard/stock-tab';
 
 import { useTenantStore } from '@/store/use-tenant-store';
 
 export function TenantDashboard({ activeTab }: { activeTab?: string }) {
   const { user } = useUser();
-  const [profile, setProfile] = useState<any>(null);
+  const db = initializeFirebase().db;
+  
+  // Phase 1: Safely subscribe to profile without raw onSnapshot
+  const { data: profile } = useFirestoreDocument(user ? doc(db, 'users', user.uid) : null);
+  
   const { currentTenant, setCurrentTenant, allTenants, isLoading: storeLoading } = useTenant();
   const { activeModuleOverride } = useTenantStore();
   const { loading: tenantsLoading } = useUserTenants();
@@ -73,18 +83,9 @@ export function TenantDashboard({ activeTab }: { activeTab?: string }) {
     setMounted(true);
   }, []);
 
-  // Fetch real-time user profile
   useEffect(() => {
-    if (!user) return;
-    const { db } = initializeFirebase();
-    const userRef = doc(db, 'users', user.uid);
-    const unsubscribe = onSnapshot(userRef, (snap: any) => {
-      if (snap.exists()) {
-        setProfile(snap.data());
-      }
-    });
-    return () => unsubscribe();
-  }, [user]);
+    setMounted(true);
+  }, []);
 
   // Prevent hydration mismatch or show loading while fetching real data
   if (!mounted || tenantsLoading || storeLoading || inventoryLoading || salesLoading) {

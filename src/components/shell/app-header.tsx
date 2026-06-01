@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { ChevronLeft, WifiOff, BookOpen } from 'lucide-react';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { useOnlineStatus } from '@/hooks/use-online-status';
+import { useSyncStatus } from '@/hooks/use-sync-status';
 import { useTenant } from '@/app/lib/tenant-context';
 import { getModuleTheme } from '@/lib/theme-utils';
 import { ModuleGuide } from '@/components/common/module-guide';
@@ -19,8 +20,8 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ title, subtitle, onBack, rightAction }: AppHeaderProps) {
-  const isOnline = useOnlineStatus();
   const { currentTenant } = useTenant();
+  const { isOnline, isSyncing, pendingCount, syncMessage } = useSyncStatus(currentTenant?.id);
   const theme = getModuleTheme(currentTenant?.moduleType);
   const [showGuide, setShowGuide] = useState(false);
   const [showApps, setShowApps] = useState(false);
@@ -53,14 +54,24 @@ export function AppHeader({ title, subtitle, onBack, rightAction }: AppHeaderPro
             <h1 className="text-sm font-black text-slate-900 tracking-tight truncate">{title}</h1>
             
             {/* Real-time Network Connection Pill */}
-            {isOnline ? (
-              <span className="flex h-2 w-2 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
+            {!isOnline || isSyncing ? (
+              <div 
+                className="flex items-center gap-1.5 bg-amber-500/10 text-amber-600 font-bold text-[9px] px-2 py-0.5 rounded-full tracking-wide select-none"
+                title={syncMessage}
+              >
+                {!isOnline ? (
+                  <WifiOff className="h-2.5 w-2.5" />
+                ) : (
+                  <span className="flex h-2 w-2 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                  </span>
+                )}
+                {isSyncing ? `Syncing (${pendingCount})` : `Offline (${pendingCount})`}
+              </div>
             ) : (
-              <span className="flex items-center gap-0.5 bg-amber-500 text-white font-black text-[7px] px-1.5 py-0.5 rounded-full tracking-widest uppercase animate-pulse shadow-sm shadow-amber-500/20 select-none">
-                <WifiOff className="h-2 w-2" /> Offline
+              <span className="flex h-2 w-2 relative" title={syncMessage}>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
               </span>
             )}
 
