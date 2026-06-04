@@ -156,7 +156,7 @@ export function TenantDashboard({ activeTab }: { activeTab?: string }) {
     const foodModules = ['bite-snap'];
     if (foodModules.includes(activeModule || '')) return <FoodDashboard />;
     
-    const fleetModules = ['biyahe-sync', 'ani-grow'];
+    const fleetModules = ['biyahe-sync', 'ani-grow', 'sundo-sync'];
     if (fleetModules.includes(activeModule || '')) return <FleetDashboard />;
     
     if (activeModule === 'build-stack') return <BuildStackDashboard />;
