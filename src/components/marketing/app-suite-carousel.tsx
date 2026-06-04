@@ -5,19 +5,8 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { LucideIcon, ChevronRight, ChevronLeft, Hand } from 'lucide-react';
 
-interface AppModule {
-  name: string;
-  icon: LucideIcon;
-  tagline: string;
-  imageSrc: string;
-}
-
-interface AppGroup {
-  id: string;
-  label: string;
-  accentColor: string;
-  apps: AppModule[];
-}
+import { appGroups, AppGroup, AppModule } from '@/lib/app-data';
+import Link from 'next/link';
 
 interface AppSuiteCarouselProps {
   groups: AppGroup[];
@@ -124,14 +113,24 @@ export function AppSuiteCarousel({ groups, onSelect }: AppSuiteCarouselProps) {
                   <p className="text-xs text-slate-500 italic leading-snug">"{app.tagline}"</p>
 
                   {/* CTA */}
-                  <Button
-                    className="w-full h-11 rounded-xl font-bold text-xs text-white active:scale-95 transition-transform mt-auto"
-                    style={{ backgroundColor: activeGroup.accentColor }}
-                    onClick={() => onSelect(app.name)}
-                  >
-                    Subukan ang {app.name}
-                    <ChevronRight className="h-3.5 w-3.5 ml-1" />
-                  </Button>
+                  <div className="flex gap-2 mt-auto">
+                    <Button
+                      className="flex-1 h-11 rounded-xl font-bold text-[10px] sm:text-xs text-white active:scale-95 transition-transform"
+                      style={{ backgroundColor: activeGroup.accentColor }}
+                      onClick={() => onSelect(app.name)}
+                    >
+                      Bumili
+                    </Button>
+                    <Link href={`/product/${app.id}`} className="flex-1">
+                      <Button
+                        variant="outline"
+                        className="w-full h-11 rounded-xl font-bold text-[10px] sm:text-xs text-slate-700 active:scale-95 transition-transform"
+                      >
+                        Alamin
+                        <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               </div>
             );

@@ -25,9 +25,13 @@ import {
   DollarSign, 
   Power,
   BarChart3,
-  Layers
+  Layers,
+  PieChart as PieChartIcon
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+
+const COLORS = ['#06B6D4', '#F97316', '#8B5CF6', '#10B981', '#3B82F6', '#EC4899', '#EAB308'];
 
 export default function AdminKillSwitch() {
   const { tenants, updateTenantStatus, updateTenantPricing } = useAdminTenants();
@@ -56,6 +60,26 @@ export default function AdminKillSwitch() {
     t.id.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Analytics Calculations
+  const totalRevenue = tenants.reduce((acc, t) => {
+    if (t.subscriptionStatus !== 'active') return acc;
+    if (t.pricingTier === 'promo_99') return acc + 99;
+    if (t.pricingTier === 'standard_199') return acc + 199;
+    if (t.pricingTier === 'enterprise') return acc + 499;
+    return acc;
+  }, 0);
+
+  const moduleDistribution = tenants.reduce((acc, t) => {
+    const mod = t.moduleType || 'Unknown';
+    acc[mod] = (acc[mod] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const pieData = Object.keys(moduleDistribution).map((key) => ({
+    name: key,
+    value: moduleDistribution[key]
+  })).sort((a, b) => b.value - a.value);
+
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -65,12 +89,12 @@ export default function AdminKillSwitch() {
               <ShieldAlert className="text-white h-6 w-6" />
             </div>
             <h1 className="text-4xl font-headline font-black tracking-tighter uppercase">
-              Owner Control Panel
+              God Mode Dashboard
             </h1>
           </div>
           <div className="flex flex-col gap-2">
             <p className="text-muted-foreground max-w-md">
-              Master control for the Katuwang Isolation Shield. Manage tenant status, subscriptions, and global pricing tiers.
+              Master control and deep analytics for the Katuwang Ecosystem.
             </p>
             <Button variant="outline" size="sm" onClick={handleSignOut} className="w-fit border-destructive text-destructive hover:bg-destructive hover:text-white">
               <Power className="mr-2 h-4 w-4" /> Sign Out
@@ -89,43 +113,66 @@ export default function AdminKillSwitch() {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-        <Card className="bg-secondary/20 border-secondary">
-          <CardHeader className="pb-2">
-            <CardDescription className="font-bold uppercase tracking-widest text-[10px]">Total Revenue (EST)</CardDescription>
-            <CardTitle className="text-3xl font-headline font-black">₱14,289.00</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2 text-primary font-bold text-sm">
-              <Zap className="h-4 w-4" />
-              <span>+12% from last month</span>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-secondary/20 border-secondary">
-          <CardHeader className="pb-2">
-            <CardDescription className="font-bold uppercase tracking-widest text-[10px]">Active Tenants</CardDescription>
-            <CardTitle className="text-3xl font-headline font-black">{tenants.filter(t => t.subscriptionStatus === 'active').length}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2 text-chart-2 font-bold text-sm">
-              <BarChart3 className="h-4 w-4" />
-              <span>94% Uptime Health</span>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-secondary/20 border-secondary">
-          <CardHeader className="pb-2">
-            <CardDescription className="font-bold uppercase tracking-widest text-[10px]">Suspended</CardDescription>
-            <CardTitle className="text-3xl font-headline font-black text-destructive">{tenants.filter(t => t.subscriptionStatus === 'suspended').length}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2 text-muted-foreground font-bold text-sm">
-              <Power className="h-4 w-4" />
-              <span>Requires Manual Audit</span>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Analytics Row */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-12">
+        <div className="md:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card className="bg-gradient-to-br from-indigo-600 to-purple-600 text-white border-none shadow-xl">
+            <CardHeader className="pb-2">
+              <CardDescription className="font-bold uppercase tracking-widest text-[10px] text-white/70">MRR (Monthly Recurring Revenue)</CardDescription>
+              <CardTitle className="text-4xl font-headline font-black">₱{totalRevenue.toLocaleString()}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2 text-emerald-300 font-bold text-sm">
+                <Zap className="h-4 w-4" />
+                <span>Active subscriptions only</span>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-white border-secondary/50 shadow-md">
+            <CardHeader className="pb-2">
+              <CardDescription className="font-bold uppercase tracking-widest text-[10px] text-slate-400">Total Active Tenants</CardDescription>
+              <CardTitle className="text-4xl font-headline font-black text-slate-800">{tenants.filter(t => t.subscriptionStatus === 'active').length}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2 text-primary font-bold text-sm">
+                <BarChart3 className="h-4 w-4" />
+                <span>Across all modules</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="md:col-span-4 h-full">
+          <Card className="bg-white border-secondary/50 shadow-md h-full">
+            <CardHeader className="pb-0">
+              <CardTitle className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-slate-500">
+                <PieChartIcon className="h-4 w-4" /> Module Popularity
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="h-[200px] w-full p-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={40}
+                    outerRadius={70}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(val: number) => [val + ' tenants', 'Count']} />
+                  <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '10px' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       <div className="bg-card rounded-2xl border border-secondary/50 overflow-hidden shadow-2xl">

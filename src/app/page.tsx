@@ -35,73 +35,7 @@ import { AdminPricingManager } from '@/components/admin/admin-pricing-manager';
 
 // ─── App data ────────────────────────────────────────────────────────────────
 
-interface AppModule {
-  name: string;
-  icon: LucideIcon;
-  tagline: string;
-  imageSrc: string;
-}
-
-interface AppGroup {
-  id: string;
-  label: string;
-  accentColor: string;
-  apps: AppModule[];
-}
-
-const appGroups: AppGroup[] = [
-  {
-    id: 'retail',
-    label: 'Retail',
-    accentColor: '#06B6D4',
-    apps: [
-      { name: 'Benta Snap',  icon: ShoppingCart, tagline: 'Lightning-fast retail checkout to maximize your daily sales.',          imageSrc: '/apps/benta-snap.png' },
-      { name: 'Fresh Tally', icon: Leaf,          tagline: 'Smart inventory tracking to keep your fresh produce moving.',             imageSrc: '/apps/fresh-tally.png' },
-      { name: 'Build Stack', icon: Hammer,        tagline: 'Precision material tracking for seamless construction supply.',imageSrc: '/apps/build-stack.png' },
-    ],
-  },
-  {
-    id: 'food',
-    label: 'Food',
-    accentColor: '#F97316',
-    apps: [
-      { name: 'Bite Snap',    icon: Utensils,        tagline: 'Rapid order-to-kitchen flow for hungry diners.', imageSrc: '/apps/bite-snap.png' },
-      { name: 'Timpla Track', icon: Coffee,           tagline: 'Crafted cafe operations for the perfect brew every time.',          imageSrc: '/apps/timpla-track.png' },
-      { name: 'Ganap Master',   icon: CalendarHeart, tagline: 'Orchestrate unforgettable events with flawless planning.',     imageSrc: '/apps/ganap-master.png' },
-    ],
-  },
-  {
-    id: 'service',
-    label: 'Serbisyo',
-    accentColor: '#8B5CF6',
-    apps: [
-      { name: 'Spin Snap',  icon: RotateCcw, tagline: 'Automated laundry tracking from drop-off to pickup.', imageSrc: '/apps/spin-snap.png' },
-      { name: 'Hydro Sync', icon: Droplets,  tagline: 'Streamlined water delivery logistics for thirsty neighborhoods.',         imageSrc: '/apps/hydro-sync.png' },
-      { name: 'Auto Boss', icon: Sparkles,  tagline: 'Rev up your shop with automated slot and payment tracking.',      imageSrc: '/apps/auto-boss.png' },
-      { name: 'Wellness Pro',  icon: Sun,       tagline: 'Elevate your spa experience with seamless booking and billing.',         imageSrc: '/apps/wellness-pro.png' },
-      { name: 'Trim Track',    icon: Scissors,  tagline: 'Keep your barber chairs full and your payments tracked.',    imageSrc: '/apps/trim-track.png' },
-      { name: 'Rep Sync',   icon: Dumbbell,    tagline: 'Automate gym memberships, attendance, and renewals effortlessly.',         imageSrc: '/apps/rep-sync.png' },
-    ],
-  },
-  {
-    id: 'business',
-    label: 'Negosyo',
-    accentColor: '#10B981',
-    apps: [
-      { name: 'Sahod Flow',   icon: Banknote,  tagline: 'Effortless payroll management for a happy, on-time team.',  imageSrc: '/apps/sahod-flow.png' },
-      { name: 'Ledger Flow',  icon: BookText,  tagline: 'Crystal-clear financial insights to watch your profits soar.',      imageSrc: '/apps/ledger-flow.png' },
-      { name: 'Biyahe Sync',  icon: Truck,     tagline: 'Real-time fleet dispatching to keep your business moving.',          imageSrc: '/apps/biyahe-sync.png' },
-    ],
-  },
-  {
-    id: 'financial',
-    label: 'Pinansyal',
-    accentColor: '#3B82F6',
-    apps: [
-      { name: '5-6 Tracker', icon: BookText, tagline: 'Secure, automated lending lists for faster collections.', imageSrc: '/apps/5-6-tracker.png' },
-    ],
-  },
-];
+import { appGroups } from '@/lib/app-data';
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 

@@ -10,6 +10,8 @@ import { cn } from '@/lib/utils';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { TrendingUp, TrendingDown, Calendar, Building2, PieChart } from "lucide-react";
 import { useSales } from '@/hooks/use-sales';
+import { useInventory } from '@/hooks/use-inventory';
+import { AiAdvisorCard } from './ai-advisor-card';
 
 // Specialized Retail Metrics for benta-snap
 function RetailMetrics({ selectedDate }: { selectedDate: Date }) {
@@ -131,6 +133,7 @@ export function ReportsTab() {
   const { currentTenant, allTenants } = useTenant();
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
+  const { products: inventory } = useInventory();
 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   
@@ -274,6 +277,15 @@ export function ReportsTab() {
             className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-700 cursor-pointer"
           />
         </div>
+
+        {/* AI Advisor Co-Pilot */}
+        <AiAdvisorCard 
+          tenantName={currentTenant?.name || ''}
+          moduleType={currentTenant?.moduleType || ''}
+          products={inventory}
+          sales={transactions.filter(t => t.type === 'income')}
+          dailyTotalPesos={grossIncomePesos}
+        />
 
         {/* Universal Top-Level Metric Card */}
         <Card className="shadow-sm border-transparent rounded-[28px] overflow-hidden text-white relative" style={{ backgroundColor: theme.primary }}>
