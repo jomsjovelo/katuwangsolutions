@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
@@ -20,7 +20,10 @@ import {
   CalendarHeart,
   Clock,
   LogOut,
-  RefreshCw
+  RefreshCw,
+  QrCode,
+  X,
+  ScanLine
 } from "lucide-react";
 
 const PLAN_PRICES: Record<string, number> = {
@@ -36,6 +39,9 @@ export function RepSyncDashboard() {
   const { toast } = useToast();
   
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [scannerMessage, setScannerMessage] = useState<string | null>(null);
+  const scannerRef = useRef<any>(null);
 
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
@@ -79,7 +85,7 @@ export function RepSyncDashboard() {
     }
   };
 
-  const handleCheckIn = async (id: string) => {
+  const handleCheckIn = async (id: string, memberName?: string) => {
     if (!currentTenant || !db) return;
     try {
       const memberRef = doc(db, 'tenants', currentTenant.id, 'gym_memberships', id);
@@ -87,10 +93,56 @@ export function RepSyncDashboard() {
         lastCheckIn: serverTimestamp(),
         updatedAt: serverTimestamp() 
       });
-      toast({ title: 'Checked In', description: `Member has been logged for today.` });
+      toast({ title: 'Checked In ✅', description: `${memberName || 'Member'} has been logged for today.` });
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     }
+  };
+
+  // QR Code Scanner using html5-qrcode
+  const startScanner = async () => {
+    setShowScanner(true);
+    setScannerMessage(null);
+    setTimeout(async () => {
+      try {
+        const { Html5Qrcode } = await import('html5-qrcode');
+        const html5QrCode = new Html5Qrcode('gym-qr-reader');
+        scannerRef.current = html5QrCode;
+        await html5QrCode.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 200, height: 200 } },
+          async (decodedText: string) => {
+            // decodedText is the member's Firestore doc ID
+            await html5QrCode.stop();
+            setShowScanner(false);
+            const member = members.find((m: any) => m.id === decodedText);
+            if (!member) {
+              toast({ title: 'Unknown Member', description: 'QR code not recognized.', variant: 'destructive' });
+              return;
+            }
+            if (member.status === 'Expired') {
+              toast({ title: `⚠️ Expired Membership`, description: `${member.memberName}'s membership has expired. Please renew.`, variant: 'destructive' });
+              return;
+            }
+            await handleCheckIn(member.id!, member.memberName);
+          },
+          () => {}
+        );
+      } catch (e: any) {
+        toast({ title: 'Scanner Error', description: e.message, variant: 'destructive' });
+        setShowScanner(false);
+      }
+    }, 300);
+  };
+
+  const stopScanner = async () => {
+    try {
+      if (scannerRef.current) {
+        await scannerRef.current.stop();
+        scannerRef.current = null;
+      }
+    } catch (_) {}
+    setShowScanner(false);
   };
 
   const handleRenew = async (member: any, plan: string) => {
@@ -113,6 +165,8 @@ export function RepSyncDashboard() {
 
   const MemberCard = ({ member, actions }: { member: any, actions: React.ReactNode }) => {
     const isExpired = member.status === 'Expired';
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(member.id)}`;
+    const [showQr, setShowQr] = useState(false);
     return (
       <Card className="shadow-sm border-slate-200 mb-3 hover:shadow-md transition-shadow">
         <CardContent className="p-3">
@@ -131,8 +185,15 @@ export function RepSyncDashboard() {
                 )}
               </div>
             </div>
+            <button onClick={() => setShowQr(!showQr)} className="h-7 w-7 rounded-lg bg-slate-100 flex items-center justify-center cursor-pointer border-none" title="Show QR Code">
+              <QrCode className="h-4 w-4 text-slate-500" />
+            </button>
           </div>
-          
+          {showQr && (
+            <div className="flex justify-center py-2 animate-in fade-in duration-200">
+              <img src={qrUrl} alt="Member QR" className="rounded-xl border border-slate-200" width={120} height={120} />
+            </div>
+          )}
           <div className="flex gap-2 mt-3">
             {actions}
           </div>
@@ -158,10 +219,31 @@ export function RepSyncDashboard() {
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">{theme.name}</p>
             </div>
           </div>
-          <Button size="sm" className="h-8 w-8 rounded-full p-0" onClick={() => setShowAddForm(!showAddForm)} style={{ backgroundColor: theme.primary }}>
-            <Plus className="h-4 w-4" />
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" className="h-8 rounded-xl px-3 gap-1 font-bold" variant="outline" onClick={startScanner}>
+              <ScanLine className="h-3.5 w-3.5" /> Scan Member
+            </Button>
+            <Button size="sm" className="h-8 w-8 rounded-full p-0" onClick={() => setShowAddForm(!showAddForm)} style={{ backgroundColor: theme.primary }}>
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
         </section>
+
+        {/* QR Scanner Modal */}
+        {showScanner && (
+          <div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center p-4">
+            <div className="bg-white rounded-3xl overflow-hidden w-full max-w-sm shadow-2xl">
+              <div className="flex justify-between items-center p-4 border-b">
+                <h3 className="font-black text-sm">Scan Member QR Code</h3>
+                <button onClick={stopScanner} className="h-8 w-8 bg-slate-100 rounded-full flex items-center justify-center border-none cursor-pointer">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div id="gym-qr-reader" className="w-full" />
+              <p className="text-center text-xs text-slate-400 p-3 font-medium">Point camera at member's QR code to log attendance.</p>
+            </div>
+          </div>
+        )}
 
         {showAddForm && (
           <Card className="shadow-sm border-slate-200 bg-white border-l-4" style={{ borderLeftColor: theme.primary }}>
@@ -236,7 +318,7 @@ export function RepSyncDashboard() {
               <div className="space-y-2">
                 {activeMembers.map(member => (
                   <MemberCard key={member.id} member={member} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white" onClick={() => handleCheckIn(member.id!)}>
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white" onClick={() => handleCheckIn(member.id!, member.memberName)}>
                       <Plus className="h-3 w-3 mr-1" /> Log Attendance
                     </Button>
                   } />

@@ -26,7 +26,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     if (authLoading) return;
 
     if (!user) {
-      if (pathname !== '/') router.push('/');
+      if (pathname !== '/' && !pathname.startsWith('/rsvp')) router.push('/');
       setChecking(false);
       setLoading(false);
       return;
@@ -67,7 +67,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     const unsubscribeUser = onSnapshot(userRef, (userSnap) => {
       if (userSnap.exists()) {
         const userData = userSnap.data();
-        if (userData.tenantId) {
+        const persistedTenant = useTenantStore.getState().activeTenant;
+        if (persistedTenant) {
+          setTenantId(persistedTenant.id);
+        } else if (userData.tenantId) {
           setTenantId(userData.tenantId);
         } else {
           setError('User is not associated with any business.');
@@ -247,7 +250,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   // 4. Strict Routing Render Locks (Prevents FOUC)
-  if (!user && pathname !== '/') return null;
+  if (!user && pathname !== '/' && !pathname.startsWith('/rsvp')) return null;
   if (isAdmin === false && pathname === '/admin') return null;
   if (isAdmin === true && pathname !== '/admin') return null;
 

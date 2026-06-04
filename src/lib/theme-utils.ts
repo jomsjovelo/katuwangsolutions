@@ -62,7 +62,7 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
     secondaryBg: 'bg-amber-400 hover:bg-amber-500',
     secondaryText: 'text-slate-900',
     glowClass: 'joy-glow-emerald',
-    name: 'Hiram Snap',
+    name: '5-6 Tracker',
     tagline: 'Ligtas na pamamahala ng utang at puhunan'
   },
   
@@ -234,7 +234,7 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
     tagline: 'Mabilis na serbisyo sa salon at barbershop'
   },
   
-  // 14. Technical Repair shop
+  // 14. Gym and Fitness
   'rep-sync': {
     primary: '#475569',
     primaryBg: 'from-slate-600 to-slate-700',
@@ -245,35 +245,7 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
     secondaryText: 'text-slate-900',
     glowClass: 'joy-glow-violet',
     name: 'Rep Sync',
-    tagline: 'Mabilis na serbisyo sa pagkumpuni at katuwang sa trabaho'
-  },
-
-  // 15. Commuter dispatch
-  'sundo-sync': {
-    primary: '#FF5A00',
-    primaryBg: 'from-orange-500 to-orange-600',
-    primaryText: 'text-orange-600',
-    primaryBorder: 'border-orange-200',
-    secondary: '#94A3B8',
-    secondaryBg: 'bg-slate-400 hover:bg-slate-500',
-    secondaryText: 'text-white',
-    glowClass: 'joy-glow-orange',
-    name: 'Sundo Sync',
-    tagline: 'Mabilis na transport dispatch at katuwang sa biyahe'
-  },
-
-  // 16. E-Commerce
-  'tindahan-flow': {
-    primary: '#EC4899',
-    primaryBg: 'from-pink-500 to-pink-600',
-    primaryText: 'text-pink-600',
-    primaryBorder: 'border-pink-200',
-    secondary: '#F59E0B',
-    secondaryBg: 'bg-amber-400 hover:bg-amber-500',
-    secondaryText: 'text-slate-900',
-    glowClass: 'joy-glow-pink',
-    name: 'Tindahan Flow',
-    tagline: 'Masayang tindahan online para sa mas mabilis na benta'
+    tagline: 'Mabilis na serbisyo sa gym at katuwang sa fitness'
   }
 };
 

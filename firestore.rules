@@ -57,11 +57,18 @@ service cloud.firestore {
         // Strict isolation: Access granted only to verified tenant owners/staff
         allow read, write: if hasTenantAccess(tenantId);
       }
+      
+      // 2.5 Allow Public RSVP Creation
+      match /events/{eventId}/guests/{guestId} {
+        // Allow anyone to create a guest entry for RSVPs
+        allow create: if true;
+      }
     }
 
     // 3. System Collection (Internal usage, only Master Admin)
     match /system/{document=**} {
-      allow read, write: if isMasterAdmin();
+      allow read: if isAuthenticated();
+      allow write: if isMasterAdmin();
     }
 
     // 5. Users Collection (Staff profiles and owner profiles)

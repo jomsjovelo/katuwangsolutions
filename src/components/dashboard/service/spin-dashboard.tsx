@@ -5,6 +5,7 @@ import { useTenant } from '@/app/lib/tenant-context';
 import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { completeServiceOrder } from '@/firebase/firestore/service-actions';
+import { awardPoints } from '@/firebase/firestore/loyalty-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -20,7 +21,9 @@ import {
   CheckCircle2,
   Package,
   CircleDollarSign,
-  Droplets
+  Droplets,
+  MessageSquare,
+  Clock
 } from "lucide-react";
 
 const RATES: Record<string, number> = {
@@ -28,6 +31,17 @@ const RATES: Record<string, number> = {
   'Wash, Dry, Fold': 40,
   'Dry Clean': 100,
   'Ironing': 50,
+};
+
+const WashTimer = ({ startTime }: { startTime: number }) => {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const calc = () => setElapsed(Math.floor((Date.now() - startTime) / 60000));
+    calc();
+    const interval = setInterval(calc, 60000);
+    return () => clearInterval(interval);
+  }, [startTime]);
+  return <span className="text-[10px] text-indigo-600 font-bold ml-1 flex items-center gap-1"><Clock className="h-3 w-3" />{elapsed}m</span>;
 };
 
 export function SpinDashboard() {
@@ -46,6 +60,7 @@ export function SpinDashboard() {
   // Create Drop-off Form
   const [showAddForm, setShowAddForm] = useState(false);
   const [customerName, setCustomerName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [kilos, setKilos] = useState<number | ''>('');
   const [serviceType, setServiceType] = useState('Wash, Dry, Fold');
   const [priceOverride, setPriceOverride] = useState<number | ''>('');
@@ -62,6 +77,7 @@ export function SpinDashboard() {
       await setDoc(orderRef, {
         tenantId: currentTenant.id,
         customerName,
+        phoneNumber,
         kilos,
         serviceType,
         status: 'Queued',
@@ -70,6 +86,7 @@ export function SpinDashboard() {
         createdAt: serverTimestamp(),
       });
       setCustomerName('');
+      setPhoneNumber('');
       setKilos('');
       setPriceOverride('');
       setShowAddForm(false);
@@ -94,10 +111,16 @@ export function SpinDashboard() {
           order.amountDue || 0,
           `Laundry: ${order.customerName} (${order.kilos}kg)`
         );
+        
+        // Loyalty Points
+        if (order.phoneNumber) {
+          await awardPoints(currentTenant.id, order.phoneNumber, order.amountDue || 0);
+        }
       } else {
         const orderRef = doc(db, 'tenants', currentTenant.id, 'laundry_orders', order.id);
         const updates: any = { status, updatedAt: serverTimestamp() };
         if (paymentStatus) updates.paymentStatus = paymentStatus;
+        if (status === 'Washing') updates.washStartTime = Date.now();
         await updateDoc(orderRef, updates);
       }
       toast({ title: 'Status Updated', description: `Order moved to ${status}.` });
@@ -106,13 +129,22 @@ export function SpinDashboard() {
     }
   };
 
+  const handleCopySMS = (order: any) => {
+    const text = `Hi ${order.customerName}! Your laundry (${order.kilos}kg) at ${currentTenant?.name} is ready for pickup. Amount due: ₱${(order.amountDue / 100).toLocaleString()}. See you soon!`;
+    navigator.clipboard.writeText(text);
+    toast({ title: 'SMS Copied', description: 'Message ready to paste.' });
+  };
+
   const OrderCard = ({ order, actions }: { order: any, actions: React.ReactNode }) => (
     <Card className="shadow-sm border-slate-200 mb-3">
       <CardContent className="p-3">
         <div className="flex justify-between items-start mb-2">
           <div>
             <h4 className="font-bold text-slate-800 text-sm">{order.customerName}</h4>
-            <p className="text-xs text-slate-500">{order.kilos} kg • {order.serviceType}</p>
+            <div className="text-xs text-slate-500 flex items-center mt-0.5">
+              {order.kilos} kg • {order.serviceType}
+              {order.status === 'Washing' && order.washStartTime && <WashTimer startTime={order.washStartTime} />}
+            </div>
           </div>
           <div className="text-right">
             <Badge variant="outline" className={order.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}>
@@ -156,9 +188,15 @@ export function SpinDashboard() {
               <CardTitle className="text-sm font-bold flex items-center gap-2"><Shirt className="h-4 w-4" /> New Drop-off</CardTitle>
             </CardHeader>
             <CardContent className="p-4 space-y-3 pt-0">
-              <div className="space-y-1">
-                <Label className="text-xs">Customer Name</Label>
-                <Input placeholder="e.g. Juan Cruz" value={customerName} onChange={e => setCustomerName(e.target.value)} />
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Customer Name</Label>
+                  <Input placeholder="e.g. Juan Cruz" value={customerName} onChange={e => setCustomerName(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Phone (For Rewards)</Label>
+                  <Input placeholder="09XX" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} />
+                </div>
               </div>
               <div className="flex gap-2">
                 <div className="flex-1 space-y-1">
@@ -248,9 +286,14 @@ export function SpinDashboard() {
               <div className="space-y-2">
                 {readyOrders.map(order => (
                   <OrderCard key={order.id} order={order} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600" onClick={() => updateStatus(order, 'Claimed', 'Paid')}>
-                      <CircleDollarSign className="h-3 w-3 mr-1" /> Pay & Claim
-                    </Button>
+                    <>
+                      <Button size="sm" variant="outline" className="flex-1 h-7 text-[10px] border-slate-200" onClick={() => handleCopySMS(order)}>
+                        <MessageSquare className="h-3 w-3 mr-1 text-slate-500" /> SMS
+                      </Button>
+                      <Button size="sm" className="flex-1 h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600" onClick={() => updateStatus(order, 'Claimed', 'Paid')}>
+                        <CircleDollarSign className="h-3 w-3 mr-1" /> Pay & Claim
+                      </Button>
+                    </>
                   } />
                 ))}
               </div>

@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
@@ -11,15 +12,18 @@ export function useSpaAppointments() {
   const { currentTenant } = useTenant();
   const db = useFirestore();
 
-  const spaQuery = currentTenant && db
+  const spaQuery = React.useMemo(() => {
+    return currentTenant && db
     ? query(
         collection(db, 'tenants', currentTenant.id, 'spa_appointments').withConverter(createConverter(SpaAppointmentSchema)),
         orderBy('createdAt', 'desc')
       )
     : null;
+  }, [currentTenant?.id, db]);
 
   const { data, loading, error } = useCollection<SpaAppointmentModel>(spaQuery);
 
+  const scheduledAppointments = data.filter(a => a.status === 'Scheduled');
   const waitingAppointments = data.filter(a => a.status === 'Waiting');
   const inSessionAppointments = data.filter(a => a.status === 'In Session');
   const restingAppointments = data.filter(a => a.status === 'Resting');
@@ -27,6 +31,7 @@ export function useSpaAppointments() {
 
   return { 
     appointments: data, 
+    scheduledAppointments,
     waitingAppointments,
     inSessionAppointments,
     restingAppointments,

@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
@@ -11,12 +12,14 @@ export function useWaterDeliveries() {
   const { currentTenant } = useTenant();
   const db = useFirestore();
 
-  const waterQuery = currentTenant && db
+  const waterQuery = React.useMemo(() => {
+    return currentTenant && db
     ? query(
         collection(db, 'tenants', currentTenant.id, 'water_deliveries').withConverter(createConverter(WaterDeliverySchema)),
         orderBy('createdAt', 'desc')
       )
     : null;
+  }, [currentTenant?.id, db]);
 
   const { data, loading, error } = useCollection<WaterDeliveryModel>(waterQuery);
 

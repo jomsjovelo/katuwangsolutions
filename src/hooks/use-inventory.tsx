@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
@@ -11,12 +12,14 @@ export function useInventory() {
   const { currentTenant } = useTenant();
   const db = useFirestore();
 
-  const inventoryQuery = currentTenant && db
-    ? query(
-        collection(db, 'tenants', currentTenant.id, 'products').withConverter(createConverter(ProductSchema)),
-        orderBy('name', 'asc')
-      )
-    : null;
+  const inventoryQuery = useMemo(() => {
+    return currentTenant && db
+      ? query(
+          collection(db, 'tenants', currentTenant.id, 'products').withConverter(createConverter(ProductSchema)),
+          orderBy('name', 'asc')
+        )
+      : null;
+  }, [currentTenant?.id, db]);
 
   const { data, loading, error } = useCollection<Product>(inventoryQuery);
 

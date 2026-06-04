@@ -47,11 +47,20 @@ export const useTenantStore = create<TenantState>()(
       isLoading: true,
       error: null,
 
-  setActiveTenant: (tenant) => {
-    set({ activeTenant: tenant, activeModuleOverride: null });
-  },
+  setActiveTenant: (tenant) => set((state) => {
+    if (state.activeTenant?.id !== tenant?.id) {
+      return { activeTenant: tenant, activeModuleOverride: null };
+    }
+    return { activeTenant: tenant };
+  }),
 
-  setAllTenants: (tenants) => set({ allTenants: tenants }),
+  setAllTenants: (tenants) => set((state) => {
+    // Deep compare to prevent infinite render loops if the array reference changes but data is identical
+    if (JSON.stringify(state.allTenants) === JSON.stringify(tenants)) {
+      return state;
+    }
+    return { allTenants: tenants };
+  }),
   
   updateTenantStatus: (id, status) => set((state) => {
     const allTenants = state.allTenants.map(t => t.id === id ? { ...t, subscriptionStatus: status } : t);
@@ -94,7 +103,10 @@ export const useTenantStore = create<TenantState>()(
     set({ userProfile: profile });
   },
 
-  setLoading: (loading) => set({ isLoading: loading }),
+  setLoading: (loading) => set((state) => {
+    if (state.isLoading === loading) return state;
+    return { isLoading: loading };
+  }),
   setError: (error) => set({ error: error }),
   
   reset: () => {

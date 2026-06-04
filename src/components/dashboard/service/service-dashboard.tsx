@@ -6,24 +6,31 @@ import { useCollection } from 'react-firebase-hooks/firestore';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { addJob, updateJobStatus } from '@/firebase/firestore/service-actions';
+import { awardPoints } from '@/firebase/firestore/loyalty-actions';
 import { JobStatus } from '@/lib/schemas/services';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Plus, 
   Clock, 
   PlayCircle, 
   CheckCircle2,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  MessageSquare
 } from "lucide-react";
 
 export function ServiceDashboard() {
   const { currentTenant } = useTenant();
   const db = useFirestore();
+  const { toast } = useToast();
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,12 +42,11 @@ export function ServiceDashboard() {
   useDynamicThemeColor(theme);
 
   // Live stream of jobs
-  const jobsQuery = currentTenant 
-    ? query(
-        collection(db, 'tenants', currentTenant.id, 'jobs'),
-        orderBy('createdAt', 'desc')
-      )
-    : null;
+  const jobsQuery = React.useMemo(() => {
+    return currentTenant 
+    ? query(collection(db, 'tenants', currentTenant.id, 'jobs'),
+        orderBy('createdAt', 'desc')) : null;
+  }, [currentTenant?.id, db]);
 
   const [jobsSnapshot, loading, hookError] = useCollection(jobsQuery as any);
   
@@ -53,12 +59,27 @@ export function ServiceDashboard() {
   const activeJobs = jobs.filter((j: any) => j.status === 'in_progress');
   const completedJobs = jobs.filter((j: any) => j.status === 'completed');
 
-  const handleAddTestJob = async () => {
-    if (!currentTenant) return;
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [customerName, setCustomerName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [serviceDesc, setServiceDesc] = useState('');
+  const [price, setPrice] = useState<number | ''>('');
+  
+  const [smsText, setSmsText] = useState('');
+  const [activeSmsJob, setActiveSmsJob] = useState<string | null>(null);
+
+  const handleAddJob = async () => {
+    if (!currentTenant || !customerName || !serviceDesc || !price) return;
     try {
       setIsProcessing(true);
       setError(null);
-      await addJob(currentTenant.id, `Customer ${Math.floor(Math.random() * 1000)}`, 'Premium Wash', 35000); // ₱350.00
+      await addJob(currentTenant.id, customerName, serviceDesc, Math.round(Number(price) * 100), phoneNumber);
+      
+      setCustomerName('');
+      setPhoneNumber('');
+      setServiceDesc('');
+      setPrice('');
+      setShowAddForm(false);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -66,17 +87,29 @@ export function ServiceDashboard() {
     }
   };
 
-  const moveJob = async (id: string, newStatus: JobStatus, amount?: number, customerName?: string) => {
+  const moveJob = async (job: any, newStatus: JobStatus) => {
     if (!currentTenant) return;
     try {
       setIsProcessing(true);
       setError(null);
-      await updateJobStatus(currentTenant.id, id, newStatus, amount, customerName);
+      await updateJobStatus(currentTenant.id, job.id, newStatus, job.amount, job.customerName);
+      
+      if (newStatus === 'completed' && job.phoneNumber) {
+        await awardPoints(currentTenant.id, job.phoneNumber, job.amount || 0);
+      }
     } catch (e: any) {
       setError(e.message);
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleCopySMS = (job: any) => {
+    const text = `Hi ${job.customerName}, your service (${job.serviceId}) is now COMPLETE and ready! - ${currentTenant?.name}`;
+    navigator.clipboard.writeText(text);
+    toast({ title: 'SMS Copied!', description: 'Paste it in your messaging app.' });
+    setActiveSmsJob(job.id);
+    setSmsText(text);
   };
 
   const ColumnHeader = ({ title, count, icon: Icon, colorClass }: any) => (
@@ -120,7 +153,7 @@ export function ServiceDashboard() {
           <Button 
             disabled={isProcessing} 
             size="sm" 
-            onClick={() => moveJob(job.id, 'in_progress')} 
+            onClick={() => moveJob(job, 'in_progress')} 
             className="w-full h-8 text-[10px] font-bold uppercase tracking-widest text-white border-none"
             style={{ backgroundColor: theme.primary }}
           >
@@ -131,18 +164,33 @@ export function ServiceDashboard() {
           <Button 
             disabled={isProcessing} 
             size="sm" 
-            onClick={() => moveJob(job.id, 'completed', job.amount, job.customerName)} 
+            onClick={() => moveJob(job, 'completed')} 
             className="w-full h-8 text-[10px] font-bold uppercase tracking-widest bg-emerald-500 hover:bg-emerald-600 text-white"
           >
             Complete & Pay
           </Button>
         )}
         {job.status === 'completed' && (
-          <Button disabled size="sm" variant="outline" className="w-full h-8 text-[10px] font-bold uppercase tracking-widest text-emerald-600 border-emerald-200 bg-emerald-50 opacity-70">
-            <CheckCircle2 className="h-3 w-3 mr-1" /> Paid & Done
-          </Button>
+          <div className="flex flex-col gap-2 w-full">
+            <Button disabled size="sm" variant="outline" className="w-full h-8 text-[10px] font-bold uppercase tracking-widest text-emerald-600 border-emerald-200 bg-emerald-50 opacity-70">
+              <CheckCircle2 className="h-3 w-3 mr-1" /> Paid & Done
+            </Button>
+            {job.phoneNumber && (
+              <Button size="sm" variant="secondary" className="w-full h-8 text-[10px] font-bold" onClick={() => handleCopySMS(job)}>
+                <MessageSquare className="h-3 w-3 mr-1" /> Copy SMS Notification
+              </Button>
+            )}
+          </div>
         )}
       </div>
+
+      {/* SMS Preview area */}
+      {activeSmsJob === job.id && (
+        <div className="mt-3 bg-slate-50 border border-slate-200 p-2 rounded-lg text-[10px] text-slate-600">
+          <p className="font-bold mb-1">Copied to clipboard:</p>
+          <p className="italic">"{smsText}"</p>
+        </div>
+      )}
     </div>
   );
 
@@ -157,20 +205,55 @@ export function ServiceDashboard() {
               <p className="text-xs text-muted-foreground font-medium">{theme.name} • {currentTenant?.name || 'Service Business'}</p>
             </div>
             <Button 
-              onClick={handleAddTestJob} 
+              onClick={() => setShowAddForm(!showAddForm)} 
               disabled={isProcessing} 
               size="sm" 
-              className="rounded-full shadow-md font-bold text-white border-none active:scale-95 transition-transform"
+              className="rounded-full shadow-md font-bold text-white border-none active:scale-95 transition-transform h-10 w-10 p-0"
               style={{ 
                 backgroundColor: theme.primary,
                 boxShadow: `0 8px 16px -4px ${theme.primary}40`
               }}
             >
-              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Plus className="h-4 w-4 mr-1" />} 
-              New Test Job
+              {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />} 
             </Button>
           </div>
         </section>
+
+        {showAddForm && (
+          <Card className="shadow-sm bg-white border-l-4 animate-in slide-in-from-top-2" style={{ borderLeftColor: theme.primary }}>
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-sm font-bold">New Service Job</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0 space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Customer Name</Label>
+                  <Input placeholder="e.g. John" value={customerName} onChange={e => setCustomerName(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Phone (For Rewards/SMS)</Label>
+                  <Input placeholder="09XX" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Service Description</Label>
+                <Input placeholder="e.g. Premium Wash & Wax" value={serviceDesc} onChange={e => setServiceDesc(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Total Price (₱)</Label>
+                <Input type="number" placeholder="e.g. 500" value={price} onChange={e => setPrice(parseFloat(e.target.value) || '')} />
+              </div>
+              <Button 
+                className="w-full h-8 text-xs font-bold text-white mt-2" 
+                style={{ backgroundColor: theme.primary }}
+                onClick={handleAddJob}
+                disabled={isProcessing || !customerName || !serviceDesc || !price}
+              >
+                Create Job
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {error && (
           <div className="bg-red-50 text-red-600 p-3 rounded-xl border border-red-200 text-xs font-bold flex items-center gap-2">

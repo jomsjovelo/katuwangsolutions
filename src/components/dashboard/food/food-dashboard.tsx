@@ -45,16 +45,16 @@ export function FoodDashboard() {
 
   // Cart State for POS
   const [cart, setCart] = useState<{ menuItemId: string; name: string; quantity: number; price: number; notes?: string }[]>([]);
+  const [selectedTable, setSelectedTable] = useState('');
 
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
 
-  const ordersQuery = currentTenant && db
-    ? query(
-        collection(db, 'tenants', currentTenant.id, 'food_orders'),
-        orderBy('createdAt', 'desc')
-      )
-    : null;
+  const ordersQuery = React.useMemo(() => {
+    return currentTenant && db
+    ? query(collection(db, 'tenants', currentTenant.id, 'food_orders'),
+        orderBy('createdAt', 'desc')) : null;
+  }, [currentTenant?.id, db]);
 
   const [ordersSnapshot, ordersLoading, hookError] = useCollection(ordersQuery as any);
   
@@ -119,13 +119,17 @@ export function FoodDashboard() {
     try {
       setIsProcessing(true);
       setError(null);
+      
+      const tableName = selectedTable.trim() || `Takeout ${new Date().getTime().toString().slice(-4)}`;
+      
       await addFoodOrder(
         currentTenant.id, 
-        `Takeout ${new Date().getTime().toString().slice(-4)}`, // Time-based order identifier
+        tableName,
         cart,
         cartTotal
       );
       setCart([]);
+      setSelectedTable('');
       toast({ title: 'Order Submitted!', description: 'Sent to the kitchen.' });
     } catch (e: any) {
       setError(e.message);
@@ -271,7 +275,16 @@ export function FoodDashboard() {
                     ))}
                   </div>
                 </CardContent>
-                <div className="p-3 bg-white border-t border-slate-100">
+                <div className="p-3 bg-white border-t border-slate-100 space-y-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-slate-500 font-bold uppercase tracking-widest">Table Name / Number</Label>
+                    <Input 
+                      placeholder="e.g. Table 5, VIP A, or leave blank for Takeout" 
+                      value={selectedTable} 
+                      onChange={e => setSelectedTable(e.target.value)}
+                      className="h-9 text-sm"
+                    />
+                  </div>
                   <Button 
                     className="w-full font-bold text-white shadow-md active:scale-95" 
                     style={{ backgroundColor: theme.primary }}

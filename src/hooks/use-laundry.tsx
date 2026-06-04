@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
@@ -11,12 +12,14 @@ export function useLaundry() {
   const { currentTenant } = useTenant();
   const db = useFirestore();
 
-  const laundryQuery = currentTenant && db
+  const laundryQuery = React.useMemo(() => {
+    return currentTenant && db
     ? query(
         collection(db, 'tenants', currentTenant.id, 'laundry_orders').withConverter(createConverter(LaundryOrderSchema)),
         orderBy('createdAt', 'desc')
       )
     : null;
+  }, [currentTenant?.id, db]);
 
   const { data, loading, error } = useCollection<LaundryOrderModel>(laundryQuery);
 

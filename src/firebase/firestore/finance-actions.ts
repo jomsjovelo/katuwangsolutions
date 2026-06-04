@@ -104,10 +104,11 @@ export async function recordPayout(
   daysWorked: number,
   grossPayCentavos: number,
   valeDeductedCentavos: number,
+  govtDeductionsCentavos: number,
   netPayCentavos: number
 ) {
   // Server-side recompute to prevent client-side manipulation
-  const serverNetPay = grossPayCentavos - valeDeductedCentavos;
+  const serverNetPay = grossPayCentavos - valeDeductedCentavos - govtDeductionsCentavos;
   if (serverNetPay !== netPayCentavos) {
     console.warn(`[Payroll Audit] netPay mismatch: client sent ${netPayCentavos}, server computed ${serverNetPay}. Using server value.`);
   }
@@ -121,7 +122,12 @@ export async function recordPayout(
   let payoutId = '';
 
   await runTransactionResilient(db, async (transaction) => {
-    // 1. Save payout record
+    // 1. Gather all reads
+    const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+    const masterAccountSnap = await transaction.get(masterAccountRef);
+
+    // 2. Perform all writes
+    // Save payout record
     const payoutsRef = collection(db, 'tenants', tenantId, 'employees', employeeId, 'payouts');
     const newPayoutRef = doc(payoutsRef);
     payoutId = newPayoutRef.id;
@@ -134,12 +140,13 @@ export async function recordPayout(
       daysWorked,
       grossPay: grossPayCentavos,
       valeDeducted: valeDeductedCentavos,
+      govtDeducted: govtDeductionsCentavos,
       netPay: finalNetPay, // Always use server-computed value
       paidAt: serverTimestamp(),
       createdAt: serverTimestamp(),
     });
 
-    // 2. Reset employee's period counters after payout
+    // Reset employee's period counters after payout
     const empRef = doc(db, 'tenants', tenantId, 'employees', employeeId);
     transaction.update(empRef, {
       daysWorkedThisPeriod: 0,
@@ -147,9 +154,7 @@ export async function recordPayout(
       updatedAt: serverTimestamp(),
     });
 
-    // 3. Log the payout as an expense in the ledger
-    const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
-    const masterAccountSnap = await transaction.get(masterAccountRef);
+    // Log the payout as an expense in the ledger
     
     if (!masterAccountSnap.exists()) {
       transaction.set(masterAccountRef, {

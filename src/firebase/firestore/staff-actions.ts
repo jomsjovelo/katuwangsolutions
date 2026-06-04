@@ -6,12 +6,52 @@ import {
   query, 
   where, 
   getDocs,
+  setDoc,
+  orderBy,
   serverTimestamp,
   arrayUnion,
   arrayRemove
 } from 'firebase/firestore';
 import { initializeFirebase } from '../index';
 import { runTransactionResilient } from './resilient-transaction';
+
+/**
+ * Logs a Time-In or Time-Out entry for a staff member.
+ * When Time-Out, also increments daysWorkedThisPeriod on the employee.
+ */
+export async function logAttendance(
+  tenantId: string,
+  employeeId: string,
+  employeeName: string,
+  type: 'time_in' | 'time_out'
+) {
+  const { db } = initializeFirebase();
+  const attendanceRef = collection(db, 'tenants', tenantId, 'attendance');
+  const newRef = doc(attendanceRef);
+
+  await setDoc(newRef, {
+    id: newRef.id,
+    employeeId,
+    employeeName,
+    type,
+    timestamp: serverTimestamp(),
+    createdAt: serverTimestamp(),
+  });
+
+  // When timing out, increment daysWorkedThisPeriod by 1
+  if (type === 'time_out') {
+    const empRef = doc(db, 'tenants', tenantId, 'employees', employeeId);
+    const empSnap = await getDoc(empRef);
+    const currentDays = empSnap.data()?.daysWorkedThisPeriod || 0;
+    await updateDoc(empRef, {
+      daysWorkedThisPeriod: currentDays + 1,
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  return newRef.id;
+}
+
 
 /**
  * Creates a new pending staff invitation.

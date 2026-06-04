@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronLeft, WifiOff, BookOpen } from 'lucide-react';
+import { ChevronLeft, WifiOff, BookOpen, Clock } from 'lucide-react';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { useSyncStatus } from '@/hooks/use-sync-status';
@@ -11,6 +11,7 @@ import { ModuleGuide } from '@/components/common/module-guide';
 import { AppMarketplace } from '@/components/dashboard/app-marketplace';
 import { Grid } from 'lucide-react';
 import { useHaptic } from '@/hooks/use-haptic';
+import { TimeInOutModal } from '@/components/shell/time-in-out-modal';
 
 interface AppHeaderProps {
   title: string;
@@ -25,9 +26,11 @@ export function AppHeader({ title, subtitle, onBack, rightAction }: AppHeaderPro
   const theme = getModuleTheme(currentTenant?.moduleType);
   const [showGuide, setShowGuide] = useState(false);
   const [showApps, setShowApps] = useState(false);
+  const [showTimeLog, setShowTimeLog] = useState(false);
   const haptic = useHaptic();
 
   return (
+    <>
     <header
       className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-xl border-b border-slate-100 transition-colors duration-300"
       style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
@@ -86,7 +89,7 @@ export function AppHeader({ title, subtitle, onBack, rightAction }: AppHeaderPro
                     color: theme.primary 
                   }}
                 >
-                  <Grid className="h-2.5 w-2.5" /> + App
+                  <Grid className="h-2.5 w-2.5" /> APP MARKET PLACE
                 </button>
                 <button
                   onClick={() => setShowGuide(true)}
@@ -96,7 +99,13 @@ export function AppHeader({ title, subtitle, onBack, rightAction }: AppHeaderPro
                     color: theme.primary 
                   }}
                 >
-                  <BookOpen className="h-2.5 w-2.5" /> Gabay
+                  <BookOpen className="h-2.5 w-2.5" /> HELP
+                </button>
+                <button
+                  onClick={() => { haptic(10); setShowTimeLog(true); }}
+                  className="h-5 px-2 rounded-full flex items-center justify-center gap-0.5 text-[8px] font-black uppercase tracking-wider transition-all duration-300 hover:scale-105 active:scale-95 border-none cursor-pointer select-none bg-slate-100 text-slate-600"
+                >
+                  <Clock className="h-2.5 w-2.5" /> TIME LOG
                 </button>
               </>
             )}
@@ -109,12 +118,16 @@ export function AppHeader({ title, subtitle, onBack, rightAction }: AppHeaderPro
         {/* Right action slot */}
         {rightAction && <div className="flex-shrink-0">{rightAction}</div>}
       </div>
-
-      {/* Slide-down Premium Help Overlay Sheet */}
-      <ModuleGuide isOpen={showGuide} onClose={() => setShowGuide(false)} />
-      
-      {/* App Marketplace Overlay */}
-      <AppMarketplace isOpen={showApps} onClose={() => setShowApps(false)} />
     </header>
+
+    {/* Slide-down Premium Help Overlay Sheet */}
+    <ModuleGuide isOpen={showGuide} onClose={() => setShowGuide(false)} />
+    
+    {/* App Marketplace Overlay */}
+    <AppMarketplace isOpen={showApps} onClose={() => setShowApps(false)} />
+
+    {/* Staff Time-In/Out Modal */}
+    <TimeInOutModal isOpen={showTimeLog} onClose={() => setShowTimeLog(false)} />
+    </>
   );
 }

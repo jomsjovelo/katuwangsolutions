@@ -1,5 +1,5 @@
 'use client';
-
+import { useMemo } from 'react';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
@@ -14,14 +14,16 @@ export function useSales(selectedDate: Date = new Date()) {
   const start = Timestamp.fromDate(startOfDay(selectedDate));
   const end = Timestamp.fromDate(endOfDay(selectedDate));
 
-  const salesQuery = currentTenant && db
-    ? query(
-        collection(db, 'tenants', currentTenant.id, 'sales'),
-        where('createdAt', '>=', start),
-        where('createdAt', '<=', end),
-        orderBy('createdAt', 'desc')
-      )
-    : null;
+  const salesQuery = useMemo(() => {
+    return currentTenant && db
+      ? query(
+          collection(db, 'tenants', currentTenant.id, 'sales'),
+          where('createdAt', '>=', start),
+          where('createdAt', '<=', end),
+          orderBy('createdAt', 'desc')
+        )
+      : null;
+  }, [currentTenant?.id, db, start.seconds, end.seconds]);
 
   const { data, loading, error } = useCollection<Sale>(salesQuery as any);
 

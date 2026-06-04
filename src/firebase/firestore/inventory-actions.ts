@@ -97,3 +97,79 @@ export async function addProduct(tenantId: string, productData: any) {
   
   return productRef.id;
 }
+
+/**
+ * Perform a physical inventory audit
+ * Calculates shrinkage cost and adjusts stock to match actual count
+ */
+export async function logInventoryAudit(
+  tenantId: string,
+  userId: string,
+  productId: string,
+  expectedStock: number,
+  actualStock: number,
+  notes: string = ''
+) {
+  const { db } = initializeFirebase();
+  const productRef = doc(db, 'tenants', tenantId, 'products', productId);
+  const auditRef = doc(collection(db, 'tenants', tenantId, 'inventory_audits'));
+  const transactionRef = doc(collection(db, 'tenants', tenantId, 'inventory_transactions'));
+
+  try {
+    const result = await runTransactionResilient(db, async (transaction) => {
+      const productSnap = await transaction.get(productRef);
+      if (!productSnap.exists()) {
+        throw new Error('Product not found');
+      }
+
+      const product = productSnap.data();
+      const difference = actualStock - expectedStock;
+      
+      // Calculate financial impact (negative cost = money lost)
+      const shrinkCostCentavos = difference < 0 ? Math.abs(difference) * (product.costPrice || 0) : 0;
+
+      // 1. Record Audit Event
+      transaction.set(auditRef, {
+        tenantId,
+        productId,
+        productName: product.name,
+        expectedStock,
+        actualStock,
+        difference,
+        shrinkCostCentavos,
+        notes,
+        performedBy: userId,
+        createdAt: serverTimestamp()
+      });
+
+      // 2. Adjust Stock
+      transaction.update(productRef, {
+        currentStock: actualStock,
+        updatedAt: serverTimestamp()
+      });
+
+      // 3. Log Transaction History
+      const logData = InventoryTransactionSchema.parse({
+        tenantId,
+        productId,
+        type: 'adjustment',
+        quantity: difference,
+        balanceAfter: actualStock,
+        note: `Physical Audit: ${notes}`,
+        performedBy: userId,
+      });
+
+      transaction.set(transactionRef, {
+        ...logData,
+        createdAt: serverTimestamp()
+      });
+
+      return { difference, shrinkCostCentavos };
+    });
+
+    return { success: true, ...result };
+  } catch (error: any) {
+    console.error('Inventory audit failed:', error);
+    throw new Error(error.message || 'Inventory audit failed');
+  }
+}

@@ -22,7 +22,8 @@ import {
   CircleDollarSign,
   MapPin,
   User,
-  ArrowRight
+  ArrowRight,
+  Navigation
 } from "lucide-react";
 
 const PRICES = {
@@ -115,6 +116,11 @@ export function HydroDashboard() {
     }
   };
 
+  const openMaps = (address: string) => {
+    const encoded = encodeURIComponent(address);
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${encoded}`, '_blank');
+  };
+
   const handleSettleAndDeliver = async () => {
     if (!settleOrderId || !currentTenant || !db) return;
     setIsProcessing(true);
@@ -128,6 +134,7 @@ export function HydroDashboard() {
           'Delivered', 
           orderToSettle.amountDue, 
           `Water Delivery: ${orderToSettle.customerName}`,
+          undefined,
           {
             roundReturned: typeof roundReturned === 'number' ? roundReturned : 0,
             slimReturned: typeof slimReturned === 'number' ? slimReturned : 0,
@@ -160,11 +167,19 @@ export function HydroDashboard() {
           </div>
         </div>
         
-        <div className="flex gap-2 text-xs font-medium text-slate-600 mb-3 bg-slate-50 p-2 rounded-md border border-slate-100">
+        <div className="flex gap-2 text-xs font-medium text-slate-600 mb-2 bg-slate-50 p-2 rounded-md border border-slate-100">
           {order.roundOrdered > 0 && <span>{order.roundOrdered} Round</span>}
           {order.roundOrdered > 0 && order.slimOrdered > 0 && <span>•</span>}
           {order.slimOrdered > 0 && <span>{order.slimOrdered} Slim</span>}
         </div>
+
+        {/* Maps Button */}
+        <button
+          onClick={() => openMaps(order.address)}
+          className="w-full h-7 mb-2 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 text-[10px] font-black flex items-center justify-center gap-1.5 cursor-pointer hover:bg-blue-100 transition-colors"
+        >
+          <Navigation className="h-3 w-3" /> Open in Google Maps
+        </button>
 
         {order.status === 'Delivered' && (
           <div className="flex gap-2 text-xs font-medium text-emerald-600 mb-3 bg-emerald-50 p-2 rounded-md border border-emerald-100">

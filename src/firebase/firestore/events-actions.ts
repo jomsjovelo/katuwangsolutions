@@ -18,20 +18,27 @@ export async function completeEvent(
   const db = getKatuwangDb();
   
   await runTransactionResilient(db, async (transaction) => {
+    // 1. Gather all reads first
     const eventRef = doc(db, 'tenants', tenantId, 'events', eventId);
     const eventSnap = await transaction.get(eventRef);
-
     if (!eventSnap.exists()) {
       throw new Error('Event not found.');
     }
 
     const eventData = eventSnap.data();
-    // 2D: Compute the remaining balance server-side (do not trust caller's amountCentavos)
     const contractPrice = eventData.contractPrice || 0;
     const alreadyPaid = eventData.amountPaid || 0;
     const remainingBalance = Math.max(0, contractPrice - alreadyPaid);
     const finalAmount = remainingBalance > 0 ? remainingBalance : amountCentavos;
 
+    let masterAccountSnap = null;
+    let masterAccountRef = null;
+    if (finalAmount > 0) {
+      masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+      masterAccountSnap = await transaction.get(masterAccountRef);
+    }
+
+    // 2. Perform all writes
     // Update the Event Status and mark as fully paid
     transaction.update(eventRef, { 
       status: 'Done',
@@ -40,10 +47,7 @@ export async function completeEvent(
     });
 
     // ERP INTEGRATION: Deposit the remaining balance into the Master Cash Ledger
-    if (finalAmount > 0) {
-      const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
-      const masterAccountSnap = await transaction.get(masterAccountRef);
-      
+    if (finalAmount > 0 && masterAccountRef && masterAccountSnap) {
       if (!masterAccountSnap.exists()) {
         transaction.set(masterAccountRef, {
           id: 'master-cash',
@@ -68,7 +72,7 @@ export async function completeEvent(
         id: newTxRef.id,
         tenantId,
         accountId: 'master-cash',
-        amount: finalAmount, // Server-computed remaining balance
+        amount: finalAmount,
         type: 'income',
         category: 'Events',
         description,
@@ -95,6 +99,7 @@ export async function payEventVendor(
   const db = getKatuwangDb();
   
   await runTransactionResilient(db, async (transaction) => {
+    // 1. Gather all reads first
     const eventRef = doc(db, 'tenants', tenantId, 'events', eventId);
     const eventSnap = await transaction.get(eventRef);
     if (!eventSnap.exists()) {
@@ -112,6 +117,14 @@ export async function payEventVendor(
       throw new Error('Vendor is already paid.');
     }
 
+    let masterAccountSnap = null;
+    let masterAccountRef = null;
+    if (vendorCostCentavos > 0) {
+      masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+      masterAccountSnap = await transaction.get(masterAccountRef);
+    }
+
+    // 2. Perform all writes
     // Update Vendor Status
     vendors[vendorIdx].status = 'Paid';
     transaction.update(eventRef, { 
@@ -120,17 +133,14 @@ export async function payEventVendor(
     });
 
     // ERP INTEGRATION: Deduct the money from the Master Cash Ledger
-    if (vendorCostCentavos > 0) {
-      const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
-      const masterAccountSnap = await transaction.get(masterAccountRef);
-      
+    if (vendorCostCentavos > 0 && masterAccountRef && masterAccountSnap) {
       if (!masterAccountSnap.exists()) {
         transaction.set(masterAccountRef, {
           id: 'master-cash',
           tenantId,
           name: 'Main Cash Register',
           type: 'asset',
-          balance: -vendorCostCentavos, // Initialize with negative if it didn't exist
+          balance: -vendorCostCentavos,
           isActive: true,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
@@ -159,4 +169,46 @@ export async function payEventVendor(
   });
 
   return true;
+}
+
+export async function addGuestToEvent(
+  tenantId: string,
+  eventId: string,
+  guestName: string,
+  tableOrSeat: string,
+  mealPref: string
+) {
+  if (!guestName.trim()) throw new Error('Guest name is required.');
+
+  const db = getKatuwangDb();
+  const guestsRef = collection(db, 'tenants', tenantId, 'events', eventId, 'guests');
+  const newGuestRef = doc(guestsRef);
+
+  const { setDoc } = await import('firebase/firestore');
+  await setDoc(newGuestRef, {
+    id: newGuestRef.id,
+    name: guestName.trim(),
+    tableOrSeat: tableOrSeat.trim() || 'TBD',
+    mealPref: mealPref.trim() || 'None',
+    checkedIn: false,
+    createdAt: serverTimestamp(),
+  });
+
+  return newGuestRef.id;
+}
+
+export async function toggleGuestCheckIn(
+  tenantId: string,
+  eventId: string,
+  guestId: string,
+  checkedIn: boolean
+) {
+  const db = getKatuwangDb();
+  const { updateDoc } = await import('firebase/firestore');
+  const guestRef = doc(db, 'tenants', tenantId, 'events', eventId, 'guests', guestId);
+  await updateDoc(guestRef, {
+    checkedIn,
+    checkedInAt: checkedIn ? serverTimestamp() : null,
+    updatedAt: serverTimestamp(),
+  });
 }

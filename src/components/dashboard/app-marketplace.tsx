@@ -9,6 +9,7 @@ import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
+import { useAppStoreConfig } from '@/hooks/use-app-store-config';
 
 interface AppMarketplaceProps {
   isOpen: boolean;
@@ -48,6 +49,7 @@ export function AppMarketplace({ isOpen, onClose }: AppMarketplaceProps) {
   
   const { switchActiveModule, unlockModule } = useTenantStore();
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
+  const { getAppPrice } = useAppStoreConfig();
 
   if (!isOpen || !currentTenant) return null;
 
@@ -139,21 +141,35 @@ export function AppMarketplace({ isOpen, onClose }: AppMarketplaceProps) {
                 key={app.id} 
                 className="p-4 rounded-2xl border border-slate-100 bg-white shadow-sm flex flex-col gap-3"
               >
-                <div className="flex justify-between items-start">
+                <div className="flex justify-between items-start mb-3">
                   <div>
-                    <span 
-                      className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full"
-                      style={{ backgroundColor: `${appTheme.primary}15`, color: appTheme.primary }}
-                    >
+                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full text-slate-500 bg-slate-100">
                       {app.category}
                     </span>
-                    <h3 className="font-black text-slate-800 mt-1">{app.name}</h3>
+                    <h3 className="font-headline font-black text-slate-800 text-sm mt-1.5">{app.name}</h3>
                     <p className="text-xs text-slate-500 font-medium leading-snug max-w-[200px] mt-0.5">
                       {app.desc}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-black text-slate-900">₱{app.price}<span className="text-[10px] text-slate-400 font-medium">/mo</span></p>
+                    {(() => {
+                      const pricing = getAppPrice(app.id, app.price);
+                      return (
+                        <>
+                          {pricing.isPromo && (
+                            <div className="text-[10px] font-bold text-red-500 mb-0.5 animate-pulse uppercase tracking-widest">
+                              Promo Sale!
+                            </div>
+                          )}
+                          <div className="font-black text-slate-800 tracking-tight flex items-center justify-end gap-1">
+                            {pricing.isPromo && (
+                              <span className="text-slate-300 line-through text-[10px]">₱{pricing.originalPrice}</span>
+                            )}
+                            <span>₱{pricing.price}<span className="text-[8px] text-slate-400 font-bold">/mo</span></span>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
 

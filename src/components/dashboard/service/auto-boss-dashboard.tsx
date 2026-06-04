@@ -10,6 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { format } from 'date-fns';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useCarwashOrders } from '@/hooks/use-carwash';
 import { useToast } from '@/hooks/use-toast';
@@ -20,7 +23,10 @@ import {
   Wind,
   CheckCircle2,
   CircleDollarSign,
-  AlignJustify
+  AlignJustify,
+  CalendarDays,
+  Clock,
+  ArrowRight
 } from "lucide-react";
 
 const VEHICLE_BASE_PRICE: Record<string, number> = {
@@ -37,6 +43,19 @@ const PACKAGE_ADDON_PRICE: Record<string, number> = {
   'Full Detail': 1000,
 };
 
+const INSPECTION_ITEMS = [
+  'Scratches (Front)',
+  'Scratches (Rear)',
+  'Scratches (Sides)',
+  'Dents (Front)',
+  'Dents (Rear)',
+  'Dents (Sides)',
+  'Cracked Glass',
+  'Broken Mirrors',
+  'Antenna Removed',
+  'Valuables Secured'
+];
+
 export function AutoBossDashboard() {
   const { currentTenant } = useTenant();
   const db = useFirestore();
@@ -48,20 +67,62 @@ export function AutoBossDashboard() {
   useDynamicThemeColor(theme);
 
   // Carwash State
-  const { queuedOrders, washingOrders, dryingOrders, readyOrders, loading } = useCarwashOrders();
+  const { scheduledOrders, queuedOrders, washingOrders, dryingOrders, readyOrders, loading } = useCarwashOrders();
 
   // Create Drop-off Form
   const [showAddForm, setShowAddForm] = useState(false);
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [appointmentDate, setAppointmentDate] = useState('');
+  const [appointmentTime, setAppointmentTime] = useState('');
   const [plateNumber, setPlateNumber] = useState('');
   const [vehicleType, setVehicleType] = useState('Sedan');
   const [servicePackage, setServicePackage] = useState('Basic Wash');
   const [priceOverride, setPriceOverride] = useState<number | ''>('');
+  const [inspectionNotes, setInspectionNotes] = useState<string[]>([]);
+
+  // Loyalty Program
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [pointsBalance, setPointsBalance] = useState(0);
+  const [isRedeeming, setIsRedeeming] = useState(false);
+  const [isFetchingPoints, setIsFetchingPoints] = useState(false);
+
+  React.useEffect(() => {
+    const fetchPoints = async () => {
+      const cleanPhone = customerPhone.replace(/[^0-9+]/g, '');
+      if (cleanPhone.length >= 10 && currentTenant) {
+        setIsFetchingPoints(true);
+        try {
+          const { getCustomerPoints } = await import('@/firebase/firestore/loyalty-actions');
+          const points = await getCustomerPoints(currentTenant.id, cleanPhone);
+          setPointsBalance(points);
+        } catch (e) {
+          console.error("Failed to fetch points", e);
+        } finally {
+          setIsFetchingPoints(false);
+        }
+      } else {
+        setPointsBalance(0);
+        setIsRedeeming(false);
+      }
+    };
+    
+    const timer = setTimeout(fetchPoints, 500);
+    return () => clearTimeout(timer);
+  }, [customerPhone, currentTenant]);
+
+  const toggleInspectionItem = (item: string) => {
+    setInspectionNotes(prev => 
+      prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]
+    );
+  };
 
   // Auto-calculate suggested price
   const basePrice = VEHICLE_BASE_PRICE[vehicleType] || 0;
   const addonPrice = PACKAGE_ADDON_PRICE[servicePackage] || 0;
   const suggestedPrice = basePrice + addonPrice;
-  const finalPrice = typeof priceOverride === 'number' ? priceOverride : suggestedPrice;
+  const rawFinalPrice = typeof priceOverride === 'number' ? priceOverride : suggestedPrice;
+  const pointsDiscount = isRedeeming ? 50 : 0;
+  const finalPrice = Math.max(0, rawFinalPrice - pointsDiscount);
 
   const handleAddVehicle = async () => {
     if (!currentTenant || !db || !plateNumber || finalPrice < 0 || isNaN(finalPrice)) {
@@ -70,23 +131,42 @@ export function AutoBossDashboard() {
     }
     setIsProcessing(true);
     try {
+      if (isRedeeming && customerPhone) {
+        const { redeemPoints } = await import('@/firebase/firestore/loyalty-actions');
+        await redeemPoints(currentTenant.id, customerPhone, 100);
+      }
+
+      let aptTimestamp = null;
+      if (isScheduled && appointmentDate && appointmentTime) {
+        aptTimestamp = new Date(`${appointmentDate}T${appointmentTime}`);
+      }
+
       const orderRef = doc(collection(db, 'tenants', currentTenant.id, 'carwash_orders'));
       await setDoc(orderRef, {
         tenantId: currentTenant.id,
         plateNumber: plateNumber.toUpperCase(),
         vehicleType,
         servicePackage,
-        status: 'Queued',
+        status: isScheduled ? 'Scheduled' : 'Queued',
         amountDue: Math.round(finalPrice * 100), // convert to cents safely
         paymentStatus: 'Unpaid',
+        inspectionNotes,
+        customerPhone: customerPhone || null,
+        appointmentDate: aptTimestamp,
         createdAt: serverTimestamp(),
       });
       setPlateNumber('');
       setVehicleType('Sedan');
       setServicePackage('Basic Wash');
       setPriceOverride('');
+      setInspectionNotes([]);
+      setCustomerPhone('');
+      setIsRedeeming(false);
+      setIsScheduled(false);
+      setAppointmentDate('');
+      setAppointmentTime('');
       setShowAddForm(false);
-      toast({ title: 'Vehicle Logged!', description: `Plate ${plateNumber.toUpperCase()} added to queue.` });
+      toast({ title: isScheduled ? 'Appointment Booked!' : 'Vehicle Logged!', description: `Plate ${plateNumber.toUpperCase()} added.` });
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     } finally {
@@ -106,6 +186,14 @@ export function AutoBossDashboard() {
           order.amountDue, 
           `Carwash: ${order.plateNumber}`
         );
+        if (order.customerPhone && order.amountDue > 0) {
+          try {
+            const { awardPoints } = await import('@/firebase/firestore/loyalty-actions');
+            await awardPoints(currentTenant.id, order.customerPhone, order.amountDue);
+          } catch (e) {
+            console.error("Failed to award points:", e);
+          }
+        }
       } else {
         const orderRef = doc(db, 'tenants', currentTenant.id, 'carwash_orders', order.id);
         const updates: any = { status, updatedAt: serverTimestamp() };
@@ -118,14 +206,24 @@ export function AutoBossDashboard() {
     }
   };
 
-  const OrderCard = ({ order, actions }: { order: any, actions: React.ReactNode }) => (
+  const OrderCard = ({ order, actions }: { order: any, actions: React.ReactNode }) => {
+    const hasPriorDamage = order.inspectionNotes && order.inspectionNotes.length > 0;
+    
+    return (
     <Card className="shadow-sm border-slate-200 mb-3">
       <CardContent className="p-3">
         <div className="flex justify-between items-start mb-2">
           <div>
-            <h4 className="font-bold text-slate-800 tracking-widest text-sm bg-slate-100 px-2 py-0.5 rounded border border-slate-200 inline-block mb-1">
-              {order.plateNumber}
-            </h4>
+            <div className="flex items-center gap-2 mb-1">
+              <h4 className="font-bold text-slate-800 tracking-widest text-sm bg-slate-100 px-2 py-0.5 rounded border border-slate-200 inline-block">
+                {order.plateNumber}
+              </h4>
+              {hasPriorDamage && (
+                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[8px] font-black uppercase px-1.5 py-0">
+                  ⚠️ Prior Damage
+                </Badge>
+              )}
+            </div>
             <p className="text-xs text-slate-500 font-medium">{order.vehicleType} • {order.servicePackage}</p>
           </div>
           <div className="text-right">
@@ -133,6 +231,12 @@ export function AutoBossDashboard() {
               {order.paymentStatus}
             </Badge>
             <p className="text-sm font-bold text-slate-700 mt-1">₱{(order.amountDue / 100).toLocaleString()}</p>
+            {order.appointmentDate && order.status === 'Scheduled' && (
+              <p className="text-[10px] font-bold text-amber-600 mt-0.5 flex items-center justify-end gap-1">
+                <Clock className="h-3 w-3" />
+                {order.appointmentDate.toDate ? format(order.appointmentDate.toDate(), 'MMM d, h:mm a') : format(new Date(order.appointmentDate), 'MMM d, h:mm a')}
+              </p>
+            )}
           </div>
         </div>
         <div className="mt-3 flex gap-2">
@@ -140,7 +244,7 @@ export function AutoBossDashboard() {
         </div>
       </CardContent>
     </Card>
-  );
+  )};
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-screen">
@@ -167,9 +271,27 @@ export function AutoBossDashboard() {
         {showAddForm && (
           <Card className="shadow-sm border-slate-200 bg-white border-l-4" style={{ borderLeftColor: theme.primary }}>
             <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm font-bold flex items-center gap-2"><Car className="h-4 w-4" /> New Vehicle Arrival</CardTitle>
+              <CardTitle className="text-sm font-bold flex items-center justify-between">
+                <span className="flex items-center gap-2"><Car className="h-4 w-4" /> New Vehicle Arrival</span>
+                <div className="flex items-center gap-2 text-xs">
+                  <Switch checked={isScheduled} onCheckedChange={setIsScheduled} id="schedule-switch" />
+                  <Label htmlFor="schedule-switch" className="text-xs cursor-pointer">Book for Later</Label>
+                </div>
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-4 space-y-3 pt-0">
+              {isScheduled && (
+                <div className="flex gap-2 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                  <div className="flex-1 space-y-1">
+                    <Label className="text-xs font-bold text-slate-700">Date</Label>
+                    <Input type="date" value={appointmentDate} onChange={e => setAppointmentDate(e.target.value)} className="h-8 text-xs" />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <Label className="text-xs font-bold text-slate-700">Time</Label>
+                    <Input type="time" value={appointmentTime} onChange={e => setAppointmentTime(e.target.value)} className="h-8 text-xs" />
+                  </div>
+                </div>
+              )}
               <div className="space-y-1">
                 <Label className="text-xs">Plate Number</Label>
                 <Input placeholder="e.g. ABC 1234" value={plateNumber} onChange={e => setPlateNumber(e.target.value)} className="uppercase" />
@@ -200,12 +322,60 @@ export function AutoBossDashboard() {
                   </select>
                 </div>
               </div>
+
+              <div className="space-y-1 mt-2">
+                <Label className="text-xs">Pre-Wash Inspection Checklist</Label>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {INSPECTION_ITEMS.map(item => {
+                    const isSelected = inspectionNotes.includes(item);
+                    return (
+                      <Badge 
+                        key={item}
+                        variant={isSelected ? "default" : "outline"}
+                        className={`text-[9px] cursor-pointer py-0.5 px-2 ${isSelected ? '' : 'text-slate-500 bg-slate-50 border-slate-200'}`}
+                        style={isSelected ? { backgroundColor: theme.primary } : {}}
+                        onClick={() => toggleInspectionItem(item)}
+                      >
+                        {item}
+                      </Badge>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-1 mt-2">
+                <Label className="text-xs flex justify-between">
+                  <span>Customer Phone (Katuwang Rewards)</span>
+                  {customerPhone && <span className="text-emerald-500 font-bold text-[10px]">{isFetchingPoints ? "..." : `${pointsBalance} pts`}</span>}
+                </Label>
+                <Input placeholder="e.g. 0917..." value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} />
+                {pointsBalance >= 100 && rawFinalPrice >= 50 && (
+                  <div className="flex items-center space-x-2 mt-2 bg-emerald-50 p-2 rounded-lg border border-emerald-100">
+                    <Switch 
+                      id="redeem-points-autoboss" 
+                      checked={isRedeeming}
+                      onCheckedChange={setIsRedeeming}
+                      className="data-[state=checked]:bg-emerald-500"
+                    />
+                    <Label htmlFor="redeem-points-autoboss" className="text-xs font-bold text-emerald-800 cursor-pointer">
+                      Redeem 100 pts for ₱50 Off
+                    </Label>
+                  </div>
+                )}
+              </div>
+
               <div className="space-y-1">
                 <Label className="text-xs flex justify-between">
                   <span>Total Price (₱)</span>
                   <span className="text-muted-foreground">Suggested: ₱{suggestedPrice}</span>
                 </Label>
-                <Input type="number" placeholder={`₱${suggestedPrice}`} value={priceOverride} onChange={e => setPriceOverride(parseFloat(e.target.value) || '')} />
+                <div className="flex gap-2 items-center">
+                  <Input className="flex-1" type="number" placeholder={`₱${suggestedPrice}`} value={priceOverride} onChange={e => setPriceOverride(parseFloat(e.target.value) || '')} />
+                  {isRedeeming && <span className="text-xs font-bold text-emerald-600">-₱50.00 Rewards</span>}
+                </div>
+                <div className="text-right text-lg font-black text-slate-800">
+                  Final: ₱{finalPrice.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                </div>
               </div>
               <Button 
                 className="w-full h-8 text-xs font-bold text-white" 
@@ -219,9 +389,42 @@ export function AutoBossDashboard() {
           </Card>
         )}
 
-        {loading ? (
-          <div className="text-center py-8 text-sm text-slate-400">Loading bay slots...</div>
-        ) : (
+        <Tabs defaultValue="queue" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-4 rounded-xl">
+            <TabsTrigger value="queue" className="rounded-lg text-xs md:text-sm font-bold">Live Queue</TabsTrigger>
+            <TabsTrigger value="calendar" className="rounded-lg text-xs md:text-sm font-bold">Appointments</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="calendar" className="space-y-4 animate-in slide-in-from-bottom-4 duration-300">
+            <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+              <CalendarDays className="h-5 w-5" style={{ color: theme.primary }} />
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-700">Upcoming Bookings</h3>
+            </div>
+            
+            {loading ? (
+              <div className="text-center py-8 text-sm text-slate-400">Loading bookings...</div>
+            ) : scheduledOrders.length === 0 ? (
+              <div className="text-center py-8 border-2 border-dashed border-slate-200 rounded-xl text-slate-400">
+                <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                <p className="text-xs font-medium">No upcoming appointments</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {scheduledOrders.map(order => (
+                  <OrderCard key={order.id} order={order} actions={
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-slate-800 hover:bg-slate-700" onClick={() => updateStatus(order, 'Queued')}>
+                      <ArrowRight className="h-3 w-3 mr-1" /> Mark Arrived (Move to Queue)
+                    </Button>
+                  } />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="queue" className="space-y-4 animate-in slide-in-from-bottom-4 duration-300">
+            {loading ? (
+              <div className="text-center py-8 text-sm text-slate-400">Loading bay slots...</div>
+            ) : (
           <div className="flex flex-col md:flex-row gap-4 overflow-x-auto pb-4">
             
             {/* Queued Column */}
@@ -298,6 +501,8 @@ export function AutoBossDashboard() {
 
           </div>
         )}
+          </TabsContent>
+        </Tabs>
 
       </main>
     </div>

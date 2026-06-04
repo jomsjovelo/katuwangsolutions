@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { AuthGuard } from '@/components/auth/auth-guard';
+import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
   title: 'Katuwang Solutions | Ang Katuwang ng Negosyo Mo',
@@ -55,6 +56,7 @@ export default function RootLayout({
             <div className="w-full min-h-screen bg-white relative flex flex-col">
               {children}
             </div>
+            <Toaster />
           </AuthGuard>
         </FirebaseClientProvider>
       </body>

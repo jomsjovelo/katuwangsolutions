@@ -30,8 +30,8 @@ const InvitationGuard = dynamic(() => import('@/components/auth/invitation-guard
 // App shell components (eagerly loaded as they are part of the core shell)
 import { BottomNav } from '@/components/shell/bottom-nav';
 import { AppHeader } from '@/components/shell/app-header';
-import { CoPilotButton } from '@/components/ai/co-pilot-button';
 import { BrandLogo } from '@/components/ui/brand-logo';
+import { AdminPricingManager } from '@/components/admin/admin-pricing-manager';
 
 // ─── App data ────────────────────────────────────────────────────────────────
 
@@ -119,10 +119,10 @@ export default function Home() {
 
   // Sync view state with tenant selection
   useEffect(() => {
-    if (currentTenant && view !== 'admin') {
-      setView('tenant');
+    if (currentTenant) {
+      setView(prev => prev !== 'admin' ? 'tenant' : prev);
     }
-  }, [currentTenant, view]);
+  }, [currentTenant]);
 
   if (!mounted) {
     return (
@@ -238,7 +238,14 @@ export default function Home() {
 
         {/* Scrollable content area */}
         <div className="flex-1 overflow-y-auto pb-nav">
-          {view === 'admin' ? <AdminKillSwitch /> : <TenantDashboard activeTab={activeTab} />}
+          {view === 'admin' ? (
+            <div className="p-4 space-y-6">
+              <AdminKillSwitch />
+              <AdminPricingManager />
+            </div>
+          ) : (
+            <TenantDashboard activeTab={activeTab} />
+          )}
         </div>
 
         {/* Native bottom nav — only in app, not on landing */}
@@ -246,9 +253,6 @@ export default function Home() {
           activeTab={activeTab}
           onTabChange={(tab) => setActiveTab(tab)}
         />
-
-        {/* Floating Katuwang AI Co-Pilot Button */}
-        {view === 'tenant' && <CoPilotButton />}
       </div>
     </InvitationGuard>
   );

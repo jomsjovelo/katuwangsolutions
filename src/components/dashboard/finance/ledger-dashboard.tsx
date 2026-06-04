@@ -21,7 +21,9 @@ import {
   Plus,
   Loader2,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  Download,
+  AlertTriangle
 } from "lucide-react";
 
 const INCOME_CATEGORIES = ['Sales', 'Service', 'Collection', 'Other Income'];
@@ -47,13 +49,12 @@ export function LedgerDashboard() {
   useDynamicThemeColor(theme);
 
   // Live stream of recent transactions
-  const txQuery = currentTenant 
-    ? query(
-        collection(db, 'tenants', currentTenant.id, 'transactions'),
+  const txQuery = React.useMemo(() => {
+    return currentTenant 
+    ? query(collection(db, 'tenants', currentTenant.id, 'transactions'),
         orderBy('createdAt', 'desc'),
-        limit(50)
-      )
-    : null;
+        limit(50)) : null;
+  }, [currentTenant?.id, db]);
   const [txSnapshot, loading] = useCollection(txQuery as any);
 
   let totalIncome = 0;
@@ -73,8 +74,12 @@ export function LedgerDashboard() {
   const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [budgetLimit, setBudgetLimit] = useState(50000); // ₱50k default budget
 
   const categories = entryType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+
+  const budgetThreshold = budgetLimit * 100 * 0.8;
+  const showBudgetWarning = totalExpense >= budgetThreshold;
 
   // Reset category when toggling entry type
   const switchType = (type: 'income' | 'expense') => {
@@ -108,6 +113,53 @@ export function LedgerDashboard() {
     }
   };
 
+  const handleDownloadCSV = () => {
+    const headers = ['Date', 'Type', 'Category', 'Description', 'Amount (PHP)'];
+    const rows = transactions.map((t: any) => [
+      t.createdAt?.toDate ? t.createdAt.toDate().toISOString() : new Date(t.createdAt).toISOString(),
+      t.type,
+      t.category || '',
+      t.description || '',
+      (t.amount / 100).toFixed(2)
+    ]);
+    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `ledger_export_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const chartData = React.useMemo(() => {
+    const days: Record<string, { inc: number, exp: number }> = {};
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      days[d.toLocaleDateString('en-US', { weekday: 'short' })] = { inc: 0, exp: 0 };
+    }
+    
+    transactions.forEach((t: any) => {
+      if (!t.createdAt) return;
+      const d = t.createdAt.toDate ? t.createdAt.toDate() : new Date(t.createdAt);
+      const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+      if (days[dayName]) {
+        if (t.type === 'income') days[dayName].inc += t.amount;
+        if (t.type === 'expense') days[dayName].exp += t.amount;
+      }
+    });
+    
+    let maxVal = 100;
+    Object.values(days).forEach(v => {
+      if (v.inc > maxVal) maxVal = v.inc;
+      if (v.exp > maxVal) maxVal = v.exp;
+    });
+    
+    return { days: Object.entries(days), maxVal };
+  }, [transactions]);
+
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-screen">
       <main className="p-4 space-y-4 pb-24">
@@ -135,6 +187,19 @@ export function LedgerDashboard() {
             <Plus className="h-4 w-4" />
           </Button>
         </section>
+
+        {/* Budget Alert */}
+        {showBudgetWarning && (
+          <div className="bg-rose-50 border border-rose-200 p-3 rounded-xl flex items-start gap-3 animate-in slide-in-from-top-2">
+            <AlertTriangle className="h-5 w-5 text-rose-500 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="text-sm font-bold text-rose-700">Budget Alert</h4>
+              <p className="text-xs text-rose-600 mt-0.5">
+                You have spent ₱{(totalExpense / 100).toLocaleString()} which is near or over your ₱{budgetLimit.toLocaleString()} limit.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Add Entry Form */}
         {showForm && (
@@ -257,13 +322,40 @@ export function LedgerDashboard() {
           </CardContent>
         </Card>
 
+        {/* Weekly Chart */}
+        <Card className="bg-white border-slate-200 shadow-sm">
+          <CardContent className="p-4">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4">Last 7 Days (Income vs Expense)</h4>
+            <div className="flex items-end justify-between h-32 gap-2">
+              {chartData.days.map(([day, vals]) => {
+                const incHeight = Math.max((vals.inc / chartData.maxVal) * 100, 4);
+                const expHeight = Math.max((vals.exp / chartData.maxVal) * 100, 4);
+                return (
+                  <div key={day} className="flex-1 flex flex-col items-center gap-2">
+                    <div className="w-full flex justify-center gap-1 h-24 items-end">
+                      <div className="w-2.5 bg-emerald-400 rounded-t-sm" style={{ height: `${incHeight}%` }} />
+                      <div className="w-2.5 bg-rose-400 rounded-t-sm" style={{ height: `${expHeight}%` }} />
+                    </div>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase">{day}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Transaction History */}
         <section className="space-y-2">
           <div className="flex items-center justify-between px-1">
             <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">
               Transaction History
             </h3>
-            <span className="text-[10px] font-bold text-slate-400">Last 50 entries</span>
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-bold text-slate-400">Last 50 entries</span>
+              <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 bg-white" onClick={handleDownloadCSV}>
+                <Download className="h-3 w-3 mr-1" /> CSV
+              </Button>
+            </div>
           </div>
 
           {loading && <div className="text-center py-8 text-xs text-slate-400">Loading transactions...</div>}

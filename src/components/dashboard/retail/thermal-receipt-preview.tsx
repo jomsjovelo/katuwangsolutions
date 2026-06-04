@@ -22,6 +22,7 @@ interface ThermalReceiptPreviewProps {
   paymentMethod: string;
   transactionId?: string;
   theme: any;
+  pointsEarned?: number;
 }
 
 export function ThermalReceiptPreview({
@@ -32,7 +33,8 @@ export function ThermalReceiptPreview({
   totalAmountPesos,
   paymentMethod,
   transactionId,
-  theme
+  theme,
+  pointsEarned
 }: ThermalReceiptPreviewProps) {
   const [isPrintingBt, setIsPrintingBt] = useState(false);
   const [btError, setBtError] = useState<string | null>(null);
@@ -182,6 +184,15 @@ export function ThermalReceiptPreview({
               </div>
               <div className="text-slate-300 tracking-tighter text-[9px] text-center">--------------------------------</div>
             </div>
+
+            {/* Loyalty Points Earned */}
+            {pointsEarned && pointsEarned > 0 ? (
+              <div className="mb-4 text-center border-t border-b border-dashed border-slate-200 py-1.5">
+                <span className="font-bold text-slate-800 text-[9px]">
+                  ⭐ Katuwang Rewards: +{pointsEarned} pts
+                </span>
+              </div>
+            ) : null}
 
             {/* Net Total Amount */}
             <div className="flex justify-between items-center mb-4 text-right">

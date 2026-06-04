@@ -83,9 +83,6 @@ export function TenantDashboard({ activeTab }: { activeTab?: string }) {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Prevent hydration mismatch or show loading while fetching real data
   if (!mounted || tenantsLoading || storeLoading || inventoryLoading || salesLoading) {

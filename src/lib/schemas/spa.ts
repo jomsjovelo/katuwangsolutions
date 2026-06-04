@@ -7,9 +7,11 @@ export const SpaAppointmentSchema = z.object({
   therapistName: z.string().min(2, 'Therapist name is required'),
   serviceType: z.enum(['Massage', 'Facial', 'Body Scrub', 'Spa Package']).default('Massage'),
   
-  status: z.enum(['Waiting', 'In Session', 'Resting', 'Done']).default('Waiting'),
+  status: z.enum(['Scheduled', 'Waiting', 'In Session', 'Resting', 'Done']).default('Waiting'),
   amountDue: z.number().min(0), // in cents
   paymentStatus: z.enum(['Unpaid', 'Paid']).default('Unpaid'),
+  customerPhone: z.string().optional(),
+  appointmentDate: z.any().optional(),
   
   createdAt: z.any().optional(),
   updatedAt: z.any().optional(),

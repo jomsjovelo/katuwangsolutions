@@ -19,6 +19,7 @@ export function BrandLogo({ className, theme = 'light', showText = true }: Brand
           src="/katuwang-icon-transparent.png" 
           alt="Katuwang Icon" 
           fill 
+          sizes="(max-width: 640px) 48px, 56px"
           className="object-contain"
           priority
         />

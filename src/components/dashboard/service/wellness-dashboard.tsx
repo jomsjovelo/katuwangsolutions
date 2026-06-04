@@ -10,6 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { format } from 'date-fns';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useSpaAppointments } from '@/hooks/use-spa';
 import { useToast } from '@/hooks/use-toast';
@@ -20,7 +23,10 @@ import {
   Flower2,
   Coffee,
   CheckCircle2,
-  CircleDollarSign
+  CircleDollarSign,
+  CalendarDays,
+  Clock,
+  ArrowRight
 } from "lucide-react";
 
 const SERVICE_PRICES: Record<string, number> = {
@@ -41,40 +47,92 @@ export function WellnessDashboard() {
   useDynamicThemeColor(theme);
 
   // Spa State
-  const { waitingAppointments, inSessionAppointments, restingAppointments, doneAppointments, loading } = useSpaAppointments();
+  const { scheduledAppointments, waitingAppointments, inSessionAppointments, restingAppointments, doneAppointments, loading } = useSpaAppointments();
 
   // Create Booking Form
   const [showAddForm, setShowAddForm] = useState(false);
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [appointmentDate, setAppointmentDate] = useState('');
+  const [appointmentTime, setAppointmentTime] = useState('');
   const [clientName, setClientName] = useState('');
   const [therapistName, setTherapistName] = useState('');
   const [serviceType, setServiceType] = useState('Massage');
   const [priceOverride, setPriceOverride] = useState<number | ''>('');
 
+  // Loyalty Program
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [pointsBalance, setPointsBalance] = useState(0);
+  const [isRedeeming, setIsRedeeming] = useState(false);
+  const [isFetchingPoints, setIsFetchingPoints] = useState(false);
+
+  React.useEffect(() => {
+    const fetchPoints = async () => {
+      const cleanPhone = customerPhone.replace(/[^0-9+]/g, '');
+      if (cleanPhone.length >= 10 && currentTenant) {
+        setIsFetchingPoints(true);
+        try {
+          const { getCustomerPoints } = await import('@/firebase/firestore/loyalty-actions');
+          const points = await getCustomerPoints(currentTenant.id, cleanPhone);
+          setPointsBalance(points);
+        } catch (e) {
+          console.error("Failed to fetch points", e);
+        } finally {
+          setIsFetchingPoints(false);
+        }
+      } else {
+        setPointsBalance(0);
+        setIsRedeeming(false);
+      }
+    };
+    
+    const timer = setTimeout(fetchPoints, 500);
+    return () => clearTimeout(timer);
+  }, [customerPhone, currentTenant]);
+
   // Auto-calculate suggested price
   const suggestedPrice = SERVICE_PRICES[serviceType] || 0;
-  const finalPrice = typeof priceOverride === 'number' ? priceOverride : suggestedPrice;
+  const rawFinalPrice = typeof priceOverride === 'number' ? priceOverride : suggestedPrice;
+  const pointsDiscount = isRedeeming ? 50 : 0;
+  const finalPrice = Math.max(0, rawFinalPrice - pointsDiscount);
 
   const handleAddAppointment = async () => {
     if (!currentTenant || !db || !clientName || !therapistName) return;
     setIsProcessing(true);
     try {
+      if (isRedeeming && customerPhone) {
+        const { redeemPoints } = await import('@/firebase/firestore/loyalty-actions');
+        await redeemPoints(currentTenant.id, customerPhone, 100);
+      }
+
+      let aptTimestamp = null;
+      if (isScheduled && appointmentDate && appointmentTime) {
+        aptTimestamp = new Date(`${appointmentDate}T${appointmentTime}`);
+      }
+
       const apptRef = doc(collection(db, 'tenants', currentTenant.id, 'spa_appointments'));
       await setDoc(apptRef, {
         tenantId: currentTenant.id,
         clientName,
         therapistName,
         serviceType,
-        status: 'Waiting',
+        status: isScheduled ? 'Scheduled' : 'Waiting',
         amountDue: Math.round(finalPrice * 100), // convert to cents securely
         paymentStatus: 'Unpaid',
+        customerPhone: customerPhone || null,
+        appointmentDate: aptTimestamp,
         createdAt: serverTimestamp(),
       });
       setClientName('');
       setTherapistName('');
       setServiceType('Massage');
       setPriceOverride('');
+      setCustomerPhone('');
+      setIsRedeeming(false);
+      setIsScheduled(false);
+      setAppointmentDate('');
+      setAppointmentTime('');
       setShowAddForm(false);
-      toast({ title: 'Booking Added!', description: `${clientName} is now in the waiting lounge.` });
+      toast({ title: isScheduled ? 'Appointment Booked!' : 'Booking Added!', description: isScheduled ? `${clientName} has been booked.` : `${clientName} is now in the waiting lounge.` });
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     } finally {
@@ -87,14 +145,28 @@ export function WellnessDashboard() {
     try {
       if (paymentStatus === 'Paid') {
         // ERP INTEGRATION: Complete order and collect payment
+        
+        // Calculate 40% commission for the therapist
+        const commissionPercentage = 0.40;
+        const commissionCentavos = Math.round((appt.amountDue || 0) * commissionPercentage);
+        
         await completeServiceOrder(
           currentTenant.id,
           'spa_appointments',
           appt.id,
           status,
           appt.amountDue || 0,
-          `Spa/Wellness: ${appt.clientName} (${appt.serviceType})`
+          `Spa/Wellness: ${appt.clientName} (${appt.serviceType})`,
+          commissionCentavos
         );
+        if (appt.customerPhone && appt.amountDue > 0) {
+          try {
+            const { awardPoints } = await import('@/firebase/firestore/loyalty-actions');
+            await awardPoints(currentTenant.id, appt.customerPhone, appt.amountDue);
+          } catch (e) {
+            console.error("Failed to award points:", e);
+          }
+        }
       } else {
         const apptRef = doc(db, 'tenants', currentTenant.id, 'spa_appointments', appt.id);
         const updates: any = { status, updatedAt: serverTimestamp() };
@@ -130,6 +202,17 @@ export function WellnessDashboard() {
               {appointment.paymentStatus}
             </Badge>
             <p className="text-sm font-bold text-slate-700 mt-1">₱{(appointment.amountDue / 100).toLocaleString()}</p>
+            {appointment.appointmentDate && appointment.status === 'Scheduled' && (
+              <p className="text-[10px] font-bold text-amber-600 mt-0.5 flex items-center justify-end gap-1">
+                <Clock className="h-3 w-3" />
+                {appointment.appointmentDate.toDate ? format(appointment.appointmentDate.toDate(), 'MMM d, h:mm a') : format(new Date(appointment.appointmentDate), 'MMM d, h:mm a')}
+              </p>
+            )}
+            {appointment.therapistCommission && (
+              <p className="text-[9px] font-bold text-emerald-600 mt-0.5">
+                +₱{(appointment.therapistCommission / 100).toLocaleString()} Comm
+              </p>
+            )}
           </div>
         </div>
         <div className="flex gap-2">
@@ -164,9 +247,27 @@ export function WellnessDashboard() {
         {showAddForm && (
           <Card className="shadow-sm border-slate-200 bg-white border-l-4" style={{ borderLeftColor: theme.primary }}>
             <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm font-bold flex items-center gap-2"><Sun className="h-4 w-4 text-purple-500" /> New Walk-in / Booking</CardTitle>
+              <CardTitle className="text-sm font-bold flex items-center justify-between">
+                <span className="flex items-center gap-2"><Sun className="h-4 w-4 text-purple-500" /> New Walk-in / Booking</span>
+                <div className="flex items-center gap-2 text-xs">
+                  <Switch checked={isScheduled} onCheckedChange={setIsScheduled} id="schedule-switch" />
+                  <Label htmlFor="schedule-switch" className="text-xs cursor-pointer">Book for Later</Label>
+                </div>
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-4 space-y-3 pt-0">
+              {isScheduled && (
+                <div className="flex gap-2 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                  <div className="flex-1 space-y-1">
+                    <Label className="text-xs font-bold text-slate-700">Date</Label>
+                    <Input type="date" value={appointmentDate} onChange={e => setAppointmentDate(e.target.value)} className="h-8 text-xs" />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <Label className="text-xs font-bold text-slate-700">Time</Label>
+                    <Input type="time" value={appointmentTime} onChange={e => setAppointmentTime(e.target.value)} className="h-8 text-xs" />
+                  </div>
+                </div>
+              )}
               <div className="space-y-1">
                 <Label className="text-xs">Client Name</Label>
                 <Input placeholder="e.g. Ana Reyes" value={clientName} onChange={e => setClientName(e.target.value)} />
@@ -189,12 +290,39 @@ export function WellnessDashboard() {
                   </select>
                 </div>
               </div>
+              <div className="space-y-1 mt-2">
+                <Label className="text-xs flex justify-between">
+                  <span>Customer Phone (Katuwang Rewards)</span>
+                  {customerPhone && <span className="text-emerald-500 font-bold text-[10px]">{isFetchingPoints ? "..." : `${pointsBalance} pts`}</span>}
+                </Label>
+                <Input placeholder="e.g. 0917..." value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} />
+                {pointsBalance >= 100 && rawFinalPrice >= 50 && (
+                  <div className="flex items-center space-x-2 mt-2 bg-emerald-50 p-2 rounded-lg border border-emerald-100">
+                    <Switch 
+                      id="redeem-points-wellness" 
+                      checked={isRedeeming}
+                      onCheckedChange={setIsRedeeming}
+                      className="data-[state=checked]:bg-emerald-500"
+                    />
+                    <Label htmlFor="redeem-points-wellness" className="text-xs font-bold text-emerald-800 cursor-pointer">
+                      Redeem 100 pts for ₱50 Off
+                    </Label>
+                  </div>
+                )}
+              </div>
+
               <div className="space-y-1">
                 <Label className="text-xs flex justify-between">
                   <span>Total Price (₱)</span>
                   <span className="text-muted-foreground">Suggested: ₱{suggestedPrice}</span>
                 </Label>
-                <Input type="number" placeholder={`₱${suggestedPrice}`} value={priceOverride} onChange={e => setPriceOverride(parseFloat(e.target.value) || '')} />
+                <div className="flex gap-2 items-center">
+                  <Input className="flex-1" type="number" placeholder={`₱${suggestedPrice}`} value={priceOverride} onChange={e => setPriceOverride(parseFloat(e.target.value) || '')} />
+                  {isRedeeming && <span className="text-xs font-bold text-emerald-600">-₱50.00 Rewards</span>}
+                </div>
+                <div className="text-right text-lg font-black text-slate-800">
+                  Final: ₱{finalPrice.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                </div>
               </div>
               <Button 
                 className="w-full h-8 text-xs font-bold text-white" 
@@ -208,9 +336,42 @@ export function WellnessDashboard() {
           </Card>
         )}
 
-        {loading ? (
-          <div className="text-center py-8 text-sm text-slate-400">Loading reception board...</div>
-        ) : (
+        <Tabs defaultValue="queue" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-4 rounded-xl">
+            <TabsTrigger value="queue" className="rounded-lg text-xs md:text-sm font-bold">Live Lounge</TabsTrigger>
+            <TabsTrigger value="calendar" className="rounded-lg text-xs md:text-sm font-bold">Appointments</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="calendar" className="space-y-4 animate-in slide-in-from-bottom-4 duration-300">
+            <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+              <CalendarDays className="h-5 w-5" style={{ color: theme.primary }} />
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-700">Upcoming Bookings</h3>
+            </div>
+            
+            {loading ? (
+              <div className="text-center py-8 text-sm text-slate-400">Loading bookings...</div>
+            ) : scheduledAppointments.length === 0 ? (
+              <div className="text-center py-8 border-2 border-dashed border-slate-200 rounded-xl text-slate-400">
+                <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                <p className="text-xs font-medium">No upcoming appointments</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {scheduledAppointments.map(appt => (
+                  <AppointmentCard key={appt.id} appointment={appt} actions={
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-slate-800 hover:bg-slate-700" onClick={() => updateStatus(appt, 'Waiting')}>
+                      <ArrowRight className="h-3 w-3 mr-1" /> Client Arrived
+                    </Button>
+                  } />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="queue" className="space-y-4 animate-in slide-in-from-bottom-4 duration-300">
+            {loading ? (
+              <div className="text-center py-8 text-sm text-slate-400">Loading reception board...</div>
+            ) : (
           <div className="flex flex-col md:flex-row gap-4 overflow-x-auto pb-4">
             
             {/* Waiting Column */}
@@ -287,6 +448,9 @@ export function WellnessDashboard() {
 
           </div>
         )}
+
+          </TabsContent>
+        </Tabs>
 
       </main>
     </div>

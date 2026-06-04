@@ -46,6 +46,7 @@ export const FoodOrderSchema = z.object({
     notes: z.string().optional(), // e.g. "No onions"
   })),
   totalAmount: z.coerce.number(),
+  customerPhone: z.string().optional(),
   createdAt: z.any().optional(),
 });
 

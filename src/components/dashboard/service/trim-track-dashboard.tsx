@@ -5,6 +5,7 @@ import { useTenant } from '@/app/lib/tenant-context';
 import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { completeServiceOrder } from '@/firebase/firestore/service-actions';
+import { awardPoints } from '@/firebase/firestore/loyalty-actions';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -19,7 +20,9 @@ import {
   UserCircle2,
   Armchair,
   CheckCircle2,
-  CircleDollarSign
+  CircleDollarSign,
+  Trophy,
+  Megaphone
 } from "lucide-react";
 
 const SERVICE_PRICES: Record<string, number> = {
@@ -46,6 +49,7 @@ export function TrimTrackDashboard() {
   // Create Booking Form
   const [showAddForm, setShowAddForm] = useState(false);
   const [customerName, setCustomerName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [stylistName, setStylistName] = useState('');
   const [serviceType, setServiceType] = useState('Haircut');
   const [priceOverride, setPriceOverride] = useState<number | ''>('');
@@ -65,14 +69,17 @@ export function TrimTrackDashboard() {
       await setDoc(apptRef, {
         tenantId: currentTenant.id,
         customerName,
+        phoneNumber,
         stylistName,
         serviceType,
         status: 'Waiting',
+        queueNumber: waitingAppointments.length + inChairAppointments.length + doneAppointments.length + 1,
         amountDue: Math.round(finalPrice * 100), // convert to cents safely
         paymentStatus: 'Unpaid',
         createdAt: serverTimestamp(),
       });
       setCustomerName('');
+      setPhoneNumber('');
       setStylistName('');
       setServiceType('Haircut');
       setPriceOverride('');
@@ -97,6 +104,11 @@ export function TrimTrackDashboard() {
           appt.amountDue, 
           `Salon: ${appt.serviceType} for ${appt.customerName}`
         );
+        
+        // Loyalty Points
+        if (appt.phoneNumber) {
+          await awardPoints(currentTenant.id, appt.phoneNumber, appt.amountDue || 0);
+        }
       } else {
         const apptRef = doc(db, 'tenants', currentTenant.id, 'salon_appointments', appt.id);
         const updates: any = { status, updatedAt: serverTimestamp() };
@@ -109,13 +121,24 @@ export function TrimTrackDashboard() {
     }
   };
 
+  const leaderboard = React.useMemo(() => {
+    const stats: Record<string, { count: number, total: number }> = {};
+    doneAppointments.forEach((appt: any) => {
+      const name = appt.stylistName || 'Unknown';
+      if (!stats[name]) stats[name] = { count: 0, total: 0 };
+      stats[name].count += 1;
+      stats[name].total += appt.amountDue || 0;
+    });
+    return Object.entries(stats).sort((a, b) => b[1].total - a[1].total);
+  }, [doneAppointments]);
+
   const AppointmentCard = ({ appointment, actions }: { appointment: any, actions: React.ReactNode }) => (
     <Card className="shadow-sm border-slate-200 mb-3 hover:shadow-md transition-shadow">
       <CardContent className="p-3">
         <div className="flex justify-between items-start mb-3">
           <div>
             <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-              <UserCircle2 className="h-4 w-4 text-rose-400" />
+              <span className="bg-slate-800 text-white text-[10px] px-1.5 py-0.5 rounded font-black">#{appointment.queueNumber || '?'}</span>
               {appointment.customerName}
             </h4>
             <div className="flex items-center gap-2 mt-1.5">
@@ -163,15 +186,38 @@ export function TrimTrackDashboard() {
           </Button>
         </section>
 
+        {/* Now Serving Banner */}
+        {inChairAppointments.length > 0 && (
+          <div className="bg-slate-800 text-white p-3 rounded-2xl flex items-center gap-3 shadow-md animate-in slide-in-from-top-4">
+            <div className="p-2 bg-white/20 rounded-xl">
+              <Megaphone className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest">Now Serving</p>
+              <p className="text-sm font-bold flex gap-2">
+                {inChairAppointments.map((appt: any) => (
+                  <span key={appt.id}>#{appt.queueNumber || '?'}</span>
+                ))}
+              </p>
+            </div>
+          </div>
+        )}
+
         {showAddForm && (
           <Card className="shadow-sm border-slate-200 bg-white border-l-4" style={{ borderLeftColor: theme.primary }}>
             <CardHeader className="p-4 pb-2">
               <CardTitle className="text-sm font-bold flex items-center gap-2"><Scissors className="h-4 w-4 text-rose-500" /> New Customer</CardTitle>
             </CardHeader>
             <CardContent className="p-4 space-y-3 pt-0">
-              <div className="space-y-1">
-                <Label className="text-xs">Customer Name</Label>
-                <Input placeholder="e.g. John Doe" value={customerName} onChange={e => setCustomerName(e.target.value)} />
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Customer Name</Label>
+                  <Input placeholder="e.g. John Doe" value={customerName} onChange={e => setCustomerName(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Phone (For Rewards)</Label>
+                  <Input placeholder="09XX" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} />
+                </div>
               </div>
               <div className="flex gap-2">
                 <div className="flex-1 space-y-1">
@@ -270,6 +316,37 @@ export function TrimTrackDashboard() {
             </div>
 
           </div>
+        )}
+
+        {/* Barber Leaderboard */}
+        {leaderboard.length > 0 && (
+          <Card className="shadow-sm border-slate-200 mt-4">
+            <CardHeader className="p-4 pb-2 border-b bg-slate-50">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-amber-500" /> Stylist Leaderboard Today
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="divide-y">
+                {leaderboard.map(([name, stat], idx) => (
+                  <div key={name} className="p-3 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500">
+                        {idx + 1}
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">{name}</p>
+                        <p className="text-[10px] text-slate-500 font-medium">{stat.count} customer{stat.count !== 1 ? 's' : ''}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-black" style={{ color: theme.primary }}>₱{(stat.total / 100).toLocaleString()}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         )}
 
       </main>

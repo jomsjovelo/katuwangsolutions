@@ -52,7 +52,7 @@ export async function updateTripExpenses(tenantId: string, tripId: string, addit
   });
 }
 
-export async function updateTripStatus(tenantId: string, tripId: string, newStatus: 'planned' | 'loading' | 'in_transit' | 'arrived' | 'completed' | 'cancelled') {
+export async function updateTripStatus(tenantId: string, tripId: string, newStatus: 'planned' | 'loading' | 'in_transit' | 'arrived' | 'completed' | 'cancelled', signatureData?: string) {
   const db = getKatuwangDb();
   
   await runTransactionResilient(db, async (transaction) => {
@@ -61,76 +61,85 @@ export async function updateTripStatus(tenantId: string, tripId: string, newStat
     if (!tripSnap.exists()) throw new Error('Trip not found');
     const tripData = tripSnap.data();
     
+    // 1. Gather all reads
+    let masterAccountSnap = null;
+    let masterAccountRef = null;
+    const deliveryFee = tripData.deliveryFee || 0;
+    const tripExpenses = tripData.tripExpenses || 0;
+
+    if (newStatus === 'completed' && (deliveryFee > 0 || tripExpenses > 0)) {
+      masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+      masterAccountSnap = await transaction.get(masterAccountRef);
+    }
+
+    // 2. Perform all writes
     // Update the Trip Status
-    transaction.update(tripRef, { 
+    const updatePayload: any = {
       status: newStatus,
       updatedAt: serverTimestamp()
-    });
+    };
+    if (signatureData) {
+      updatePayload.signatureData = signatureData;
+    }
+    
+    transaction.update(tripRef, updatePayload);
 
     // ERP INTEGRATION: If the trip is completed, deposit the delivery fee into the Ledger
     // AND deduct the trip expenses (Gas/Toll)
-    if (newStatus === 'completed') {
-      const deliveryFee = tripData.deliveryFee || 0;
-      const tripExpenses = tripData.tripExpenses || 0;
-      
-      if (deliveryFee > 0 || tripExpenses > 0) {
-        const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
-        const masterAccountSnap = await transaction.get(masterAccountRef);
-        
-        const netImpact = deliveryFee - tripExpenses;
+    if (newStatus === 'completed' && masterAccountRef && masterAccountSnap) {
+      const netImpact = deliveryFee - tripExpenses;
 
-        if (!masterAccountSnap.exists()) {
-          transaction.set(masterAccountRef, {
-            id: 'master-cash',
-            tenantId,
-            name: 'Main Cash Register',
-            type: 'asset',
-            balance: netImpact,
-            isActive: true,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
-          });
-        } else {
-          // Apply net impact to balance atomically
-          transaction.update(masterAccountRef, {
-            balance: increment(netImpact),
-            updatedAt: serverTimestamp()
-          });
-        }
+      if (!masterAccountSnap.exists()) {
+        transaction.set(masterAccountRef, {
+          id: 'master-cash',
+          tenantId,
+          name: 'Main Cash Register',
+          type: 'asset',
+          balance: netImpact,
+          isActive: true,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        // Apply net impact to balance atomically
+        transaction.update(masterAccountRef, {
+          balance: increment(netImpact),
+          updatedAt: serverTimestamp()
+        });
+      }
 
-        const transactionsRef = collection(db, 'tenants', tenantId, 'transactions');
+      const transactionsRef = collection(db, 'tenants', tenantId, 'transactions');
 
-        // Record the Income
-        if (deliveryFee > 0) {
-          const newTxRef = doc(transactionsRef);
-          transaction.set(newTxRef, {
-            id: newTxRef.id,
-            tenantId,
-            accountId: 'master-cash',
-            amount: deliveryFee,
-            type: 'income',
-            category: 'Sales',
-            description: `Delivery Fee to: ${tripData.destination || 'Client'}`,
-            date: new Date(),
-            createdAt: serverTimestamp()
-          });
-        }
+      // Record the Income
+      if (deliveryFee > 0) {
+        const newTxRef = doc(transactionsRef);
+        transaction.set(newTxRef, {
+          id: newTxRef.id,
+          tenantId,
+          accountId: 'master-cash',
+          amount: deliveryFee,
+          type: 'income',
+          category: 'Sales',
+          description: `Delivery Fee to: ${tripData.destination || 'Client'}`,
+          date: new Date(),
+          createdAt: serverTimestamp()
+        });
+      }
 
-        // Record the Expense
-        if (tripExpenses > 0) {
-          const expenseTxRef = doc(transactionsRef);
-          transaction.set(expenseTxRef, {
-            id: expenseTxRef.id,
-            tenantId,
-            accountId: 'master-cash',
-            amount: tripExpenses,
-            type: 'expense',
-            category: 'Transport',
-            description: `Gas/Toll: ${tripData.destination || 'Client'}`,
-            date: new Date(),
-            createdAt: serverTimestamp()
-          });
-        }
+      // Record the Expense
+      if (tripExpenses > 0) {
+        const expenseTxRef = doc(transactionsRef);
+        transaction.set(expenseTxRef, {
+          id: expenseTxRef.id,
+          tenantId,
+          accountId: 'master-cash',
+          amount: tripExpenses,
+          type: 'expense',
+          category: 'Transport',
+          description: `Gas/Toll: ${tripData.destination || 'Client'}`,
+          date: new Date(),
+          createdAt: serverTimestamp()
+        });
       }
     }
   });

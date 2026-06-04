@@ -24,12 +24,15 @@ import {
   Phone,
   Coins,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  AlertTriangle,
+  Zap
 } from "lucide-react";
 import { 
   addBorrower, 
   recordLoan, 
   recordPayment,
+  applyMissedDayPenalty,
   Borrower 
 } from '@/firebase/firestore/credit-actions';
 import { playSuccessBeep } from './retail/gcash-qr-modal';
@@ -205,6 +208,23 @@ export function HiramDashboard() {
       setActiveDrawer('none');
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to record payment transaction.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Apply Missed Day Penalty
+  const handleApplyPenalty = async (borrower: Borrower) => {
+    if (!currentTenant) return;
+    try {
+      setIsSubmitting(true);
+      setErrorMsg(null);
+      await applyMissedDayPenalty(currentTenant.id, borrower.id);
+      playPaymentSound();
+      setSuccessMsg(`Penalty nailapat kay ${borrower.name}! (+5% ng daily due)`);
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to apply penalty.');
     } finally {
       setIsSubmitting(false);
     }
@@ -426,6 +446,14 @@ export function HiramDashboard() {
                       </div>
                     </div>
 
+                    {/* Missed days indicator */}
+                    {!isPaid && (borrower.missedDays || 0) > 0 && (
+                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-red-50 border border-red-100 text-[9px] font-black text-red-600">
+                        <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+                        {borrower.missedDays} araw na hindi nagbayad • Penalty: +₱{((borrower.totalPenalty || 0) / 100).toFixed(0)}
+                      </div>
+                    )}
+
                     {/* Action controls row */}
                     {!isPaid && (
                       <div className="pl-1 pt-3 border-t border-slate-50 flex items-center justify-between gap-2.5">
@@ -435,6 +463,15 @@ export function HiramDashboard() {
                         </div>
                         
                         <div className="flex gap-1.5">
+                          <Button 
+                             variant="outline"
+                             onClick={() => handleApplyPenalty(borrower)}
+                             disabled={isSubmitting}
+                             className="h-8 rounded-lg px-2 text-[9px] font-black text-red-500 hover:text-red-700 flex items-center gap-1 border-red-200 cursor-pointer"
+                           >
+                             <Zap className="h-3 w-3" />
+                             Penalty
+                           </Button>
                           <Button 
                             variant="outline"
                             onClick={() => {

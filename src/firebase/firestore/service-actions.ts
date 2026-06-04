@@ -5,7 +5,7 @@ import { runTransactionResilient } from './resilient-transaction';
 
 export const getKatuwangDb = () => initializeFirebase().db;
 
-export async function addJob(tenantId: string, customerName: string, serviceName: string, amountCentavos: number) {
+export async function addJob(tenantId: string, customerName: string, serviceName: string, amountCentavos: number, phoneNumber?: string) {
   const db = getKatuwangDb();
   
   // Validate using Zod schema
@@ -23,6 +23,7 @@ export async function addJob(tenantId: string, customerName: string, serviceName
   await setDoc(newJobRef, {
     ...validated,
     id: newJobRef.id,
+    phoneNumber: phoneNumber || null,
     createdAt: serverTimestamp(),
   });
 
@@ -33,6 +34,15 @@ export async function updateJobStatus(tenantId: string, jobId: string, newStatus
   const db = getKatuwangDb();
   
   await runTransactionResilient(db, async (transaction) => {
+    // 1. Gather all reads
+    let masterAccountSnap = null;
+    let masterAccountRef = null;
+    if (newStatus === 'completed' && amountCentavos && amountCentavos > 0) {
+      masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+      masterAccountSnap = await transaction.get(masterAccountRef);
+    }
+
+    // 2. Perform all writes
     const jobRef = doc(db, 'tenants', tenantId, 'jobs', jobId);
     
     // Update the Job Status
@@ -47,9 +57,7 @@ export async function updateJobStatus(tenantId: string, jobId: string, newStatus
     transaction.update(jobRef, updateData);
 
     // ERP INTEGRATION: If the job is completed, automatically deposit the money into the Master Cash Ledger!
-    if (newStatus === 'completed' && amountCentavos && amountCentavos > 0) {
-      const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
-      const masterAccountSnap = await transaction.get(masterAccountRef);
+    if (newStatus === 'completed' && amountCentavos && amountCentavos > 0 && masterAccountRef && masterAccountSnap) {
       
       if (!masterAccountSnap.exists()) {
         transaction.set(masterAccountRef, {
@@ -96,6 +104,7 @@ export async function completeServiceOrder(
   status: string,
   amountCentavos: number, 
   description: string,
+  therapistCommissionCentavos?: number,
   extraUpdates: any = {}
 ) {
   if (amountCentavos < 0 || isNaN(amountCentavos)) {
@@ -105,6 +114,15 @@ export async function completeServiceOrder(
   const db = getKatuwangDb();
   
   await runTransactionResilient(db, async (transaction) => {
+    // 1. Gather all reads
+    let masterAccountSnap = null;
+    let masterAccountRef = null;
+    if (amountCentavos > 0) {
+      masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+      masterAccountSnap = await transaction.get(masterAccountRef);
+    }
+
+    // 2. Perform all writes
     const orderRef = doc(db, 'tenants', tenantId, collectionName, orderId);
     
     // Update the Order Status
@@ -115,12 +133,14 @@ export async function completeServiceOrder(
       ...extraUpdates
     };
     
+    if (therapistCommissionCentavos && therapistCommissionCentavos > 0) {
+      updateData.therapistCommission = therapistCommissionCentavos;
+    }
+    
     transaction.update(orderRef, updateData);
 
     // ERP INTEGRATION: Deposit the money into the Master Cash Ledger!
-    if (amountCentavos > 0) {
-      const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
-      const masterAccountSnap = await transaction.get(masterAccountRef);
+    if (amountCentavos > 0 && masterAccountRef && masterAccountSnap) {
       
       if (!masterAccountSnap.exists()) {
         transaction.set(masterAccountRef, {
@@ -173,6 +193,15 @@ export async function registerGymMember(
   const db = getKatuwangDb();
   
   await runTransactionResilient(db, async (transaction) => {
+    // 1. Gather all reads
+    let masterAccountSnap = null;
+    let masterAccountRef = null;
+    if (amountCentavos > 0) {
+      masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+      masterAccountSnap = await transaction.get(masterAccountRef);
+    }
+
+    // 2. Perform all writes
     const memberRef = doc(collection(db, 'tenants', tenantId, 'gym_memberships'));
     
     const status = isDaily ? 'Drop-in' : 'Active';
@@ -202,9 +231,7 @@ export async function registerGymMember(
     transaction.set(memberRef, memberData);
 
     // ERP INTEGRATION
-    if (amountCentavos > 0) {
-      const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
-      const masterAccountSnap = await transaction.get(masterAccountRef);
+    if (amountCentavos > 0 && masterAccountRef && masterAccountSnap) {
       
       if (!masterAccountSnap.exists()) {
         transaction.set(masterAccountRef, {
@@ -257,6 +284,15 @@ export async function renewGymMember(
   const db = getKatuwangDb();
   
   await runTransactionResilient(db, async (transaction) => {
+    // 1. Gather all reads
+    let masterAccountSnap = null;
+    let masterAccountRef = null;
+    if (amountCentavos > 0) {
+      masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+      masterAccountSnap = await transaction.get(masterAccountRef);
+    }
+
+    // 2. Perform all writes
     const memberRef = doc(db, 'tenants', tenantId, 'gym_memberships', memberId);
     
     const expiresAt = new Date();
@@ -277,9 +313,7 @@ export async function renewGymMember(
     });
 
     // ERP INTEGRATION
-    if (amountCentavos > 0) {
-      const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
-      const masterAccountSnap = await transaction.get(masterAccountRef);
+    if (amountCentavos > 0 && masterAccountRef && masterAccountSnap) {
       
       if (!masterAccountSnap.exists()) {
         transaction.set(masterAccountRef, {

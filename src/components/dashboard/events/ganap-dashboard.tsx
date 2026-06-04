@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
-import { completeEvent, payEventVendor } from '@/firebase/firestore/events-actions';
+import { completeEvent, payEventVendor, addGuestToEvent, toggleGuestCheckIn } from '@/firebase/firestore/events-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -25,7 +25,11 @@ import {
   CheckCircle2,
   ChefHat,
   ChevronRight,
-  ArrowLeft
+  ArrowLeft,
+  Users,
+  QrCode,
+  ClipboardList,
+  Link as LinkIcon
 } from "lucide-react";
 import { EventModel } from '@/lib/schemas/events';
 
@@ -58,6 +62,13 @@ export function GanapDashboard() {
   const [newVendorName, setNewVendorName] = useState('');
   const [newVendorContact, setNewVendorContact] = useState('');
   const [newVendorCost, setNewVendorCost] = useState<number | ''>('');
+
+  // Guest List State
+  const [guests, setGuests] = useState<any[]>([]);
+  const [guestsLoading, setGuestsLoading] = useState(false);
+  const [newGuestName, setNewGuestName] = useState('');
+  const [newGuestTable, setNewGuestTable] = useState('');
+  const [newGuestMeal, setNewGuestMeal] = useState('');
 
   // Add Event
   const handleAddEvent = async () => {
@@ -172,13 +183,60 @@ export function GanapDashboard() {
     }
   };
 
+  // Load guests when an event is selected
+  const loadGuests = async (eventId: string) => {
+    if (!currentTenant || !db) return;
+    setGuestsLoading(true);
+    try {
+      const { collection, getDocs, query, orderBy } = await import('firebase/firestore');
+      const guestsRef = collection(db, 'tenants', currentTenant.id, 'events', eventId, 'guests');
+      const snap = await getDocs(query(guestsRef, orderBy('createdAt', 'asc')));
+      setGuests(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (e) {
+      console.error('Failed to load guests', e);
+    } finally {
+      setGuestsLoading(false);
+    }
+  };
+
+  const handleAddGuest = async () => {
+    if (!currentTenant || !selectedEvent?.id || !newGuestName.trim()) return;
+    try {
+      await addGuestToEvent(currentTenant.id, selectedEvent.id, newGuestName, newGuestTable, newGuestMeal);
+      setNewGuestName('');
+      setNewGuestTable('');
+      setNewGuestMeal('');
+      toast({ title: 'Guest Added', description: `${newGuestName} is on the list.` });
+      await loadGuests(selectedEvent.id);
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const handleToggleCheckIn = async (guestId: string, currentCheckedIn: boolean) => {
+    if (!currentTenant || !selectedEvent?.id) return;
+    try {
+      await toggleGuestCheckIn(currentTenant.id, selectedEvent.id, guestId, !currentCheckedIn);
+      setGuests(prev => prev.map(g => g.id === guestId ? { ...g, checkedIn: !currentCheckedIn } : g));
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const copyRsvpLink = () => {
+    if (!currentTenant || !selectedEvent?.id) return;
+    const url = `${window.location.origin}/rsvp/${currentTenant.id}/${selectedEvent.id}`;
+    navigator.clipboard.writeText(url);
+    toast({ title: 'Link Copied!', description: 'RSVP link copied to clipboard.' });
+  };
+
   // RENDER EVENT DETAIL VIEW
   if (selectedEvent) {
     return (
       <div className="flex-1 flex flex-col bg-slate-50 min-h-screen">
         <main className="p-4 space-y-4 pb-24">
           
-          <Button variant="ghost" className="pl-0 -ml-2 text-slate-500 font-bold mb-2" onClick={() => setSelectedEvent(null)}>
+          <Button variant="ghost" className="pl-0 -ml-2 text-slate-500 font-bold mb-2" onClick={() => { setSelectedEvent(null); setGuests([]); }}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Back to Board
           </Button>
 
@@ -287,6 +345,77 @@ export function GanapDashboard() {
                 </div>
 
               </div>
+
+              {/* Guest List Section */}
+              <div className="space-y-3 pt-4 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold flex items-center gap-2">
+                    <Users className="h-4 w-4 text-indigo-500" /> 
+                    Guest List
+                    <span className="text-xs font-normal text-slate-400">({guests.filter(g => g.checkedIn).length}/{guests.length} checked in)</span>
+                  </h4>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={copyRsvpLink}>
+                      <LinkIcon className="h-3 w-3 mr-1" /> RSVP Link
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => loadGuests(selectedEvent.id!)}>
+                      <ClipboardList className="h-3 w-3 mr-1" /> Refresh
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Add Guest Form */}
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Add Guest</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Input placeholder="Guest Name" className="text-xs h-8 col-span-1" value={newGuestName} onChange={e => setNewGuestName(e.target.value)} />
+                    <Input placeholder="Table / Seat" className="text-xs h-8" value={newGuestTable} onChange={e => setNewGuestTable(e.target.value)} />
+                    <Input placeholder="Meal Pref." className="text-xs h-8" value={newGuestMeal} onChange={e => setNewGuestMeal(e.target.value)} />
+                  </div>
+                  <Button size="sm" variant="secondary" className="w-full h-8 text-xs" onClick={handleAddGuest} disabled={!newGuestName.trim()}>
+                    <Plus className="h-3 w-3 mr-1" /> Add to List
+                  </Button>
+                </div>
+
+                {/* Guest Roster */}
+                {guestsLoading ? (
+                  <p className="text-xs text-slate-400 text-center py-4">Loading guests...</p>
+                ) : guests.length === 0 ? (
+                  <p className="text-xs text-slate-400 text-center py-4 border-2 border-dashed border-slate-200 rounded-lg">
+                    No guests yet. Add one above or click Load to refresh.
+                  </p>
+                ) : (
+                  <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                    {guests.map(guest => (
+                      <div 
+                        key={guest.id} 
+                        className={`flex items-center justify-between p-2.5 rounded-lg border text-xs transition-colors cursor-pointer ${
+                          guest.checkedIn 
+                            ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+                            : 'bg-white border-slate-200 text-slate-700'
+                        }`}
+                        onClick={() => handleToggleCheckIn(guest.id, guest.checkedIn)}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                            guest.checkedIn ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300'
+                          }`}>
+                            {guest.checkedIn && <CheckCircle2 className="h-2.5 w-2.5 text-white" />}
+                          </div>
+                          <div>
+                            <p className="font-bold">{guest.name}</p>
+                            <p className="text-[9px] text-slate-400">{guest.tableOrSeat} • {guest.mealPref}</p>
+                          </div>
+                        </div>
+                        <span className={`text-[9px] font-black uppercase ${guest.checkedIn ? 'text-emerald-600' : 'text-slate-400'}`}>
+                          {guest.checkedIn ? 'In ✓' : 'Tap to Check In'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
             </CardContent>
           </Card>
         </main>

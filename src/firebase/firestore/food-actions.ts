@@ -5,7 +5,7 @@ import { runTransactionResilient } from './resilient-transaction';
 
 export const getKatuwangDb = () => initializeFirebase().db;
 
-export async function addFoodOrder(tenantId: string, tableNumber: string, items: any[], totalAmountCentavos: number) {
+export async function addFoodOrder(tenantId: string, tableNumber: string, items: any[], discountCentavos: number = 0, customerPhone?: string) {
   const db = getKatuwangDb();
   let orderId = '';
   
@@ -36,6 +36,8 @@ export async function addFoodOrder(tenantId: string, tableNumber: string, items:
       });
     }
 
+    const finalAmount = Math.max(0, secureTotalAmount - discountCentavos);
+
     // Validate using Zod schema
     const validated = FoodOrderSchema.parse({
       tenantId,
@@ -44,7 +46,8 @@ export async function addFoodOrder(tenantId: string, tableNumber: string, items:
       orderType: 'dine_in',
       status: 'pending',
       items: validatedItems,
-      totalAmount: secureTotalAmount, // Secure server calculated total
+      totalAmount: finalAmount, // Secure server calculated total minus discount
+      customerPhone,
     });
 
     const ordersRef = collection(db, 'tenants', tenantId, 'food_orders');
@@ -75,8 +78,36 @@ export async function updateFoodOrderStatus(tenantId: string, orderId: string, n
     
     transaction.update(orderRef, updateData);
 
-    // ERP INTEGRATION: If the food is PAID, automatically deposit the money into the Master Cash Ledger!
-    if (newStatus === 'paid' && amountCentavos !== undefined && amountCentavos > 0) {
+    // RECIPE YIELD DEDUCTION: If the food is SERVED, deduct raw ingredients
+    if (newStatus === 'served') {
+      const orderSnap = await transaction.get(orderRef);
+      if (orderSnap.exists()) {
+        const orderData = orderSnap.data();
+        if (orderData.items && Array.isArray(orderData.items)) {
+          for (const item of orderData.items) {
+            const menuRef = doc(db, 'tenants', tenantId, 'menu_items', item.menuItemId);
+            const menuSnap = await transaction.get(menuRef);
+            if (menuSnap.exists()) {
+              const menuData = menuSnap.data();
+              if (menuData.recipe && Array.isArray(menuData.recipe)) {
+                for (const req of menuData.recipe) {
+                  const ingRef = doc(db, 'tenants', tenantId, 'ingredients', req.ingredientId);
+                  const deductAmount = req.amount * item.quantity;
+                  // Deduct ingredient stock
+                  transaction.update(ingRef, {
+                    currentStock: increment(-deductAmount),
+                    updatedAt: serverTimestamp()
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // ERP INTEGRATION: If the food is PAID or SERVED, automatically deposit the money into the Master Cash Ledger!
+    if ((newStatus === 'paid' || newStatus === 'served') && amountCentavos !== undefined && amountCentavos > 0) {
       if (isNaN(amountCentavos)) {
         throw new Error("Invalid payment amount for ledger recording.");
       }

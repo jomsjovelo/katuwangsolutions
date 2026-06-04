@@ -1,44 +1,21 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { 
-  Query, 
-  onSnapshot, 
-  QuerySnapshot, 
-  DocumentData,
-  FirestoreError
-} from 'firebase/firestore';
+import { useCollection as useFirebaseCollection } from 'react-firebase-hooks/firestore';
+import { Query, DocumentData, FirestoreError } from 'firebase/firestore';
+import { useMemo } from 'react';
 
 export function useCollection<T = DocumentData>(query: Query<T> | null) {
-  const [data, setData] = useState<T[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<FirestoreError | null>(null);
+  // Leverage the official bulletproof hook which perfectly handles referential equality
+  const [snapshot, loading, error] = useFirebaseCollection(query as any);
 
-  useEffect(() => {
-    if (!query) {
-      setLoading(false);
-      return;
-    }
+  // Memoize the mapped data to prevent downstream re-renders
+  const data = useMemo(() => {
+    if (!snapshot) return [];
+    return snapshot.docs.map((doc) => ({
+      ...doc.data(),
+      id: doc.id,
+    } as T));
+  }, [snapshot]);
 
-    setLoading(true);
-    const unsubscribe = onSnapshot(
-      query,
-      (snapshot: QuerySnapshot<T>) => {
-        const items = snapshot.docs.map((doc) => ({
-          ...doc.data(),
-          id: doc.id,
-        } as T));
-        setData(items);
-        setLoading(false);
-      },
-      (err) => {
-        setError(err);
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [query]);
-
-  return { data, loading, error };
+  return { data, loading, error: error as FirestoreError | null };
 }

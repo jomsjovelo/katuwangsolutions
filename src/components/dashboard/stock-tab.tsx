@@ -9,8 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { doc, getFirestore, updateDoc, onSnapshot, increment } from 'firebase/firestore';
-import { app } from '@/firebase/config';
 import { useUser } from '@/firebase/auth/use-user';
+import { logInventoryAudit } from '@/firebase/firestore/inventory-actions';
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { 
   Package, 
   AlertTriangle, 
@@ -31,7 +33,8 @@ export function StockTab() {
   
   const [profile, setProfile] = useState<any>(null);
   const [isUpdatingId, setIsUpdatingId] = useState<string | null>(null);
-  const [restockAmounts, setRestockAmounts] = useState<Record<string, string>>({});
+  const [inputAmounts, setInputAmounts] = useState<Record<string, string>>({});
+  const [isAuditMode, setIsAuditMode] = useState(false);
 
   const theme = getModuleTheme(currentTenant?.moduleType);
 
@@ -48,20 +51,32 @@ export function StockTab() {
     return () => unsubscribe();
   }, [user]);
 
-  const handleCustomRestock = async (productId: string) => {
+  const handleAction = async (product: any) => {
     if (!currentTenant) return;
-    const amount = parseInt(restockAmounts[productId] || '0');
-    if (isNaN(amount) || amount <= 0) return;
+    const amount = parseInt(inputAmounts[product.id] || '');
+    if (isNaN(amount) || amount < 0) return;
     
     try {
-      setIsUpdatingId(productId);
-      const productRef = doc(db, 'tenants', currentTenant.id, 'products', productId);
-      await updateDoc(productRef, {
-        currentStock: increment(amount),
-        updatedAt: new Date()
-      });
+      setIsUpdatingId(product.id);
+      
+      if (isAuditMode) {
+        await logInventoryAudit(
+          currentTenant.id,
+          user?.uid || 'unknown',
+          product.id,
+          product.currentStock,
+          amount,
+          "Routine Physical Audit"
+        );
+      } else {
+        const productRef = doc(db, 'tenants', currentTenant.id, 'products', product.id);
+        await updateDoc(productRef, {
+          currentStock: increment(amount),
+          updatedAt: new Date()
+        });
+      }
       // Clear input after success
-      setRestockAmounts(prev => ({...prev, [productId]: ''}));
+      setInputAmounts(prev => ({...prev, [product.id]: ''}));
     } catch (e) {
       console.error(e);
       alert("May error sa pag-update ng stock.");
@@ -104,6 +119,14 @@ export function StockTab() {
                 Pamamahala ng mga Paninda
               </CardDescription>
             </div>
+            {isStaff === false && (
+              <div className="flex items-center gap-2 text-xs">
+                <Switch checked={isAuditMode} onCheckedChange={setIsAuditMode} id="audit-mode" />
+                <Label htmlFor="audit-mode" className="text-xs font-bold text-slate-600 cursor-pointer">
+                  Audit Mode
+                </Label>
+              </div>
+            )}
           </CardHeader>
           <CardContent className="p-0">
             {loading ? (
@@ -157,20 +180,22 @@ export function StockTab() {
                       <div className="flex items-center gap-1.5">
                         <input 
                           type="number"
-                          placeholder="+ Qty"
+                          placeholder={isAuditMode ? "Actual Qty" : "+ Qty"}
                           className="w-16 h-8 text-[10px] px-2 rounded-lg border border-slate-200 text-center focus:outline-none focus:ring-1 focus:ring-slate-300"
-                          value={restockAmounts[product.id || ''] || ''}
-                          onChange={(e) => setRestockAmounts({...restockAmounts, [product.id || '']: e.target.value})}
+                          value={inputAmounts[product.id || ''] || ''}
+                          onChange={(e) => setInputAmounts({...inputAmounts, [product.id || '']: e.target.value})}
                         />
                         <Button
-                          variant="ghost"
+                          variant={isAuditMode ? "destructive" : "ghost"}
                           size="sm"
-                          disabled={isUpdatingId === product.id || !restockAmounts[product.id || '']}
-                          onClick={() => handleCustomRestock(product.id || '')}
-                          className="h-8 rounded-lg text-[10px] font-bold gap-1 text-slate-500 hover:text-white hover:bg-slate-900 border border-slate-200 transition-colors"
+                          disabled={isUpdatingId === product.id || !inputAmounts[product.id || '']}
+                          onClick={() => handleAction(product)}
+                          className={isAuditMode ? "h-8 rounded-lg text-[10px] font-bold gap-1" : "h-8 rounded-lg text-[10px] font-bold gap-1 text-slate-500 hover:text-white hover:bg-slate-900 border border-slate-200 transition-colors"}
                         >
                           {isUpdatingId === product.id ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : isAuditMode ? (
+                            <><AlertTriangle className="h-3 w-3" /> Audit</>
                           ) : (
                             <><Plus className="h-3 w-3" /> Add</>
                           )}

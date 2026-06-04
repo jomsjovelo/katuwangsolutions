@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from '@/lib/utils';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
@@ -62,13 +63,43 @@ export function TimplaDashboard() {
 
   // Cart State for POS
   const [cart, setCart] = useState<{ menuItemId: string; name: string; quantity: number; price: number }[]>([]);
+  const [selectedTable, setSelectedTable] = useState('');
 
-  const ordersQuery = currentTenant && db
-    ? query(
-        collection(db, 'tenants', currentTenant.id, 'food_orders'),
-        orderBy('createdAt', 'desc')
-      )
-    : null;
+  // Loyalty Program
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [pointsBalance, setPointsBalance] = useState(0);
+  const [isRedeeming, setIsRedeeming] = useState(false);
+  const [isFetchingPoints, setIsFetchingPoints] = useState(false);
+
+  React.useEffect(() => {
+    const fetchPoints = async () => {
+      const cleanPhone = customerPhone.replace(/[^0-9+]/g, '');
+      if (cleanPhone.length >= 10 && currentTenant) {
+        setIsFetchingPoints(true);
+        try {
+          const { getCustomerPoints } = await import('@/firebase/firestore/loyalty-actions');
+          const points = await getCustomerPoints(currentTenant.id, cleanPhone);
+          setPointsBalance(points);
+        } catch (e) {
+          console.error("Failed to fetch points", e);
+        } finally {
+          setIsFetchingPoints(false);
+        }
+      } else {
+        setPointsBalance(0);
+        setIsRedeeming(false);
+      }
+    };
+    
+    const timer = setTimeout(fetchPoints, 500);
+    return () => clearTimeout(timer);
+  }, [customerPhone, currentTenant]);
+
+  const ordersQuery = React.useMemo(() => {
+    return currentTenant && db
+    ? query(collection(db, 'tenants', currentTenant.id, 'food_orders'),
+        orderBy('createdAt', 'desc')) : null;
+  }, [currentTenant?.id, db]);
 
   const [ordersSnapshot, ordersLoading] = useCollection(ordersQuery as any);
   
@@ -183,13 +214,24 @@ export function TimplaDashboard() {
     try {
       setIsProcessing(true);
       setError(null);
+      if (isRedeeming && customerPhone) {
+        const { redeemPoints } = await import('@/firebase/firestore/loyalty-actions');
+        await redeemPoints(currentTenant.id, customerPhone, 100);
+      }
+      
+      const tableName = selectedTable.trim() || `Takeout ${new Date().getTime().toString().slice(-4)}`;
+      
       await addFoodOrder(
         currentTenant.id, 
-        `Dine-In ${new Date().getTime().toString().slice(-4)}`, // Time-based order identifier
+        tableName,
         cart,
-        cartTotal
+        isRedeeming ? 5000 : 0,
+        customerPhone || undefined
       );
       setCart([]);
+      setSelectedTable('');
+      setCustomerPhone('');
+      setIsRedeeming(false);
       toast({ title: 'Order Submitted!', description: 'Sent to the Barista.' });
     } catch (e: any) {
       setError(e.message);
@@ -199,12 +241,20 @@ export function TimplaDashboard() {
     }
   };
 
-  const moveOrder = async (id: string, newStatus: 'pending' | 'preparing' | 'served', amount?: number, tableNumber?: string) => {
+  const moveOrder = async (order: any, newStatus: 'pending' | 'preparing' | 'served', amount?: number, tableNumber?: string) => {
     if (!currentTenant) return;
     try {
       setIsProcessing(true);
       setError(null);
-      await updateFoodOrderStatus(currentTenant.id, id, newStatus, amount, tableNumber);
+      await updateFoodOrderStatus(currentTenant.id, order.id, newStatus, amount, tableNumber);
+      if (newStatus === 'served' && order.customerPhone && amount && amount > 0) {
+        try {
+          const { awardPoints } = await import('@/firebase/firestore/loyalty-actions');
+          await awardPoints(currentTenant.id, order.customerPhone, amount);
+        } catch (e) {
+          console.error("Failed to award points:", e);
+        }
+      }
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -302,7 +352,45 @@ export function TimplaDashboard() {
                     ))}
                   </div>
                 </CardContent>
-                <div className="p-3 bg-white border-t border-slate-100">
+                <div className="p-3 bg-white border-t border-slate-100 space-y-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-slate-500 font-bold uppercase tracking-widest">Table Name / Number</Label>
+                    <Input 
+                      placeholder="e.g. Table 5, VIP A, or leave blank for Takeout" 
+                      value={selectedTable} 
+                      onChange={e => setSelectedTable(e.target.value)}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                  
+                  <div className="space-y-1 mt-2">
+                    <Label className="text-xs flex justify-between">
+                      <span className="text-slate-500 font-bold uppercase tracking-widest">Customer Phone (Rewards)</span>
+                      {customerPhone && <span className="text-emerald-500 font-bold text-[10px]">{isFetchingPoints ? "..." : `${pointsBalance} pts`}</span>}
+                    </Label>
+                    <Input placeholder="e.g. 0917..." value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className="h-9 text-sm" />
+                    {pointsBalance >= 100 && cartTotal >= 5000 && (
+                      <div className="flex items-center space-x-2 mt-2 bg-emerald-50 p-2 rounded-lg border border-emerald-100">
+                        <Switch 
+                          id="redeem-points-timpla" 
+                          checked={isRedeeming}
+                          onCheckedChange={setIsRedeeming}
+                          className="data-[state=checked]:bg-emerald-500"
+                        />
+                        <Label htmlFor="redeem-points-timpla" className="text-xs font-bold text-emerald-800 cursor-pointer">
+                          Redeem 100 pts for ₱50 Off
+                        </Label>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {isRedeeming && (
+                    <div className="flex justify-between items-center text-sm font-bold border-t pt-2 mt-2">
+                      <span>Total after Discount:</span>
+                      <span className="text-emerald-600">₱{((cartTotal - 5000) / 100).toLocaleString()}</span>
+                    </div>
+                  )}
+
                   <Button 
                     className="w-full font-bold text-white shadow-md active:scale-95" 
                     style={{ backgroundColor: theme.primary }}
@@ -343,7 +431,7 @@ export function TimplaDashboard() {
                       ))}
                     </ul>
                     <Button 
-                      onClick={() => moveOrder(order.id, 'preparing')} 
+                      onClick={() => moveOrder(order, 'preparing')} 
                       disabled={isProcessing}
                       className="w-full h-10 mt-2 font-bold uppercase tracking-widest text-[10px] text-white border-none active:scale-95"
                       style={{ backgroundColor: theme.primary, boxShadow: `0 4px 12px -2px ${theme.primary}30` }}
@@ -371,7 +459,7 @@ export function TimplaDashboard() {
                       ))}
                     </ul>
                     <Button 
-                      onClick={() => moveOrder(order.id, 'served', order.totalAmount, order.tableNumber)} 
+                      onClick={() => moveOrder(order, 'served', order.totalAmount, order.tableNumber)} 
                       disabled={isProcessing}
                       className="w-full h-10 font-bold uppercase tracking-widest text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white"
                     >
