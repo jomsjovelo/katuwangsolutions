@@ -21,7 +21,7 @@ service cloud.firestore {
       let tenant = getTenantData(tenantId);
       return isAuthenticated() && (
         request.auth.uid == tenant.ownerUid || 
-        request.auth.uid in tenant.staffUids ||
+        request.auth.uid in tenant.get('staffUids', []) ||
         isMasterAdmin()
       );
     }
@@ -39,7 +39,7 @@ service cloud.firestore {
       // Allow users to read their own tenant metadata
       allow read: if isAuthenticated() && (
         request.auth.uid == resource.data.ownerUid || 
-        request.auth.uid in resource.data.staffUids ||
+        request.auth.uid in resource.data.get('staffUids', []) ||
         isMasterAdmin()
       );
       

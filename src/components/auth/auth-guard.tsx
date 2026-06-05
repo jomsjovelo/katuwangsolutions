@@ -26,7 +26,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     if (authLoading) return;
 
     if (!user) {
-      if (pathname !== '/' && !pathname.startsWith('/rsvp') && !pathname.startsWith('/product') && !pathname.startsWith('/terms')) router.push('/');
+      if (pathname !== '/' && !pathname.startsWith('/rsvp') && !pathname.startsWith('/product') && !pathname.startsWith('/terms') && !pathname.startsWith('/onboarding')) router.push('/');
       setChecking(false);
       setLoading(false);
       return;
