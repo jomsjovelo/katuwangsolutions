@@ -26,7 +26,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     if (authLoading) return;
 
     if (!user) {
-      if (pathname !== '/' && !pathname.startsWith('/rsvp')) router.push('/');
+      if (pathname !== '/' && !pathname.startsWith('/rsvp') && !pathname.startsWith('/product') && !pathname.startsWith('/terms')) router.push('/');
       setChecking(false);
       setLoading(false);
       return;
@@ -250,7 +250,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   // 4. Strict Routing Render Locks (Prevents FOUC)
-  if (!user && pathname !== '/' && !pathname.startsWith('/rsvp')) return null;
+  if (!user && pathname !== '/' && !pathname.startsWith('/rsvp') && !pathname.startsWith('/product')) return null;
   if (isAdmin === false && pathname === '/admin') return null;
   if (isAdmin === true && pathname !== '/admin') return null;
 

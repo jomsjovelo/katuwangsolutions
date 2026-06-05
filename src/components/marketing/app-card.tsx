@@ -56,7 +56,7 @@ export function AppCard({ name, tagline, icon: Icon, imageSrc, accentColor, onSe
           style={{ backgroundColor: accentColor }}
           onClick={onSelect}
         >
-          Subukan ang {name}
+          Try {name}
           <ChevronRight className="h-3.5 w-3.5 ml-1 opacity-80" />
         </Button>
       </div>

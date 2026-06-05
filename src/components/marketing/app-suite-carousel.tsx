@@ -119,14 +119,14 @@ export function AppSuiteCarousel({ groups, onSelect }: AppSuiteCarouselProps) {
                       style={{ backgroundColor: activeGroup.accentColor }}
                       onClick={() => onSelect(app.name)}
                     >
-                      Bumili
+                      Buy Now
                     </Button>
                     <Link href={`/product/${app.id}`} className="flex-1">
                       <Button
                         variant="outline"
                         className="w-full h-11 rounded-xl font-bold text-[10px] sm:text-xs text-slate-700 active:scale-95 transition-transform"
                       >
-                        Alamin
+                        Learn More
                         <ChevronRight className="h-3.5 w-3.5 ml-1" />
                       </Button>
                     </Link>

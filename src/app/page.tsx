@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 
 import {
   ShoppingCart, Leaf, Hammer,
@@ -49,7 +50,16 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => { 
+    setMounted(true); 
+    const params = new URLSearchParams(window.location.search);
+    const onboardApp = params.get('onboard');
+    if (onboardApp) {
+      setSelectedAppId(onboardApp);
+      setView('onboarding');
+      window.history.replaceState({}, '', '/');
+    }
+  }, []);
 
   // Sync view state with tenant selection
   useEffect(() => {
@@ -123,9 +133,15 @@ export default function Home() {
                 <div className="opacity-40 hover:opacity-100 transition-opacity">
                   <BrandLogo theme="dark" />
                 </div>
-                <p className="text-slate-500 text-[9px] font-bold uppercase tracking-[0.35em] leading-loose">
-                  <span translate="no" className="notranslate">Katuwang Solutions</span> · Framework v1.2<br />&copy; {new Date().getFullYear()} All Rights Reserved.
-                </p>
+                <div className="text-slate-500 text-[9px] font-bold uppercase tracking-[0.35em] leading-loose flex flex-col items-center gap-1">
+                  <div>
+                    <span translate="no" className="notranslate">Katuwang Solutions</span> · Framework v1.2
+                  </div>
+                  <Link href="/terms" className="text-slate-400 hover:text-white transition-colors">
+                    Terms & Conditions
+                  </Link>
+                  <div>&copy; {new Date().getFullYear()} All Rights Reserved.</div>
+                </div>
               </div>
             </footer>
           </div>
