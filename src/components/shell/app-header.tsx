@@ -21,7 +21,7 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ title, subtitle, onBack, rightAction }: AppHeaderProps) {
-  const { currentTenant } = useTenant();
+  const { currentTenant, allTenants, setCurrentTenant } = useTenant();
   const { isOnline, isSyncing, pendingCount, syncMessage } = useSyncStatus(currentTenant?.id);
   const theme = getModuleTheme(currentTenant?.moduleType);
   const [showGuide, setShowGuide] = useState(false);
@@ -76,6 +76,37 @@ export function AppHeader({ title, subtitle, onBack, rightAction }: AppHeaderPro
               <span className="flex h-2 w-2 relative" title={syncMessage}>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
               </span>
+            )}
+
+            {/* Branch Switcher Native Select (Enterprise Feature) */}
+            {currentTenant && allTenants && (
+              (() => {
+                const groupId = currentTenant.parentTenantId || currentTenant.id;
+                const branches = allTenants.filter(t => (t.parentTenantId || t.id) === groupId);
+                if (branches.length > 1) {
+                  return (
+                    <div className="relative inline-flex">
+                      <select 
+                        value={currentTenant.id}
+                        onChange={(e) => {
+                          const target = branches.find(b => b.id === e.target.value);
+                          if (target) setCurrentTenant(target);
+                        }}
+                        className="appearance-none bg-slate-100 text-[9px] font-black uppercase tracking-wider text-slate-700 py-1 pl-2.5 pr-6 rounded-full border-none outline-none focus:ring-2 focus:ring-slate-300"
+                        title="Switch Branch"
+                      >
+                        {branches.map(b => (
+                          <option key={b.id} value={b.id}>{b.branchName || b.name}</option>
+                        ))}
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()
             )}
 
             {/* Quick Gabay / Guide Help Capsule Button */}

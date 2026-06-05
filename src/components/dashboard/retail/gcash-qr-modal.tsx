@@ -55,7 +55,8 @@ export function GCashQrModal({
   const qrData = `payph://merchant/${encodeURIComponent(tenantName)}?amount=${amountPesos}&ref=${gcashRef}`;
   
   // Real-time dynamic QR Ph code using QRServer
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrData)}&color=0f172a&bgcolor=ffffff`;
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
   // Countdown timer effect
   useEffect(() => {
@@ -63,6 +64,29 @@ export function GCashQrModal({
     setTimeLeft(120);
     setVerificationSuccess(false);
     setIsVerifying(false);
+
+    // Fetch the dynamic payment link from our PayMongo API route
+    const generatePaymentLink = async () => {
+      try {
+        const res = await fetch('/api/payments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: amountPesos,
+            description: `Payment for ${tenantName}`,
+            type: 'gcash'
+          })
+        });
+        const data = await res.json();
+        if (data.qrUrl) {
+          setQrCodeUrl(data.qrUrl);
+          setCheckoutUrl(data.checkoutUrl);
+        }
+      } catch (err) {
+        console.error('Failed to generate PayMongo link', err);
+      }
+    };
+    generatePaymentLink();
 
     const timer = setInterval(() => {
       setTimeLeft(prev => {
@@ -135,26 +159,9 @@ export function GCashQrModal({
 
         {/* Stylized QR Data Grid Matrix Blocks */}
         <path d="M32 5h4v4h-4zm8 0h6v4h-6zm10 0h4v6h-4zm6 0h4v4h-4zm-28 8h6v4h-6zm14 0h4v4h-4zm10 0h8v4h-8z" fill="#0f172a" />
-        <path d="M5 32h4v8H5zm0 12h6v4H5zm0 10h4v6H5zm8-20h4v4h-4zm0 12h4v6h-4zm6-12h8v4h-8zm0 14h4v4h-4z" fill="#0f172a" />
-        <path d="M32 32h8v4h-8zm12 0h6v6h-6zm10 0h4v4h-4zm12 0h8v4h-8zm-24 10h4v8h-4zm10 0h6v4h-6zm12 0h4v6h-4zm8 0h6v4h-6z" fill="#0f172a" />
-        <path d="M32 50h4v8h-4zm8 0h6v4h-6zm10 0h8v4h-8zm12 0h4v8h-4zm8 0h6v4h-6z" fill="#0f172a" />
-        <path d="M32 73h4v8h-4zm12 0h6v4h-6zm10 0h8v4h-8zm-22 10h8v4h-8zm14 0h4v6h-4zm8 0h6v4h-6z" fill="#0f172a" />
-        <path d="M73 50h6v4h-6zm8 6h4v8h-4zm4-22h4v8h-4z" fill="#0f172a" />
-
-        {/* Dynamic content pixels */}
-        <rect x="35" y="20" width="3" height="3" fill="#0f172a" />
-        <rect x="58" y="24" width="3" height="3" fill="#0f172a" />
-        <rect x="23" y="42" width="3" height="3" fill="#0f172a" />
-        <rect x="68" y="38" width="3" height="3" fill="#0f172a" />
-        <rect x="42" y="65" width="3" height="3" fill="#0f172a" />
-        <rect x="62" y="68" width="3" height="3" fill="#0f172a" />
-
-        {/* Philippine National Standard QR Ph Center Logo Shield */}
-        <rect x="38" y="38" width="24" height="24" rx="4" fill="#ffffff" stroke="#e2e8f0" strokeWidth="1" />
-        {/* Left blue half, right red half */}
-        <path d="M41 41h9v18h-9z" fill="#1d4ed8" />
-        <path d="M50 41h9v18h-9z" fill="#dc2626" />
-        <circle cx="50" cy="50" r="4.5" fill="#facc15" />
+        {qrCodeUrl && (
+          <image href={qrCodeUrl} x="10" y="10" width="80" height="80" opacity="0.1" />
+        )}
       </svg>
     );
   };
@@ -216,8 +223,13 @@ export function GCashQrModal({
               </div>
             ) : (
               <div className="relative">
-                {/* Visual QR framing overlay using offline-resilient local Vector */}
-                <QrPhVectorSvg />
+                {qrCodeUrl ? (
+                  <img src={qrCodeUrl} className="h-44 w-44 object-contain rounded-2xl" alt="Payment QR" />
+                ) : (
+                  <div className="h-44 w-44 flex flex-col items-center justify-center bg-slate-50 rounded-2xl">
+                    <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+                  </div>
+                )}
                 {isVerifying && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5">
                     <Loader2 className="h-7 w-7 animate-spin text-indigo-600" />

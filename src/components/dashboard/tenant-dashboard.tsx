@@ -105,27 +105,46 @@ export function TenantDashboard({ activeTab }: { activeTab?: string }) {
             <h1 className="text-4xl font-headline font-black uppercase tracking-tighter">Choose Module</h1>
             <p className="text-muted-foreground text-sm">Select a business profile to enter the Katuwang Environment.</p>
           </div>
-          <div className="grid gap-4">
-            {allTenants.map((t, index) => (
-              <Button 
-                key={t.id} 
-                variant="outline" 
-                className={cn(
-                  "h-20 flex justify-between items-center group hover:border-primary px-6 rounded-2xl w-full transition-all active:scale-95",
-                  index % 2 === 0 ? "antigravity-float" : "antigravity-float-slow"
+          <div className="space-y-6">
+            {Object.entries(
+              allTenants.reduce((acc, t) => {
+                const groupId = t.parentTenantId || t.id;
+                if (!acc[groupId]) acc[groupId] = [];
+                acc[groupId].push(t);
+                return acc;
+              }, {} as Record<string, typeof allTenants>)
+            ).map(([groupId, groupTenants], groupIndex) => (
+              <div key={groupId} className="space-y-3">
+                {groupTenants.length > 1 && (
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 pl-2">
+                    {groupTenants.find(t => t.id === groupId)?.name || "Enterprise Branches"}
+                  </h3>
                 )}
-                style={{ animationDelay: `${index * 0.2}s` }}
-                onClick={() => setCurrentTenant(t)}
-              >
-                <div className="text-left">
-                  <div className="font-bold text-lg">{t.name}</div>
-                  <div className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">{t.moduleType}</div>
+                <div className="grid gap-4">
+                  {groupTenants.map((t, index) => (
+                    <Button 
+                      key={t.id} 
+                      variant="outline" 
+                      className={cn(
+                        "h-20 flex justify-between items-center group hover:border-primary px-6 rounded-2xl w-full transition-all active:scale-95",
+                        index % 2 === 0 ? "antigravity-float" : "antigravity-float-slow"
+                      )}
+                      style={{ animationDelay: `${index * 0.2}s` }}
+                      onClick={() => setCurrentTenant(t)}
+                    >
+                      <div className="text-left">
+                        <div className="font-bold text-lg">{t.branchName ? `${t.name} - ${t.branchName}` : t.name}</div>
+                        <div className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">{t.moduleType}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {t.subscriptionStatus === 'pending' && <Badge variant="secondary" className="text-[8px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 border-none">Pending</Badge>}
+                        {t.branchName && <Badge variant="outline" className="text-[8px] font-black uppercase tracking-widest border-slate-200 text-slate-500">Branch</Badge>}
+                        <ChevronRight className="h-6 w-6 group-hover:text-primary transition-colors" />
+                      </div>
+                    </Button>
+                  ))}
                 </div>
-                <div className="flex items-center gap-2">
-                  {t.subscriptionStatus === 'pending' && <Badge variant="secondary" className="text-[8px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 border-none">Pending</Badge>}
-                  <ChevronRight className="h-6 w-6 group-hover:text-primary transition-colors" />
-                </div>
-              </Button>
+              </div>
             ))}
           </div>
         </div>

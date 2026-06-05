@@ -33,8 +33,11 @@ import {
   HelpCircle,
   Clock,
   ShieldCheck,
-  Store
+  Store,
+  Printer,
+  Bluetooth
 } from 'lucide-react';
+import { EscPosBluetoothDriver } from '@/lib/hardware/print-driver';
 
 export function ProfileTab() {
   const db = useFirestore();
@@ -159,6 +162,29 @@ export function ProfileTab() {
 
   const isOwner = profile?.role === 'owner';
 
+  const [btStatus, setBtStatus] = useState<string>('Not Connected');
+  const handleTestPrinter = async () => {
+    try {
+      setBtStatus('Connecting...');
+      const driver = new EscPosBluetoothDriver();
+      const connected = await driver.connect();
+      if (connected) {
+        setBtStatus('Connected & Printing Test...');
+        const bytes = driver.formatReceipt(
+          currentTenant?.name || "Katuwang Test",
+          [{ name: "Test Item", price: 10000, quantity: 1, productId: "1" }],
+          100.00,
+          "TEST"
+        );
+        await driver.print(bytes);
+        setBtStatus('Success!');
+        setTimeout(() => setBtStatus('Not Connected'), 3000);
+      }
+    } catch (e: any) {
+      setBtStatus(`Error: ${e.message}`);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-full">
       <main className="p-4 space-y-6 pb-24">
@@ -189,6 +215,34 @@ export function ProfileTab() {
             <div className="flex justify-between">
               <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">Active Store</span>
               <span className="font-semibold text-slate-700">{currentTenant?.name}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Printer Settings */}
+        <Card className="bg-white border-slate-200 shadow-sm rounded-[24px]">
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-sm font-black text-slate-800 flex items-center gap-2">
+              <Printer className="h-4 w-4" style={{ color: theme.primary }} />
+              Bluetooth Receipt Printer
+            </CardTitle>
+            <CardDescription className="text-[11px] font-medium leading-relaxed mt-0.5">
+              I-connect ang inyong 58mm POS thermal printer para makapag-print ng resibo.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 pt-2">
+            <div className="flex flex-col gap-2">
+              <Button 
+                onClick={handleTestPrinter}
+                variant="outline"
+                className="w-full h-11 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border-slate-200"
+              >
+                <Bluetooth className="h-4 w-4 text-blue-500" />
+                I-Pair at I-Test ang Printer
+              </Button>
+              <p className="text-[10px] text-slate-400 font-bold text-center">
+                Status: <span className="text-slate-600">{btStatus}</span>
+              </p>
             </div>
           </CardContent>
         </Card>

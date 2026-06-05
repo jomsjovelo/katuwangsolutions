@@ -14,6 +14,9 @@ export interface Tenant {
   pricingTier: PricingTier;
   subscriptionStatus: SubscriptionStatus;
   createdAt: any;
+  // Multi-Branch Enterprise Support
+  parentTenantId?: string; 
+  branchName?: string;
 }
 
 interface TenantState {
