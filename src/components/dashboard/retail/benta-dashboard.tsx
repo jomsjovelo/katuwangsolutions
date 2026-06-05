@@ -95,6 +95,7 @@ function BentaDashboardContent() {
   const [showMobileCart, setShowMobileCart] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
   const [showGCashQr, setShowGCashQr] = useState(false);
+  const [showMayaQr, setShowMayaQr] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   
   // Loyalty Program
@@ -649,22 +650,30 @@ function BentaDashboardContent() {
                         </>
                       )}
                     </Button>
-                    {/* FIX S1-1: Desktop GCash button now opens QR modal to require confirmation — never calls handleCheckout directly */}
+                    {/* FIX S1-1: GCash button opens QR modal */}
                     <Button 
                       onClick={() => setShowGCashQr(true)} 
                       disabled={cart.length === 0 || isProcessing}
                       className="h-12 text-white font-bold shadow-md active:scale-95 transition-all rounded-xl gap-1.5 border-none"
-                      style={{ 
-                        backgroundColor: theme.primary, 
-                        boxShadow: `0 8px 16px -4px ${theme.primary}40` 
-                      }}
+                      style={{ backgroundColor: '#007aff', boxShadow: '0 8px 16px -4px #007aff40' }}
                     >
                       {isProcessing ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        <>
-                          <Receipt className="h-4 w-4" /> GCash Benta
-                        </>
+                        <><Receipt className="h-4 w-4" /> GCash</>
+                      )}
+                    </Button>
+                    {/* Maya button */}
+                    <Button 
+                      onClick={() => setShowMayaQr(true)} 
+                      disabled={cart.length === 0 || isProcessing}
+                      className="h-12 text-white font-bold shadow-md active:scale-95 transition-all rounded-xl gap-1.5 border-none"
+                      style={{ backgroundColor: '#22c55e', boxShadow: '0 8px 16px -4px #22c55e40' }}
+                    >
+                      {isProcessing ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <><Receipt className="h-4 w-4" /> Maya</>
                       )}
                     </Button>
                   </div>
@@ -850,27 +859,29 @@ function BentaDashboardContent() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 pb-safe">
+            <div className="grid grid-cols-3 gap-2 pb-safe">
               <Button 
                 onClick={() => handleCheckout('cash')} 
                 disabled={isProcessing}
                 className="h-12 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl gap-1.5 flex items-center justify-center text-xs"
               >
-                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Coins className="h-4 w-4" /> Cash Checkout</>}
+                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Coins className="h-4 w-4" /> Cash</>}
               </Button>
               <Button 
-                onClick={() => {
-                  setShowMobileCart(false);
-                  setShowGCashQr(true);
-                }} 
+                onClick={() => { setShowMobileCart(false); setShowGCashQr(true); }} 
                 disabled={isProcessing}
                 className="h-12 text-white font-bold rounded-xl gap-1.5 flex items-center justify-center text-xs border-none cursor-pointer"
-                style={{ 
-                  backgroundColor: theme.primary, 
-                  boxShadow: `0 8px 16px -4px ${theme.primary}40` 
-                }}
+                style={{ backgroundColor: '#007aff', boxShadow: '0 8px 16px -4px #007aff40' }}
               >
-                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Receipt className="h-4 w-4" /> GCash Checkout</>}
+                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Receipt className="h-4 w-4" /> GCash</>}
+              </Button>
+              <Button 
+                onClick={() => { setShowMobileCart(false); setShowMayaQr(true); }} 
+                disabled={isProcessing}
+                className="h-12 text-white font-bold rounded-xl gap-1.5 flex items-center justify-center text-xs border-none cursor-pointer"
+                style={{ backgroundColor: '#22c55e', boxShadow: '0 8px 16px -4px #22c55e40' }}
+              >
+                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Receipt className="h-4 w-4" /> Maya</>}
               </Button>
             </div>
             {/* Mobile Palista */}
@@ -911,10 +922,24 @@ function BentaDashboardContent() {
         onClose={() => setShowGCashQr(false)}
         totalAmount={totalCentavos}
         tenantName={currentTenant?.name || "Katuwang Store"}
+        paymentType="gcash"
         onPaymentVerified={async (paymentMethod, gcashRef) => {
           setShowGCashQr(false);
-          // FIX S1-1 + S1-3: Pass gcashRef so it is stored in Firestore sale record for audit trail
           await handleCheckout(paymentMethod, gcashRef);
+        }}
+        theme={theme}
+      />
+
+      {/* Maya Payment Modal */}
+      <GCashQrModal
+        open={showMayaQr}
+        onClose={() => setShowMayaQr(false)}
+        totalAmount={totalCentavos}
+        tenantName={currentTenant?.name || "Katuwang Store"}
+        paymentType="maya"
+        onPaymentVerified={async (paymentMethod, ref) => {
+          setShowMayaQr(false);
+          await handleCheckout(paymentMethod, ref);
         }}
         theme={theme}
       />

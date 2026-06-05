@@ -29,6 +29,7 @@ interface GCashQrModalProps {
   tenantName: string;
   onPaymentVerified: (paymentMethod: string, gcashRef: string) => void;
   theme: any;
+  paymentType?: 'gcash' | 'maya'; // defaults to gcash
 }
 
 import { playCashlessDoubleBeep } from '@/lib/hardware/audio-synthesizer';
@@ -42,15 +43,20 @@ export function GCashQrModal({
   totalAmount, 
   tenantName, 
   onPaymentVerified,
-  theme
+  theme,
+  paymentType = 'gcash'
 }: GCashQrModalProps) {
   const [timeLeft, setTimeLeft] = useState(120); // 2 minutes in seconds
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationSuccess, setVerificationSuccess] = useState(false);
 
+  // Payment config based on type
+  const isMaya = paymentType === 'maya';
+  const paymentLabel = isMaya ? 'Maya' : 'GCash';
+  const walletColor = isMaya ? { from: 'from-green-600', via: 'via-green-700', to: 'to-emerald-500', badge: 'bg-violet-600' } 
+                             : { from: 'from-blue-700', via: 'via-indigo-800', to: 'to-red-600', badge: 'bg-blue-600' };
+
   const amountPesos = totalAmount / 100;
-  // FIX S1-3: Generate a stable, unique reference once — NOT on every render using Math.random()
-  // This ref is stored in Firestore for audit trail and dispute resolution
   const [gcashRef] = useState(() => `KAT${Date.now().toString(36).toUpperCase()}`);
   const qrData = `payph://merchant/${encodeURIComponent(tenantName)}?amount=${amountPesos}&ref=${gcashRef}`;
   
@@ -73,8 +79,8 @@ export function GCashQrModal({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             amount: amountPesos,
-            description: `Payment for ${tenantName}`,
-            type: 'gcash'
+            description: `${paymentLabel} Payment for ${tenantName}`,
+            type: paymentType  // 'gcash' or 'maya'
           })
         });
         const data = await res.json();
@@ -120,7 +126,7 @@ export function GCashQrModal({
       
       // Complete transaction in DB — pass gcashRef so it can be stored in the sale record
       setTimeout(() => {
-        onPaymentVerified('gcash', gcashRef);
+        onPaymentVerified(paymentType, gcashRef);
       }, 1200);
     }, 1800);
   };
@@ -172,11 +178,11 @@ export function GCashQrModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-sm rounded-[32px] overflow-hidden border border-slate-100 shadow-2xl flex flex-col animate-in slide-in-from-bottom-8 duration-300">
         
-        {/* QR Ph Styled Top Banner */}
-        <div className="bg-gradient-to-r from-blue-700 via-indigo-800 to-red-600 text-white py-3 px-5 text-center relative">
+        {/* QR Ph / Maya Styled Top Banner */}
+        <div className={`bg-gradient-to-r ${walletColor.from} ${walletColor.via} ${walletColor.to} text-white py-3 px-5 text-center relative`}>
           <div className="flex justify-between items-center">
             <span className="font-headline font-black text-xs uppercase tracking-widest bg-white/20 px-2 py-0.5 rounded-full">
-              QR Ph Terminal
+              {isMaya ? '🌿 Maya Pay' : 'QR Ph Terminal'}
             </span>
             <div className="flex items-center gap-1.5 text-[10px] font-bold">
               <Smartphone className="h-3.5 w-3.5" />
@@ -191,7 +197,7 @@ export function GCashQrModal({
             <h3 className="font-headline font-black text-base text-slate-800 uppercase tracking-tight">
               {tenantName}
             </h3>
-            <p className="text-slate-400 text-[10px] font-bold mt-0.5">Cashless Payment Checkout</p>
+            <p className="text-slate-400 text-[10px] font-bold mt-0.5">{paymentLabel} Cashless Checkout</p>
           </div>
 
           {/* Amount Box */}
@@ -254,12 +260,20 @@ export function GCashQrModal({
             </div>
           )}
 
-          {/* Local Wallets Accepted Roster */}
+          {/* Wallet Badges */}
           <div className="w-full space-y-1.5">
             <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Tumatanggap ng:</span>
             <div className="flex items-center justify-center gap-3 opacity-80">
-              <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-md border border-blue-100 shadow-sm">GCash</span>
-              <span className="text-[10px] font-black text-violet-600 bg-violet-50 px-2.5 py-0.5 rounded-md border border-violet-100 shadow-sm">Maya</span>
+              <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-md border shadow-sm ${
+                isMaya 
+                  ? 'text-violet-700 bg-violet-50 border-violet-100 ring-2 ring-violet-400' 
+                  : 'text-blue-600 bg-blue-50 border-blue-100 ring-2 ring-blue-400'
+              }`}>
+                {isMaya ? 'Maya' : 'GCash'} ✓
+              </span>
+              <span className="text-[10px] font-black text-slate-400 bg-slate-50 px-2.5 py-0.5 rounded-md border border-slate-100">
+                {isMaya ? 'GCash' : 'Maya'}
+              </span>
               <span className="text-[10px] font-black text-orange-600 bg-orange-50 px-2.5 py-0.5 rounded-md border border-orange-100 shadow-sm">ShopeePay</span>
             </div>
           </div>
