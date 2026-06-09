@@ -30,6 +30,7 @@ const FleetDashboard = dynamic(() => import('@/components/dashboard/logistics/fl
 
 const ProfileTab = dynamic(() => import('@/components/dashboard/profile-tab').then(m => m.ProfileTab));
 const StockTab = dynamic(() => import('@/components/dashboard/stock-tab').then(m => m.StockTab));
+const HomeTab = dynamic(() => import('@/components/dashboard/home-tab').then(m => m.HomeTab));
 
 import { KatuwangErrorBoundary } from '@/components/common/error-boundary';
 import { SnapDate } from '@/components/snap-date';
@@ -51,7 +52,8 @@ import {
   Menu,
   ChevronRight,
   LogOut,
-  CreditCard
+  CreditCard,
+  WifiOff
 } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -60,10 +62,12 @@ import { useUserTenants } from '@/hooks/use-user-tenants';
 import { useInventory } from '@/hooks/use-inventory';
 import { useSales } from '@/hooks/use-sales';
 import { useUser } from '@/firebase/auth/use-user';
+import { useSyncStatus } from '@/hooks/use-sync-status';
 
 import { useTenantStore } from '@/store/use-tenant-store';
+import { HelpGuideDrawer } from '@/components/shell/help-guide-drawer';
 
-export function TenantDashboard({ activeTab }: { activeTab?: string }) {
+export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string, onTabChange?: (tab: string) => void }) {
   const { user } = useUser();
   const db = initializeFirebase().db;
   
@@ -78,6 +82,7 @@ export function TenantDashboard({ activeTab }: { activeTab?: string }) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const { dailyTotalPesos, loading: salesLoading } = useSales(selectedDate);
   const [mounted, setMounted] = useState(false);
+  const { isOnline, pendingCount, syncMessage, isSyncing } = useSyncStatus(currentTenant?.id);
 
   useEffect(() => {
     setMounted(true);
@@ -183,10 +188,23 @@ export function TenantDashboard({ activeTab }: { activeTab?: string }) {
     return <BentaDashboard />;
   };
 
-  const isIndustryTab = !['profile', 'stock', 'ulat'].includes(activeTab || 'home');
+  const isIndustryTab = !['profile', 'stock', 'ulat', 'home'].includes(activeTab || 'home');
 
   return (
     <KatuwangErrorBoundary>
+      {(!isOnline || pendingCount > 0) && (
+        <div className={cn(
+          "px-4 py-2.5 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 sticky top-0 z-50 animate-in slide-in-from-top",
+          isOnline && pendingCount > 0 ? "bg-amber-500 text-white shadow-md" : "bg-destructive text-destructive-foreground"
+        )}>
+          {isOnline ? <TrendingUp className="h-4 w-4 shrink-0 animate-bounce" /> : <WifiOff className="h-4 w-4 shrink-0" />}
+          <span>{syncMessage}</span>
+        </div>
+      )}
+      <div className={activeTab === 'home' || !activeTab ? 'block' : 'hidden'}>
+        <HomeTab setTab={onTabChange} />
+      </div>
+      
       <div className={activeTab === 'profile' ? 'block' : 'hidden'}>
         <ProfileTab />
       </div>
@@ -218,6 +236,9 @@ export function TenantDashboard({ activeTab }: { activeTab?: string }) {
       <div className={isIndustryTab ? 'block' : 'hidden'}>
         {renderIndustryDashboard()}
       </div>
+      
+      {/* Global Context-Aware Help Manual */}
+      <HelpGuideDrawer activeModule={activeModuleOverride || currentTenant.moduleType} />
     </KatuwangErrorBoundary>
   );
 }

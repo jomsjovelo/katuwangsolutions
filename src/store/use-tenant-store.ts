@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import deepEqual from 'fast-deep-equal';
 
 export type PricingTier = 'promo_99' | 'standard_199';
 export type SubscriptionStatus = 'active' | 'suspended' | 'trial' | 'pending';
@@ -13,16 +14,27 @@ export interface Tenant {
   unlockedModules?: string[]; // Array of additional purchased apps
   pricingTier: PricingTier;
   subscriptionStatus: SubscriptionStatus;
-  createdAt: any;
+  createdAt: string | number | Date | null;
   // Multi-Branch Enterprise Support
   parentTenantId?: string; 
   branchName?: string;
 }
 
+export interface UserProfile {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+  phoneNumber: string | null;
+  tenantId?: string | null;
+  role?: string;
+  [key: string]: unknown;
+}
+
 interface TenantState {
   activeTenant: Tenant | null;
   allTenants: Tenant[];
-  userProfile: any | null;
+  userProfile: UserProfile | null;
   activeModuleOverride: string | null; // Locally override the current app view
   isLoading: boolean;
   error: string | null;
@@ -34,7 +46,7 @@ interface TenantState {
   updateTenantPricing: (id: string, tier: PricingTier) => void;
   unlockModule: (tenantId: string, moduleId: string) => void;
   switchActiveModule: (moduleId: string | null) => void;
-  setUserProfile: (profile: any | null) => void;
+  setUserProfile: (profile: UserProfile | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   reset: () => void;
@@ -59,7 +71,7 @@ export const useTenantStore = create<TenantState>()(
 
   setAllTenants: (tenants) => set((state) => {
     // Deep compare to prevent infinite render loops if the array reference changes but data is identical
-    if (JSON.stringify(state.allTenants) === JSON.stringify(tenants)) {
+    if (deepEqual(state.allTenants, tenants)) {
       return state;
     }
     return { allTenants: tenants };
@@ -121,7 +133,6 @@ export const useTenantStore = create<TenantState>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ 
         activeTenant: state.activeTenant,
-        userProfile: state.userProfile,
         activeModuleOverride: state.activeModuleOverride
       }),
     }

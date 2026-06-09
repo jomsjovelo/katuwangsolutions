@@ -1,6 +1,6 @@
 # 🗺️ Katuwang Solutions: Production & Scale Roadmap
 
-Katuwang Solutions is built to be the premier mobile-first, multi-tenant SaaS framework for Filipino MSMEs (*Ang Katuwang ng Negosyo Mo*). Standard software architectures often fail in low-bandwidth, fast-paced retail hubs like open-air wet markets (*palengke*), local transport terminals, and sari-sari stores. This roadmap outlines how we harden, scale, and enrich the Katuwang ecosystem.
+Katuwang Solutions is built to be the premier mobile-first, multi-tenant SaaS framework for Filipino MSMEs (*Ang Katuwang mo sa Negosyo*). Standard software architectures often fail in low-bandwidth, fast-paced retail hubs like open-air wet markets (*palengke*), local transport terminals, and sari-sari stores. This roadmap outlines how we harden, scale, and enrich the Katuwang ecosystem.
 
 ---
 

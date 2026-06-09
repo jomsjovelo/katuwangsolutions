@@ -33,21 +33,22 @@ export function PendingStep({ data }: PendingStepProps) {
         </p>
       </div>
 
-      {/* What to Expect Card */}
-      <div className="w-full bg-amber-50 border border-amber-100 rounded-3xl p-5 text-left space-y-3">
-        <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">What to expect next</p>
-        <ul className="space-y-2.5">
-          {[
-            "We'll review your payment screenshot on Messenger.",
-            "Your account will be manually activated by our team.",
-            "You'll receive a confirmation once your access is live.",
-          ].map((item, i) => (
-            <li key={i} className="flex gap-2.5 items-start text-sm text-amber-900 font-medium">
-              <span className="text-amber-400 mt-0.5 font-black">•</span>
-              {item}
-            </li>
-          ))}
-        </ul>
+      {/* GCash Payment Instructions */}
+      <div className="w-full bg-amber-50 border border-amber-100 rounded-3xl p-5 text-left space-y-4">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 mb-1">Step 1: Send GCash Payment</p>
+          <p className="text-sm text-amber-900 font-medium">
+            Please send exactly <strong className="text-amber-700">₱99.00</strong> to GCash number: <br/>
+            <strong className="text-lg text-amber-800 tracking-wider">{PAYMENT_NUMBER}</strong>
+          </p>
+        </div>
+        
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 mb-1">Step 2: Send Screenshot</p>
+          <p className="text-sm text-amber-900 font-medium">
+            Send your GCash receipt to our Facebook Messenger page along with your registered Email or Business Name.
+          </p>
+        </div>
       </div>
 
       {/* Messenger Follow-up */}
@@ -60,7 +61,7 @@ export function PendingStep({ data }: PendingStepProps) {
           style={{ background: '#0099FF' }}
         >
           <ExternalLink className="h-5 w-5" />
-          Contact Us on Messenger
+          Send GCash Receipt on Messenger
         </a>
         <p className="text-[9px] text-slate-400 uppercase tracking-widest font-bold">
           <span translate="no" className="notranslate">Katuwang Solutions</span> · {PAYMENT_NUMBER}

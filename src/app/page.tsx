@@ -13,7 +13,6 @@ const PricingCta = dynamic(() => import('@/components/marketing/pricing-cta').th
 const FloatingCta = dynamic(() => import('@/components/marketing/floating-cta').then(mod => mod.FloatingCta));
 const InvitationGuard = dynamic(() => import('@/components/auth/invitation-guard').then(mod => mod.InvitationGuard));
 
-import { appGroups } from '@/lib/app-data';
 
 export default function Home() {
   return (
@@ -29,7 +28,7 @@ export default function Home() {
           <SocialProofBar />
 
           <div className="flex flex-col items-center">
-            <AppSuiteCarousel groups={appGroups} />
+            <AppSuiteCarousel />
             <Link 
               href="/onboarding"
               className="mb-8 mt-2 rounded-xl border border-slate-300 text-slate-600 font-bold px-8 py-3 hover:bg-slate-100 active:scale-95 transition-all shadow-sm"

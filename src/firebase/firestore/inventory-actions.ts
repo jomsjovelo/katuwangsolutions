@@ -99,6 +99,44 @@ export async function addProduct(tenantId: string, productData: any) {
 }
 
 /**
+ * Updates an existing product in the tenant's inventory
+ */
+export async function updateProduct(tenantId: string, productId: string, productData: any) {
+  const { db } = initializeFirebase();
+  const productRef = doc(db, 'tenants', tenantId, 'products', productId);
+  
+  // Validate data before writing
+  const validatedData = ProductSchema.parse({
+    ...productData,
+    id: productId,
+    tenantId,
+  });
+
+  await runTransactionResilient(db, async (transaction) => {
+    transaction.update(productRef, {
+      ...validatedData,
+      updatedAt: serverTimestamp()
+    });
+  });
+  
+  return true;
+}
+
+/**
+ * Deletes a product from the tenant's inventory
+ */
+export async function deleteProduct(tenantId: string, productId: string) {
+  const { db } = initializeFirebase();
+  const productRef = doc(db, 'tenants', tenantId, 'products', productId);
+  
+  await runTransactionResilient(db, async (transaction) => {
+    transaction.delete(productRef);
+  });
+  
+  return true;
+}
+
+/**
  * Perform a physical inventory audit
  * Calculates shrinkage cost and adjusts stock to match actual count
  */

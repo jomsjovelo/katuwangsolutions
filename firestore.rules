@@ -55,13 +55,16 @@ service cloud.firestore {
       // 2. Sub-collections (Universal Inventory, Sales, etc.)
       match /{allSubcollections=**} {
         // Strict isolation: Access granted only to verified tenant owners/staff
-        allow read, write: if hasTenantAccess(tenantId);
+        allow read, create, update: if hasTenantAccess(tenantId);
+        // Fraud Prevention & Right to be Forgotten: Only Store Owners can delete their data
+        allow delete: if isMasterAdmin() || (isAuthenticated() && request.auth.uid == getTenantData(tenantId).ownerUid);
       }
       
       // 2.5 Allow Public RSVP Creation
       match /events/{eventId}/guests/{guestId} {
-        // Allow anyone to create a guest entry for RSVPs
-        allow create: if true;
+        // Allow anyone to create a guest entry for RSVPs, but tightly restrict payload
+        // to prevent Denial of Wallet attacks
+        allow create: if request.resource.data.keys().size() <= 15;
       }
     }
 
@@ -85,7 +88,6 @@ service cloud.firestore {
         hasTenantAccess(request.resource.data.tenantId);
       allow read, delete: if isAuthenticated() && 
         hasTenantAccess(resource.data.tenantId);
-      allow read: if isAuthenticated();
     }
 
     // 7. True Default Deny

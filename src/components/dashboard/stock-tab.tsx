@@ -13,6 +13,7 @@ import { useUser } from '@/firebase/auth/use-user';
 import { logInventoryAudit } from '@/firebase/firestore/inventory-actions';
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { ProductManagerSheet } from './product-manager-sheet';
 import { 
   Package, 
   AlertTriangle, 
@@ -22,7 +23,9 @@ import {
   Loader2, 
   Eye, 
   EyeOff,
-  ShoppingBag
+  ShoppingBag,
+  Pencil,
+  PackagePlus
 } from 'lucide-react';
 
 export function StockTab() {
@@ -35,6 +38,9 @@ export function StockTab() {
   const [isUpdatingId, setIsUpdatingId] = useState<string | null>(null);
   const [inputAmounts, setInputAmounts] = useState<Record<string, string>>({});
   const [isAuditMode, setIsAuditMode] = useState(false);
+  
+  const [isManagerOpen, setIsManagerOpen] = useState(false);
+  const [productToEdit, setProductToEdit] = useState<any>(null);
 
   const theme = getModuleTheme(currentTenant?.moduleType);
 
@@ -120,11 +126,20 @@ export function StockTab() {
               </CardDescription>
             </div>
             {isStaff === false && (
-              <div className="flex items-center gap-2 text-xs">
-                <Switch checked={isAuditMode} onCheckedChange={setIsAuditMode} id="audit-mode" />
-                <Label htmlFor="audit-mode" className="text-xs font-bold text-slate-600 cursor-pointer">
-                  Audit Mode
-                </Label>
+              <div className="flex items-center gap-3 text-xs">
+                <Button 
+                  onClick={() => { setProductToEdit(null); setIsManagerOpen(true); }}
+                  size="sm"
+                  className="h-8 rounded-lg text-[10px] font-bold gap-1 bg-slate-900 text-white hover:bg-slate-800"
+                >
+                  <PackagePlus className="h-3 w-3" /> Add Product
+                </Button>
+                <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+                  <Switch checked={isAuditMode} onCheckedChange={setIsAuditMode} id="audit-mode" />
+                  <Label htmlFor="audit-mode" className="text-[10px] font-bold text-slate-600 cursor-pointer uppercase tracking-wider">
+                    Audit
+                  </Label>
+                </div>
               </div>
             )}
           </CardHeader>
@@ -147,9 +162,17 @@ export function StockTab() {
                   
                   return (
                     <div key={product.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
-                      <div className="space-y-1 pr-4 min-w-0">
+                      <div className="space-y-1 pr-4 min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="text-xs font-bold text-slate-800 truncate max-w-[150px]">{product.name}</span>
+                          {!isStaff && (
+                            <button 
+                              onClick={() => { setProductToEdit(product); setIsManagerOpen(true); }}
+                              className="text-slate-400 hover:text-slate-800 transition-colors p-1"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </button>
+                          )}
                           {isOut ? (
                             <Badge className="bg-red-50 text-red-600 hover:bg-red-50 border-none font-bold text-[8px] px-1.5 py-0.5 rounded-md uppercase tracking-wider">Ubos na</Badge>
                           ) : isLow ? (
@@ -209,6 +232,12 @@ export function StockTab() {
           </CardContent>
         </Card>
       </main>
+
+      <ProductManagerSheet 
+        isOpen={isManagerOpen} 
+        onOpenChange={setIsManagerOpen} 
+        productToEdit={productToEdit} 
+      />
     </div>
   );
 }

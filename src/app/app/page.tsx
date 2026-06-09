@@ -28,11 +28,11 @@ export default function AppPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
-      <AppHeader />
+      <AppHeader title="Katuwang Solutions" />
       <div className="flex-1 pb-nav">
-        <TenantDashboard activeTab={activeTab} />
+        <TenantDashboard activeTab={activeTab} onTabChange={(tab) => setActiveTab(tab as any)} />
       </div>
-      <BottomNav activeTab={activeTab} onChange={setActiveTab} />
+      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   );
 }

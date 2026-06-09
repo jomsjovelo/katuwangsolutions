@@ -6,15 +6,17 @@ import { initializeFirebase } from '@/firebase';
 import { useTenant } from '@/app/lib/tenant-context';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from '@/lib/utils';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
-import { TrendingUp, TrendingDown, Calendar, Building2, PieChart } from "lucide-react";
+import { TrendingUp, TrendingDown, Calendar, Building2, PieChart as PieChartIcon, Download } from "lucide-react";
+import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis, Legend, BarChart, Bar, YAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 import { useSales } from '@/hooks/use-sales';
+import { startOfDay, endOfDay, subDays, format } from 'date-fns';
 import { useInventory } from '@/hooks/use-inventory';
-import { AiAdvisorCard } from './ai-advisor-card';
 
 // Specialized Retail Metrics for benta-snap
-function RetailMetrics({ selectedDate }: { selectedDate: Date }) {
+function RetailMetrics({ selectedDate }: { selectedDate: Date | { start: Date, end: Date } }) {
   const { sales, loading } = useSales(selectedDate);
   const totalVolume = sales.length;
   
@@ -135,11 +137,33 @@ export function ReportsTab() {
   useDynamicThemeColor(theme);
   const { products: inventory } = useInventory();
 
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [dateRangeStr, setDateRangeStr] = useState<string>('today');
   
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loadingTx, setLoadingTx] = useState(true);
   const [yesterdayIncomePesos, setYesterdayIncomePesos] = useState<number | null>(null);
+
+  const getRangeBounds = (range: string) => {
+    const now = new Date();
+    switch (range) {
+      case 'yesterday': {
+        const yest = subDays(now, 1);
+        return { start: startOfDay(yest), end: endOfDay(yest) };
+      }
+      case '7days': {
+        return { start: startOfDay(subDays(now, 7)), end: endOfDay(now) };
+      }
+      case '30days': {
+        return { start: startOfDay(subDays(now, 30)), end: endOfDay(now) };
+      }
+      case 'today':
+      default: {
+        return { start: startOfDay(now), end: endOfDay(now) };
+      }
+    }
+  };
+
+  const { start: rangeStart, end: rangeEnd } = getRangeBounds(dateRangeStr);
 
   // Load unified master ledger transactions
   useEffect(() => {
@@ -148,23 +172,14 @@ export function ReportsTab() {
     setLoadingTx(true);
     const { db } = initializeFirebase();
 
-    const startOfDay = new Date(selectedDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(selectedDate);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    const yesterdayStart = new Date(selectedDate);
-    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
-    yesterdayStart.setHours(0, 0, 0, 0);
-    const yesterdayEnd = new Date(selectedDate);
-    yesterdayEnd.setDate(yesterdayEnd.getDate() - 1);
-    yesterdayEnd.setHours(23, 59, 59, 999);
+    const yesterdayStart = startOfDay(subDays(rangeStart, 1));
+    const yesterdayEnd = endOfDay(subDays(rangeStart, 1));
 
     const txRef = collection(db, 'tenants', currentTenant.id, 'transactions');
     const q = query(
       txRef,
-      where('createdAt', '>=', startOfDay),
-      where('createdAt', '<=', endOfDay),
+      where('createdAt', '>=', rangeStart),
+      where('createdAt', '<=', rangeEnd),
       orderBy('createdAt', 'desc')
     );
 
@@ -206,7 +221,7 @@ export function ReportsTab() {
     }).catch(e => console.error("Error fetching yesterday transactions", e));
 
     return () => unsubscribe();
-  }, [currentTenant, selectedDate]);
+  }, [currentTenant, dateRangeStr]);
 
   // Aggregate unified metrics
   const incomeTxs = transactions.filter(t => t.type === 'income');
@@ -222,23 +237,127 @@ export function ReportsTab() {
     return acc;
   }, {} as Record<string, number>);
 
-  // Hourly Activity Data for Area Chart
-  const hourlyBuckets = Array(15).fill(0); // 8 AM to 10 PM
-  incomeTxs.forEach(t => {
-    if (t.timestamp) {
-      const dateObj = t.timestamp.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
-      const hour = dateObj.getHours();
-      if (hour >= 8 && hour <= 22) {
-        hourlyBuckets[hour - 8] += t.totalPesos || 0;
+  const pieChartData = Object.entries(revenueByCategory).map(([name, value]) => ({ name, value }));
+  const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+
+  // Dynamic Chart Scale Mapping
+  const isMultiDay = dateRangeStr === '7days' || dateRangeStr === '30days';
+  
+  let dualChartData: any[] = [];
+  
+  if (!isMultiDay) {
+    // Hourly Activity Data (8 AM to 10 PM)
+    dualChartData = Array.from({ length: 15 }, (_, i) => {
+      const hourNum = i + 8;
+      const hourLabel = hourNum > 12 ? `${hourNum - 12}pm` : hourNum === 12 ? `12pm` : `${hourNum}am`;
+      return { name: hourLabel, income: 0, expense: 0 };
+    });
+
+    transactions.forEach(t => {
+      if (t.timestamp) {
+        const dateObj = t.timestamp.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
+        const hour = dateObj.getHours();
+        if (hour >= 8 && hour <= 22) {
+          if (t.type === 'income') {
+            dualChartData[hour - 8].income += t.totalPesos || 0;
+          } else if (t.type === 'expense') {
+            dualChartData[hour - 8].expense += t.totalPesos || 0;
+          }
+        }
       }
+    });
+  } else {
+    // Daily Activity Data
+    const daysMap: Record<string, { name: string, income: number, expense: number }> = {};
+    const numDays = dateRangeStr === '7days' ? 7 : 30;
+    
+    // Pre-fill days array to keep order
+    for (let i = numDays; i >= 0; i--) {
+      const targetDate = subDays(rangeEnd, i);
+      const dateKey = format(targetDate, 'yyyy-MM-dd');
+      const label = format(targetDate, numDays === 7 ? 'EEE' : 'MMM d');
+      daysMap[dateKey] = { name: label, income: 0, expense: 0 };
+    }
+
+    transactions.forEach(t => {
+      if (t.timestamp) {
+        const dateObj = t.timestamp.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
+        const dateKey = format(dateObj, 'yyyy-MM-dd');
+        if (daysMap[dateKey]) {
+          if (t.type === 'income') {
+            daysMap[dateKey].income += t.totalPesos || 0;
+          } else if (t.type === 'expense') {
+            daysMap[dateKey].expense += t.totalPesos || 0;
+          }
+        }
+      }
+    });
+
+    dualChartData = Object.values(daysMap);
+  }
+
+  // Top 5 Best-Selling Products Aggregation
+  const productSales: Record<string, { name: string, revenue: number }> = {};
+  
+  incomeTxs.forEach(tx => {
+    if (tx.items && Array.isArray(tx.items)) {
+      tx.items.forEach((item: any) => {
+        const id = item.productId || item.id || item.name;
+        if (!id) return;
+        
+        if (!productSales[id]) {
+          productSales[id] = { name: item.name || 'Unknown Item', revenue: 0 };
+        }
+        
+        const price = (item.sellingPrice || item.price || 0) / (item.sellingPrice ? 100 : 1);
+        const qty = item.quantity || 1;
+        const totalRev = item.total ? (item.total / 100) : (price * qty);
+        
+        productSales[id].revenue += totalRev;
+      });
     }
   });
 
-  const maxHourlyVal = Math.max(...hourlyBuckets, 100);
+  const topProductsData = Object.values(productSales)
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5)
+    .map(p => ({
+      name: p.name.length > 12 ? p.name.substring(0, 12) + '...' : p.name,
+      revenue: p.revenue
+    }));
 
   const isRetail = currentTenant?.moduleType === 'benta-snap' || currentTenant?.moduleType === 'build-stack';
   const isLending = currentTenant?.moduleType === 'hiram-snap';
   const isService = currentTenant?.moduleType === 'wellness-pro' || currentTenant?.moduleType === 'auto-boss' || currentTenant?.moduleType === 'spin-snap';
+
+  const handleExportCSV = () => {
+    if (transactions.length === 0) {
+      alert("No data to export for this date.");
+      return;
+    }
+
+    const headers = ["Date", "Type", "Amount", "Payment Method", "Category"];
+    const rows = transactions.map(t => {
+      const dateStr = t.timestamp ? (t.timestamp.toDate ? t.timestamp.toDate() : new Date(t.timestamp)).toLocaleString() : "";
+      return [
+        `"${dateStr}"`,
+        t.type,
+        t.totalPesos,
+        t.paymentMethod || "cash",
+        t.category || ""
+      ].join(",");
+    });
+
+    const csvContent = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `katuwang_ledger_${format(rangeStart, 'yyyy-MM-dd')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-screen">
@@ -259,38 +378,44 @@ export function ReportsTab() {
           </div>
         </section>
 
-        {/* Date Selector */}
-        <div className="bg-white border border-slate-200/60 p-4 rounded-2xl flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-2 text-slate-500 font-bold text-xs">
+        {/* Date Selector & CSV Export */}
+        <div className="bg-white border border-slate-200/60 p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between shadow-sm gap-3">
+          <div className="flex items-center gap-2 text-slate-500 font-bold text-xs w-full sm:w-auto">
             <Calendar className="h-4.5 w-4.5 text-slate-400" />
-            <span>Petsa ng Ulat:</span>
-            <span className="font-extrabold text-slate-800">
-              {selectedDate.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
+            <span className="whitespace-nowrap">Petsa:</span>
+            <span className="font-extrabold text-slate-800 line-clamp-1">
+              {dateRangeStr === 'today' || dateRangeStr === 'yesterday' 
+                ? format(rangeStart, 'MMM d, yyyy')
+                : `${format(rangeStart, 'MMM d')} - ${format(rangeEnd, 'MMM d, yyyy')}`}
             </span>
           </div>
-          <input 
-            type="date"
-            value={selectedDate.toISOString().slice(0, 10)}
-            onChange={(e) => {
-              if (e.target.value) setSelectedDate(new Date(e.target.value));
-            }}
-            className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-700 cursor-pointer"
-          />
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <select 
+              value={dateRangeStr}
+              onChange={(e) => setDateRangeStr(e.target.value)}
+              className="flex-1 sm:flex-none bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-700 cursor-pointer"
+            >
+              <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
+              <option value="7days">Last 7 Days</option>
+              <option value="30days">Last 30 Days</option>
+            </select>
+            <Button 
+              onClick={handleExportCSV}
+              variant="outline"
+              size="icon"
+              className="bg-white border-slate-200 text-slate-700 shrink-0"
+              title="Export to CSV"
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-
-        {/* AI Advisor Co-Pilot */}
-        <AiAdvisorCard 
-          tenantName={currentTenant?.name || ''}
-          moduleType={currentTenant?.moduleType || ''}
-          products={inventory}
-          sales={transactions.filter(t => t.type === 'income')}
-          dailyTotalPesos={grossIncomePesos}
-        />
 
         {/* Universal Top-Level Metric Card */}
         <Card className="shadow-sm border-transparent rounded-[28px] overflow-hidden text-white relative" style={{ backgroundColor: theme.primary }}>
           <div className="absolute top-0 right-0 p-6 opacity-10">
-            <PieChart className="h-24 w-24" />
+            <PieChartIcon className="h-24 w-24" />
           </div>
           <CardHeader className="p-5 pb-0 relative z-10">
             <span className="text-[9px] font-black uppercase tracking-widest opacity-80 text-white">Kabuuang Kita (Gross Revenue)</span>
@@ -302,7 +427,7 @@ export function ReportsTab() {
             <span className="text-[9px] font-bold uppercase tracking-widest opacity-80">
               Across all {theme.name} operations
             </span>
-            {yesterdayIncomePesos !== null && (
+            {yesterdayIncomePesos !== null && dateRangeStr === 'today' && (
               <Badge className="bg-white/20 hover:bg-white/20 border-none text-white text-[9px] font-black px-2 py-0.5">
                 {grossIncomePesos >= yesterdayIncomePesos ? (
                   <TrendingUp className="h-3 w-3 mr-1" />
@@ -316,30 +441,56 @@ export function ReportsTab() {
         </Card>
 
         {/* Revenue Breakdown */}
-        {Object.keys(revenueByCategory).length > 0 && (
-          <section className="space-y-3">
-            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 pl-1">Revenue Stream Breakdown</h3>
-            <div className="bg-white border border-slate-200/60 rounded-[28px] p-2 space-y-1">
-              {Object.entries(revenueByCategory).map(([cat, amount]) => (
-                <div key={cat} className="flex justify-between items-center p-3 hover:bg-slate-50 rounded-2xl transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full flex items-center justify-center text-white font-bold" style={{ backgroundColor: theme.primary }}>
-                      {cat.charAt(0).toUpperCase()}
-                    </div>
-                    <span className="text-xs font-bold text-slate-700">{cat}</span>
-                  </div>
-                  <span className="text-sm font-black text-slate-800">
-                    ₱{(amount as number).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                  </span>
+        {pieChartData.length > 0 && (
+          <Card className="shadow-none border border-slate-200/60 rounded-[28px] overflow-hidden bg-white mt-1">
+             <CardHeader className="p-5 pb-0">
+               <div>
+                 <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Revenue Stream Breakdown</span>
+                 <CardTitle className="text-sm font-headline font-black text-slate-800 mt-1">
+                   Category Distribution
+                 </CardTitle>
+               </div>
+             </CardHeader>
+             <CardContent className="p-5 pt-0">
+                <div className="h-[200px] w-full mt-2">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pieChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                        stroke="none"
+                      >
+                        {pieChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value: number) => [`₱${value.toLocaleString('en-PH', {minimumFractionDigits: 2})}`, 'Revenue']}
+                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', fontWeight: 'bold' }}
+                        itemStyle={{ color: '#0f172a' }}
+                      />
+                      <Legend 
+                        layout="horizontal" 
+                        verticalAlign="bottom" 
+                        align="center"
+                        iconType="circle"
+                        wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
-              ))}
-            </div>
-          </section>
+             </CardContent>
+          </Card>
         )}
 
         {/* Dynamic Module-Specific Metrics Row */}
         <div className="grid grid-cols-2 gap-3">
-          {isRetail && <RetailMetrics selectedDate={selectedDate} />}
+          {isRetail && <RetailMetrics selectedDate={{ start: rangeStart, end: rangeEnd }} />}
           {isLending && <LendingMetrics expenseTxs={expenseTxs} incomeTxs={incomeTxs} />}
           {isService && <ServiceMetrics incomeTxs={incomeTxs} />}
           
@@ -358,70 +509,168 @@ export function ReportsTab() {
           )}
         </div>
 
+        {/* Profit & Loss Statement */}
+        <Card className="shadow-none border border-slate-200/60 rounded-[28px] overflow-hidden bg-white mt-1">
+          <CardHeader className="p-5 pb-0">
+             <div className="flex justify-between items-center">
+               <div>
+                 <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Executive Summary</span>
+                 <CardTitle className="text-sm font-headline font-black text-slate-800 mt-1">
+                   Profit & Loss Statement
+                 </CardTitle>
+               </div>
+               <Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-50 border-slate-200 text-slate-400 px-2 py-0.5 rounded-full">
+                 {dateRangeStr === 'today' ? 'Today' : dateRangeStr === 'yesterday' ? 'Yesterday' : dateRangeStr === '7days' ? 'Last 7 Days' : 'Last 30 Days'}
+               </Badge>
+             </div>
+          </CardHeader>
+          <CardContent className="p-5 pt-4 space-y-4">
+             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+               <span className="text-xs font-bold text-slate-500">Gross Revenue</span>
+               <span className="text-sm font-black text-slate-800">₱{grossIncomePesos.toLocaleString('en-PH', {minimumFractionDigits: 2})}</span>
+             </div>
+             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+               <span className="text-xs font-bold text-slate-500">Total Expenses</span>
+               <span className="text-sm font-black text-rose-600">- ₱{totalExpensesPesos.toLocaleString('en-PH', {minimumFractionDigits: 2})}</span>
+             </div>
+             <div className="flex justify-between items-center pt-1">
+               <span className="text-xs font-black uppercase tracking-widest text-slate-800">Net Profit</span>
+               <span className={cn("text-lg font-headline font-black", (grossIncomePesos - totalExpensesPesos) >= 0 ? "text-emerald-600" : "text-rose-600")}>
+                 {((grossIncomePesos - totalExpensesPesos) >= 0 ? "+" : "")} ₱{(grossIncomePesos - totalExpensesPesos).toLocaleString('en-PH', {minimumFractionDigits: 2})}
+               </span>
+             </div>
+          </CardContent>
+        </Card>
+
         {/* Dynamic Area Graphic Chart (SVG area chart gradient) */}
         <Card className="shadow-none border border-slate-200/60 rounded-[28px] overflow-hidden bg-white">
           <CardHeader className="p-5 pb-0">
             <div className="flex justify-between items-center">
               <div>
-                <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Daloy ng Kita Kada Oras</span>
+                <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+                  {isMultiDay ? "Daloy ng Kita Kada Araw" : "Daloy ng Kita Kada Oras"}
+                </span>
                 <CardTitle className="text-sm font-headline font-black text-slate-800 mt-1">
-                  8:00 AM - 10:00 PM Activity
+                  {isMultiDay ? "Daily Trends" : "8:00 AM - 10:00 PM Activity"}
                 </CardTitle>
               </div>
               <Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-50 border-slate-200 text-slate-400 px-2 py-0.5 rounded-full">
-                Hourly Peak
+                {isMultiDay ? "Daily Scale" : "Hourly Peak"}
               </Badge>
             </div>
           </CardHeader>
           <CardContent className="p-5 pt-4">
-            <div className="h-[140px] w-full relative">
-              
-              <svg className="w-full h-full" viewBox="0 0 300 120" preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="sales-gradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={theme.primary} stopOpacity="0.4" />
-                    <stop offset="100%" stopColor={theme.primary} stopOpacity="0.0" />
-                  </linearGradient>
-                </defs>
-
-                <path 
-                  d={`
-                    M 0 120
-                    ${hourlyBuckets.map((v, i) => {
-                      const x = (i / (hourlyBuckets.length - 1)) * 300;
-                      const y = 120 - ((v / maxHourlyVal) * 90);
-                      return `L ${x.toFixed(1)} ${y.toFixed(1)}`;
-                    }).join(' ')}
-                    L 300 120
-                    Z
-                  `}
-                  fill="url(#sales-gradient)"
-                />
-
-                <path 
-                  d={hourlyBuckets.map((v, i) => {
-                    const x = (i / (hourlyBuckets.length - 1)) * 300;
-                    const y = 120 - ((v / maxHourlyVal) * 90);
-                    return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
-                  }).join(' ')}
-                  fill="none"
-                  stroke={theme.primary}
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-
-              <div className="flex justify-between items-center text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-2 px-1">
-                <span>8am</span>
-                <span>12pm</span>
-                <span>4pm</span>
-                <span>8pm</span>
-                <span>10pm</span>
-              </div>
+            <div className="h-[160px] w-full relative">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={dualChartData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={theme.primary} stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor={theme.primary} stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 'bold' }}
+                    minTickGap={20}
+                  />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', fontWeight: 'bold' }}
+                    labelStyle={{ color: '#64748b', fontSize: '10px', letterSpacing: '0.1em' }}
+                    formatter={(value: number, name: string) => {
+                      const formatted = `₱${value.toLocaleString('en-PH', {minimumFractionDigits: 2})}`;
+                      return [formatted, name === 'income' ? 'Kita (Income)' : 'Gastos (Expense)'];
+                    }}
+                  />
+                  <Legend 
+                    iconType="circle"
+                    wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', paddingTop: '10px' }}
+                    formatter={(value) => value === 'income' ? 'Kabuuang Kita' : 'Gastos'}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="income" 
+                    stroke={theme.primary} 
+                    strokeWidth={3}
+                    fillOpacity={1} 
+                    fill="url(#colorIncome)" 
+                    animationDuration={1500}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="expense" 
+                    stroke="#f43f5e" 
+                    strokeWidth={3}
+                    fillOpacity={1} 
+                    fill="url(#colorExpense)" 
+                    animationDuration={1500}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
+
+        {/* Top 5 Best-Selling Products Bar Chart */}
+        {topProductsData.length > 0 && (
+          <Card className="shadow-none border border-slate-200/60 rounded-[28px] overflow-hidden bg-white">
+            <CardHeader className="p-5 pb-0">
+              <div className="flex justify-between items-center">
+                <div>
+                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Top 5 Best-Sellers</span>
+                  <CardTitle className="text-sm font-headline font-black text-slate-800 mt-1">
+                    Revenue Leaders
+                  </CardTitle>
+                </div>
+                <Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-50 border-slate-200 text-slate-400 px-2 py-0.5 rounded-full">
+                  By Revenue
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="p-5 pt-4">
+              <div className="h-[200px] w-full relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={topProductsData} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                    <XAxis 
+                      type="number" 
+                      hide={true} 
+                    />
+                    <YAxis 
+                      dataKey="name" 
+                      type="category" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 10, fill: '#64748b', fontWeight: 'bold' }} 
+                      width={80}
+                    />
+                    <Tooltip 
+                      cursor={{ fill: '#f8fafc' }}
+                      contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', fontWeight: 'bold' }}
+                      labelStyle={{ color: '#64748b', fontSize: '10px', letterSpacing: '0.1em' }}
+                      formatter={(value: number) => {
+                        return [`₱${value.toLocaleString('en-PH', {minimumFractionDigits: 2})}`, 'Revenue'];
+                      }}
+                    />
+                    <Bar 
+                      dataKey="revenue" 
+                      fill={theme.primary} 
+                      radius={[0, 8, 8, 0]}
+                      barSize={20}
+                      animationDuration={1500}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Cooperative Franchise Dashboard (Multi-store aggregate statistics) */}
         <section className="space-y-3.5">

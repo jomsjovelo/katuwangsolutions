@@ -31,8 +31,20 @@ export interface SaleRecord {
   totalAmount: number; // centavos
   paymentMethod: string; // 'cash' | 'gcash'
   gcashRef?: string;
-  createdAt?: Timestamp | Date | any;
+  transactionDate: Timestamp | Date;
+  createdAt?: Timestamp;
   customerId?: string;
+}
+
+export interface ExpenseRecord {
+  id: string;
+  tenantId: string;
+  amount: number; // centavos
+  category: string;
+  description: string;
+  transactionDate: Timestamp | Date;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
 }
 
 export interface Borrower {
@@ -44,5 +56,6 @@ export interface Borrower {
   outstanding: number;
   dailyDue: number;
   status: 'active' | 'cleared' | 'defaulted';
-  createdAt?: Timestamp | Date | any;
+  lastTransactionDate?: Timestamp | Date;
+  createdAt?: Timestamp;
 }

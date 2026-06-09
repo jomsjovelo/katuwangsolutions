@@ -48,7 +48,7 @@ export function useSyncStatus(tenantId?: string): SyncStatus {
 
     try {
       const db = initializeFirebase().db;
-      const salesRef = collection(db, 'tenants', tenantId, 'sales');
+      const salesRef = collection(db, 'tenants', tenantId, 'transactions');
       // Limit to last 10 transactions to keep memory and CPU low
       const q = query(salesRef, orderBy('createdAt', 'desc'), limit(10));
 

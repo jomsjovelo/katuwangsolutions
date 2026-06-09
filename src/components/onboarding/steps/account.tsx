@@ -26,7 +26,6 @@ interface AccountStepProps {
 export function AccountStep({ data, onUpdate, onNext }: AccountStepProps) {
   const [errors, setErrors] = useState<any>({});
   const [showPassword, setShowPassword] = useState(false);
-  const [termsAccepted, setTermsAccepted] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -42,7 +41,7 @@ export function AccountStep({ data, onUpdate, onNext }: AccountStepProps) {
       return;
     }
     
-    if (!termsAccepted) {
+    if (!data.termsAccepted) {
       return; // Disabled button should prevent this, but just in case
     }
     
@@ -105,8 +104,8 @@ export function AccountStep({ data, onUpdate, onNext }: AccountStepProps) {
         <div className="flex items-start space-x-3 bg-slate-100 p-4 rounded-xl border border-slate-200">
           <Checkbox 
             id="terms" 
-            checked={termsAccepted} 
-            onCheckedChange={(checked) => setTermsAccepted(checked as boolean)}
+            checked={data.termsAccepted} 
+            onCheckedChange={(checked) => onUpdate({ termsAccepted: checked as boolean })}
             className="mt-1"
           />
           <div className="grid gap-1.5 leading-none">
@@ -135,7 +134,7 @@ export function AccountStep({ data, onUpdate, onNext }: AccountStepProps) {
 
         <Button 
           type="submit" 
-          disabled={!termsAccepted}
+          disabled={!data.termsAccepted}
           className="w-full h-14 rounded-2xl text-base font-bold shadow-xl active:scale-[0.98] transition-transform disabled:opacity-50 disabled:active:scale-100"
         >
           Gawa na ang Account
@@ -184,7 +183,7 @@ export function AccountStep({ data, onUpdate, onNext }: AccountStepProps) {
               type="button" 
               className="w-full h-14 rounded-2xl font-bold shadow-xl active:scale-[0.98] transition-transform"
               onClick={() => {
-                setTermsAccepted(true);
+                onUpdate({ termsAccepted: true });
                 setIsTermsOpen(false);
               }}
             >

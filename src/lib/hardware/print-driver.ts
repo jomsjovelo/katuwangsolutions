@@ -124,7 +124,7 @@ export class EscPosBluetoothDriver {
     // 3. Sub-headers
     byteChunks.push(EscPosBluetoothDriver.TEXT_SIZE_NORMAL);
     byteChunks.push(this.textToBytes("KATUWANG POS SYSTEM\n"));
-    byteChunks.push(this.textToBytes("Ang Katuwang ng Negosyo Mo\n"));
+    byteChunks.push(this.textToBytes("Ang Katuwang mo sa Negosyo\n"));
     byteChunks.push(this.textToBytes("--------------------------------\n")); // 32 chars wide for 58mm
     
     // 4. Receipt details

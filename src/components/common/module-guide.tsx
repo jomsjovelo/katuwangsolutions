@@ -171,7 +171,7 @@ const MODULE_GUIDES: Record<string, GuideContent> = {
 };
 
 const DEFAULT_GUIDE: GuideContent = {
-  tagline: 'Ang katuwang ng negosyo mo. Mura. Mabilis. Maaasahan.',
+  tagline: 'Ang katuwang mo sa negosyo. Mura. Mabilis. Maaasahan.',
   steps: [
     'Magtala ng bagong aklat o record gamit ang malalaking dilaw at berdeng button.',
     'Panoorin ang live updates na awtomatikong nagsi-sync kahit ikaw ay offline.',

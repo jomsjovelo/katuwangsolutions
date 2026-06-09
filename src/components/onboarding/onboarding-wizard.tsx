@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Logo } from '@/components/ui/logo';
 import { ChevronLeft } from 'lucide-react';
 import { AppPickerStep } from './steps/app-picker';
@@ -20,11 +21,17 @@ const FORM_STEPS: Step[] = ['apps', 'business', 'account'];
 
 interface OnboardingWizardProps {
   initialAppId?: string;
-  onComplete: () => void;
-  onCancel: () => void;
+  onComplete?: () => void;
+  onCancel?: () => void;
 }
 
-export function OnboardingWizard({ initialAppId, onComplete, onCancel }: OnboardingWizardProps) {
+export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, onCancel }: OnboardingWizardProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialAppId = initialAppIdProp ?? searchParams.get('app') ?? '';
+
+  const handleComplete = onComplete ?? (() => router.push('/dashboard'));
+  const handleCancel = onCancel ?? (() => router.push('/'));
   const [step, setStep] = useState<Step>(initialAppId ? 'business' : 'apps');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +49,7 @@ export function OnboardingWizard({ initialAppId, onComplete, onCancel }: Onboard
     confirmEmail: '',
     password: '',
     confirmPassword: '',
+    termsAccepted: false,
   });
 
   const update = (patch: Partial<typeof data>) => setData((d) => ({ ...d, ...patch }));
@@ -64,7 +72,7 @@ export function OnboardingWizard({ initialAppId, onComplete, onCancel }: Onboard
         setIsLoading(false);
       }
     } else if (step === 'success') {
-      onComplete(); // Skip payment and drop user into the app
+      handleComplete();
     } else if (nextStep) {
       setStep(nextStep);
     }
@@ -72,9 +80,9 @@ export function OnboardingWizard({ initialAppId, onComplete, onCancel }: Onboard
 
   const back = () => {
     if (isLoading) return;
-    if (step === 'apps') { onCancel(); return; }
-    if (step === 'business' && initialAppId) { onCancel(); return; }
-    if (step === 'success' || step === 'payment' || step === 'pending') return; // no back on post-registration
+    if (step === 'apps') { handleCancel(); return; }
+    if (step === 'business' && initialAppId) { handleCancel(); return; }
+    if (step === 'success' || step === 'payment' || step === 'pending') return;
     const all: Step[] = ['apps', 'business', 'account'];
     const idx = all.indexOf(step);
     if (idx > 0) setStep(all[idx - 1]);
@@ -185,3 +193,5 @@ export function OnboardingWizard({ initialAppId, onComplete, onCancel }: Onboard
     </div>
   );
 }
+
+export default OnboardingWizard;

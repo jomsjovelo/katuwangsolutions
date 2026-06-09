@@ -3,17 +3,16 @@
 import React, { useState, useRef } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { LucideIcon, ChevronRight, ChevronLeft, Hand } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Hand } from 'lucide-react';
 
-import { appGroups, AppGroup, AppModule } from '@/lib/app-data';
+import { appGroups, AppGroup } from '@/lib/app-data';
 import Link from 'next/link';
 
 interface AppSuiteCarouselProps {
-  groups: AppGroup[];
-  onSelect: (appName: string) => void;
+  groups?: AppGroup[];
 }
 
-export function AppSuiteCarousel({ groups, onSelect }: AppSuiteCarouselProps) {
+export function AppSuiteCarousel({ groups = appGroups }: AppSuiteCarouselProps) {
   const [activeGroupId, setActiveGroupId] = useState(groups[0].id);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -114,13 +113,14 @@ export function AppSuiteCarousel({ groups, onSelect }: AppSuiteCarouselProps) {
 
                   {/* CTA */}
                   <div className="flex gap-2 mt-auto">
-                    <Button
-                      className="flex-1 h-11 rounded-xl font-bold text-[10px] sm:text-xs text-white active:scale-95 transition-transform"
-                      style={{ backgroundColor: activeGroup.accentColor }}
-                      onClick={() => onSelect(app.name)}
-                    >
-                      Buy Now
-                    </Button>
+                    <Link href={`/onboarding?app=${app.id}`} className="flex-1">
+                      <Button
+                        className="w-full h-11 rounded-xl font-bold text-[10px] sm:text-xs text-white active:scale-95 transition-transform"
+                        style={{ backgroundColor: activeGroup.accentColor }}
+                      >
+                        Buy Now
+                      </Button>
+                    </Link>
                     <Link href={`/product/${app.id}`} className="flex-1">
                       <Button
                         variant="outline"

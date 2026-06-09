@@ -113,7 +113,7 @@ export async function processCheckout(
     transaction.set(newSaleRef, saleRecord);
 
     // ERP INTEGRATION: Deposit the income into the Master Cash Ledger
-    if (secureTotalAmount > 0) {
+    if (secureTotalAmount > 0 && paymentMethod !== 'utang') {
       const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
       const masterAccountSnap = await transaction.get(masterAccountRef);
 

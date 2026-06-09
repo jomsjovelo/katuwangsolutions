@@ -145,20 +145,39 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   if (activeTenant?.subscriptionStatus === 'pending') {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-8 text-center">
-        <div className="p-6 bg-white rounded-[24px] shadow-2xl border border-amber-100 flex flex-col items-center">
-          <div className="p-4 bg-amber-50 rounded-full mb-6">
+        <div className="p-6 bg-white rounded-[24px] shadow-2xl border border-amber-100 flex flex-col items-center w-full max-w-sm">
+          <div className="p-4 bg-amber-50 rounded-full mb-4">
             <Loader2 className="h-12 w-12 text-amber-500 animate-spin" />
           </div>
           <h1 className="text-2xl font-bold text-slate-900 mb-2">Pending Verification</h1>
-          <p className="text-slate-500 text-sm mb-8 max-w-xs leading-relaxed">
-            Your account for <strong>{activeTenant.name}</strong> is waiting for payment verification. Activation typically takes less than 24 hours.
+          <p className="text-slate-500 text-sm mb-6 leading-relaxed">
+            Your account for <strong>{activeTenant.name}</strong> is waiting for payment verification.
           </p>
+
+          {/* GCash Payment Instructions */}
+          <div className="w-full bg-amber-50 border border-amber-100 rounded-xl p-4 text-left space-y-4 mb-6">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 mb-1">Step 1: Send GCash Payment</p>
+              <p className="text-sm text-amber-900 font-medium">
+                Please send exactly <strong className="text-amber-700">₱99.00</strong> to GCash number: <br/>
+                <strong className="text-lg text-amber-800 tracking-wider">09951665423</strong>
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 mb-1">Step 2: Send Screenshot</p>
+              <p className="text-sm text-amber-900 font-medium leading-snug">
+                Send your GCash receipt to our Facebook Messenger page. Activation typically takes less than 24 hours.
+              </p>
+            </div>
+          </div>
+
           <div className="w-full space-y-3">
             <button 
-              onClick={() => window.open('https://m.me/katuwangsolutions', '_blank')}
-              className="w-full bg-amber-500 text-white h-12 rounded-xl font-bold shadow-lg hover:opacity-90 transition-opacity"
+              onClick={() => window.open('https://m.me/KatuwangSolutions', '_blank')}
+              className="w-full h-12 rounded-xl text-white font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-lg"
+              style={{ background: '#0099FF' }}
             >
-              Check via Messenger
+              Send Receipt on Messenger
             </button>
             <button 
               onClick={() => {
@@ -167,7 +186,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
                   router.push('/');
                 });
               }}
-              className="w-full bg-slate-100 text-slate-600 h-12 rounded-xl font-bold"
+              className="w-full bg-slate-100 text-slate-600 h-12 rounded-xl font-bold active:scale-[0.98] transition-transform"
             >
               Sign Out
             </button>
@@ -250,7 +269,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   // 4. Strict Routing Render Locks (Prevents FOUC)
-  if (!user && pathname !== '/' && !pathname.startsWith('/rsvp') && !pathname.startsWith('/product')) return null;
+  if (!user && pathname !== '/' && !pathname.startsWith('/rsvp') && !pathname.startsWith('/product') && !pathname.startsWith('/onboarding') && !pathname.startsWith('/terms')) return null;
   if (isAdmin === false && pathname === '/admin') return null;
   if (isAdmin === true && pathname !== '/admin') return null;
 

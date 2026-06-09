@@ -1,6 +1,8 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+// @ts-ignore
+import { toPng } from 'html-to-image';
 import { Button } from '@/components/ui/button';
 import { 
   X, 
@@ -9,7 +11,9 @@ import {
   CheckCircle, 
   AlertCircle,
   FileText,
-  Loader2
+  Loader2,
+  Share2,
+  Download
 } from "lucide-react";
 import { EscPosBluetoothDriver } from '@/lib/hardware/print-driver';
 
@@ -39,6 +43,8 @@ export function ThermalReceiptPreview({
   const [isPrintingBt, setIsPrintingBt] = useState(false);
   const [btError, setBtError] = useState<string | null>(null);
   const [btSuccess, setBtSuccess] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const receiptRef = useRef<HTMLDivElement>(null);
 
   if (!open) return null;
 
@@ -77,6 +83,48 @@ export function ThermalReceiptPreview({
   // System Print Flow (PDF or local printer)
   const handleSystemPrint = () => {
     window.print();
+  };
+
+  const handleDownloadImage = async () => {
+    if (!receiptRef.current) return;
+    try {
+      setIsExporting(true);
+      const dataUrl = await toPng(receiptRef.current, { cacheBust: true, backgroundColor: '#ffffff' });
+      const link = document.createElement('a');
+      link.download = `katuwang-receipt-${transactionId || Date.now()}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Failed to generate receipt image', err);
+      alert('Failed to save receipt image.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleShareReceipt = async () => {
+    if (!receiptRef.current) return;
+    try {
+      setIsExporting(true);
+      const dataUrl = await toPng(receiptRef.current, { cacheBust: true, backgroundColor: '#ffffff' });
+      
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], `katuwang-receipt-${transactionId || Date.now()}.png`, { type: blob.type });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: `Receipt from ${storeName}`,
+          text: 'Maraming salamat po sa pagtangkilik!',
+          files: [file]
+        });
+      } else {
+        alert("Your browser doesn't support native sharing of images. Please use the Download button instead.");
+      }
+    } catch (err) {
+      console.error('Failed to share receipt', err);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -138,6 +186,7 @@ export function ThermalReceiptPreview({
         <div className="flex-1 overflow-y-auto p-6 bg-slate-950 flex justify-center items-start min-h-[350px]">
           
           <div 
+            ref={receiptRef}
             id="katuwang-print-area"
             className="bg-white text-slate-800 max-w-[260px] w-full p-4 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.6)] font-mono text-[10px] leading-relaxed relative border-t border-slate-200"
           >
@@ -150,7 +199,7 @@ export function ThermalReceiptPreview({
                 {storeName}
               </h4>
               <p className="text-[8px] font-bold text-slate-400 leading-none">KATUWANG POS RESIBO</p>
-              <p className="text-[7px] text-slate-400 leading-normal font-sans font-bold">Ang Katuwang ng Negosyo Mo</p>
+              <p className="text-[7px] text-slate-400 leading-normal font-sans font-bold">Ang Katuwang mo sa Negosyo</p>
               <div className="text-slate-300 tracking-tighter text-[9px]">--------------------------------</div>
             </div>
 
@@ -267,6 +316,27 @@ export function ThermalReceiptPreview({
               <FileText className="h-4 w-4" />
               System Print / PDF
             </Button>
+            
+            {/* Image Download */}
+            <Button 
+              onClick={handleDownloadImage}
+              disabled={isExporting}
+              className="h-11 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 font-black rounded-xl flex items-center justify-center gap-1.5 text-xs cursor-pointer"
+            >
+              {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Save as Image
+            </Button>
+
+            {/* Native Share (Messenger/Viber) */}
+            <Button 
+              onClick={handleShareReceipt}
+              disabled={isExporting}
+              className="h-11 text-blue-600 bg-blue-50 hover:bg-blue-100 font-black rounded-xl flex items-center justify-center gap-1.5 text-xs cursor-pointer"
+            >
+              {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+              Share Receipt
+            </Button>
+
           </div>
 
           <Button 

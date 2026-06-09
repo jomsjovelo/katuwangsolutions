@@ -37,9 +37,9 @@ export function FirebaseClientProvider({ children }: { children: React.ReactNode
   // with undefined values. The provider handles this gracefully.
   return (
     <FirebaseProvider 
-      app={services?.app as any} 
-      db={services?.db as any} 
-      auth={services?.auth as any}
+      app={services?.app as FirebaseApp} 
+      db={services?.db as Firestore} 
+      auth={services?.auth as Auth}
     >
       {children}
     </FirebaseProvider>

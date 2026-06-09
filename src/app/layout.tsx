@@ -3,9 +3,10 @@ import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { AuthGuard } from '@/components/auth/auth-guard';
 import { Toaster } from '@/components/ui/toaster';
+import { PwaInstallPrompt } from '@/components/pwa-install-prompt';
 
 export const metadata: Metadata = {
-  title: 'Katuwang Solutions | Ang Katuwang ng Negosyo Mo',
+  title: 'Katuwang Solutions | Ang Katuwang mo sa Negosyo',
   description: 'Sales, inventory, at utang tracking para sa mga tindahan, palengke, at services. Mura. Mabilis. Maaasahan.',
   manifest: '/manifest.json',
   appleWebApp: {
@@ -56,6 +57,7 @@ export default function RootLayout({
             <div className="w-full min-h-screen bg-white relative flex flex-col">
               {children}
             </div>
+            <PwaInstallPrompt />
             <Toaster />
           </AuthGuard>
         </FirebaseClientProvider>

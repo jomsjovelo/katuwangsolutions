@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, updateDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { Tenant, SubscriptionStatus, PricingTier } from '@/store/use-tenant-store';
 
@@ -54,5 +54,46 @@ export function useAdminTenants() {
     }
   };
 
-  return { tenants, loading, error, updateTenantStatus, updateTenantPricing };
+  const annihilateTenant = async (id: string) => {
+    try {
+      const { db } = initializeFirebase();
+      
+      // We must delete subcollections first to avoid orphaned data
+      const productsSnap = await getDocs(collection(db, 'tenants', id, 'products'));
+      const transactionsSnap = await getDocs(collection(db, 'tenants', id, 'transactions'));
+      const invTransSnap = await getDocs(collection(db, 'tenants', id, 'inventory_transactions'));
+      const invAuditsSnap = await getDocs(collection(db, 'tenants', id, 'inventory_audits'));
+
+      const allDocs = [
+        ...productsSnap.docs,
+        ...transactionsSnap.docs,
+        ...invTransSnap.docs,
+        ...invAuditsSnap.docs
+      ];
+
+      // Execute batched deletes in chunks of 450 (Firestore limit is 500)
+      const chunks = [];
+      for (let i = 0; i < allDocs.length; i += 450) {
+        chunks.push(allDocs.slice(i, i + 450));
+      }
+
+      for (const chunk of chunks) {
+        const batch = writeBatch(db);
+        chunk.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+      }
+
+      // Finally, delete the parent tenant document
+      const tenantRef = doc(db, 'tenants', id);
+      const finalBatch = writeBatch(db);
+      finalBatch.delete(tenantRef);
+      await finalBatch.commit();
+
+    } catch (err) {
+      console.error('Failed to annihilate tenant:', err);
+      throw err;
+    }
+  };
+
+  return { tenants, loading, error, updateTenantStatus, updateTenantPricing, annihilateTenant };
 }

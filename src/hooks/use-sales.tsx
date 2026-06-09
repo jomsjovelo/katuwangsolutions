@@ -7,12 +7,18 @@ import { useTenant } from '@/app/lib/tenant-context';
 import { Sale } from '@/lib/schemas/sales';
 import { startOfDay, endOfDay } from 'date-fns';
 
-export function useSales(selectedDate: Date = new Date()) {
+export type DateRangeOrDate = Date | { start: Date; end: Date };
+
+export function useSales(selectedDate: DateRangeOrDate = new Date()) {
   const { currentTenant } = useTenant();
   const db = useFirestore();
 
-  const start = Timestamp.fromDate(startOfDay(selectedDate));
-  const end = Timestamp.fromDate(endOfDay(selectedDate));
+  const start = Timestamp.fromDate(
+    selectedDate instanceof Date ? startOfDay(selectedDate) : startOfDay(selectedDate.start)
+  );
+  const end = Timestamp.fromDate(
+    selectedDate instanceof Date ? endOfDay(selectedDate) : endOfDay(selectedDate.end)
+  );
 
   const salesQuery = useMemo(() => {
     return currentTenant && db

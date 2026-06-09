@@ -26,7 +26,8 @@ import {
   Power,
   BarChart3,
   Layers,
-  PieChart as PieChartIcon
+  PieChart as PieChartIcon,
+  Trash2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
@@ -34,7 +35,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recha
 const COLORS = ['#06B6D4', '#F97316', '#8B5CF6', '#10B981', '#3B82F6', '#EC4899', '#EAB308'];
 
 export default function AdminKillSwitch() {
-  const { tenants, updateTenantStatus, updateTenantPricing } = useAdminTenants();
+  const { tenants, updateTenantStatus, updateTenantPricing, annihilateTenant } = useAdminTenants();
   const [search, setSearch] = useState("");
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
@@ -46,6 +47,20 @@ export default function AdminKillSwitch() {
       router.push('/');
     } catch (error) {
       console.error('Error signing out:', error);
+    }
+  };
+
+  const handlePurgeData = async (tenant: any) => {
+    const confirmName = window.prompt(`NUCLEAR OPTION: You are about to permanently delete all data for ${tenant.name}.\n\nType "${tenant.name}" to confirm:`);
+    if (confirmName === tenant.name) {
+      try {
+        await annihilateTenant(tenant.id);
+        alert('Tenant and all subcollections permanently wiped.');
+      } catch (e: any) {
+        alert('Failed to purge: ' + e.message);
+      }
+    } else if (confirmName !== null) {
+      alert("Verification failed. Data was not purged.");
     }
   };
 
@@ -183,7 +198,7 @@ export default function AdminKillSwitch() {
               <TableHead className="font-bold text-xs uppercase tracking-widest py-6">Module Type</TableHead>
               <TableHead className="font-bold text-xs uppercase tracking-widest py-6">Pricing Tier</TableHead>
               <TableHead className="font-bold text-xs uppercase tracking-widest py-6">Status</TableHead>
-              <TableHead className="text-right font-bold text-xs uppercase tracking-widest py-6">Kill Switch</TableHead>
+              <TableHead className="text-right font-bold text-xs uppercase tracking-widest py-6">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -220,22 +235,47 @@ export default function AdminKillSwitch() {
                   <Badge 
                     className={cn(
                       "font-bold px-3 py-1",
-                      tenant.subscriptionStatus === 'active' ? "bg-chart-2/20 text-chart-2 border-chart-2/40" : "bg-destructive/20 text-destructive border-destructive/40"
+                      tenant.subscriptionStatus === 'active' ? "bg-chart-2/20 text-chart-2 border-chart-2/40" : 
+                      tenant.subscriptionStatus === 'pending' ? "bg-amber-100 text-amber-700 border-amber-200" :
+                      "bg-destructive/20 text-destructive border-destructive/40"
                     )}
                   >
                     {tenant.subscriptionStatus.toUpperCase()}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-4">
-                    <span className={cn("text-xs font-bold", tenant.subscriptionStatus === 'suspended' ? "text-destructive" : "text-chart-2")}>
-                      {tenant.subscriptionStatus === 'suspended' ? "KILLED" : "ACTIVE"}
-                    </span>
-                    <Switch 
-                      checked={tenant.subscriptionStatus === 'active'}
-                      onCheckedChange={(checked) => updateTenantStatus(tenant.id, checked ? 'active' : 'suspended')}
-                      className="data-[state=checked]:bg-chart-2"
-                    />
+                  <div className="flex items-center justify-end gap-3">
+                    {tenant.subscriptionStatus === 'pending' && (
+                      <Button 
+                        size="sm" 
+                        onClick={() => updateTenantStatus(tenant.id, 'active')}
+                        className="bg-amber-500 hover:bg-amber-600 text-white font-bold h-8 px-4"
+                      >
+                        Approve
+                      </Button>
+                    )}
+                    <div className="flex items-center gap-2 border-l pl-3 ml-1 border-secondary/50">
+                      <span className={cn("text-[10px] font-bold uppercase tracking-wider w-16 text-right", 
+                        tenant.subscriptionStatus === 'suspended' ? "text-destructive" : 
+                        tenant.subscriptionStatus === 'pending' ? "text-amber-500" : "text-chart-2"
+                      )}>
+                        {tenant.subscriptionStatus === 'suspended' ? "KILLED" : tenant.subscriptionStatus}
+                      </span>
+                      <Switch 
+                        checked={tenant.subscriptionStatus === 'active'}
+                        onCheckedChange={(checked) => updateTenantStatus(tenant.id, checked ? 'active' : 'suspended')}
+                        className="data-[state=checked]:bg-chart-2"
+                      />
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handlePurgeData(tenant)}
+                      className="h-8 w-8 text-destructive hover:bg-destructive hover:text-white ml-2 transition-colors"
+                      title="Purge Tenant Data"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </TableCell>
               </TableRow>
