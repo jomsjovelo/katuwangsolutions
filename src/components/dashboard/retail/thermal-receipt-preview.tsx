@@ -1,8 +1,6 @@
 "use client"
 
 import React, { useState, useRef } from 'react';
-// @ts-ignore
-import { toPng } from 'html-to-image';
 import { Button } from '@/components/ui/button';
 import { 
   X, 
@@ -43,7 +41,6 @@ export function ThermalReceiptPreview({
   const [isPrintingBt, setIsPrintingBt] = useState(false);
   const [btError, setBtError] = useState<string | null>(null);
   const [btSuccess, setBtSuccess] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
 
   if (!open) return null;
@@ -85,45 +82,24 @@ export function ThermalReceiptPreview({
     window.print();
   };
 
-  const handleDownloadImage = async () => {
-    if (!receiptRef.current) return;
-    try {
-      setIsExporting(true);
-      const dataUrl = await toPng(receiptRef.current, { cacheBust: true, backgroundColor: '#ffffff' });
-      const link = document.createElement('a');
-      link.download = `katuwang-receipt-${transactionId || Date.now()}.png`;
-      link.href = dataUrl;
-      link.click();
-    } catch (err) {
-      console.error('Failed to generate receipt image', err);
-      alert('Failed to save receipt image.');
-    } finally {
-      setIsExporting(false);
-    }
+  // Uses browser native print dialog — user can Save as PDF/Image from there
+  const handleDownloadImage = () => {
+    window.print();
   };
 
   const handleShareReceipt = async () => {
-    if (!receiptRef.current) return;
-    try {
-      setIsExporting(true);
-      const dataUrl = await toPng(receiptRef.current, { cacheBust: true, backgroundColor: '#ffffff' });
-      
-      const blob = await (await fetch(dataUrl)).blob();
-      const file = new File([blob], `katuwang-receipt-${transactionId || Date.now()}.png`, { type: blob.type });
-
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    // Use Web Share API with plain text fallback
+    if (navigator.share) {
+      try {
         await navigator.share({
           title: `Receipt from ${storeName}`,
-          text: 'Maraming salamat po sa pagtangkilik!',
-          files: [file]
+          text: `Resibo mula sa ${storeName}\nKabuuan: ₱${totalAmountPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}\nMaraming Salamat Po!`,
         });
-      } else {
-        alert("Your browser doesn't support native sharing of images. Please use the Download button instead.");
+      } catch (err) {
+        console.error('Failed to share receipt', err);
       }
-    } catch (err) {
-      console.error('Failed to share receipt', err);
-    } finally {
-      setIsExporting(false);
+    } else {
+      alert("I-print ang resibo at i-save bilang PDF para ma-share.");
     }
   };
 
@@ -317,23 +293,21 @@ export function ThermalReceiptPreview({
               System Print / PDF
             </Button>
             
-            {/* Image Download */}
+            {/* Image Download - uses native print dialog */}
             <Button 
               onClick={handleDownloadImage}
-              disabled={isExporting}
               className="h-11 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 font-black rounded-xl flex items-center justify-center gap-1.5 text-xs cursor-pointer"
             >
-              {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              Save as Image
+              <Download className="h-4 w-4" />
+              Save as PDF
             </Button>
 
             {/* Native Share (Messenger/Viber) */}
             <Button 
               onClick={handleShareReceipt}
-              disabled={isExporting}
               className="h-11 text-blue-600 bg-blue-50 hover:bg-blue-100 font-black rounded-xl flex items-center justify-center gap-1.5 text-xs cursor-pointer"
             >
-              {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+              <Share2 className="h-4 w-4" />
               Share Receipt
             </Button>
 
