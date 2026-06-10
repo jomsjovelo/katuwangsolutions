@@ -12,6 +12,8 @@ import { AppMarketplace } from '@/components/dashboard/app-marketplace';
 import { Grid } from 'lucide-react';
 import { useHaptic } from '@/hooks/use-haptic';
 import { TimeInOutModal } from '@/components/shell/time-in-out-modal';
+import { useAnnouncements } from '@/hooks/use-announcements';
+import { AlertTriangle, Info, CheckCircle2, XCircle, Megaphone } from 'lucide-react';
 
 interface AppHeaderProps {
   title: string;
@@ -28,9 +30,37 @@ export function AppHeader({ title, subtitle, onBack, rightAction }: AppHeaderPro
   const [showApps, setShowApps] = useState(false);
   const [showTimeLog, setShowTimeLog] = useState(false);
   const haptic = useHaptic();
+  const { announcements } = useAnnouncements(true); // only fetch active
+
+  const getIcon = (type: string) => {
+    switch (type) {
+      case 'warning': return <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />;
+      case 'error': return <XCircle className="h-4 w-4 shrink-0 text-white" />;
+      case 'success': return <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />;
+      default: return <Info className="h-4 w-4 shrink-0 text-primary" />;
+    }
+  };
 
   return (
     <>
+    {announcements.length > 0 && (
+      <div className="w-full flex flex-col">
+        {announcements.map((ann, i) => (
+          <div key={i} className={`px-4 py-2 flex items-start gap-2 text-xs sm:text-sm shadow-sm ${
+            ann.type === 'error' ? 'bg-destructive text-white font-medium' :
+            ann.type === 'warning' ? 'bg-amber-100 text-amber-900 border-b border-amber-200' :
+            ann.type === 'success' ? 'bg-emerald-50 text-emerald-800 border-b border-emerald-200' :
+            'bg-slate-100 text-slate-700 border-b border-slate-200'
+          }`}>
+            <div className="mt-0.5">{getIcon(ann.type)}</div>
+            <div className="flex-1">
+              <span className="font-bold uppercase tracking-wider text-[10px] sm:text-xs block mb-0.5 opacity-80">{ann.title}</span>
+              <span className="leading-tight">{ann.message}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
     <header
       className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-xl border-b border-slate-100 transition-colors duration-300"
       style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}

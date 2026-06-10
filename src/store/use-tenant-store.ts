@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import deepEqual from 'fast-deep-equal';
 
-export type PricingTier = 'promo_99' | 'standard_199';
+export type PricingTier = 'promo_99' | 'standard_199' | 'enterprise';
 export type SubscriptionStatus = 'active' | 'suspended' | 'trial' | 'pending';
 
 export interface Tenant {
@@ -15,6 +15,10 @@ export interface Tenant {
   pricingTier: PricingTier;
   subscriptionStatus: SubscriptionStatus;
   createdAt: string | number | Date | null;
+  ownerEmail?: string; // Appended for admin dashboards
+  nextBillingDate?: string | number | Date | null;
+  trialEndsAt?: string | number | Date | null;
+  businessCode?: string; // 4-digit code for team member registration
   // Multi-Branch Enterprise Support
   parentTenantId?: string; 
   branchName?: string;

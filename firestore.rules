@@ -17,6 +17,10 @@ service cloud.firestore {
       return isAuthenticated() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
+    function isSuperAdmin() {
+      return isMasterAdmin() && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.get('role', 'superadmin') == 'superadmin';
+    }
+
     function hasTenantAccess(tenantId) {
       let tenant = getTenantData(tenantId);
       return isAuthenticated() && (
@@ -30,34 +34,44 @@ service cloud.firestore {
 
     // 0. Admins Collection
     match /admins/{uid} {
-      allow read: if isAuthenticated() && request.auth.uid == uid;
-      allow write: if isMasterAdmin();
+      // Allow users to check their own admin status cleanly without permission errors
+      allow get: if isAuthenticated() && request.auth.uid == uid;
+      allow read: if isMasterAdmin();
+      allow write: if isSuperAdmin();
     }
 
     // 1. Tenants Collection (The Isolation Shield)
     match /tenants/{tenantId} {
-      // Allow users to read their own tenant metadata
-      allow read: if isAuthenticated() && (
-        request.auth.uid == resource.data.ownerUid || 
-        request.auth.uid in resource.data.get('staffUids', []) ||
-        isMasterAdmin()
-      );
+      // Allow any authenticated user to fetch basic tenant metadata (needed for AuthGuard verification)
+      // Strict data isolation is enforced on the subcollections.
+      allow get: if isAuthenticated();
+
+      // Master Admins can list everything.
+      allow list: if isMasterAdmin();
+      
+      // Regular users can list tenants they own or are staff of (query must include where clause).
+      allow list: if isAuthenticated() && request.auth.uid == resource.data.ownerUid;
+      allow list: if isAuthenticated() && request.auth.uid in resource.data.staffUids;
       
       // Allow users to create their own tenant document
       allow create: if isAuthenticated() && request.auth.uid == request.resource.data.ownerUid;
       
-      // Only the owner or Master Admin can update the tenant configuration
-      allow update, delete: if isAuthenticated() && (
+      // Only the owner or Master Admin can update, but only SuperAdmin can delete
+      allow update: if isAuthenticated() && (
         request.auth.uid == resource.data.ownerUid || 
         isMasterAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        request.auth.uid == resource.data.ownerUid || 
+        isSuperAdmin()
       );
 
       // 2. Sub-collections (Universal Inventory, Sales, etc.)
       match /{allSubcollections=**} {
         // Strict isolation: Access granted only to verified tenant owners/staff
         allow read, create, update: if hasTenantAccess(tenantId);
-        // Fraud Prevention & Right to be Forgotten: Only Store Owners can delete their data
-        allow delete: if isMasterAdmin() || (isAuthenticated() && request.auth.uid == getTenantData(tenantId).ownerUid);
+        // Fraud Prevention & Right to be Forgotten: Only Store Owners or SuperAdmins can delete their data
+        allow delete: if isSuperAdmin() || (isAuthenticated() && request.auth.uid == getTenantData(tenantId).ownerUid);
       }
       
       // 2.5 Allow Public RSVP Creation
@@ -68,29 +82,66 @@ service cloud.firestore {
       }
     }
 
-    // 3. System Collection (Internal usage, only Master Admin)
+    // 3. System Collection (Publicly readable for maintenance mode & pricing configs)
     match /system/{document=**} {
-      allow read: if isAuthenticated();
-      allow write: if isMasterAdmin();
+      allow read: if true;
+      allow write: if isSuperAdmin();
     }
 
     // 5. Users Collection (Staff profiles and owner profiles)
     match /users/{userId} {
-      allow read, write: if isAuthenticated() && request.auth.uid == userId;
-      allow read: if isAuthenticated() && 
-        resource.data.tenantId != null &&
-        hasTenantAccess(resource.data.tenantId);
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+      
+      allow get: if isAuthenticated() && (
+        isMasterAdmin() ||
+        request.auth.uid == userId ||
+        (resource != null && 'tenantId' in resource.data && resource.data.tenantId != null && hasTenantAccess(resource.data.tenantId))
+      );
+      
+      allow list: if isMasterAdmin();
     }
 
     // 6. Invites Collection (Staff invitation flow)
     match /invites/{inviteId} {
-      allow read, write: if isAuthenticated() && 
+      // Users can read invites sent to their email
+      allow read: if isAuthenticated() && (
+        resource.data.email == request.auth.token.email || 
+        hasTenantAccess(resource.data.tenantId)
+      );
+      // Only tenant staff/owner can create invites for their tenant
+      allow create, update: if isAuthenticated() && 
         hasTenantAccess(request.resource.data.tenantId);
-      allow read, delete: if isAuthenticated() && 
-        hasTenantAccess(resource.data.tenantId);
+      // Users can delete their own invites (reject), or tenant staff can delete
+      allow delete: if isAuthenticated() && (
+        resource.data.email == request.auth.token.email ||
+        hasTenantAccess(resource.data.tenantId)
+      );
     }
 
-    // 7. True Default Deny
+    // 8. Global Announcements
+    match /announcements/{annId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+
+    // 9. Billing Logs
+    match /billing_logs/{logId} {
+      allow read, write: if isMasterAdmin();
+    }
+    
+    // 10. Admin Audit Logs (Immutable)
+    match /admin_logs/{logId} {
+      allow read: if isMasterAdmin();
+      allow create: if isMasterAdmin();
+      allow update, delete: if false; // Immutable audit trail
+    }
+
+    // 11. Support Tickets Collection Group (For Admins)
+    match /{path=**}/support_tickets/{ticketId} {
+      allow read, write: if isMasterAdmin();
+    }
+    
+    // 12. True Default Deny
     match /{document=**} {
       allow read, write: if false;
     }

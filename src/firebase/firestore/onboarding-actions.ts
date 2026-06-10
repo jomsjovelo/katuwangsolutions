@@ -1,7 +1,8 @@
 import { 
   doc, 
   serverTimestamp, 
-  collection 
+  collection,
+  getDoc
 } from 'firebase/firestore';
 import { runTransactionResilient } from './resilient-transaction';
 import { 
@@ -33,12 +34,44 @@ export async function registerNewTenant(onboardingData: any) {
     );
     const uid = userCredential.user.uid;
 
-    // 2. Atomic Firestore Write
+    // 2. Generate Unique 4-Digit Code
+    let businessCode = '';
+    let isUnique = false;
+    let attempts = 0;
+    while (!isUnique && attempts < 10) {
+      businessCode = Math.floor(1000 + Math.random() * 9000).toString();
+      const codeRef = doc(db, 'business_codes', businessCode);
+      const codeSnap = await getDoc(codeRef);
+      if (!codeSnap.exists()) {
+        isUnique = true;
+      }
+      attempts++;
+    }
+
+    if (!isUnique) {
+      throw new Error("Failed to generate a unique business code. Please try again.");
+    }
+
+    // 3. Atomic Firestore Write
     try {
       await runTransactionResilient(db, async (transaction) => {
+        // Double-check inside transaction (optional but safe)
+        const codeRef = doc(db, 'business_codes', businessCode);
+        const codeSnap = await transaction.get(codeRef);
+        if (codeSnap.exists()) {
+           throw new Error("Collision during transaction. Please try again.");
+        }
+
         // Create Tenant Doc
         const tenantRef = doc(collection(db, 'tenants'));
         const tenantId = tenantRef.id;
+
+        transaction.set(codeRef, {
+          tenantId: tenantId,
+          businessName: businessInfo.businessName,
+          ownerEmail: accountInfo.email,
+          createdAt: serverTimestamp(),
+        });
 
         transaction.set(tenantRef, {
           id: tenantId,
@@ -49,6 +82,7 @@ export async function registerNewTenant(onboardingData: any) {
           subscriptionStatus: 'pending', // Waiting for GCash verification
           ownerUid: uid,
           staffUids: [],
+          businessCode: businessCode,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });

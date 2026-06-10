@@ -35,6 +35,7 @@ const apps = [
       { id: 'wellness-pro', name: 'Wellness Pro', icon: Sun, desc: 'Elevate your spa experience with seamless booking and billing.' },
       { id: 'trim-track', name: 'Trim Track', icon: Scissors, desc: 'Keep your barber chairs full and your payments tracked.' },
       { id: 'rep-sync', name: 'Rep Sync', icon: Dumbbell, desc: 'Automate gym memberships, attendance, and renewals effortlessly.' },
+      { id: 'rental', name: 'Rental', icon: CalendarHeart, desc: 'Track your rental equipment and bookings effortlessly.' },
     ]
   },
   { 

@@ -27,6 +27,7 @@ const WellnessDashboard = dynamic(() => import('@/components/dashboard/service/w
 const TrimTrackDashboard = dynamic(() => import('@/components/dashboard/service/trim-track-dashboard').then(m => m.TrimTrackDashboard));
 const RepSyncDashboard = dynamic(() => import('@/components/dashboard/service/rep-sync-dashboard').then(m => m.RepSyncDashboard));
 const FleetDashboard = dynamic(() => import('@/components/dashboard/logistics/fleet-dashboard').then(m => m.FleetDashboard));
+const RentalDashboard = dynamic(() => import('@/components/dashboard/rental/rental-dashboard').then(m => m.RentalDashboard));
 
 const ProfileTab = dynamic(() => import('@/components/dashboard/profile-tab').then(m => m.ProfileTab));
 const StockTab = dynamic(() => import('@/components/dashboard/stock-tab').then(m => m.StockTab));
@@ -182,6 +183,8 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
     
     const fleetModules = ['biyahe-sync', 'ani-grow', 'sundo-sync'];
     if (fleetModules.includes(activeModule || '')) return <FleetDashboard />;
+    
+    if (activeModule === 'rental') return <RentalDashboard />;
     
     if (activeModule === 'build-stack') return <BuildStackDashboard />;
     

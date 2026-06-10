@@ -1,19 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { 
-  signInWithEmailAndPassword, 
-  getAuth, 
-  GoogleAuthProvider, 
-  signInWithPopup 
-} from 'firebase/auth';
-import { app } from '@/firebase/config';
 import { FirebaseError } from 'firebase/app';
-import { Loader2, LogIn, Chrome } from 'lucide-react';
+import { Loader2, LogIn } from 'lucide-react';
 import { BrandLogo } from '@/components/ui/brand-logo';
+import { useSearchParams } from 'next/navigation';
 
 import {
   Dialog,
@@ -36,34 +30,45 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 
+import { loginOrRegisterStaff } from '@/firebase/firestore/staff-actions';
+
 const loginSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
+  businessCode: z.string().optional(),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export function LoginDialog({ children }: { children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
+  const searchParams = useSearchParams();
+  const initialCode = searchParams.get('code');
+  const [open, setOpen] = useState(!!initialCode);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       email: '',
       password: '',
+      businessCode: initialCode || '',
     },
   });
+
+  useEffect(() => {
+    if (initialCode) {
+      setOpen(true);
+      form.setValue('businessCode', initialCode);
+    }
+  }, [initialCode, form]);
 
   const onSubmit = async (data: LoginFormValues) => {
     try {
       setAuthError(null);
-      const auth = getAuth(app);
-      await signInWithEmailAndPassword(auth, data.email, data.password);
+      await loginOrRegisterStaff(data.email, data.password, data.businessCode);
       setOpen(false);
       form.reset();
-    } catch (error) {
+    } catch (error: any) {
       if (error instanceof FirebaseError) {
         switch (error.code) {
           case 'auth/invalid-credential':
@@ -76,28 +81,12 @@ export function LoginDialog({ children }: { children: React.ReactNode }) {
             setAuthError('An error occurred during login.');
         }
       } else {
-        setAuthError('Network error. Please check your connection.');
+        setAuthError(error.message || 'Network error. Please check your connection.');
       }
     }
   };
 
-  const handleGoogleLogin = async () => {
-    try {
-      setIsGoogleLoading(true);
-      setAuthError(null);
-      const auth = getAuth(app);
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      setOpen(false);
-    } catch (error: any) {
-      console.error('Google Sign-In Error:', error);
-      if (error.code !== 'auth/popup-closed-by-user') {
-        setAuthError('Failed to sign in with Google. Please try again.');
-      }
-    } finally {
-      setIsGoogleLoading(false);
-    }
-  };
+
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -138,6 +127,7 @@ export function LoginDialog({ children }: { children: React.ReactNode }) {
                   <FormControl>
                     <Input 
                       placeholder="pangalan@negosyo.com" 
+                      autoComplete="email"
                       className="h-12 rounded-xl border-slate-200 bg-slate-50 focus-visible:ring-primary focus-visible:ring-offset-2" 
                       {...field} 
                     />
@@ -147,29 +137,61 @@ export function LoginDialog({ children }: { children: React.ReactNode }) {
               )}
             />
             <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-xs font-bold uppercase tracking-widest text-slate-400">Password</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="password" 
-                      placeholder="••••••••" 
-                      className="h-12 rounded-xl border-slate-200 bg-slate-50 focus-visible:ring-primary focus-visible:ring-offset-2" 
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage className="text-xs font-bold" />
-                </FormItem>
-              )}
-            />
-            
-            <div className="pt-4 space-y-4">
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs font-bold uppercase tracking-widest text-slate-400">Password</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="password" 
+                        placeholder="••••••••" 
+                        autoComplete="current-password"
+                        className="h-12 rounded-xl border-slate-200 bg-slate-50 focus-visible:ring-primary focus-visible:ring-offset-2" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage className="text-xs font-bold" />
+                  </FormItem>
+                )}
+              />
+
+              <div className="pt-2">
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-slate-200" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white px-2 text-slate-400 font-bold">Kung ikaw ay Katuwang / Team Member</span>
+                  </div>
+                </div>
+              </div>
+
+              <FormField
+                control={form.control}
+                name="businessCode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs font-bold uppercase tracking-widest text-slate-400">Business Code (Optional)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Halimbawa: 8391" 
+                        className="h-12 rounded-xl border-slate-200 bg-slate-50 focus-visible:ring-primary focus-visible:ring-offset-2 text-center text-lg font-bold tracking-[0.2em]" 
+                        maxLength={4}
+                        {...field} 
+                      />
+                    </FormControl>
+                    <p className="text-[10px] text-slate-500 font-medium leading-tight">Ilagay ang 4-digit code ng iyong negosyo para maka-join. Iwanang blangko kung ikaw ang may-ari.</p>
+                    <FormMessage className="text-xs font-bold" />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="pt-4 space-y-4">
               <Button 
                 type="submit" 
                 className="w-full h-14 rounded-xl text-base font-bold shadow-lg hover:shadow-xl transition-all joy-glow active:scale-95 flex items-center justify-center gap-2"
-                disabled={form.formState.isSubmitting || isGoogleLoading}
+                disabled={form.formState.isSubmitting}
               >
                 {form.formState.isSubmitting ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -177,32 +199,6 @@ export function LoginDialog({ children }: { children: React.ReactNode }) {
                   <>
                     <LogIn className="h-5 w-5" />
                     Mag-Login
-                  </>
-                )}
-              </Button>
-
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <Separator className="w-full" />
-                </div>
-                <div className="relative flex justify-center text-[10px] font-black uppercase tracking-widest">
-                  <span className="bg-white px-2 text-slate-400">O kaya ay</span>
-                </div>
-              </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleGoogleLogin}
-                className="w-full h-14 rounded-xl text-base font-bold border-slate-200 hover:bg-slate-50 transition-all active:scale-95 flex items-center justify-center gap-2"
-                disabled={form.formState.isSubmitting || isGoogleLoading}
-              >
-                {isGoogleLoading ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <>
-                    <Chrome className="h-5 w-5 text-[#4285F4]" />
-                    Gamitin ang Google
                   </>
                 )}
               </Button>

@@ -29,13 +29,19 @@ export function Hero() {
         {/* Top-left logo mark */}
         <div className="absolute top-12 left-0 right-0 px-8 md:px-12 flex justify-between items-center z-10">
           <BrandLogo theme="dark" />
-          <LoginDialog>
-            <button
-              className="h-8 px-4 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-white text-[11px] font-bold tracking-widest uppercase active:scale-95 transition-transform"
-            >
+          <React.Suspense fallback={
+            <button className="h-8 px-4 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-white text-[11px] font-bold tracking-widest uppercase active:scale-95 transition-transform">
               Login
             </button>
-          </LoginDialog>
+          }>
+            <LoginDialog>
+              <button
+                className="h-8 px-4 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-white text-[11px] font-bold tracking-widest uppercase active:scale-95 transition-transform"
+              >
+                Login
+              </button>
+            </LoginDialog>
+          </React.Suspense>
         </div>
 
         {/* Bottom content — headline + badge + scroll hint */}

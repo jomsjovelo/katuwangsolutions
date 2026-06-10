@@ -40,6 +40,8 @@ const APPS = [
   { id: 'sundo-sync', name: 'Sundo Sync', category: 'Logistics', desc: 'Tricycle / Transport terminal dispatcher', price: 199 },
   { id: 'build-stack', name: 'Build Stack', category: 'Construction', desc: 'Hardware and construction supplies', price: 299 },
   { id: 'ani-grow', name: 'Ani Grow', category: 'Agriculture', desc: 'Farm harvest and bodega crop tracking', price: 199 },
+  
+  { id: 'rental', name: 'Rental', category: 'Service', desc: 'Equipment and vehicle rentals', price: 249 },
 ];
 
 export function AppMarketplace({ isOpen, onClose }: AppMarketplaceProps) {

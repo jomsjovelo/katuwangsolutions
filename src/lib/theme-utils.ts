@@ -246,6 +246,20 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
     glowClass: 'joy-glow-violet',
     name: 'Rep Sync',
     tagline: 'Mabilis na serbisyo sa gym at katuwang sa fitness'
+  },
+  
+  // 15. Rental Module
+  'rental': {
+    primary: '#F59E0B',
+    primaryBg: 'from-amber-500 to-amber-600',
+    primaryText: 'text-amber-600',
+    primaryBorder: 'border-amber-200',
+    secondary: '#10B981',
+    secondaryBg: 'bg-emerald-500 hover:bg-emerald-600',
+    secondaryText: 'text-white',
+    glowClass: 'joy-glow-amber',
+    name: 'Rental',
+    tagline: 'Mabilis na pamamahala ng pinaparentahan at gamit'
   }
 };
 

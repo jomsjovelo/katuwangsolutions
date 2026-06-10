@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, doc, updateDoc, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot, doc, getDoc, updateDoc, getDocs, writeBatch, serverTimestamp, addDoc } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 import { initializeFirebase } from '@/firebase';
 import { Tenant, SubscriptionStatus, PricingTier } from '@/store/use-tenant-store';
 
+export interface AdminTenant extends Tenant {
+  ownerEmail?: string;
+}
+
 export function useAdminTenants() {
-  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [tenants, setTenants] = useState<AdminTenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -12,15 +17,40 @@ export function useAdminTenants() {
     const { db } = initializeFirebase();
     const tenantsRef = collection(db, 'tenants');
 
-    const unsubscribe = onSnapshot(tenantsRef, 
+    const unsubscribeTenants = onSnapshot(tenantsRef, 
       (snapshot) => {
-        const tenantData: Tenant[] = [];
+        const tenantData: AdminTenant[] = [];
         snapshot.forEach((doc) => {
-          tenantData.push({ id: doc.id, ...doc.data() } as Tenant);
+          tenantData.push({ id: doc.id, ...doc.data() } as AdminTenant);
         });
-        setTenants(tenantData);
-        setLoading(false);
-        setError(null);
+        
+        // After getting tenants, fetch ONLY the users who are owners to map emails
+        const ownerUids = Array.from(new Set(tenantData.map(t => t.ownerUid)));
+        
+        Promise.all(ownerUids.map(uid => getDoc(doc(db, 'users', uid))))
+          .then((userDocs) => {
+            const userEmails: Record<string, string> = {};
+            userDocs.forEach(uSnap => {
+              if (uSnap.exists()) {
+                const data = uSnap.data();
+                if (data.email) userEmails[uSnap.id] = data.email;
+              }
+            });
+            
+            const enrichedTenants = tenantData.map(t => ({
+              ...t,
+              ownerEmail: userEmails[t.ownerUid] || 'Unknown Email'
+            }));
+            
+            setTenants(enrichedTenants);
+            setLoading(false);
+            setError(null);
+          })
+          .catch(err => {
+            console.error("Error fetching users for admin:", err);
+            setTenants(tenantData);
+            setLoading(false);
+          });
       },
       (err) => {
         console.error('Error fetching admin tenants:', err);
@@ -29,14 +59,46 @@ export function useAdminTenants() {
       }
     );
 
-    return () => unsubscribe();
+    return () => unsubscribeTenants();
   }, []);
 
-  const updateTenantStatus = async (id: string, status: SubscriptionStatus) => {
+  const updateTenantStatus = async (tenant: AdminTenant, status: SubscriptionStatus) => {
     try {
       const { db } = initializeFirebase();
-      const tenantRef = doc(db, 'tenants', id);
-      await updateDoc(tenantRef, { subscriptionStatus: status });
+      const auth = getAuth();
+      const adminUser = auth.currentUser;
+      const tenantRef = doc(db, 'tenants', tenant.id);
+      
+      const batch = writeBatch(db);
+      batch.update(tenantRef, { subscriptionStatus: status });
+      
+      // If approving from pending, write a billing log
+      if (tenant.subscriptionStatus === 'pending' && status === 'active') {
+        const amount = tenant.pricingTier === 'promo_99' ? 99 : tenant.pricingTier === 'standard_199' ? 199 : 499;
+        const logRef = doc(collection(db, 'billing_logs'));
+        batch.set(logRef, {
+          tenantId: tenant.id,
+          tenantName: tenant.name,
+          pricingTier: tenant.pricingTier,
+          amount: amount,
+          type: 'activation',
+          timestamp: serverTimestamp()
+        });
+      }
+      
+      
+      if (adminUser) {
+        await addDoc(collection(db, 'admin_logs'), {
+          adminUid: adminUser.uid,
+          adminEmail: adminUser.email || 'Unknown',
+          action: 'UPDATE_TENANT_STATUS',
+          details: `Changed status to ${status} for ${tenant.name}`,
+          targetId: tenant.id,
+          timestamp: serverTimestamp()
+        });
+      }
+
+      await batch.commit();
     } catch (err) {
       console.error('Failed to update tenant status:', err);
       throw err;
@@ -46,8 +108,21 @@ export function useAdminTenants() {
   const updateTenantPricing = async (id: string, tier: PricingTier) => {
     try {
       const { db } = initializeFirebase();
+      const auth = getAuth();
+      const adminUser = auth.currentUser;
       const tenantRef = doc(db, 'tenants', id);
       await updateDoc(tenantRef, { pricingTier: tier });
+
+      if (adminUser) {
+        await addDoc(collection(db, 'admin_logs'), {
+          adminUid: adminUser.uid,
+          adminEmail: adminUser.email || 'Unknown',
+          action: 'UPDATE_TENANT_PRICING',
+          details: `Changed pricing to ${tier} for tenant ${id}`,
+          targetId: id,
+          timestamp: serverTimestamp()
+        });
+      }
     } catch (err) {
       console.error('Failed to update tenant pricing:', err);
       throw err;
@@ -89,11 +164,34 @@ export function useAdminTenants() {
       finalBatch.delete(tenantRef);
       await finalBatch.commit();
 
+      const auth = getAuth();
+      const adminUser = auth.currentUser;
+      if (adminUser) {
+        await addDoc(collection(db, 'admin_logs'), {
+          adminUid: adminUser.uid,
+          adminEmail: adminUser.email || 'Unknown',
+          action: 'ANNIHILATE_TENANT',
+          details: `Permanently purged tenant ${id}`,
+          targetId: id,
+          timestamp: serverTimestamp()
+        });
+      }
     } catch (err) {
       console.error('Failed to annihilate tenant:', err);
       throw err;
     }
   };
 
-  return { tenants, loading, error, updateTenantStatus, updateTenantPricing, annihilateTenant };
+  const updateNextBillingDate = async (id: string, date: Date | null) => {
+    try {
+      const { db } = initializeFirebase();
+      const tenantRef = doc(db, 'tenants', id);
+      await updateDoc(tenantRef, { nextBillingDate: date });
+    } catch (err) {
+      console.error('Failed to update billing date:', err);
+      throw err;
+    }
+  };
+
+  return { tenants, loading, error, updateTenantStatus, updateTenantPricing, updateNextBillingDate, annihilateTenant };
 }

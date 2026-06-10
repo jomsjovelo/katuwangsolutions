@@ -1,7 +1,8 @@
 "use client"
 
 import React, { useState } from 'react';
-import { ExternalLink, Copy, CheckCircle2 } from 'lucide-react';
+import { ExternalLink, Copy, CheckCircle2, Download } from 'lucide-react';
+import Image from 'next/image';
 
 const PAYMENT_NUMBER = '09951665423';
 const ACCOUNT_NAME = 'Katuwang Solutions';
@@ -27,6 +28,15 @@ export function PaymentStep({ data, onPaymentSent }: PaymentStepProps) {
     }
   };
 
+  const downloadQR = () => {
+    const link = document.createElement('a');
+    link.href = '/images/gcash-qr.jpg';
+    link.download = 'Katuwang-QR-Code.jpg';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="p-6 space-y-7 animate-in fade-in slide-in-from-right-4 duration-500 pb-12">
 
@@ -49,59 +59,67 @@ export function PaymentStep({ data, onPaymentSent }: PaymentStepProps) {
         </div>
       </div>
 
-      {/* Payment Options */}
+      {/* QR Code Section */}
+      <div className="bg-white border-2 border-slate-100 rounded-2xl p-6 flex flex-col items-center text-center space-y-4 shadow-sm">
+        <div className="space-y-1">
+          <p className="text-sm font-bold text-slate-900 uppercase tracking-widest">Scan to Pay</p>
+          <p className="text-xs text-slate-500 font-medium">Use this QR code for both GCash and Maya</p>
+        </div>
+        
+        <div className="relative w-48 h-48 bg-slate-50 rounded-xl overflow-hidden border border-slate-100 p-2 shadow-inner">
+          <Image 
+            src="/images/gcash-qr.jpg" 
+            alt="Katuwang Solutions QR Code" 
+            fill 
+            className="object-contain"
+            priority
+            unoptimized
+          />
+        </div>
+
+        <button 
+          onClick={downloadQR}
+          className="flex items-center gap-2 text-sm font-bold text-primary hover:text-primary/80 transition-colors bg-primary/5 px-4 py-2 rounded-lg"
+        >
+          <Download className="h-4 w-4" /> Download QR Code
+        </button>
+      </div>
+
+      {/* Manual Options (Collapsed/Secondary) */}
       <div className="space-y-3">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Payment Options</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Or Pay via Mobile Number</p>
 
         {/* GCash Card */}
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg flex items-center justify-center font-black text-sm text-white" style={{ background: '#00A3E0' }}>G</div>
-            <span className="font-black uppercase tracking-wide text-sm" style={{ color: '#00A3E0' }}>GCash</span>
-          </div>
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Account Name</p>
-              <p className="font-bold text-slate-900 text-xs"><span translate="no" className="notranslate">{ACCOUNT_NAME}</span></p>
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="h-6 w-6 rounded flex items-center justify-center font-black text-[10px] text-white" style={{ background: '#00A3E0' }}>G</div>
+              <span className="font-black uppercase tracking-wide text-xs" style={{ color: '#00A3E0' }}>GCash</span>
             </div>
+            <p className="font-bold text-slate-900 text-xs"><span translate="no" className="notranslate">{ACCOUNT_NAME}</span></p>
           </div>
-          <div>
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">GCash Number</p>
-            <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-blue-100">
-              <span className="font-black text-xl tracking-wider text-slate-900">{PAYMENT_NUMBER}</span>
-              <button onClick={() => copyNumber('gcash')} className="active:scale-90 transition-transform" style={{ color: '#00A3E0' }}>
-                {copiedGcash
-                  ? <CheckCircle2 className="h-5 w-5 text-green-500" />
-                  : <Copy className="h-5 w-5" />}
-              </button>
-            </div>
-            {copiedGcash && <p className="text-[10px] text-green-600 font-bold mt-1">Copied to clipboard!</p>}
+          <div className="flex items-center justify-between bg-white rounded-xl px-4 py-2 border border-blue-100">
+            <span className="font-black text-lg tracking-wider text-slate-900">{PAYMENT_NUMBER}</span>
+            <button onClick={() => copyNumber('gcash')} className="active:scale-90 transition-transform" style={{ color: '#00A3E0' }}>
+              {copiedGcash ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+            </button>
           </div>
         </div>
 
         {/* Maya Card */}
-        <div className="bg-green-50 border border-green-100 rounded-2xl p-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg flex items-center justify-center font-black text-sm text-white" style={{ background: '#2ECC71' }}>M</div>
-            <span className="font-black uppercase tracking-wide text-sm" style={{ color: '#27AE60' }}>Maya</span>
-          </div>
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Account Name</p>
-              <p className="font-bold text-slate-900 text-xs"><span translate="no" className="notranslate">{ACCOUNT_NAME}</span></p>
+        <div className="bg-green-50 border border-green-100 rounded-2xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="h-6 w-6 rounded flex items-center justify-center font-black text-[10px] text-white" style={{ background: '#2ECC71' }}>M</div>
+              <span className="font-black uppercase tracking-wide text-xs" style={{ color: '#27AE60' }}>Maya</span>
             </div>
+            <p className="font-bold text-slate-900 text-xs"><span translate="no" className="notranslate">{ACCOUNT_NAME}</span></p>
           </div>
-          <div>
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Maya Number</p>
-            <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-green-100">
-              <span className="font-black text-xl tracking-wider text-slate-900">{PAYMENT_NUMBER}</span>
-              <button onClick={() => copyNumber('maya')} className="active:scale-90 transition-transform text-green-600">
-                {copiedMaya
-                  ? <CheckCircle2 className="h-5 w-5 text-green-500" />
-                  : <Copy className="h-5 w-5" />}
-              </button>
-            </div>
-            {copiedMaya && <p className="text-[10px] text-green-600 font-bold mt-1">Copied to clipboard!</p>}
+          <div className="flex items-center justify-between bg-white rounded-xl px-4 py-2 border border-green-100">
+            <span className="font-black text-lg tracking-wider text-slate-900">{PAYMENT_NUMBER}</span>
+            <button onClick={() => copyNumber('maya')} className="active:scale-90 transition-transform text-green-600">
+              {copiedMaya ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+            </button>
           </div>
         </div>
       </div>
@@ -111,10 +129,11 @@ export function PaymentStep({ data, onPaymentSent }: PaymentStepProps) {
         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">How to Confirm Payment</p>
         <div className="space-y-3">
           {[
-            'Send ₱99.00 to the GCash or Maya number above.',
+            'Scan or download the QR code above, then upload it in your GCash or Maya app.',
+            'Input the exact amount: ₱99.00.',
             'Take a screenshot of your payment confirmation.',
-            'Send the screenshot to our Facebook Page via Messenger.',
-            'We will activate your account within 24 hours.',
+            'Send the screenshot AND your registered email address to our Facebook Page via Messenger.',
+            'We will send you a message once your account is activated.',
           ].map((text, i) => (
             <div key={i} className="flex gap-3 items-start">
               <div className="h-6 w-6 rounded-full bg-primary text-white text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">{i + 1}</div>

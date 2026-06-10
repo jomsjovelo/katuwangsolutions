@@ -357,6 +357,32 @@ export const appGroups: AppGroup[] = [
         ],
         targetUsers: ['Gyms', 'Fitness Studios', 'Boxing Clubs']
       },
+      {
+        id: 'rental',
+        name: 'Rental',
+        icon: CalendarHeart, // Reusing icon for now
+        tagline: 'Track your rental equipment and bookings effortlessly.',
+        imageSrc: '/apps/rental.png',
+        features: ['Inventory tracking', 'Booking calendar', 'Deposit management', 'Overdue alerts', 'Digital contracts'],
+        description: 'Managing rental equipment doesn\'t have to be a headache of spreadsheets and lost deposits. The Rental app provides a unified calendar, inventory availability checker, and clear payment tracking so you know exactly who has your equipment and when it\'s coming back.',
+        benefits: [
+          'Prevent double-bookings with a real-time availability calendar',
+          'Track security deposits and automate late fee calculations',
+          'Generate professional digital rental contracts for clients',
+          'Get instantly notified of overdue returns',
+        ],
+        stats: [
+          { value: '100%', label: 'Booking clarity' },
+          { value: '₱0', label: 'Lost inventory' },
+          { value: '2×', label: 'Faster checkouts' },
+        ],
+        howItWorks: [
+          { step: 'Add your inventory', detail: 'List all items with their daily or hourly rental rates.' },
+          { step: 'Book the dates', detail: 'Select dates on the calendar to instantly check item availability.' },
+          { step: 'Track returns', detail: 'System alerts you when an item is due back or overdue.' }
+        ],
+        targetUsers: ['Equipment Rentals', 'Car Rentals', 'Party Supplies']
+      },
     ],
   },
   {

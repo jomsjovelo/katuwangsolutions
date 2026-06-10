@@ -38,6 +38,7 @@ import {
   Bluetooth
 } from 'lucide-react';
 import { EscPosBluetoothDriver } from '@/lib/hardware/print-driver';
+import { SupportDrawer } from '@/components/dashboard/support-drawer';
 
 export function ProfileTab() {
   const db = useFirestore();
@@ -54,6 +55,7 @@ export function ProfileTab() {
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
   const [isRemovingId, setIsRemovingId] = useState<string | null>(null);
+  const [isSupportOpen, setIsSupportOpen] = useState(false);
 
   const theme = getModuleTheme(currentTenant?.moduleType);
 
@@ -255,44 +257,58 @@ export function ProfileTab() {
               <h3 className="text-sm font-black uppercase tracking-widest text-slate-700">Staff & Tindera</h3>
             </div>
 
-            {/* Invite staff form */}
-            <Card className="bg-white border-slate-200 shadow-sm rounded-[24px]">
-              <CardHeader className="p-4 pb-0">
+            {/* Business Code & Invite section */}
+            <Card className="bg-white border-slate-200 shadow-sm rounded-[24px] overflow-hidden">
+              <div className="h-1 bg-gradient-to-r" style={{ backgroundImage: `linear-gradient(to right, ${theme.primary}, ${theme.secondary})` }} />
+              <CardHeader className="p-4 pb-2">
                 <CardTitle className="text-sm font-black text-slate-800 flex items-center gap-2">
                   <UserPlus className="h-4 w-4" style={{ color: theme.primary }} />
-                  Magdagdag ng Helper
+                  Katuwang Invite Code
                 </CardTitle>
                 <CardDescription className="text-[11px] font-medium leading-relaxed mt-0.5">
-                  I-invite ang iyong tindera o helper sa pamamagitan ng paglalagay ng kanilang email.
+                  Ibigay ang code na ito sa inyong staff para makasali sila sa app bilang Team Member.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="p-4">
-                <form onSubmit={handleSendInvite} className="space-y-3">
+              <CardContent className="p-4 space-y-4">
+                <div className="flex gap-4">
+                  <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 flex-1 flex flex-col items-center justify-center text-center">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Business Code</span>
+                    <div className="text-4xl font-black text-slate-800 tracking-[0.25em]">
+                      {currentTenant?.businessCode || '----'}
+                    </div>
+                  </div>
+                  {currentTenant?.businessCode && (
+                    <div className="bg-slate-50 rounded-xl border border-slate-100 p-2 flex items-center justify-center shrink-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://app.katuwangsolutions.com/?code=${currentTenant.businessCode}`} 
+                        alt="QR Code"
+                        className="w-20 h-20 rounded-lg"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">O ipasa ang Direct Link:</p>
                   <div className="flex gap-2">
                     <Input 
-                      type="email" 
-                      placeholder="helper@example.com" 
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                      disabled={isInviting}
-                      className="rounded-xl border-slate-200 focus-visible:ring-offset-0 placeholder:text-slate-400 text-xs h-11"
+                      readOnly 
+                      value={`https://app.katuwangsolutions.com/?code=${currentTenant?.businessCode || ''}`}
+                      className="rounded-xl border-slate-200 text-[10px] bg-slate-50 font-medium h-10"
                     />
                     <Button 
-                      type="submit" 
-                      disabled={isInviting}
-                      className="rounded-xl font-bold uppercase tracking-wider text-[10px] text-white border-none h-11 px-4"
-                      style={{ backgroundColor: theme.primary }}
+                      onClick={() => {
+                        navigator.clipboard.writeText(`https://app.katuwangsolutions.com/?code=${currentTenant?.businessCode || ''}`);
+                        alert('Link Copied!');
+                      }}
+                      variant="outline"
+                      className="rounded-xl h-10 text-[10px] font-bold border-slate-200"
                     >
-                      {isInviting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Ipadala'}
+                      Copy
                     </Button>
                   </div>
-                  {inviteError && (
-                    <p className="text-[10px] font-bold text-red-600 pl-1">{inviteError}</p>
-                  )}
-                  {inviteSuccess && (
-                    <p className="text-[10px] font-bold text-green-600 pl-1">{inviteSuccess}</p>
-                  )}
-                </form>
+                </div>
               </CardContent>
             </Card>
 
@@ -316,23 +332,42 @@ export function ProfileTab() {
                             {staff.fullName ? staff.fullName[0] : 'T'}
                           </div>
                           <div>
-                            <p className="text-xs font-bold text-slate-800">{staff.fullName}</p>
+                            <p className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                              {staff.fullName || 'Team Member'}
+                              {staff.subscriptionStatus === 'pending' && (
+                                <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none font-bold uppercase tracking-wider text-[8px] px-2 py-0 rounded-sm">Pending</Badge>
+                              )}
+                            </p>
                             <p className="text-[10px] text-slate-400">{staff.email}</p>
                           </div>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          disabled={isRemovingId === staff.uid}
-                          onClick={() => handleRemoveStaff(staff.uid)}
-                          className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                        >
-                          {isRemovingId === staff.uid ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-red-500" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
+                        <div className="flex items-center gap-2">
+                          {staff.subscriptionStatus === 'pending' && (
+                            <Button
+                              onClick={() => {
+                                alert(`Upang i-sponsor ang account ni ${staff.email}, ipadala ang resibo ng ₱99 (GCash/Maya) sa aming Facebook Page. Ilakip ang inyong Business Name (${currentTenant?.name}) at email ng staff na is-sponsor.`);
+                                window.open('https://m.me/KatuwangSolutions', '_blank');
+                              }}
+                              variant="outline"
+                              className="h-8 text-[10px] font-bold uppercase tracking-widest bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                            >
+                              Sponsor
+                            </Button>
                           )}
-                        </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            disabled={isRemovingId === staff.uid}
+                            onClick={() => handleRemoveStaff(staff.uid)}
+                            className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                          >
+                            {isRemovingId === staff.uid ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-red-500" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -387,18 +422,28 @@ export function ProfileTab() {
           </Card>
         )}
 
-        {/* Sign Out Cta */}
-        <div className="pt-2">
+        {/* Support & Sign Out */}
+        <div className="pt-2 space-y-3">
+          <Button 
+            onClick={() => setIsSupportOpen(true)}
+            variant="outline"
+            className="w-full h-12 rounded-xl font-bold uppercase tracking-widest text-[10px] border-slate-200 text-slate-600 hover:bg-slate-100 flex items-center justify-center gap-2 active:scale-95 transition-transform"
+          >
+            <HelpCircle className="h-4 w-4" /> Help & Support
+          </Button>
+
           <Button 
             onClick={handleSignOut}
             variant="outline"
-            className="w-full h-12 rounded-xl font-bold uppercase tracking-widest text-[10px] border-slate-200 text-slate-600 hover:bg-slate-100 flex items-center justify-center gap-2 active:scale-95 transition-transform"
+            className="w-full h-12 rounded-xl font-bold uppercase tracking-widest text-[10px] border-red-200 text-red-600 hover:bg-red-50 flex items-center justify-center gap-2 active:scale-95 transition-transform"
           >
             <LogOut className="h-4 w-4" /> Mag-Sign Out
           </Button>
         </div>
 
       </main>
+      
+      <SupportDrawer isOpen={isSupportOpen} onClose={() => setIsSupportOpen(false)} />
     </div>
   );
 }

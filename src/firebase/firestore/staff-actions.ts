@@ -199,3 +199,85 @@ export async function removeStaffMember(tenantId: string, staffUid: string) {
 
   return true;
 }
+
+/**
+ * Handles unified Login & Registration for Team Members using a Business Code.
+ * If login fails (user not found), it uses the Business Code to auto-register them.
+ */
+export async function loginOrRegisterStaff(email: string, password: string, businessCode?: string) {
+  const { auth, db } = initializeFirebase();
+
+  try {
+    // Attempt standard login first
+    const { signInWithEmailAndPassword } = await import('firebase/auth');
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    return { success: true, user: userCredential.user };
+  } catch (error: any) {
+    // If login fails, check if they provided a business code for auto-registration
+    if (error.code === 'auth/invalid-credential' && businessCode) {
+      // Validate business code first
+      const codeRef = doc(db, 'business_codes', businessCode);
+      const codeSnap = await getDoc(codeRef);
+      
+      if (!codeSnap.exists()) {
+        throw new Error('Invalid Business Code.');
+      }
+
+      const tenantId = codeSnap.data().tenantId;
+      const moduleType = codeSnap.data().moduleType || 'rental'; // fallback
+
+      // Try to register the new staff member
+      try {
+        const { createUserWithEmailAndPassword } = await import('firebase/auth');
+        const newUserCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const uid = newUserCredential.user.uid;
+
+        // Atomic write to create user profile and link to tenant
+        await runTransactionResilient(db, async (transaction) => {
+          const userRef = doc(db, 'users', uid);
+          const tenantRef = doc(db, 'tenants', tenantId);
+
+          // Check if tenant exists
+          const tenantSnap = await transaction.get(tenantRef);
+          if (!tenantSnap.exists()) {
+            throw new Error("Business not found.");
+          }
+
+          // Create User Profile
+          transaction.set(userRef, {
+            uid: uid,
+            email: email,
+            role: 'staff',
+            tenantId: tenantId,
+            moduleType: tenantSnap.data().moduleType || moduleType,
+            subscriptionStatus: 'pending', // Requires payment verification
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+
+          // Add to Tenant's staff list
+          transaction.update(tenantRef, {
+            staffUids: arrayUnion(uid),
+            updatedAt: serverTimestamp(),
+          });
+        });
+
+        return { success: true, user: newUserCredential.user, isNewRegistration: true };
+      } catch (registrationError: any) {
+        // If email is already in use, it means they typed the wrong password during standard login
+        if (registrationError.code === 'auth/email-already-in-use') {
+          throw new Error('Invalid email or password.');
+        }
+        
+        // Clean up orphaned auth user if transaction failed
+        if (auth.currentUser) {
+           await auth.currentUser.delete().catch(console.error);
+        }
+        throw new Error(registrationError.message || 'Registration failed. Please try again.');
+      }
+    }
+
+    // Re-throw original error if no business code or different error
+    throw error;
+  }
+}
