@@ -232,16 +232,48 @@ export async function loginOrRegisterStaff(email: string, password: string, busi
         const newUserCredential = await createUserWithEmailAndPassword(auth, email, password);
         const uid = newUserCredential.user.uid;
 
+        // Generate Unique 4-Char Referral Code
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let referralCode = '';
+        let isRefUnique = false;
+        let refAttempts = 0;
+        while (!isRefUnique && refAttempts < 10) {
+          referralCode = '';
+          for (let i = 0; i < 4; i++) {
+            referralCode += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+          const refCodeSnap = await getDoc(doc(db, 'referral_codes', referralCode));
+          if (!refCodeSnap.exists()) {
+            isRefUnique = true;
+          }
+          refAttempts++;
+        }
+
+        if (!isRefUnique) {
+          throw new Error("Failed to generate a unique referral code.");
+        }
+
         // Atomic write to create user profile and link to tenant
         await runTransactionResilient(db, async (transaction) => {
           const userRef = doc(db, 'users', uid);
           const tenantRef = doc(db, 'tenants', tenantId);
+          const refCodeDoc = doc(db, 'referral_codes', referralCode);
 
           // Check if tenant exists
           const tenantSnap = await transaction.get(tenantRef);
           if (!tenantSnap.exists()) {
             throw new Error("Business not found.");
           }
+
+          const refCodeSnap = await transaction.get(refCodeDoc);
+          if (refCodeSnap.exists()) {
+             throw new Error("Collision during transaction for referral code.");
+          }
+
+          transaction.set(refCodeDoc, {
+            uid: uid,
+            createdAt: serverTimestamp(),
+          });
 
           // Create User Profile
           transaction.set(userRef, {
@@ -250,6 +282,8 @@ export async function loginOrRegisterStaff(email: string, password: string, busi
             role: 'staff',
             tenantId: tenantId,
             moduleType: tenantSnap.data().moduleType || moduleType,
+            referralCode: referralCode,
+            referralEarnings: 0,
             subscriptionStatus: 'pending', // Requires payment verification
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),

@@ -3,7 +3,9 @@ import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { AuthGuard } from '@/components/auth/auth-guard';
 import { Toaster } from '@/components/ui/toaster';
+import { Suspense } from 'react';
 import { PwaInstallPrompt } from '@/components/pwa-install-prompt';
+import { ReferralCatcher } from '@/components/referral-catcher';
 
 export const metadata: Metadata = {
   title: 'Katuwang Solutions | Ang Katuwang mo sa Negosyo',
@@ -59,6 +61,9 @@ export default function RootLayout({
             </div>
             <PwaInstallPrompt />
             <Toaster />
+            <Suspense fallback={null}>
+              <ReferralCatcher />
+            </Suspense>
           </AuthGuard>
         </FirebaseClientProvider>
       </body>

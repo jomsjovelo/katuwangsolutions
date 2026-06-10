@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { EscPosBluetoothDriver } from '@/lib/hardware/print-driver';
 import { SupportDrawer } from '@/components/dashboard/support-drawer';
+import { SponsorDialog } from '@/components/dashboard/sponsor-dialog';
 
 export function ProfileTab() {
   const db = useFirestore();
@@ -56,6 +57,8 @@ export function ProfileTab() {
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
   const [isRemovingId, setIsRemovingId] = useState<string | null>(null);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
+  const [isSponsorOpen, setIsSponsorOpen] = useState(false);
+  const [sponsorStaffName, setSponsorStaffName] = useState('');
 
   const theme = getModuleTheme(currentTenant?.moduleType);
 
@@ -345,8 +348,8 @@ export function ProfileTab() {
                           {staff.subscriptionStatus === 'pending' && (
                             <Button
                               onClick={() => {
-                                alert(`Upang i-sponsor ang account ni ${staff.email}, ipadala ang resibo ng ₱99 (GCash/Maya) sa aming Facebook Page. Ilakip ang inyong Business Name (${currentTenant?.name}) at email ng staff na is-sponsor.`);
-                                window.open('https://m.me/KatuwangSolutions', '_blank');
+                                setSponsorStaffName(staff.fullName || staff.email);
+                                setIsSponsorOpen(true);
                               }}
                               variant="outline"
                               className="h-8 text-[10px] font-bold uppercase tracking-widest bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
@@ -422,6 +425,56 @@ export function ProfileTab() {
           </Card>
         )}
 
+        {/* Referral Program Section */}
+        <Card className="bg-white border-slate-200 shadow-sm rounded-[24px] overflow-hidden">
+          <div className="h-1 bg-gradient-to-r" style={{ backgroundImage: `linear-gradient(to right, ${theme.primary}, ${theme.secondary})` }} />
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-sm font-black text-slate-800 flex items-center gap-2">
+              <span className="text-xl">🎁</span> Referral Program
+            </CardTitle>
+            <CardDescription className="text-[11px] font-medium leading-relaxed mt-0.5">
+              I-share ang inyong Referral Code. May ₱10.00 kang kikitain sa bawat tindahang mag-register at magbayad gamit ang code mo!
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 space-y-4">
+            <div className="flex gap-4">
+              <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 flex-1 flex flex-col items-center justify-center text-center">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Your Referral Code</span>
+                <div className="text-3xl font-black text-slate-800 tracking-[0.2em]">
+                  {profile?.referralCode || '----'}
+                </div>
+              </div>
+              <div className="bg-emerald-50 rounded-xl border border-emerald-100 p-4 flex-1 flex flex-col items-center justify-center text-center">
+                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-[0.2em] mb-1">Total Earnings</span>
+                <div className="text-3xl font-black text-emerald-600">
+                  ₱{(profile?.referralEarnings || 0).toFixed(2)}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Referral Link:</p>
+              <div className="flex gap-2">
+                <Input 
+                  readOnly 
+                  value={`https://app.katuwangsolutions.com/onboarding?ref=${profile?.referralCode || ''}`}
+                  className="rounded-xl border-slate-200 text-[10px] bg-slate-50 font-medium h-10"
+                />
+                <Button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(`https://app.katuwangsolutions.com/onboarding?ref=${profile?.referralCode || ''}`);
+                    alert('Referral Link Copied!');
+                  }}
+                  variant="outline"
+                  className="rounded-xl h-10 text-[10px] font-bold border-slate-200"
+                >
+                  Copy
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Support & Sign Out */}
         <div className="pt-2 space-y-3">
           <Button 
@@ -444,6 +497,7 @@ export function ProfileTab() {
       </main>
       
       <SupportDrawer isOpen={isSupportOpen} onClose={() => setIsSupportOpen(false)} />
+      <SponsorDialog open={isSponsorOpen} onOpenChange={setIsSponsorOpen} staffName={sponsorStaffName} />
     </div>
   );
 }

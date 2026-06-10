@@ -72,7 +72,7 @@ export function useAdminTenants() {
       const batch = writeBatch(db);
       batch.update(tenantRef, { subscriptionStatus: status });
       
-      // If approving from pending, write a billing log
+      // If approving from pending, write a billing log and process referral
       if (tenant.subscriptionStatus === 'pending' && status === 'active') {
         const amount = tenant.pricingTier === 'promo_99' ? 99 : tenant.pricingTier === 'standard_199' ? 199 : 499;
         const logRef = doc(collection(db, 'billing_logs'));
@@ -84,6 +84,25 @@ export function useAdminTenants() {
           type: 'activation',
           timestamp: serverTimestamp()
         });
+
+        // Process referral
+        const anyTenant = tenant as any;
+        if (anyTenant.referredBy && !anyTenant.referralPaid) {
+          const { query, where, increment } = await import('firebase/firestore');
+          const usersRef = collection(db, 'users');
+          const q = query(usersRef, where('referralCode', '==', anyTenant.referredBy));
+          const qSnap = await getDocs(q);
+          
+          if (!qSnap.empty) {
+            const referrerDoc = qSnap.docs[0];
+            batch.update(referrerDoc.ref, {
+              referralEarnings: increment(10)
+            });
+            batch.update(tenantRef, {
+              referralPaid: true
+            });
+          }
+        }
       }
       
       

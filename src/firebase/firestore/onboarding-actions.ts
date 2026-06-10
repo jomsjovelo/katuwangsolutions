@@ -52,6 +52,27 @@ export async function registerNewTenant(onboardingData: any) {
       throw new Error("Failed to generate a unique business code. Please try again.");
     }
 
+    // 2.5 Generate Unique 4-Char Referral Code
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let referralCode = '';
+    let isRefUnique = false;
+    let refAttempts = 0;
+    while (!isRefUnique && refAttempts < 10) {
+      referralCode = '';
+      for (let i = 0; i < 4; i++) {
+        referralCode += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      const refCodeSnap = await getDoc(doc(db, 'referral_codes', referralCode));
+      if (!refCodeSnap.exists()) {
+        isRefUnique = true;
+      }
+      refAttempts++;
+    }
+
+    if (!isRefUnique) {
+      throw new Error("Failed to generate a unique referral code. Please try again.");
+    }
+
     // 3. Atomic Firestore Write
     try {
       await runTransactionResilient(db, async (transaction) => {
@@ -60,6 +81,12 @@ export async function registerNewTenant(onboardingData: any) {
         const codeSnap = await transaction.get(codeRef);
         if (codeSnap.exists()) {
            throw new Error("Collision during transaction. Please try again.");
+        }
+
+        const refCodeDoc = doc(db, 'referral_codes', referralCode);
+        const refCodeSnap = await transaction.get(refCodeDoc);
+        if (refCodeSnap.exists()) {
+           throw new Error("Collision during transaction for referral code.");
         }
 
         // Create Tenant Doc
@@ -73,6 +100,11 @@ export async function registerNewTenant(onboardingData: any) {
           createdAt: serverTimestamp(),
         });
 
+        transaction.set(refCodeDoc, {
+          uid: uid,
+          createdAt: serverTimestamp(),
+        });
+
         transaction.set(tenantRef, {
           id: tenantId,
           name: businessInfo.businessName,
@@ -83,6 +115,7 @@ export async function registerNewTenant(onboardingData: any) {
           ownerUid: uid,
           staffUids: [],
           businessCode: businessCode,
+          referredBy: onboardingData.referredBy || null,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
@@ -98,6 +131,8 @@ export async function registerNewTenant(onboardingData: any) {
           role: 'owner',
           tenantId: tenantId,
           moduleType: onboardingData.appId,
+          referralCode: referralCode,
+          referralEarnings: 0,
           termsAccepted: onboardingData.termsAccepted || false,
           termsAcceptedAt: onboardingData.termsAccepted ? serverTimestamp() : null,
           createdAt: serverTimestamp(),

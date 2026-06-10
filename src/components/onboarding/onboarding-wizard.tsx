@@ -63,7 +63,8 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
     if (step === 'account') {
       setIsLoading(true);
       try {
-        await registerNewTenant(data);
+        const referredBy = typeof window !== 'undefined' ? localStorage.getItem('katuwang_ref') : null;
+        await registerNewTenant({ ...data, referredBy });
         setStep('success');
       } catch (err: any) {
         setError(err.message || 'Failed to create account. Please try again.');
