@@ -68,6 +68,9 @@ export function LoginDialog({ children }: { children: React.ReactNode }) {
       await loginOrRegisterStaff(data.email, data.password, data.businessCode);
       setOpen(false);
       form.reset();
+      
+      // Force navigation to dashboard after successful login
+      window.location.href = '/dashboard';
     } catch (error: any) {
       if (error instanceof FirebaseError) {
         switch (error.code) {

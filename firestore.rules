@@ -141,6 +141,20 @@ service cloud.firestore {
       allow read, write: if isMasterAdmin();
     }
     
+    // 12. Business Codes (Public read for login validation)
+    match /business_codes/{codeId} {
+      allow get: if true; // Publicly readable for pre-login validation
+      allow list: if isMasterAdmin();
+      allow write: if isAuthenticated();
+    }
+    
+    // 13. Referral Codes (Public read for validation)
+    match /referral_codes/{codeId} {
+      allow get: if true;
+      allow list: if isMasterAdmin();
+      allow write: if isAuthenticated();
+    }
+    
     // 12. True Default Deny
     match /{document=**} {
       allow read, write: if false;

@@ -62,9 +62,10 @@ async function seedDemoAccount() {
       { id: 'auto-boss', name: 'Katuwang Auto Demo' },
       { id: 'wellness-pro', name: 'Katuwang Wellness Demo' },
       { id: 'trim-track', name: 'Katuwang Trim Demo' },
-      { id: 'rep-sync', name: 'Katuwang Rep Demo' }
+      { id: 'rental', name: 'Katuwang Rental Demo' }
     ];
 
+    const DEMO_BUSINESS_CODE = '8888';
     const primaryTenantId = `demo-${modules[0].id}-${uid.substring(0, 5)}`;
 
     console.log(`🏢 Provisioning ${modules.length} Tenants for Demo Account...`);
@@ -82,10 +83,20 @@ async function seedDemoAccount() {
         subscriptionStatus: 'active',
         ownerUid: uid,
         staffUids: [],
+        businessCode: DEMO_BUSINESS_CODE,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
     }
+
+    // Create Business Code Document for Primary Tenant
+    const codeRef = doc(db, 'business_codes', DEMO_BUSINESS_CODE);
+    await setDoc(codeRef, {
+      code: DEMO_BUSINESS_CODE,
+      tenantId: primaryTenantId,
+      moduleType: modules[0].id,
+      createdAt: serverTimestamp()
+    });
 
     const userRef = doc(db, 'users', uid);
     await setDoc(userRef, {
