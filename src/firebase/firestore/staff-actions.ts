@@ -204,29 +204,45 @@ export async function removeStaffMember(tenantId: string, staffUid: string) {
  * Handles unified Login & Registration for Team Members using a Business Code.
  * If login fails (user not found), it uses the Business Code to auto-register them.
  */
-export async function loginOrRegisterStaff(email: string, password: string, businessCode?: string) {
+export async function loginOrRegisterStaff(email: string, password: string, businessCode: string) {
   const { auth, db } = initializeFirebase();
+
+  // Validate business code first (MANDATORY)
+  const codeRef = doc(db, 'business_codes', businessCode);
+  const codeSnap = await getDoc(codeRef);
+  
+  if (!codeSnap.exists()) {
+    throw new Error('Invalid Business Code.');
+  }
+
+  const tenantIdFromCode = codeSnap.data().tenantId;
+  const moduleType = codeSnap.data().moduleType || 'rental'; // fallback
 
   try {
     // Attempt standard login first
     const { signInWithEmailAndPassword } = await import('firebase/auth');
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    
+    // Security Check: Verify if the logged in user belongs to this tenant
+    const userRef = doc(db, 'users', userCredential.user.uid);
+    const userSnap = await getDoc(userRef);
+    if (userSnap.exists()) {
+      const userData = userSnap.data();
+      if (userData.tenantId !== tenantIdFromCode && userData.role !== 'superadmin') {
+        // Sign out to clean up if business code doesn't match their account
+        await auth.signOut();
+        throw new Error('Invalid Business Code for this account.');
+      }
+    }
+    
     return { success: true, user: userCredential.user };
   } catch (error: any) {
-    // If login fails, check if they provided a business code for auto-registration
-    if (error.code === 'auth/invalid-credential' && businessCode) {
-      // Validate business code first
-      const codeRef = doc(db, 'business_codes', businessCode);
-      const codeSnap = await getDoc(codeRef);
-      
-      if (!codeSnap.exists()) {
-        throw new Error('Invalid Business Code.');
-      }
+    if (error.message === 'Invalid Business Code for this account.') {
+      throw error;
+    }
 
-      const tenantId = codeSnap.data().tenantId;
-      const moduleType = codeSnap.data().moduleType || 'rental'; // fallback
-
-      // Try to register the new staff member
+    // If login fails because user doesn't exist, use the business code to auto-register them
+    if (error.code === 'auth/invalid-credential') {
       try {
         const { createUserWithEmailAndPassword } = await import('firebase/auth');
         const newUserCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -256,7 +272,7 @@ export async function loginOrRegisterStaff(email: string, password: string, busi
         // Atomic write to create user profile and link to tenant
         await runTransactionResilient(db, async (transaction) => {
           const userRef = doc(db, 'users', uid);
-          const tenantRef = doc(db, 'tenants', tenantId);
+          const tenantRef = doc(db, 'tenants', tenantIdFromCode);
           const refCodeDoc = doc(db, 'referral_codes', referralCode);
 
           // Check if tenant exists
@@ -280,7 +296,7 @@ export async function loginOrRegisterStaff(email: string, password: string, busi
             uid: uid,
             email: email,
             role: 'staff',
-            tenantId: tenantId,
+            tenantId: tenantIdFromCode,
             moduleType: tenantSnap.data().moduleType || moduleType,
             referralCode: referralCode,
             referralEarnings: 0,

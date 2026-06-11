@@ -8,7 +8,7 @@ import {
   persistentMultipleTabManager,
   Firestore
 } from 'firebase/firestore';
-import { getAuth, Auth } from 'firebase/auth';
+import { getAuth, Auth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { firebaseConfig } from './config';
 
 let app: FirebaseApp;
@@ -20,6 +20,7 @@ export function initializeFirebase() {
     // First call: initialize the Firebase app and Firestore with offline persistence.
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
+    setPersistence(auth, browserLocalPersistence).catch(console.error);
     db = initializeFirestore(app, {
       localCache: persistentLocalCache({
         tabManager: persistentMultipleTabManager()

@@ -35,7 +35,7 @@ import { loginOrRegisterStaff } from '@/firebase/firestore/staff-actions';
 const loginSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
-  businessCode: z.string().optional(),
+  businessCode: z.string().min(4, 'Business code must be exactly 4 characters').max(4, 'Business code must be exactly 4 characters'),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -156,23 +156,14 @@ export function LoginDialog({ children }: { children: React.ReactNode }) {
                 )}
               />
 
-              <div className="pt-2">
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-slate-200" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-white px-2 text-slate-400 font-bold">Kung ikaw ay Katuwang / Team Member</span>
-                  </div>
-                </div>
-              </div>
+
 
               <FormField
                 control={form.control}
                 name="businessCode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-bold uppercase tracking-widest text-slate-400">Business Code (Optional)</FormLabel>
+                    <FormLabel className="text-xs font-bold uppercase tracking-widest text-slate-400">Business Code</FormLabel>
                     <FormControl>
                       <Input 
                         placeholder="Halimbawa: 8391" 
@@ -181,7 +172,7 @@ export function LoginDialog({ children }: { children: React.ReactNode }) {
                         {...field} 
                       />
                     </FormControl>
-                    <p className="text-[10px] text-slate-500 font-medium leading-tight">Ilagay ang 4-digit code ng iyong negosyo para maka-join. Iwanang blangko kung ikaw ang may-ari.</p>
+                    <p className="text-[10px] text-slate-500 font-medium leading-tight">Ilagay ang 4-digit code ng iyong negosyo para maka-join at maka-login.</p>
                     <FormMessage className="text-xs font-bold" />
                   </FormItem>
                 )}
