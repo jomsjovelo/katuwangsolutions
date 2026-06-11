@@ -8,9 +8,35 @@ import { PwaInstallPrompt } from '@/components/pwa-install-prompt';
 import { ReferralCatcher } from '@/components/referral-catcher';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://www.katuwangsolutions.com'),
   title: 'Katuwang Solutions | Ang Katuwang mo sa Negosyo',
   description: 'Sales, inventory, at utang tracking para sa mga tindahan, palengke, at services. Mura. Mabilis. Maaasahan.',
   manifest: '/manifest.json',
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    title: 'Katuwang Solutions | Ang Katuwang mo sa Negosyo',
+    description: 'Sales, inventory, at utang tracking para sa mga tindahan, palengke, at services. Mura. Mabilis. Maaasahan.',
+    url: 'https://www.katuwangsolutions.com',
+    siteName: 'Katuwang Solutions',
+    images: [
+      {
+        url: '/opengraph-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Katuwang Solutions Preview Image',
+      },
+    ],
+    locale: 'fil_PH',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Katuwang Solutions | Ang Katuwang mo sa Negosyo',
+    description: 'Sales, inventory, at utang tracking para sa mga tindahan, palengke, at services. Mura. Mabilis. Maaasahan.',
+    images: ['/opengraph-image.png'],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
