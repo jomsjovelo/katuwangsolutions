@@ -138,7 +138,12 @@ export function ReportsTab() {
   const { products: inventory } = useInventory();
 
   const [dateRangeStr, setDateRangeStr] = useState<string>('today');
-  
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loadingTx, setLoadingTx] = useState(true);
   const [yesterdayIncomePesos, setYesterdayIncomePesos] = useState<number | null>(null);
@@ -384,9 +389,13 @@ export function ReportsTab() {
             <Calendar className="h-4.5 w-4.5 text-slate-400" />
             <span className="whitespace-nowrap">Petsa:</span>
             <span className="font-extrabold text-slate-800 line-clamp-1">
-              {dateRangeStr === 'today' || dateRangeStr === 'yesterday' 
-                ? format(rangeStart, 'MMM d, yyyy')
-                : `${format(rangeStart, 'MMM d')} - ${format(rangeEnd, 'MMM d, yyyy')}`}
+              {mounted ? (
+                dateRangeStr === 'today' || dateRangeStr === 'yesterday' 
+                  ? format(rangeStart, 'MMM d, yyyy')
+                  : `${format(rangeStart, 'MMM d')} - ${format(rangeEnd, 'MMM d, yyyy')}`
+              ) : (
+                '...'
+              )}
             </span>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
