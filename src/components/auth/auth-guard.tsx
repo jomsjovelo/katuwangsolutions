@@ -90,7 +90,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         useTenantStore.getState().setUserProfile(userData);
 
         const persistedTenant = useTenantStore.getState().activeTenant;
-        if (persistedTenant) {
+        // Verify that the persisted tenant actually belongs to the newly logged-in user
+        const isAuthorizedForPersisted = persistedTenant && 
+          (persistedTenant.ownerUid === user.uid || (persistedTenant.staffUids || []).includes(user.uid));
+
+        if (persistedTenant && isAuthorizedForPersisted) {
           setTenantId(persistedTenant.id);
         } else if (userData.tenantId) {
           setTenantId(userData.tenantId);
