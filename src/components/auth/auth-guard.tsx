@@ -88,6 +88,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       if (userSnap.exists()) {
         const userData = userSnap.data() as any;
         useTenantStore.getState().setUserProfile(userData);
+        setProfileTenantId(userData.tenantId || null);
 
         const persistedTenant = useTenantStore.getState().activeTenant;
         // Verify that the persisted tenant actually belongs to the newly logged-in user
@@ -137,13 +138,19 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }, (err) => {
       console.error('AuthGuard: Tenant Fetch Security/Network Error', err);
       setActiveTenant(null);
+      // Auto-recover from stale Zustand persistence by falling back to profile
+      if (profileTenantId && profileTenantId !== tenantId) {
+        console.log('Auto-recovering to profile tenant ID...', profileTenantId);
+        setTenantId(profileTenantId);
+        return;
+      }
       setError('Connection interrupted while fetching tenant.');
       setChecking(false);
       setLoading(false);
     });
 
     return () => unsubscribeTenant();
-  }, [tenantId, db, setActiveTenant, setError, setLoading]);
+  }, [tenantId, profileTenantId, db, setActiveTenant, setError, setLoading]);
 
   // 1. Initial Loading/Hydration State
   if (authLoading || checking || isLoading || (user && isAdmin === null)) {
