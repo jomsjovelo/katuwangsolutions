@@ -354,7 +354,7 @@ export function ProfileTab() {
                               variant="outline"
                               className="h-8 text-[10px] font-bold uppercase tracking-widest bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
                             >
-                              Sponsor
+                              Pay for Access
                             </Button>
                           )}
                           <Button

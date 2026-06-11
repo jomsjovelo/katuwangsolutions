@@ -38,7 +38,7 @@ export function SponsorDialog({ open, onOpenChange, staffName }: SponsorDialogPr
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-black text-slate-900">Sponsor Team Member</DialogTitle>
+          <DialogTitle className="text-xl font-black text-slate-900">Pay for Team Member Access</DialogTitle>
           <DialogDescription className="text-sm font-medium">
             Pay <strong>₱99.00</strong> to activate {staffName}'s account.
           </DialogDescription>

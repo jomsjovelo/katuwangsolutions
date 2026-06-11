@@ -213,9 +213,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
             <Loader2 className="h-12 w-12 text-amber-500 animate-spin" />
           </div>
           <h1 className="text-2xl font-bold text-slate-900 mb-2">Pending Verification</h1>
-          <p className="text-slate-500 text-sm mb-6 leading-relaxed">
+          <p className="text-sm font-medium text-slate-600 mb-6 max-w-sm mx-auto leading-relaxed">
             {isStaffPending ? (
-              <>Your account for <strong>{activeTenant?.name}</strong> is waiting for verification. Pay ₱99 below, OR wait for your Business Owner to sponsor your account.</>
+              <>Your account for <strong>{activeTenant?.name}</strong> is waiting for verification. Pay ₱99 below, OR wait for your Store Owner to pay for your access.</>
             ) : (
               <>Your business <strong>{activeTenant?.name}</strong> is waiting for payment verification.</>
             )}
