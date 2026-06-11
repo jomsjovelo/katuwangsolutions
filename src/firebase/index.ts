@@ -1,12 +1,7 @@
 'use client';
 
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import {
-  initializeFirestore,
-  getFirestore,
-  memoryLocalCache,
-  Firestore
-} from 'firebase/firestore';
+import { getFirestore, Firestore } from 'firebase/firestore';
 import { getAuth, Auth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { firebaseConfig } from './config';
 
@@ -18,23 +13,14 @@ export function initializeFirebase() {
   if (getApps().length === 0) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
+    db = getFirestore(app);
     
     // We wrap browser APIs in a try/catch or typeof window check to prevent SSR crashes
     if (typeof window !== 'undefined') {
       setPersistence(auth, browserLocalPersistence).catch(console.error);
-      
-      // Use memoryLocalCache to completely bypass any corrupted IndexedDB state in the browser
-      db = initializeFirestore(app, {
-        localCache: memoryLocalCache()
-      });
-    } else {
-      // On the server, we just use the default Firestore instance
-      db = getFirestore(app);
     }
   } else {
     // Subsequent calls: the app and Firestore are already initialized.
-    // We MUST use getFirestore() here — calling initializeFirestore() again
-    // throws a fatal "settings can no longer be changed" error and crashes the app.
     app = getApps()[0];
     db = getFirestore(app);
     auth = getAuth(app);
