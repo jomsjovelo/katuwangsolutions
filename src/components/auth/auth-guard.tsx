@@ -21,6 +21,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(true);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [tenantId, setTenantId] = useState<string | null>(null);
+  const [profileTenantId, setProfileTenantId] = useState<string | null>(null);
   const [maintenance, setMaintenance] = useState<{ mode: boolean; message: string } | null>(null);
 
   // 0. Fetch System Config (Maintenance Mode)
