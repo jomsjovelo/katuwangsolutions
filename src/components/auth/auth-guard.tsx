@@ -142,7 +142,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       // Auto-recover from stale Zustand persistence by falling back to profile
       if (profileTenantId && profileTenantId !== tenantId) {
         console.log('Auto-recovering to profile tenant ID...', profileTenantId);
-        setTenantId(profileTenantId);
+        setTimeout(() => setTenantId(profileTenantId), 0);
         return;
       }
       setError('Connection interrupted while fetching tenant.');
