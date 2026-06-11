@@ -16,13 +16,16 @@ let auth: Auth;
 
 export function initializeFirebase() {
   if (getApps().length === 0) {
-    // First call: initialize the Firebase app and Firestore with offline persistence.
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
-    setPersistence(auth, browserLocalPersistence).catch(console.error);
+    
+    // We wrap browser APIs in a try/catch or typeof window check to prevent SSR crashes
+    if (typeof window !== 'undefined') {
+      setPersistence(auth, browserLocalPersistence).catch(console.error);
+    }
+    
+    // Use memoryLocalCache to completely bypass any corrupted IndexedDB state in the browser
     db = initializeFirestore(app, {
-      // Using memoryLocalCache prevents IndexedDB corruption crashes 
-      // during Next.js Fast Refresh and testing multiple accounts.
       localCache: memoryLocalCache()
     });
   } else {

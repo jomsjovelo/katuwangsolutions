@@ -129,19 +129,21 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         setActiveTenant(tenantData);
         setError(null);
       } else {
+        setActiveTenant(null);
         setError('Tenant configuration missing.');
       }
       setChecking(false);
       setLoading(false);
     }, (err) => {
       console.error('AuthGuard: Tenant Fetch Security/Network Error', err);
+      setActiveTenant(null);
       setError('Connection interrupted while fetching tenant.');
       setChecking(false);
       setLoading(false);
     });
 
     return () => unsubscribeTenant();
-  }, [tenantId, setActiveTenant, setError, setLoading]);
+  }, [tenantId, db, setActiveTenant, setError, setLoading]);
 
   // 1. Initial Loading/Hydration State
   if (authLoading || checking || isLoading || (user && isAdmin === null)) {
