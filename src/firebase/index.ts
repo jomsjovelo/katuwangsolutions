@@ -4,8 +4,7 @@ import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import {
   initializeFirestore,
   getFirestore,
-  persistentLocalCache,
-  persistentMultipleTabManager,
+  memoryLocalCache,
   Firestore
 } from 'firebase/firestore';
 import { getAuth, Auth, setPersistence, browserLocalPersistence } from 'firebase/auth';
@@ -22,9 +21,9 @@ export function initializeFirebase() {
     auth = getAuth(app);
     setPersistence(auth, browserLocalPersistence).catch(console.error);
     db = initializeFirestore(app, {
-      localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager()
-      })
+      // Using memoryLocalCache prevents IndexedDB corruption crashes 
+      // during Next.js Fast Refresh and testing multiple accounts.
+      localCache: memoryLocalCache()
     });
   } else {
     // Subsequent calls: the app and Firestore are already initialized.

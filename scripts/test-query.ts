@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
-import { getFirestore, collection, query, where, getDocs, doc, getDoc, orderBy } from 'firebase/firestore';
+import { getFirestore, collection, query, where, getDocs, doc, getDoc, orderBy, limit } from 'firebase/firestore';
 import * as dotenv from 'dotenv';
 import path from 'path';
 
@@ -15,52 +15,62 @@ const firebaseConfig = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-async function testQuery() {
+async function run() {
   try {
-    console.log("Logging in...");
+    console.log('Logging in...');
     const cred = await signInWithEmailAndPassword(auth, 'demo@katuwangsolutions.com', 'katuwangdemo');
     const uid = cred.user.uid;
-    console.log("Logged in as:", uid);
+    console.log('Logged in as:', uid);
 
-    // Find the primary tenant
-    const userRef = doc(db, 'users', uid);
-    const userSnap = await getDoc(userRef);
-    const tenantId = userSnap.data()?.tenantId;
-    console.log("Tenant ID:", tenantId);
+    console.log('\n--- Testing useUserTenants Owner Query ---');
+    try {
+      const q = query(collection(db, 'tenants'), where('ownerUid', '==', uid));
+      const snap = await getDocs(q);
+      console.log('SUCCESS! ownerTenants count:', snap.docs.length);
+    } catch (e) {
+      console.error('FAILED ownerTenants query:', e);
+    }
 
-    // Try reading tenant doc
-    console.log("Reading tenant doc...");
-    const tenantRef = doc(db, 'tenants', tenantId);
-    const tenantSnap = await getDoc(tenantRef);
-    console.log("Tenant data:", tenantSnap.data());
+    console.log('\n--- Testing useUserTenants Staff Query ---');
+    try {
+      const q2 = query(collection(db, 'tenants'), where('staffUids', 'array-contains', uid));
+      const snap2 = await getDocs(q2);
+      console.log('SUCCESS! staffTenants count:', snap2.docs.length);
+    } catch (e) {
+      console.error('FAILED staffTenants query:', e);
+    }
 
-    // Try reading transactions
-    console.log("Reading transactions...");
-    const txRef = collection(db, 'tenants', tenantId, 'transactions');
-    const rangeStart = new Date();
-    rangeStart.setDate(rangeStart.getDate() - 1);
-    const rangeEnd = new Date();
-    const q = query(
-      txRef,
-      where('createdAt', '>=', rangeStart),
-      where('createdAt', '<=', rangeEnd),
-      orderBy('createdAt', 'desc')
-    );
-    const snap = await getDocs(q);
-    console.log("Transactions count:", snap.size);
+    console.log('\n--- Testing AuthGuard Profile Query ---');
+    try {
+      const profile = await getDoc(doc(db, 'users', uid));
+      console.log('SUCCESS! Profile exists:', profile.exists());
+    } catch (e) {
+      console.error('FAILED Profile query:', e);
+    }
 
-  } catch (err: any) {
-    console.error("ERROR:");
-    console.error(err.code, err.message);
+    const tId = `demo-benta-snap-${uid.substring(0, 5)}`;
+    
+    console.log('\n--- Testing useSyncStatus Query ---');
+    try {
+      const salesRef = collection(db, 'tenants', tId, 'transactions');
+      const q3 = query(salesRef, orderBy('createdAt', 'desc'), limit(10));
+      const snap3 = await getDocs(q3);
+      console.log('SUCCESS! syncStatus transactions count:', snap3.docs.length);
+    } catch (e) {
+      console.error('FAILED syncStatus query:', e);
+    }
+
+    process.exit(0);
+  } catch (e) {
+    console.error(e);
+    process.exit(1);
   }
-  process.exit();
 }
 
-testQuery();
+run();
