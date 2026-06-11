@@ -22,12 +22,15 @@ export function initializeFirebase() {
     // We wrap browser APIs in a try/catch or typeof window check to prevent SSR crashes
     if (typeof window !== 'undefined') {
       setPersistence(auth, browserLocalPersistence).catch(console.error);
+      
+      // Use memoryLocalCache to completely bypass any corrupted IndexedDB state in the browser
+      db = initializeFirestore(app, {
+        localCache: memoryLocalCache()
+      });
+    } else {
+      // On the server, we just use the default Firestore instance
+      db = getFirestore(app);
     }
-    
-    // Use memoryLocalCache to completely bypass any corrupted IndexedDB state in the browser
-    db = initializeFirestore(app, {
-      localCache: memoryLocalCache()
-    });
   } else {
     // Subsequent calls: the app and Firestore are already initialized.
     // We MUST use getFirestore() here — calling initializeFirestore() again
