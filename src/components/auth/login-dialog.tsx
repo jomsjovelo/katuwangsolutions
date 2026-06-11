@@ -7,7 +7,7 @@ import * as z from 'zod';
 import { FirebaseError } from 'firebase/app';
 import { Loader2, LogIn } from 'lucide-react';
 import { BrandLogo } from '@/components/ui/brand-logo';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 import {
   Dialog,
@@ -42,6 +42,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export function LoginDialog({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const initialCode = searchParams.get('code');
   const [open, setOpen] = useState(!!initialCode);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -70,7 +71,7 @@ export function LoginDialog({ children }: { children: React.ReactNode }) {
       form.reset();
       
       // Force navigation to dashboard after successful login
-      window.location.href = '/dashboard';
+      router.push('/dashboard');
     } catch (error: any) {
       if (error instanceof FirebaseError) {
         switch (error.code) {
