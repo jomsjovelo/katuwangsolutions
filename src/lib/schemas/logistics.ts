@@ -22,6 +22,7 @@ export const TripSchema = z.object({
   tenantId: z.string(),
   assetId: z.string().optional(), // Can be unassigned initially for planning
   driverName: z.string().optional(),
+  plateNumber: z.string().optional(),
   origin: z.string().min(2, 'Origin is required'),
   destination: z.string().min(2, 'Destination is required'),
   loadDescription: z.string().optional(), // e.g. "50 sacks of rice"

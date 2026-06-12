@@ -55,6 +55,13 @@ export function ServiceDashboard() {
     ...doc.data()
   })) || [];
 
+  React.useEffect(() => {
+    if (hookError) {
+      console.error("Jobs listener error:", hookError);
+      toast({ title: 'Connection Error', description: 'Failed to sync live jobs.', variant: 'destructive' });
+    }
+  }, [hookError, toast]);
+
   const pendingJobs = jobs.filter((j: any) => j.status === 'pending');
   const activeJobs = jobs.filter((j: any) => j.status === 'in_progress');
   const completedJobs = jobs.filter((j: any) => j.status === 'completed');
@@ -227,21 +234,21 @@ export function ServiceDashboard() {
             <CardContent className="p-4 pt-0 space-y-3">
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <Label className="text-xs">Customer Name</Label>
-                  <Input placeholder="e.g. John" value={customerName} onChange={e => setCustomerName(e.target.value)} />
+                  <Label htmlFor="customer-name" className="text-xs">Customer Name</Label>
+                  <Input id="customer-name" name="customerName" placeholder="e.g. Juan" value={customerName} onChange={e => setCustomerName(e.target.value)} />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Phone (For Rewards/SMS)</Label>
-                  <Input placeholder="09XX" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} />
+                  <Label htmlFor="phone-number" className="text-xs">Phone (For Rewards/SMS)</Label>
+                  <Input id="phone-number" name="phoneNumber" placeholder="09XX" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} />
                 </div>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Service Description</Label>
-                <Input placeholder="e.g. Premium Wash & Wax" value={serviceDesc} onChange={e => setServiceDesc(e.target.value)} />
+                <Label htmlFor="service-desc" className="text-xs">Service Description</Label>
+                <Input id="service-desc" name="serviceDesc" placeholder="e.g. Premium Wash & Wax" value={serviceDesc} onChange={e => setServiceDesc(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Total Price (₱)</Label>
-                <Input type="number" placeholder="e.g. 500" value={price} onChange={e => setPrice(parseFloat(e.target.value) || '')} />
+                <Label htmlFor="service-price" className="text-xs">Total Price (₱)</Label>
+                <Input id="service-price" name="servicePrice" type="number" placeholder="e.g. 500" value={price} onChange={e => setPrice(parseFloat(e.target.value) || '')} />
               </div>
               <Button 
                 className="w-full h-8 text-xs font-bold text-white mt-2" 

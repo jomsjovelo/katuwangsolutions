@@ -4,13 +4,14 @@ import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
-import { completeEvent, payEventVendor, addGuestToEvent, toggleGuestCheckIn } from '@/firebase/firestore/events-actions';
+import { completeEvent, payEventVendor, addGuestToEvent, toggleGuestCheckIn, recordEventPayment } from '@/firebase/firestore/events-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useEvents } from '@/hooks/use-events';
@@ -29,7 +30,8 @@ import {
   Users,
   QrCode,
   ClipboardList,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Wallet
 } from "lucide-react";
 import { EventModel } from '@/lib/schemas/events';
 
@@ -62,6 +64,11 @@ export function GanapDashboard() {
   const [newVendorName, setNewVendorName] = useState('');
   const [newVendorContact, setNewVendorContact] = useState('');
   const [newVendorCost, setNewVendorCost] = useState<number | ''>('');
+
+  // Payment Form
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState<number | ''>('');
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
 
   // Guest List State
   const [guests, setGuests] = useState<any[]>([]);
@@ -183,6 +190,24 @@ export function GanapDashboard() {
     }
   };
 
+  const handleRecordPayment = async () => {
+    const amount = typeof paymentAmount === 'number' ? paymentAmount : 0;
+    if (!currentTenant || !selectedEvent?.id || amount <= 0) return;
+    
+    setPaymentProcessing(true);
+    try {
+      await recordEventPayment(currentTenant.id, selectedEvent.id, Math.round(amount * 100), `Client Payment for Event: ${selectedEvent.title}`);
+      setSelectedEvent({ ...selectedEvent, amountPaid: (selectedEvent.amountPaid || 0) + Math.round(amount * 100) });
+      setPaymentAmount('');
+      setShowPaymentModal(false);
+      toast({ title: 'Payment Received', description: `₱${amount.toLocaleString()} has been recorded.` });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setPaymentProcessing(false);
+    }
+  };
+
   // Load guests when an event is selected
   const loadGuests = async (eventId: string) => {
     if (!currentTenant || !db) return;
@@ -192,8 +217,9 @@ export function GanapDashboard() {
       const guestsRef = collection(db, 'tenants', currentTenant.id, 'events', eventId, 'guests');
       const snap = await getDocs(query(guestsRef, orderBy('createdAt', 'asc')));
       setGuests(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    } catch (e) {
+    } catch (e: any) {
       console.error('Failed to load guests', e);
+      toast({ title: 'Error', description: 'Failed to load guest list.', variant: 'destructive' });
     } finally {
       setGuestsLoading(false);
     }
@@ -269,33 +295,74 @@ export function GanapDashboard() {
               </div>
 
               {/* Payment Tracking */}
-              <div className="bg-slate-100 p-3 rounded-lg border border-slate-200 flex justify-between items-center">
-                <div>
-                  <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Contract Price</p>
-                  <p className="text-lg font-black text-slate-800">₱{((selectedEvent.contractPrice || 0) / 100).toLocaleString()}</p>
+              <div className="bg-slate-100 p-3 rounded-lg border border-slate-200 flex flex-col gap-3">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Contract Price</p>
+                    <p className="text-lg font-black text-slate-800">₱{((selectedEvent.contractPrice || 0) / 100).toLocaleString()}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Balance</p>
+                    <p className="text-lg font-black text-rose-500">
+                      ₱{(((selectedEvent.contractPrice || 0) - (selectedEvent.amountPaid || 0)) / 100).toLocaleString()}
+                    </p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Balance</p>
-                  <p className="text-lg font-black text-rose-500">
-                    ₱{(((selectedEvent.contractPrice || 0) - (selectedEvent.amountPaid || 0)) / 100).toLocaleString()}
-                  </p>
-                </div>
+                
+                <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="w-full bg-white text-slate-700 border-slate-300">
+                      <Wallet className="h-4 w-4 mr-2 text-emerald-600" />
+                      Record Client Payment
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Record Payment</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 pt-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="payment-amount" className="text-xs">Amount Received (₱)</Label>
+                        <Input 
+                          id="payment-amount"
+                          name="paymentAmount"
+                          type="number" 
+                          placeholder="0" 
+                          value={paymentAmount} 
+                          onChange={e => setPaymentAmount(parseFloat(e.target.value) || '')} 
+                        />
+                      </div>
+                      <Button 
+                        className="w-full text-white" 
+                        style={{ backgroundColor: theme.primary }}
+                        onClick={handleRecordPayment}
+                        disabled={paymentProcessing || !paymentAmount}
+                      >
+                        {paymentProcessing ? 'Processing...' : 'Confirm Payment'}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
 
               {/* Logistics & Setup */}
               <div className="space-y-3">
                 <h4 className="font-bold flex items-center gap-2"><ChefHat className="h-4 w-4 text-orange-500" /> Setup & Logistics</h4>
                 <div className="space-y-2">
-                  <Label className="text-xs">Food Package</Label>
+                  <Label htmlFor="food-package" className="text-xs">Food Package</Label>
                   <Input 
+                    id="food-package"
+                    name="foodPackage"
                     placeholder="e.g. Bronze Buffet Package" 
                     value={selectedEvent.foodPackage || ''} 
                     onChange={e => setSelectedEvent({...selectedEvent, foodPackage: e.target.value})}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs">Setup Notes</Label>
+                  <Label htmlFor="setup-notes" className="text-xs">Setup Notes</Label>
                   <Textarea 
+                    id="setup-notes"
+                    name="setupNotes"
                     placeholder="e.g. Buffet line near the garden, VIP tables on the left..." 
                     value={selectedEvent.setupNotes || ''} 
                     onChange={e => setSelectedEvent({...selectedEvent, setupNotes: e.target.value})}
@@ -334,12 +401,12 @@ export function GanapDashboard() {
                 <div className="bg-white p-3 border border-slate-200 rounded-lg space-y-2 mt-2 shadow-sm">
                   <p className="text-xs font-bold text-slate-500">Assign New Vendor</p>
                   <div className="grid grid-cols-2 gap-2">
-                    <Input placeholder="Role (e.g. Florist)" className="text-xs h-8" value={newVendorRole} onChange={e=>setNewVendorRole(e.target.value)} />
-                    <Input placeholder="Name" className="text-xs h-8" value={newVendorName} onChange={e=>setNewVendorName(e.target.value)} />
+                    <Input id="vendor-role" name="vendorRole" placeholder="Role (e.g. Florist)" className="text-xs h-8" value={newVendorRole} onChange={e=>setNewVendorRole(e.target.value)} />
+                    <Input id="vendor-name" name="vendorName" placeholder="Name" className="text-xs h-8" value={newVendorName} onChange={e=>setNewVendorName(e.target.value)} />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <Input placeholder="Contact No." className="text-xs h-8" value={newVendorContact} onChange={e=>setNewVendorContact(e.target.value)} />
-                    <Input type="number" placeholder="Fee (₱)" className="text-xs h-8" value={newVendorCost} onChange={e=>setNewVendorCost(parseFloat(e.target.value) || '')} />
+                    <Input id="vendor-contact" name="vendorContact" placeholder="Contact No." className="text-xs h-8" value={newVendorContact} onChange={e=>setNewVendorContact(e.target.value)} />
+                    <Input id="vendor-cost" name="vendorCost" type="number" placeholder="Fee (₱)" className="text-xs h-8" value={newVendorCost} onChange={e=>setNewVendorCost(parseFloat(e.target.value) || '')} />
                   </div>
                   <Button size="sm" variant="secondary" className="w-full h-8 text-xs" onClick={addVendor}>+ Assign</Button>
                 </div>
@@ -368,9 +435,9 @@ export function GanapDashboard() {
                 <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Add Guest</p>
                   <div className="grid grid-cols-3 gap-2">
-                    <Input placeholder="Guest Name" className="text-xs h-8 col-span-1" value={newGuestName} onChange={e => setNewGuestName(e.target.value)} />
-                    <Input placeholder="Table / Seat" className="text-xs h-8" value={newGuestTable} onChange={e => setNewGuestTable(e.target.value)} />
-                    <Input placeholder="Meal Pref." className="text-xs h-8" value={newGuestMeal} onChange={e => setNewGuestMeal(e.target.value)} />
+                    <Input id="guest-name" name="guestName" placeholder="Guest Name" className="text-xs h-8 col-span-1" value={newGuestName} onChange={e => setNewGuestName(e.target.value)} />
+                    <Input id="guest-table" name="guestTable" placeholder="Table / Seat" className="text-xs h-8" value={newGuestTable} onChange={e => setNewGuestTable(e.target.value)} />
+                    <Input id="guest-meal" name="guestMeal" placeholder="Meal Pref." className="text-xs h-8" value={newGuestMeal} onChange={e => setNewGuestMeal(e.target.value)} />
                   </div>
                   <Button size="sm" variant="secondary" className="w-full h-8 text-xs" onClick={handleAddGuest} disabled={!newGuestName.trim()}>
                     <Plus className="h-3 w-3 mr-1" /> Add to List
@@ -478,27 +545,27 @@ export function GanapDashboard() {
           <Card className="shadow-sm border-slate-200 bg-white">
             <CardContent className="p-4 space-y-3">
               <div className="space-y-1">
-                <Label className="text-xs">Event Title</Label>
-                <Input placeholder="e.g. Reyes Wedding" value={newEventTitle} onChange={e => setNewEventTitle(e.target.value)} />
+                <Label htmlFor="event-title" className="text-xs">Event Title</Label>
+                <Input id="event-title" name="eventTitle" placeholder="e.g. Reyes Wedding" value={newEventTitle} onChange={e => setNewEventTitle(e.target.value)} />
               </div>
               <div className="flex gap-2">
                 <div className="flex-1 space-y-1">
-                  <Label className="text-xs">Client Name</Label>
-                  <Input placeholder="John & Jane" value={newClientName} onChange={e => setNewClientName(e.target.value)} />
+                  <Label htmlFor="client-name" className="text-xs">Client Name</Label>
+                  <Input id="client-name" name="clientName" placeholder="John & Jane" value={newClientName} onChange={e => setNewClientName(e.target.value)} />
                 </div>
                 <div className="flex-1 space-y-1">
-                  <Label className="text-xs">Date</Label>
-                  <Input type="date" value={newEventDate} onChange={e => setNewEventDate(e.target.value)} />
+                  <Label htmlFor="event-date" className="text-xs">Date</Label>
+                  <Input id="event-date" name="eventDate" type="date" value={newEventDate} onChange={e => setNewEventDate(e.target.value)} />
                 </div>
               </div>
               <div className="flex gap-2">
                 <div className="flex-1 space-y-1">
-                  <Label className="text-xs">Venue</Label>
-                  <Input placeholder="e.g. The Glass Garden" value={newVenue} onChange={e => setNewVenue(e.target.value)} />
+                  <Label htmlFor="event-venue" className="text-xs">Venue</Label>
+                  <Input id="event-venue" name="eventVenue" placeholder="e.g. The Glass Garden" value={newVenue} onChange={e => setNewVenue(e.target.value)} />
                 </div>
                 <div className="flex-1 space-y-1">
-                  <Label className="text-xs">Contract Price (₱)</Label>
-                  <Input type="number" placeholder="0" value={newContractPrice} onChange={e => setNewContractPrice(parseFloat(e.target.value) || '')} />
+                  <Label htmlFor="contract-price" className="text-xs">Contract Price (₱)</Label>
+                  <Input id="contract-price" name="contractPrice" type="number" placeholder="0" value={newContractPrice} onChange={e => setNewContractPrice(parseFloat(e.target.value) || '')} />
                 </div>
               </div>
               <Button 

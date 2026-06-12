@@ -85,6 +85,82 @@ export async function completeEvent(
   return true;
 }
 
+export async function recordEventPayment(
+  tenantId: string,
+  eventId: string,
+  paymentCentavos: number,
+  description: string
+) {
+  if (paymentCentavos <= 0 || isNaN(paymentCentavos)) {
+    throw new Error('Invalid payment amount.');
+  }
+
+  const db = getKatuwangDb();
+
+  await runTransactionResilient(db, async (transaction) => {
+    // 1. Gather all reads
+    const eventRef = doc(db, 'tenants', tenantId, 'events', eventId);
+    const eventSnap = await transaction.get(eventRef);
+    if (!eventSnap.exists()) {
+      throw new Error('Event not found.');
+    }
+
+    const eventData = eventSnap.data() as EventModel;
+    const contractPrice = eventData.contractPrice || 0;
+    const alreadyPaid = eventData.amountPaid || 0;
+    const remainingBalance = Math.max(0, contractPrice - alreadyPaid);
+
+    if (paymentCentavos > remainingBalance) {
+      throw new Error(`Sobra: Payment exceeds the remaining balance.`);
+    }
+
+    const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+    const masterAccountSnap = await transaction.get(masterAccountRef);
+
+    // 2. Perform writes
+    transaction.update(eventRef, {
+      amountPaid: alreadyPaid + paymentCentavos,
+      updatedAt: serverTimestamp()
+    });
+
+    // Deposit to Master Cash
+    if (!masterAccountSnap.exists()) {
+      transaction.set(masterAccountRef, {
+        id: 'master-cash',
+        tenantId,
+        name: 'Main Cash Register',
+        type: 'asset',
+        balance: paymentCentavos,
+        isActive: true,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    } else {
+      transaction.update(masterAccountRef, {
+        balance: increment(paymentCentavos),
+        updatedAt: serverTimestamp()
+      });
+    }
+
+    // Record Ledger Entry
+    const transactionsRef = collection(db, 'tenants', tenantId, 'transactions');
+    const newTxRef = doc(transactionsRef);
+    transaction.set(newTxRef, {
+      id: newTxRef.id,
+      tenantId,
+      accountId: 'master-cash',
+      amount: paymentCentavos,
+      type: 'income',
+      category: 'Events',
+      description,
+      date: new Date(),
+      createdAt: serverTimestamp()
+    });
+  });
+
+  return true;
+}
+
 export async function payEventVendor(
   tenantId: string,
   eventId: string,

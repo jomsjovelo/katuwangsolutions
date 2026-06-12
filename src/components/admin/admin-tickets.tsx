@@ -41,31 +41,39 @@ export function AdminTickets() {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [replyText, setReplyText] = useState("");
   const [isReplying, setIsReplying] = useState(false);
+  // Use a ref to track the selected ticket ID — avoids useEffect dependency on selectedTicket
+  const selectedTicketIdRef = React.useRef<string | null>(null);
 
   useEffect(() => {
     const { db } = initializeFirebase();
     const q = query(collectionGroup(db, 'support_tickets'));
     
-    const unsubscribe = onSnapshot(q, (snap) => {
-      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ticket))
-        .sort((a, b) => {
-          const tA = a.updatedAt?.seconds || 0;
-          const tB = b.updatedAt?.seconds || 0;
-          return tB - tA;
-        });
-      setTickets(data);
-      
-      // Update selected ticket if it's currently open
-      if (selectedTicket) {
-        const updated = data.find(t => t.id === selectedTicket.id);
-        if (updated) setSelectedTicket(updated);
+    const unsubscribe = onSnapshot(q, 
+      (snap) => {
+        const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ticket))
+          .sort((a, b) => {
+            const tA = a.updatedAt?.seconds || 0;
+            const tB = b.updatedAt?.seconds || 0;
+            return tB - tA;
+          });
+        setTickets(data);
+        
+        // Update selected ticket from inside the snapshot using the ref (avoids re-subscription)
+        if (selectedTicketIdRef.current) {
+          const updated = data.find(t => t.id === selectedTicketIdRef.current);
+          if (updated) setSelectedTicket(updated);
+        }
+        
+        setLoading(false);
+      },
+      (err) => {
+        console.error("Support tickets listener error:", err);
+        setLoading(false);
       }
-      
-      setLoading(false);
-    });
+    );
 
     return () => unsubscribe();
-  }, [selectedTicket]);
+  }, []); // Empty deps — single stable subscription for the lifetime of the component
 
   const handleSendReply = async () => {
     if (!selectedTicket || !replyText.trim()) return;
@@ -169,7 +177,10 @@ export function AdminTickets() {
                   <TableRow 
                     key={ticket.id} 
                     className="hover:bg-slate-50/50 transition-colors cursor-pointer"
-                    onClick={() => setSelectedTicket(ticket)}
+                    onClick={() => {
+                      selectedTicketIdRef.current = ticket.id;
+                      setSelectedTicket(ticket);
+                    }}
                   >
                     <TableCell className="pl-6">
                       <div className="font-bold text-sm text-slate-800">{ticket.subject}</div>
@@ -201,7 +212,12 @@ export function AdminTickets() {
       </Card>
 
       {/* Ticket Details Drawer */}
-      <Sheet open={!!selectedTicket} onOpenChange={(open) => !open && setSelectedTicket(null)}>
+      <Sheet open={!!selectedTicket} onOpenChange={(open) => {
+        if (!open) {
+          selectedTicketIdRef.current = null;
+          setSelectedTicket(null);
+        }
+      }}>
         <SheetContent className="sm:max-w-lg w-full flex flex-col h-full">
           {selectedTicket && (
             <>

@@ -8,7 +8,8 @@ import {
   Timestamp,
   query,
   where,
-  getDocs
+  getDocs,
+  orderBy
 } from 'firebase/firestore';
 import { initializeFirebase } from '../index';
 import { runTransactionResilient } from './resilient-transaction';
@@ -33,6 +34,8 @@ export interface CreditTransaction {
   type: 'loan' | 'payment' | 'penalty';
   amount: number;      // in centavos
   interest: number;    // in centavos
+  note?: string;
+  source?: string;
   timestamp: Timestamp;
 }
 
@@ -372,4 +375,24 @@ export async function chargeRetailSaleToCredit(
   });
 
   return true;
+}
+
+/**
+ * Fetch the transaction ledger for a specific borrower
+ */
+export async function getBorrowerLedger(tenantId: string, borrowerId: string): Promise<CreditTransaction[]> {
+  const txRef = collection(db, 'tenants', tenantId, 'borrowers', borrowerId, 'transactions');
+  const q = query(txRef, orderBy('timestamp', 'desc'));
+  
+  const snap = await getDocs(q);
+  const ledger: CreditTransaction[] = [];
+  
+  snap.forEach(doc => {
+    ledger.push({
+      id: doc.id,
+      ...doc.data()
+    } as CreditTransaction);
+  });
+  
+  return ledger;
 }

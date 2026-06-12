@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { initializeFirebase } from '../index';
 import { runTransactionResilient } from './resilient-transaction';
+import { generateUniqueReferralCode } from './referral-utils';
 
 /**
  * Logs a Time-In or Time-Out entry for a staff member.
@@ -148,12 +149,27 @@ export async function acceptStaffInvite(inviteId: string, userUid: string) {
     });
 
     // Configure User Profile as Staff member
-    transaction.update(userProfileRef, {
+    const userSnap = await transaction.get(userProfileRef);
+    const hasCode = userSnap.exists() && userSnap.data()?.referralCode;
+    
+    let userUpdates: any = {
       role: 'staff',
       tenantId: inviteData.tenantId,
       moduleType: inviteData.moduleType,
       updatedAt: serverTimestamp()
-    });
+    };
+
+    if (!hasCode) {
+      const newCode = await generateUniqueReferralCode(db);
+      const refCodeDoc = doc(db, 'referral_codes', newCode);
+      transaction.set(refCodeDoc, { uid: userUid, createdAt: serverTimestamp() });
+      userUpdates.referralCode = newCode;
+      if (!userSnap.exists() || userSnap.data()?.referralEarnings === undefined) {
+        userUpdates.referralEarnings = 0;
+      }
+    }
+
+    transaction.update(userProfileRef, userUpdates);
   });
 
   return true;
@@ -249,25 +265,7 @@ export async function loginOrRegisterStaff(email: string, password: string, busi
         const uid = newUserCredential.user.uid;
 
         // Generate Unique 4-Char Referral Code
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        let referralCode = '';
-        let isRefUnique = false;
-        let refAttempts = 0;
-        while (!isRefUnique && refAttempts < 10) {
-          referralCode = '';
-          for (let i = 0; i < 4; i++) {
-            referralCode += chars.charAt(Math.floor(Math.random() * chars.length));
-          }
-          const refCodeSnap = await getDoc(doc(db, 'referral_codes', referralCode));
-          if (!refCodeSnap.exists()) {
-            isRefUnique = true;
-          }
-          refAttempts++;
-        }
-
-        if (!isRefUnique) {
-          throw new Error("Failed to generate a unique referral code.");
-        }
+        const referralCode = await generateUniqueReferralCode(db);
 
         // Atomic write to create user profile and link to tenant
         await runTransactionResilient(db, async (transaction) => {

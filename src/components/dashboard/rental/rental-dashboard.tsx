@@ -1,20 +1,46 @@
 "use client";
 
 import React, { useState } from 'react';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Truck, Package, CalendarDays, Plus, Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Truck, Package, CalendarDays, Plus, Loader2, CheckCircle2, AlertCircle, RotateCcw } from "lucide-react";
 import { useRental } from '@/hooks/use-rental';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, runTransaction, increment } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { useTenant } from '@/app/lib/tenant-context';
+import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 
 export function RentalDashboard() {
   const [activeTab, setActiveTab] = useState<'active' | 'inventory' | 'calendar'>('active');
-  const { inventory, inventoryLoading, activeBookings, bookingsLoading } = useRental();
+  const { inventory, inventoryLoading, inventoryError, activeBookings, bookingsLoading, bookingsError } = useRental();
   const db = useFirestore();
   const { currentTenant } = useTenant();
+  const theme = getModuleTheme(currentTenant?.moduleType);
+  useDynamicThemeColor(theme);
+
+  React.useEffect(() => {
+    if (inventoryError) {
+      console.error("Inventory listener error:", inventoryError);
+      setErrorMsg('Failed to sync inventory.');
+      setTimeout(() => setErrorMsg(null), 4000);
+    }
+    if (bookingsError) {
+      console.error("Bookings listener error:", bookingsError);
+      setErrorMsg('Failed to sync bookings.');
+      setTimeout(() => setErrorMsg(null), 4000);
+    }
+  }, [inventoryError, bookingsError]);
+
+  // Toast state
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [returningId, setReturningId] = useState<string | null>(null);
+
+  const showSuccess = (msg: string) => { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(null), 3000); };
+  const showError = (msg: string) => { setErrorMsg(msg); setTimeout(() => setErrorMsg(null), 4000); };
 
   // Add Item State
   const [isAddingItem, setIsAddingItem] = useState(false);
@@ -38,10 +64,9 @@ export function RentalDashboard() {
         updatedAt: serverTimestamp(),
       });
       setItemName(''); setItemCategory(''); setItemRate(''); setItemQty('');
-      // close modal can be handled by setting a state or just let the uncontrolled trigger do it,
-      // but here we just reset.
-    } catch (error) {
-      console.error(error);
+      showSuccess(`${itemName} naidagdag sa inventory!`);
+    } catch (error: any) {
+      showError(error?.message || 'Failed to add item. Please try again.');
     } finally {
       setIsAddingItem(false);
     }
@@ -59,56 +84,109 @@ export function RentalDashboard() {
     setIsAddingBooking(true);
     try {
       const selectedItem = inventory.find(i => i.id === bookingItemId);
-      if (!selectedItem) throw new Error("Item not found");
+      if (!selectedItem) throw new Error("Item not found in inventory.");
+      if (selectedItem.availableQuantity <= 0) throw new Error(`${selectedItem.name} is currently fully rented out.`);
 
-      await addDoc(collection(db, 'tenants', currentTenant.id, 'rental_bookings'), {
-        itemId: bookingItemId,
-        itemName: selectedItem.name,
-        customerId: 'guest', // hardcoded for now until we build customer picker
-        customerName: bookingCustomer,
-        startDate: new Date(),
-        endDate: new Date(Date.now() + 86400000), // tomorrow
-        status: 'active',
-        totalCost: Number(bookingCost),
-        depositStatus: 'pending',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+      await runTransaction(db, async (transaction) => {
+        const itemRef = doc(db, 'tenants', currentTenant.id, 'rental_inventory', bookingItemId);
+        const itemSnap = await transaction.get(itemRef);
+        if (!itemSnap.exists()) throw new Error('Item no longer exists.');
+        const currentAvail = itemSnap.data().availableQuantity || 0;
+        if (currentAvail <= 0) throw new Error('No available units for this item.');
+
+        const bookingRef = doc(collection(db, 'tenants', currentTenant.id, 'rental_bookings'));
+        transaction.set(bookingRef, {
+          itemId: bookingItemId,
+          itemName: selectedItem.name,
+          customerId: 'guest',
+          customerName: bookingCustomer,
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 86400000),
+          status: 'active',
+          totalCost: Number(bookingCost),
+          depositStatus: 'pending',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+        transaction.update(itemRef, {
+          availableQuantity: increment(-1),
+          updatedAt: serverTimestamp(),
+        });
       });
+
       setBookingItemId(''); setBookingCustomer(''); setBookingCost('');
-    } catch (error) {
-      console.error(error);
+      showSuccess(`Booking para kay ${bookingCustomer} naitala!`);
+    } catch (error: any) {
+      showError(error?.message || 'Failed to create booking. Please try again.');
     } finally {
       setIsAddingBooking(false);
     }
   };
 
+  // Return a rented item back to inventory
+  const handleReturnItem = async (booking: any) => {
+    if (!db || !currentTenant) return;
+    setReturningId(booking.id);
+    try {
+      await runTransaction(db, async (transaction) => {
+        const bookingRef = doc(db, 'tenants', currentTenant.id, 'rental_bookings', booking.id);
+        const itemRef = doc(db, 'tenants', currentTenant.id, 'rental_inventory', booking.itemId);
+        transaction.update(bookingRef, { status: 'returned', returnedAt: serverTimestamp(), updatedAt: serverTimestamp() });
+        transaction.update(itemRef, { availableQuantity: increment(1), updatedAt: serverTimestamp() });
+      });
+      showSuccess(`${booking.itemName} na-return ni ${booking.customerName}!`);
+    } catch (error: any) {
+      showError(error?.message || 'Failed to return item.');
+    } finally {
+      setReturningId(null);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col p-4 sm:p-6 bg-slate-50 min-h-screen">
+      
+      {/* Toast Alerts */}
+      {successMsg && (
+        <div className="fixed top-4 inset-x-4 z-50 bg-slate-900/95 text-white py-3 px-4 rounded-2xl border border-slate-700/50 text-xs font-bold flex items-center gap-2 shadow-2xl animate-in slide-in-from-top-4 duration-200">
+          <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+          <span>{successMsg}</span>
+        </div>
+      )}
+      {errorMsg && (
+        <div className="fixed top-4 inset-x-4 z-50 bg-red-600/95 text-white py-3 px-4 rounded-2xl border border-red-500/50 text-xs font-bold flex items-center gap-2 shadow-2xl animate-in slide-in-from-top-4 duration-200">
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+          <span>{errorMsg}</span>
+        </div>
+      )}
+      
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 animate-in slide-in-from-top-2">
         <div>
           <h1 className="text-2xl font-headline font-black text-slate-800 tracking-tight uppercase flex items-center gap-2">
-            <Truck className="h-6 w-6 text-amber-500" />
+            <Truck className="h-6 w-6" style={{ color: theme.primary }} />
             Rental Management
           </h1>
-          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">Equipment & Vehicle Rentals</p>
+          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">{theme.name} • Equipment & Vehicle Rentals</p>
         </div>
         
         <div className="flex bg-white rounded-xl shadow-sm border border-slate-100 p-1 w-full sm:w-auto">
           <button 
             onClick={() => setActiveTab('active')}
-            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${activeTab === 'active' ? 'bg-amber-100 text-amber-700' : 'text-slate-500 hover:bg-slate-50'}`}
+            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${activeTab === 'active' ? 'text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+            style={activeTab === 'active' ? { backgroundColor: theme.primary } : {}}
           >
             <Truck className="h-4 w-4" /> Active
           </button>
           <button 
             onClick={() => setActiveTab('inventory')}
-            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${activeTab === 'inventory' ? 'bg-amber-100 text-amber-700' : 'text-slate-500 hover:bg-slate-50'}`}
+            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${activeTab === 'inventory' ? 'text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+            style={activeTab === 'inventory' ? { backgroundColor: theme.primary } : {}}
           >
             <Package className="h-4 w-4" /> Inventory
           </button>
           <button 
             onClick={() => setActiveTab('calendar')}
-            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${activeTab === 'calendar' ? 'bg-amber-100 text-amber-700' : 'text-slate-500 hover:bg-slate-50'}`}
+            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${activeTab === 'calendar' ? 'text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+            style={activeTab === 'calendar' ? { backgroundColor: theme.primary } : {}}
           >
             <CalendarDays className="h-4 w-4" /> Schedule
           </button>
@@ -126,7 +204,7 @@ export function RentalDashboard() {
                 </div>
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-white rounded-lg h-9">
+                    <Button size="sm" className="text-white rounded-lg h-9 border-none" style={{ backgroundColor: theme.primary }}>
                       <Plus className="h-4 w-4 mr-1" /> New Booking
                     </Button>
                   </DialogTrigger>
@@ -151,13 +229,13 @@ export function RentalDashboard() {
                       </div>
                       <div>
                         <label className="text-xs font-bold text-slate-500 uppercase">Customer Name</label>
-                        <input required type="text" value={bookingCustomer} onChange={e => setBookingCustomer(e.target.value)} className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 mt-1" placeholder="Juan Dela Cruz" />
+                        <Input id="booking-customer" name="bookingCustomer" required type="text" value={bookingCustomer} onChange={e => setBookingCustomer(e.target.value)} className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 mt-1" placeholder="Juan Dela Cruz" />
                       </div>
                       <div>
                         <label className="text-xs font-bold text-slate-500 uppercase">Total Cost (₱)</label>
-                        <input required type="number" value={bookingCost} onChange={e => setBookingCost(e.target.value)} className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 mt-1" placeholder="5000" />
+                        <Input id="booking-cost" name="bookingCost" required type="number" value={bookingCost} onChange={e => setBookingCost(e.target.value)} className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 mt-1" placeholder="5000" />
                       </div>
-                      <Button type="submit" disabled={isAddingBooking} className="w-full bg-amber-500 hover:bg-amber-600 text-white">
+                      <Button type="submit" disabled={isAddingBooking} className="w-full text-white border-none" style={{ backgroundColor: theme.primary }}>
                         {isAddingBooking ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirm Booking'}
                       </Button>
                     </form>
@@ -180,9 +258,21 @@ export function RentalDashboard() {
                           <p className="font-bold text-slate-800 text-sm">{booking.itemName}</p>
                           <p className="text-xs text-slate-500">{booking.customerName}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="font-bold text-amber-600 text-sm">₱{booking.totalCost}</p>
-                          <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black">Active</p>
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <p className="font-bold text-sm" style={{ color: theme.primary }}>₱{booking.totalCost}</p>
+                            <Badge className="text-[9px] font-black uppercase border-none px-1.5 py-0.5" style={{ backgroundColor: `${theme.primary}20`, color: theme.primary }}>Active</Badge>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={returningId === booking.id}
+                            onClick={() => handleReturnItem(booking)}
+                            className="h-8 rounded-lg px-3 text-[10px] font-black text-emerald-600 border-emerald-200 hover:bg-emerald-50 flex items-center gap-1"
+                          >
+                            {returningId === booking.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+                            Return
+                          </Button>
                         </div>
                       </div>
                     ))}
@@ -192,10 +282,10 @@ export function RentalDashboard() {
             </Card>
           </div>
           <div className="space-y-4">
-            <Card className="bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-md border-none">
+            <Card className="shadow-sm border-slate-100" style={{ background: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})` }}>
               <CardContent className="p-6">
-                <p className="text-xs font-bold uppercase tracking-widest text-amber-100 mb-1">Items Out</p>
-                <h2 className="text-4xl font-black">{activeBookings.length}</h2>
+                <p className="text-xs font-bold uppercase tracking-widest text-white/70 mb-1">Items Out</p>
+                <h2 className="text-4xl font-black text-white">{activeBookings.length}</h2>
               </CardContent>
             </Card>
             <Card className="shadow-sm border-slate-100">
@@ -216,43 +306,43 @@ export function RentalDashboard() {
 
       {activeTab === 'inventory' && (
         <Card className="animate-in fade-in zoom-in-95 duration-300 shadow-sm border-slate-100">
-           <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-sm font-bold uppercase tracking-widest text-slate-800">Equipment Catalog</CardTitle>
-              </div>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button size="sm" className="bg-slate-800 hover:bg-slate-900 text-white rounded-lg h-9">
-                    <Plus className="h-4 w-4 mr-1" /> Add Item
+          <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-sm font-bold uppercase tracking-widest text-slate-800">Equipment Catalog</CardTitle>
+            </div>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button size="sm" className="bg-slate-800 hover:bg-slate-900 text-white rounded-lg h-9">
+                  <Plus className="h-4 w-4 mr-1" /> Add Item
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add Inventory Item</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleAddItem} className="space-y-4 mt-4">
+                  <div>
+                    <label htmlFor="item-name" className="text-xs font-bold text-slate-500 uppercase">Item Name</label>
+                    <Input id="item-name" name="itemName" required type="text" value={itemName} onChange={e => setItemName(e.target.value)} className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800 mt-1" placeholder="e.g. Caterpillar Excavator" />
+                  </div>
+                  <div>
+                    <label htmlFor="item-category" className="text-xs font-bold text-slate-500 uppercase">Category</label>
+                    <Input id="item-category" name="itemCategory" required type="text" value={itemCategory} onChange={e => setItemCategory(e.target.value)} className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800 mt-1" placeholder="e.g. Heavy Machinery" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="item-rate" className="text-xs font-bold text-slate-500 uppercase">Daily Rate (₱)</label>
+                      <Input id="item-rate" name="itemRate" required type="number" value={itemRate} onChange={e => setItemRate(e.target.value)} className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800 mt-1" placeholder="5000" />
+                    </div>
+                    <div>
+                      <label htmlFor="item-qty" className="text-xs font-bold text-slate-500 uppercase">Total Quantity</label>
+                      <Input id="item-qty" name="itemQty" required type="number" value={itemQty} onChange={e => setItemQty(e.target.value)} className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800 mt-1" placeholder="5" />
+                    </div>
+                  </div>
+                  <Button type="submit" disabled={isAddingItem} className="w-full bg-slate-800 hover:bg-slate-900 text-white">
+                    {isAddingItem ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Item'}
                   </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add Inventory Item</DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleAddItem} className="space-y-4 mt-4">
-                    <div>
-                      <label className="text-xs font-bold text-slate-500 uppercase">Item Name</label>
-                      <input required type="text" value={itemName} onChange={e => setItemName(e.target.value)} className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800 mt-1" placeholder="e.g. Caterpillar Excavator" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold text-slate-500 uppercase">Category</label>
-                      <input required type="text" value={itemCategory} onChange={e => setItemCategory(e.target.value)} className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800 mt-1" placeholder="e.g. Heavy Machinery" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-xs font-bold text-slate-500 uppercase">Daily Rate (₱)</label>
-                        <input required type="number" value={itemRate} onChange={e => setItemRate(e.target.value)} className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800 mt-1" placeholder="5000" />
-                      </div>
-                      <div>
-                        <label className="text-xs font-bold text-slate-500 uppercase">Total Quantity</label>
-                        <input required type="number" value={itemQty} onChange={e => setItemQty(e.target.value)} className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800 mt-1" placeholder="5" />
-                      </div>
-                    </div>
-                    <Button type="submit" disabled={isAddingItem} className="w-full bg-slate-800 hover:bg-slate-900 text-white">
-                      {isAddingItem ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Item'}
-                    </Button>
-                  </form>
+                </form>
                 </DialogContent>
               </Dialog>
             </CardHeader>

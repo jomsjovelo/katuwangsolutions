@@ -18,7 +18,24 @@ import {
   ArrowRight,
   Activity,
   AlertTriangle,
-  Smartphone
+  Smartphone,
+  Scissors,
+  Droplets,
+  Utensils,
+  Wrench,
+  Sparkles,
+  Car,
+  Home,
+  Truck,
+  Users,
+  Dumbbell,
+  Leaf,
+  Banknote,
+  FileText,
+  Calculator,
+  Tractor,
+  Sprout,
+  PartyPopper
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,9 +46,8 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
   const theme = getModuleTheme(currentTenant?.moduleType);
   
   const [selectedDate] = useState<Date>(new Date());
-  const { dailyTotalPesos, loading: salesLoading } = useSales(selectedDate);
+  const { sales = [], dailyTotalPesos, loading: salesLoading } = useSales(selectedDate);
   const { products, lowStockItems, outOfStockItems, loading: inventoryLoading } = useInventory();
-  const { deferredPrompt, isInstalled, triggerInstall } = usePWAInstall();
 
   // Dynamic greeting based on time of day
   const getGreeting = () => {
@@ -41,13 +57,160 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
     return 'Magandang Gabi';
   };
 
-  // Mock data for Recent Activity until hooked up to real Firestore transactions
-  const recentActivity = [
-    { id: 1, type: 'sale', title: 'New Sale Completed', amount: 1250, time: '10 mins ago', icon: ShoppingCart, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-    { id: 2, type: 'stock', title: 'Restocked Kopiko', amount: null, time: '1 hour ago', icon: Package, color: 'text-blue-500', bg: 'bg-blue-50' },
-    { id: 3, type: 'sale', title: 'New Sale Completed', amount: 450, time: '2 hours ago', icon: ShoppingCart, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-    { id: 4, type: 'alert', title: 'Low Stock: Safeguard', amount: null, time: '3 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
-  ];
+  const getMockActivity = (module: string = 'benta-snap') => {
+    const data: Record<string, any[]> = {
+      'benta-snap': [
+        { id: 1, type: 'sale', title: 'New Sale Completed', amount: 1250, time: '10 mins ago', icon: ShoppingCart, color: 'text-cyan-500', bg: 'bg-cyan-50' },
+        { id: 2, type: 'stock', title: 'Restocked Kopiko Brown', amount: null, time: '1 hour ago', icon: Package, color: 'text-blue-500', bg: 'bg-blue-50' },
+        { id: 3, type: 'alert', title: 'Low Stock: Safeguard', amount: null, time: '3 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+      ],
+      'fresh-tally': [
+        { id: 1, type: 'sale', title: 'Sold: 5kg Mangoes', amount: 850, time: '15 mins ago', icon: ShoppingCart, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+        { id: 2, type: 'stock', title: 'New Delivery: Cabbage', amount: null, time: '2 hours ago', icon: Leaf, color: 'text-green-500', bg: 'bg-green-50' },
+        { id: 3, type: 'alert', title: 'Low Stock: Ripe Bananas', amount: null, time: '5 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+      ],
+      'build-stack': [
+        { id: 1, type: 'sale', title: 'Sale: Cement (5 Sacks)', amount: 1250, time: '5 mins ago', icon: Wrench, color: 'text-slate-500', bg: 'bg-slate-100' },
+        { id: 2, type: 'stock', title: 'Restocked Plywood (1/2)', amount: null, time: '2 hours ago', icon: Package, color: 'text-yellow-600', bg: 'bg-yellow-50' },
+        { id: 3, type: 'alert', title: 'Low Stock: Common Nails', amount: null, time: '4 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+      ],
+      '5-6-tracker': [
+        { id: 1, type: 'sale', title: 'Payment Received: Juan D.', amount: 500, time: '10 mins ago', icon: Banknote, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+        { id: 2, type: 'stock', title: 'New Loan Approved', amount: null, time: '1 hour ago', icon: FileText, color: 'text-blue-500', bg: 'bg-blue-50' },
+        { id: 3, type: 'alert', title: 'Overdue: Maria Cruz', amount: null, time: '3 hours ago', icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' },
+      ],
+      'ledger-flow': [
+        { id: 1, type: 'sale', title: 'Invoice Paid: Client A', amount: 4500, time: '30 mins ago', icon: Banknote, color: 'text-indigo-500', bg: 'bg-indigo-50' },
+        { id: 2, type: 'stock', title: 'Logged Expense: Utilities', amount: null, time: '2 hours ago', icon: Calculator, color: 'text-rose-500', bg: 'bg-rose-50' },
+        { id: 3, type: 'alert', title: 'Pending Approval: PR-102', amount: null, time: '5 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+      ],
+      'sahod-flow': [
+        { id: 1, type: 'sale', title: 'Salary Disbursed', amount: 25000, time: '10 mins ago', icon: Banknote, color: 'text-blue-500', bg: 'bg-blue-50' },
+        { id: 2, type: 'stock', title: 'Added New Employee', amount: null, time: '1 hour ago', icon: Users, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+        { id: 3, type: 'alert', title: 'Missing DTR: Pedro', amount: null, time: '3 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+      ],
+      'biyahe-sync': [
+        { id: 1, type: 'sale', title: 'Delivered: Parcel to QC', amount: 150, time: '20 mins ago', icon: Truck, color: 'text-blue-500', bg: 'bg-blue-50' },
+        { id: 2, type: 'stock', title: 'Package Received at Hub', amount: null, time: '1 hour ago', icon: Package, color: 'text-orange-500', bg: 'bg-orange-50' },
+        { id: 3, type: 'alert', title: 'Delayed: Route B', amount: null, time: '2 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+      ],
+      'ani-grow': [
+        { id: 1, type: 'sale', title: 'Sold: 10 Sacks Rice', amount: 12000, time: '1 hour ago', icon: Banknote, color: 'text-amber-600', bg: 'bg-amber-50' },
+        { id: 2, type: 'stock', title: 'Harvest Logged: Corn', amount: null, time: '3 hours ago', icon: Tractor, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+        { id: 3, type: 'alert', title: 'Low Stock: Fertilizer', amount: null, time: '1 day ago', icon: Sprout, color: 'text-orange-500', bg: 'bg-orange-50' },
+      ],
+      'bite-snap': [
+        { id: 1, type: 'sale', title: 'Order #102 Served', amount: 450, time: '5 mins ago', icon: Utensils, color: 'text-orange-500', bg: 'bg-orange-50' },
+        { id: 2, type: 'stock', title: 'Restocked Coca-Cola', amount: null, time: '1 hour ago', icon: Package, color: 'text-blue-500', bg: 'bg-blue-50' },
+        { id: 3, type: 'alert', title: 'Low Stock: Rice', amount: null, time: '2 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+      ],
+      'timpla-track': [
+        { id: 1, type: 'sale', title: 'Order: Iced Caramel Macchiato', amount: 180, time: '5 mins ago', icon: Utensils, color: 'text-amber-600', bg: 'bg-amber-50' },
+        { id: 2, type: 'stock', title: 'Restocked Espresso Beans', amount: null, time: '2 hours ago', icon: Package, color: 'text-stone-600', bg: 'bg-stone-50' },
+        { id: 3, type: 'alert', title: 'Low Stock: Almond Milk', amount: null, time: '3 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+      ],
+      'ganap-master': [
+        { id: 1, type: 'sale', title: 'Booking Confirmed: Wedding', amount: 15000, time: '1 hour ago', icon: PartyPopper, color: 'text-orange-500', bg: 'bg-orange-50' },
+        { id: 2, type: 'stock', title: 'Menu Updated', amount: null, time: '3 hours ago', icon: FileText, color: 'text-blue-500', bg: 'bg-blue-50' },
+        { id: 3, type: 'alert', title: 'Missing Supplier: Flowers', amount: null, time: '5 hours ago', icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' },
+      ],
+      'spin-snap': [
+        { id: 1, type: 'sale', title: 'Laundry Finished: Wash & Fold', amount: 180, time: '15 mins ago', icon: Sparkles, color: 'text-cyan-500', bg: 'bg-cyan-50' },
+        { id: 2, type: 'stock', title: 'Restocked Fabric Conditioner', amount: null, time: '2 hours ago', icon: Package, color: 'text-blue-500', bg: 'bg-blue-50' },
+        { id: 3, type: 'alert', title: 'Low Stock: Detergent Powder', amount: null, time: '5 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+      ],
+      'hydro-sync': [
+        { id: 1, type: 'sale', title: 'Delivered: 5 Gallons (Round)', amount: 150, time: '8 mins ago', icon: Droplets, color: 'text-sky-500', bg: 'bg-sky-50' },
+        { id: 2, type: 'stock', title: 'Restocked Bottle Caps', amount: null, time: '1 hour ago', icon: Package, color: 'text-teal-500', bg: 'bg-teal-50' },
+        { id: 3, type: 'alert', title: 'Low Stock: Plastic Seals', amount: null, time: '3 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+      ],
+      'auto-boss': [
+        { id: 1, type: 'sale', title: 'Completed: Premium Carwash', amount: 350, time: '5 mins ago', icon: Car, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+        { id: 2, type: 'stock', title: 'Restocked Tire Wax', amount: null, time: '1 hour ago', icon: Package, color: 'text-teal-500', bg: 'bg-teal-50' },
+        { id: 3, type: 'alert', title: 'Low Stock: Car Shampoo', amount: null, time: '4 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+      ],
+      'wellness-pro': [
+        { id: 1, type: 'sale', title: 'New Client: Swedish Massage', amount: 800, time: '15 mins ago', icon: Sparkles, color: 'text-purple-500', bg: 'bg-purple-50' },
+        { id: 2, type: 'stock', title: 'Restocked Lavender Oil', amount: null, time: '2 hours ago', icon: Package, color: 'text-pink-500', bg: 'bg-pink-50' },
+        { id: 3, type: 'alert', title: 'Low Stock: Towels', amount: null, time: '5 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+      ],
+      'trim-track': [
+        { id: 1, type: 'sale', title: 'Haircut: Fade + Beard Trim', amount: 250, time: '12 mins ago', icon: Scissors, color: 'text-rose-500', bg: 'bg-rose-50' },
+        { id: 2, type: 'stock', title: 'Restocked Hair Pomade', amount: null, time: '3 hours ago', icon: Package, color: 'text-purple-500', bg: 'bg-purple-50' },
+        { id: 3, type: 'alert', title: 'Low Stock: Neck Strips', amount: null, time: '1 day ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+      ],
+      'rep-sync': [
+        { id: 1, type: 'sale', title: 'New Member: 1 Month Plan', amount: 1500, time: '30 mins ago', icon: Dumbbell, color: 'text-slate-500', bg: 'bg-slate-100' },
+        { id: 2, type: 'stock', title: 'Restocked Whey Protein', amount: null, time: '2 hours ago', icon: Package, color: 'text-blue-500', bg: 'bg-blue-50' },
+        { id: 3, type: 'alert', title: 'Low Stock: Bottled Water', amount: null, time: '4 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+      ],
+      'rental': [
+        { id: 1, type: 'sale', title: 'Rented: Monoblock Chairs (50)', amount: 500, time: '10 mins ago', icon: Users, color: 'text-amber-500', bg: 'bg-amber-50' },
+        { id: 2, type: 'stock', title: 'Returned: Videoke Machine', amount: null, time: '1 hour ago', icon: Home, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+        { id: 3, type: 'alert', title: 'Overdue: Folding Table', amount: null, time: '2 hours ago', icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' },
+      ],
+    };
+    
+    // Default fallback
+    return data[module] || data['benta-snap'];
+  };
+
+  const isDemo = currentTenant?.id === 'demo' || currentTenant?.name?.toLowerCase().includes('demo');
+
+  let displayActivity: any[] = [];
+  
+  if (isDemo || !currentTenant) {
+    displayActivity = getMockActivity(currentTenant?.moduleType || 'benta-snap');
+  } else {
+    // Generate feed from actual sales data
+    const realSales = (sales || []).slice(0, 4).map((sale: any, i: number) => {
+      let timeLabel = 'Just now';
+      if (sale.createdAt && sale.createdAt.toDate) {
+          const diffMins = Math.floor((Date.now() - sale.createdAt.toDate().getTime()) / 60000);
+          if (diffMins === 0) timeLabel = 'Just now';
+          else if (diffMins < 60) timeLabel = `${diffMins} mins ago`;
+          else timeLabel = `${Math.floor(diffMins / 60)} hours ago`;
+      }
+      return {
+         id: sale.id || `sale-${i}`,
+         type: 'sale',
+         title: `Sold: ${sale.productName || 'Item'}`,
+         amount: sale.totalAmount ? sale.totalAmount / 100 : 0,
+         time: timeLabel,
+         icon: ShoppingCart,
+         color: 'text-emerald-500',
+         bg: 'bg-emerald-50'
+      }
+    });
+    
+    // Add 1 stock alert if applicable
+    const stockAlerts = [];
+    if (outOfStockItems?.length > 0) {
+      stockAlerts.push({
+         id: `alert-out-${outOfStockItems[0].id}`,
+         type: 'alert',
+         title: `Ubos Na: ${outOfStockItems[0].name}`,
+         amount: null,
+         time: 'Urgent',
+         icon: AlertTriangle,
+         color: 'text-red-500',
+         bg: 'bg-red-50'
+      });
+    } else if (lowStockItems?.length > 0) {
+      stockAlerts.push({
+         id: `alert-low-${lowStockItems[0].id}`,
+         type: 'alert',
+         title: `Paubos Na: ${lowStockItems[0].name}`,
+         amount: null,
+         time: 'Check Stock',
+         icon: AlertTriangle,
+         color: 'text-amber-500',
+         bg: 'bg-amber-50'
+      });
+    }
+
+    displayActivity = [...realSales, ...stockAlerts].slice(0, 5);
+  }
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-screen pb-24 lg:pb-6">
@@ -130,32 +293,7 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
           </Card>
         </section>
 
-        {/* Phase 2: Aggressive PWA Install Prompt */}
-        {!isInstalled && deferredPrompt && (
-          <section className="animate-in fade-in slide-in-from-top-4 duration-500 delay-300">
-            <Card className="rounded-[24px] overflow-hidden border-2 border-emerald-500 shadow-xl shadow-emerald-500/10">
-              <CardContent className="p-0">
-                <div className="bg-gradient-to-r from-emerald-500 to-emerald-400 p-6 text-white flex flex-col md:flex-row items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm">
-                      <Smartphone className="h-8 w-8 text-white animate-pulse" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-black font-headline tracking-tighter">I-Install ang Katuwang App sa iyong Phone!</h3>
-                      <p className="text-xs text-emerald-50 font-medium">Mas mabilis at pwede gamitin kahit walang internet (Offline Mode).</p>
-                    </div>
-                  </div>
-                  <Button 
-                    onClick={triggerInstall}
-                    className="w-full md:w-auto h-12 bg-white text-emerald-600 hover:bg-emerald-50 font-black tracking-widest uppercase text-xs rounded-xl shadow-lg active:scale-95 transition-transform"
-                  >
-                    I-INSTALL NGAYON
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </section>
-        )}
+
 
         {/* Phase 3: Restock Watchlist (Low Stock Widget) */}
         <section>
@@ -251,26 +389,36 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
             </button>
           </div>
           
-          <Card className="rounded-[24px] border-slate-100 shadow-sm overflow-hidden">
+          <Card className="rounded-[24px] border-slate-100 shadow-sm overflow-hidden min-h-[150px]">
             <div className="divide-y divide-slate-100">
-              {recentActivity.map((activity) => (
-                <div key={activity.id} className="p-4 flex items-center gap-4 hover:bg-slate-50/50 transition-colors">
-                  <div className={cn("p-3 rounded-full flex-shrink-0", activity.bg, activity.color)}>
-                    <activity.icon className="h-4 w-4" />
+              {displayActivity.length === 0 ? (
+                <div className="p-8 text-center flex flex-col items-center justify-center">
+                  <div className="h-10 w-10 rounded-full bg-slate-50 flex items-center justify-center mb-2">
+                    <Activity className="h-5 w-5 text-slate-400" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-extrabold text-slate-900 truncate">{activity.title}</p>
-                    <p className="text-[10px] font-black uppercase text-slate-400 mt-0.5">{activity.time}</p>
-                  </div>
-                  {activity.amount && (
-                    <div className="text-right flex-shrink-0">
-                      <span className="text-sm font-black text-emerald-600">
-                        +₱{activity.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  )}
+                  <h4 className="text-sm font-bold text-slate-500">Walang activity</h4>
+                  <p className="text-[10px] text-slate-400 mt-1 max-w-[200px]">Simulan nang gamitin ang app para makita ang mga transaksyon dito.</p>
                 </div>
-              ))}
+              ) : (
+                displayActivity.map((activity) => (
+                  <div key={activity.id} className="p-4 flex items-center gap-4 hover:bg-slate-50/50 transition-colors">
+                    <div className={cn("p-3 rounded-full flex-shrink-0", activity.bg, activity.color)}>
+                      <activity.icon className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-extrabold text-slate-900 truncate">{activity.title}</p>
+                      <p className="text-[10px] font-black uppercase text-slate-400 mt-0.5">{activity.time}</p>
+                    </div>
+                    {activity.amount && (
+                      <div className="text-right flex-shrink-0">
+                        <span className="text-sm font-black text-emerald-600">
+                          +₱{activity.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </Card>
         </section>

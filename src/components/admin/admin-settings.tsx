@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Settings, ShieldAlert, Save } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface SystemConfig {
   maintenanceMode: boolean;
@@ -29,14 +30,17 @@ export function AdminSettings() {
   const [config, setConfig] = useState<SystemConfig>(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const { toast } = useToast();
+  const hasInitialized = React.useRef(false);
 
   useEffect(() => {
     const { db } = initializeFirebase();
     const unsubscribe = onSnapshot(doc(db, 'system', 'config'), (docSnap) => {
       if (docSnap.exists()) {
         setConfig(docSnap.data() as SystemConfig);
-      } else {
-        // Initialize config if it doesn't exist
+      } else if (!hasInitialized.current) {
+        // Only auto-initialize once to prevent re-entrant write loops
+        hasInitialized.current = true;
         setDoc(doc(db, 'system', 'config'), DEFAULT_CONFIG);
       }
       setLoading(false);
@@ -50,10 +54,10 @@ export function AdminSettings() {
     try {
       const { db } = initializeFirebase();
       await setDoc(doc(db, 'system', 'config'), config, { merge: true });
-      alert('System configuration saved successfully.');
+      toast({ title: 'Configuration Saved', description: 'System settings updated successfully.' });
     } catch (error) {
       console.error(error);
-      alert('Failed to save configuration. Only Superadmins can perform this action.');
+      toast({ title: 'Save Failed', description: 'Only Superadmins can perform this action.', variant: 'destructive' });
     } finally {
       setIsSaving(false);
     }

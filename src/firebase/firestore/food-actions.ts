@@ -5,7 +5,7 @@ import { runTransactionResilient } from './resilient-transaction';
 
 export const getKatuwangDb = () => initializeFirebase().db;
 
-export async function addFoodOrder(tenantId: string, tableNumber: string, items: any[], discountCentavos: number = 0, customerPhone?: string) {
+export async function addFoodOrder(tenantId: string, tableNumber: string, items: any[], discountCentavos: number = 0, customerPhone?: string, referrerCode?: string) {
   const db = getKatuwangDb();
   let orderId = '';
   
@@ -48,6 +48,7 @@ export async function addFoodOrder(tenantId: string, tableNumber: string, items:
       items: validatedItems,
       totalAmount: finalAmount, // Secure server calculated total minus discount
       customerPhone,
+      referrerCode,
     });
 
     const ordersRef = collection(db, 'tenants', tenantId, 'food_orders');
@@ -70,6 +71,14 @@ export async function updateFoodOrderStatus(tenantId: string, orderId: string, n
   await runTransactionResilient(db, async (transaction) => {
     const orderRef = doc(db, 'tenants', tenantId, 'food_orders', orderId);
     
+    const orderSnap = await transaction.get(orderRef);
+    if (!orderSnap.exists()) throw new Error("Order not found");
+    const orderData = orderSnap.data();
+    
+    if (orderData.status === newStatus) {
+      return; // Prevent double-execution
+    }
+    
     // Update the Order Status
     const updateData: any = { 
       status: newStatus,
@@ -80,25 +89,21 @@ export async function updateFoodOrderStatus(tenantId: string, orderId: string, n
 
     // RECIPE YIELD DEDUCTION: If the food is SERVED, deduct raw ingredients
     if (newStatus === 'served') {
-      const orderSnap = await transaction.get(orderRef);
-      if (orderSnap.exists()) {
-        const orderData = orderSnap.data();
-        if (orderData.items && Array.isArray(orderData.items)) {
-          for (const item of orderData.items) {
-            const menuRef = doc(db, 'tenants', tenantId, 'menu_items', item.menuItemId);
-            const menuSnap = await transaction.get(menuRef);
-            if (menuSnap.exists()) {
-              const menuData = menuSnap.data();
-              if (menuData.recipe && Array.isArray(menuData.recipe)) {
-                for (const req of menuData.recipe) {
-                  const ingRef = doc(db, 'tenants', tenantId, 'ingredients', req.ingredientId);
-                  const deductAmount = req.amount * item.quantity;
-                  // Deduct ingredient stock
-                  transaction.update(ingRef, {
-                    currentStock: increment(-deductAmount),
-                    updatedAt: serverTimestamp()
-                  });
-                }
+      if (orderData.items && Array.isArray(orderData.items)) {
+        for (const item of orderData.items) {
+          const menuRef = doc(db, 'tenants', tenantId, 'menu_items', item.menuItemId);
+          const menuSnap = await transaction.get(menuRef);
+          if (menuSnap.exists()) {
+            const menuData = menuSnap.data();
+            if (menuData.recipe && Array.isArray(menuData.recipe)) {
+              for (const req of menuData.recipe) {
+                const ingRef = doc(db, 'tenants', tenantId, 'ingredients', req.ingredientId);
+                const deductAmount = req.amount * item.quantity;
+                // Deduct ingredient stock
+                transaction.update(ingRef, {
+                  currentStock: increment(-deductAmount),
+                  updatedAt: serverTimestamp()
+                });
               }
             }
           }

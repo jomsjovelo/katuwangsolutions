@@ -11,6 +11,7 @@ import { useCart } from '@/hooks/use-cart';
 import { processCheckout, addProduct, CartItem } from '@/firebase/firestore/retail-actions';
 import { Card, CardContent } from "@/components/ui/card";
 import { useUser } from '@/firebase/auth/use-user';
+import { CustomerReferralInput } from '@/components/common/customer-referral-input';
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
 import { Input } from "@/components/ui/input";
@@ -49,7 +50,8 @@ import {
   Receipt,
   Trash2,
   Coins,
-  Camera
+  Camera,
+  Calculator
 } from "lucide-react";
 
 import { KatuwangErrorBoundary } from '@/components/common/error-boundary';
@@ -79,6 +81,8 @@ function BentaDashboardContent() {
       if (snap.exists()) {
         setProfile(snap.data());
       }
+    }, (error) => {
+      console.warn('Profile onSnapshot error:', error.message);
     });
     return () => unsubscribe();
   }, [user]);
@@ -97,9 +101,19 @@ function BentaDashboardContent() {
   const [showGCashQr, setShowGCashQr] = useState(false);
   const [showMayaQr, setShowMayaQr] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [showTingiModal, setShowTingiModal] = useState(false);
+  
+  // Cash Tendered Modal
+  const [showCashModal, setShowCashModal] = useState(false);
+  const [cashTendered, setCashTendered] = useState('');
+  
+  // Tingi / Custom Item
+  const [tingiPrice, setTingiPrice] = useState('');
+  const [tingiName, setTingiName] = useState('');
   
   // Loyalty Program
   const [customerPhone, setCustomerPhone] = useState('');
+  const [referrerCode, setReferrerCode] = useState('');
   const [pointsBalance, setPointsBalance] = useState(0);
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [isFetchingPoints, setIsFetchingPoints] = useState(false);
@@ -200,14 +214,14 @@ function BentaDashboardContent() {
       
       let pointsEarned = 0;
       let redeemed = false;
-      if (customerPhone) {
+      if (customerPhone && finalTotalCentavos > 0) {
         try {
           const { awardPoints, redeemPoints } = await import('@/firebase/firestore/loyalty-actions');
-          if (isRedeeming) {
+          if (isRedeeming && pointsBalance >= 100) {
             await redeemPoints(currentTenant.id, customerPhone, 100);
             redeemed = true;
           }
-          pointsEarned = await awardPoints(currentTenant.id, customerPhone, finalTotalCentavos);
+          pointsEarned = await awardPoints(currentTenant.id, customerPhone, finalTotalCentavos, referrerCode);
         } catch(e) {
           console.error("Failed to process points", e);
         }
@@ -224,6 +238,8 @@ function BentaDashboardContent() {
       
       setCart([]);
       setCustomerPhone('');
+      setReferrerCode('');
+      setPointsBalance(0);
       setIsRedeeming(false);
       setShowMobileCart(false);
       setShowReceipt(true);
@@ -280,7 +296,7 @@ function BentaDashboardContent() {
 
   // Filter products based on category search and query using memoized selector
   const filteredProducts = React.useMemo(() => {
-    return products.filter((product: any) => {
+    return (products || []).filter((product: any) => {
       const query = debouncedSearchQuery.toLowerCase();
       const matchesSearch = product.name.toLowerCase().includes(query) || 
                             (product.category && product.category.toLowerCase().includes(query));
@@ -352,9 +368,9 @@ function BentaDashboardContent() {
                   style={{ boxShadow: `0 8px 16px -4px ${theme.secondary}40` }}
                 >
                   {isProcessing ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Plus className="h-4 w-4 mr-1.5" />
+                    <Plus className="h-4 w-4" />
                   )}
                   Magdagdag ng Item (Test)
                 </Button>
@@ -383,7 +399,9 @@ function BentaDashboardContent() {
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
-              <input 
+              <Input 
+                id="benta-search"
+                name="bentaSearch"
                 type="text" 
                 placeholder="Maghanap ng produkto o kategorya..."
                 value={searchQuery}
@@ -397,6 +415,13 @@ function BentaDashboardContent() {
               className="h-[46px] w-[46px] p-0 rounded-xl border-slate-200 hover:bg-slate-100 flex items-center justify-center cursor-pointer flex-shrink-0"
             >
               <Camera className="h-5 w-5 text-slate-500" />
+            </Button>
+            <Button
+              onClick={() => setShowTingiModal(true)}
+              variant="outline"
+              className="h-[46px] w-[46px] p-0 rounded-xl border-slate-200 hover:bg-slate-100 flex items-center justify-center cursor-pointer flex-shrink-0"
+            >
+              <Calculator className="h-5 w-5 text-slate-500" />
             </Button>
           </div>
 
@@ -580,7 +605,6 @@ function BentaDashboardContent() {
                             className="h-6 w-6 p-0 rounded-lg text-white border-transparent" 
                             style={{ backgroundColor: theme.primary }}
                             onClick={() => {
-                              // FIX S3-2: Look up real product to enforce stock limit instead of passing 9999
                               const realProduct = products.find((p: any) => p.id === item.productId);
                               if (realProduct) addToCart(realProduct);
                             }}
@@ -595,31 +619,30 @@ function BentaDashboardContent() {
 
                 {/* Checkout pricing details block */}
                 <div className="border-t border-slate-100 bg-slate-50/70 p-4 space-y-4">
-                  <div className="space-y-1 pb-2 border-b border-slate-200/50">
-                    <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest flex justify-between">
-                      <span>Customer Phone (Katuwang Rewards)</span>
-                      {customerPhone && <span className="text-emerald-500 flex items-center gap-1"><Coins className="h-3 w-3" /> {isFetchingPoints ? "..." : `${pointsBalance} pts`}</span>}
-                    </Label>
-                    <Input 
-                      placeholder="e.g. 0917..." 
-                      value={customerPhone}
-                      onChange={e => setCustomerPhone(e.target.value)}
-                      className="h-9 bg-white border-slate-200"
-                    />
-                    {pointsBalance >= 100 && totalCentavos >= 5000 && (
-                      <div className="flex items-center space-x-2 mt-2 bg-emerald-50 p-2 rounded-lg border border-emerald-100">
-                        <Switch 
-                          id="redeem-points-desktop" 
-                          checked={isRedeeming}
-                          onCheckedChange={setIsRedeeming}
-                          className="data-[state=checked]:bg-emerald-500"
-                        />
-                        <Label htmlFor="redeem-points-desktop" className="text-xs font-bold text-emerald-800 cursor-pointer">
-                          Redeem 100 pts for ₱50 Off
-                        </Label>
-                      </div>
-                    )}
-                  </div>
+                  <CustomerReferralInput 
+                    customerPhone={customerPhone}
+                    setCustomerPhone={setCustomerPhone}
+                    referrerCode={referrerCode}
+                    setReferrerCode={setReferrerCode}
+                    primaryColor={theme.primary}
+                  />
+                  {customerPhone && (
+                    <div className="space-y-1">
+                      {pointsBalance >= 100 && totalCentavos >= 5000 && (
+                        <div className="flex items-center space-x-2 mt-2 bg-emerald-50 p-2 rounded-lg border border-emerald-100">
+                          <Switch 
+                            id="redeem-points-desktop" 
+                            checked={isRedeeming}
+                            onCheckedChange={setIsRedeeming}
+                            className="data-[state=checked]:bg-emerald-500"
+                          />
+                          <Label htmlFor="redeem-points-desktop" className="text-xs font-bold text-emerald-800 cursor-pointer">
+                            Redeem 100 pts for ₱50 Off
+                          </Label>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   
                   <div className="flex flex-col gap-1">
                     {isRedeeming && (
@@ -638,7 +661,7 @@ function BentaDashboardContent() {
 
                   <div className="grid grid-cols-2 gap-2">
                     <Button 
-                      onClick={() => handleCheckout('cash')} 
+                      onClick={() => setShowCashModal(true)} 
                       disabled={cart.length === 0 || isProcessing}
                       className="h-12 bg-emerald-500 hover:bg-emerald-600 text-white font-bold shadow-md shadow-emerald-500/20 active:scale-95 transition-transform rounded-xl gap-1.5"
                     >
@@ -650,7 +673,6 @@ function BentaDashboardContent() {
                         </>
                       )}
                     </Button>
-                    {/* FIX S1-1: GCash button opens QR modal */}
                     <Button 
                       onClick={() => setShowGCashQr(true)} 
                       disabled={cart.length === 0 || isProcessing}
@@ -661,19 +683,6 @@ function BentaDashboardContent() {
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
                         <><Receipt className="h-4 w-4" /> GCash</>
-                      )}
-                    </Button>
-                    {/* Maya button */}
-                    <Button 
-                      onClick={() => setShowMayaQr(true)} 
-                      disabled={cart.length === 0 || isProcessing}
-                      className="h-12 text-white font-bold shadow-md active:scale-95 transition-all rounded-xl gap-1.5 border-none"
-                      style={{ backgroundColor: '#22c55e', boxShadow: '0 8px 16px -4px #22c55e40' }}
-                    >
-                      {isProcessing ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <><Receipt className="h-4 w-4" /> Maya</>
                       )}
                     </Button>
                   </div>
@@ -689,6 +698,8 @@ function BentaDashboardContent() {
                     ) : (
                       <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
                         <Input
+                          id="benta-palista-desktop"
+                          name="palistaName"
                           placeholder="Customer name for Palista..."
                           value={palistaName}
                           onChange={e => setPalistaName(e.target.value)}
@@ -804,7 +815,6 @@ function BentaDashboardContent() {
                     className="h-7 w-7 p-0 rounded-lg text-white border-transparent" 
                     style={{ backgroundColor: theme.primary }}
                     onClick={() => {
-                      // FIX S3-2: Look up real product to enforce stock limit instead of passing 9999
                       const realProduct = products.find((p: any) => p.id === item.productId);
                       if (realProduct) addToCart(realProduct);
                     }}
@@ -818,31 +828,30 @@ function BentaDashboardContent() {
 
           {/* Bottom Total & Actions */}
           <div className="border-t border-slate-100 pt-4 mt-4 space-y-4">
-            <div className="space-y-1 pb-2 border-b border-slate-100">
-              <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest flex justify-between">
-                <span>Customer Phone (Katuwang Rewards)</span>
-                {customerPhone && <span className="text-emerald-500 flex items-center gap-1"><Coins className="h-3 w-3" /> {isFetchingPoints ? "..." : `${pointsBalance} pts`}</span>}
-              </Label>
-              <Input 
-                placeholder="e.g. 0917..." 
-                value={customerPhone}
-                onChange={e => setCustomerPhone(e.target.value)}
-                className="h-10 bg-slate-50 border-slate-200"
-              />
-              {pointsBalance >= 100 && totalCentavos >= 5000 && (
-                <div className="flex items-center space-x-2 mt-2 bg-emerald-50 p-2 rounded-lg border border-emerald-100">
-                  <Switch 
-                    id="redeem-points-mobile" 
-                    checked={isRedeeming}
-                    onCheckedChange={setIsRedeeming}
-                    className="data-[state=checked]:bg-emerald-500"
-                  />
-                  <Label htmlFor="redeem-points-mobile" className="text-xs font-bold text-emerald-800 cursor-pointer">
-                    Redeem 100 pts for ₱50 Off
-                  </Label>
-                </div>
-              )}
-            </div>
+            <CustomerReferralInput 
+              customerPhone={customerPhone}
+              setCustomerPhone={setCustomerPhone}
+              referrerCode={referrerCode}
+              setReferrerCode={setReferrerCode}
+              primaryColor={theme.primary}
+            />
+            {customerPhone && (
+              <div className="space-y-1">
+                {pointsBalance >= 100 && totalCentavos >= 5000 && (
+                  <div className="flex items-center space-x-2 mt-2 bg-emerald-50 p-2 rounded-lg border border-emerald-100">
+                    <Switch 
+                      id="redeem-points-mobile" 
+                      checked={isRedeeming}
+                      onCheckedChange={setIsRedeeming}
+                      className="data-[state=checked]:bg-emerald-500"
+                    />
+                    <Label htmlFor="redeem-points-mobile" className="text-xs font-bold text-emerald-800 cursor-pointer">
+                      Redeem 100 pts for ₱50 Off
+                    </Label>
+                  </div>
+                )}
+              </div>
+            )}
             
             <div className="flex flex-col gap-1">
               {isRedeeming && (
@@ -859,9 +868,9 @@ function BentaDashboardContent() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 pb-safe">
+            <div className="grid grid-cols-2 gap-2 pb-safe">
               <Button 
-                onClick={() => handleCheckout('cash')} 
+                onClick={() => setShowCashModal(true)} 
                 disabled={isProcessing}
                 className="h-12 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl gap-1.5 flex items-center justify-center text-xs"
               >
@@ -875,14 +884,6 @@ function BentaDashboardContent() {
               >
                 {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Receipt className="h-4 w-4" /> GCash</>}
               </Button>
-              <Button 
-                onClick={() => { setShowMobileCart(false); setShowMayaQr(true); }} 
-                disabled={isProcessing}
-                className="h-12 text-white font-bold rounded-xl gap-1.5 flex items-center justify-center text-xs border-none cursor-pointer"
-                style={{ backgroundColor: '#22c55e', boxShadow: '0 8px 16px -4px #22c55e40' }}
-              >
-                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Receipt className="h-4 w-4" /> Maya</>}
-              </Button>
             </div>
             {/* Mobile Palista */}
             {!showPalistaInput ? (
@@ -895,6 +896,8 @@ function BentaDashboardContent() {
             ) : (
               <div className="space-y-2 mt-1 animate-in fade-in duration-200">
                 <Input
+                  id="benta-palista-mobile"
+                  name="palistaName"
                   placeholder="Customer name for Palista..."
                   value={palistaName}
                   onChange={e => setPalistaName(e.target.value)}
@@ -953,6 +956,145 @@ function BentaDashboardContent() {
         }}
         theme={theme}
       />
+
+      {/* Tingi / Custom Amount Modal */}
+      <Dialog open={showTingiModal} onOpenChange={setShowTingiModal}>
+        <DialogContent className="rounded-[24px] p-0 overflow-hidden sm:max-w-[400px]">
+          <DialogHeader className="px-6 pt-6 pb-4 bg-slate-50 border-b border-slate-100">
+            <DialogTitle className="font-headline font-black text-lg flex items-center gap-2 text-slate-800">
+              <Calculator className="h-5 w-5" style={{ color: theme.primary }} />
+              Custom Amount (Tingi)
+            </DialogTitle>
+            <DialogDescription className="text-xs font-medium text-slate-500">
+              Ilagay ang presyo para sa item na wala sa imbentaryo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-6 space-y-4">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Pangalan (Optional)</Label>
+              <Input 
+                id="tingi-name"
+                name="tingiName"
+                value={tingiName}
+                onChange={e => setTingiName(e.target.value)}
+                placeholder="e.g. ₱5 Load, Yelo"
+                className="h-11 bg-slate-50 border-slate-200 text-sm font-bold"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Presyo (₱)</Label>
+              <Input 
+                id="tingi-price"
+                name="tingiPrice"
+                type="number"
+                value={tingiPrice}
+                onChange={e => setTingiPrice(e.target.value)}
+                placeholder="0.00"
+                className="h-14 text-2xl font-black placeholder:text-slate-300 border-slate-200 bg-white"
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-row gap-2">
+            <Button variant="outline" onClick={() => setShowTingiModal(false)} className="rounded-xl h-12 flex-1 font-bold">
+              Kanselahin
+            </Button>
+            <Button 
+              onClick={() => {
+                const price = parseFloat(tingiPrice);
+                if (!isNaN(price) && price > 0) {
+                  addToCart({
+                    id: `misc-${Date.now()}`,
+                    name: tingiName || 'Tingi / Misc',
+                    salePrice: Math.round(price * 100), // Convert to centavos
+                    costPrice: Math.round(price * 100), // No profit margin calculated for misc
+                    currentStock: 999,
+                    unit: 'pcs',
+                    category: 'Miscellaneous'
+                  });
+                  setShowTingiModal(false);
+                  setTingiPrice('');
+                  setTingiName('');
+                }
+              }} 
+              disabled={!tingiPrice || isNaN(parseFloat(tingiPrice)) || parseFloat(tingiPrice) <= 0}
+              className="rounded-xl h-12 flex-1 font-bold text-white border-none shadow-md"
+              style={{ backgroundColor: theme.primary, boxShadow: `0 8px 16px -4px ${theme.primary}40` }}
+            >
+              Idagdag sa Cart
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cash Tendered / Sukli Modal */}
+      <Dialog open={showCashModal} onOpenChange={(open) => { setShowCashModal(open); if (!open) setCashTendered(''); }}>
+        <DialogContent className="rounded-[24px] p-0 overflow-hidden sm:max-w-[400px]">
+          <DialogHeader className="px-6 pt-6 pb-4 bg-emerald-50 border-b border-emerald-100">
+            <DialogTitle className="font-headline font-black text-lg flex items-center gap-2 text-emerald-800">
+              <Coins className="h-5 w-5 text-emerald-600" />
+              Cash Payment
+            </DialogTitle>
+          </DialogHeader>
+          <div className="p-6 space-y-4">
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center">
+              <span className="font-bold text-slate-500 uppercase text-xs">Total Amount</span>
+              <span className="font-black text-2xl" style={{ color: theme.primary }}>₱{finalTotalPesos.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+            </div>
+            
+            <CustomerReferralInput 
+                customerPhone={customerPhone}
+                setCustomerPhone={setCustomerPhone}
+                referrerCode={referrerCode}
+                setReferrerCode={setReferrerCode}
+                primaryColor={theme.primary}
+            />
+
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase text-emerald-600 tracking-widest">Pera na Ibinayad (Tendered)</Label>
+              <Input 
+                id="cash-tendered"
+                name="cashTendered"
+                type="number"
+                value={cashTendered}
+                onChange={e => setCashTendered(e.target.value)}
+                placeholder="0.00"
+                className="h-14 text-2xl font-black border-emerald-200 bg-white text-emerald-700 placeholder:text-emerald-200"
+                autoFocus
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 gap-2">
+              <Button variant="outline" onClick={() => setCashTendered(finalTotalPesos.toString())} className="h-10 text-[10px] font-bold rounded-xl border-slate-200 text-slate-600">Exact</Button>
+              <Button variant="outline" onClick={() => setCashTendered('100')} className="h-10 text-[10px] font-bold rounded-xl border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100">₱100</Button>
+              <Button variant="outline" onClick={() => setCashTendered('500')} className="h-10 text-[10px] font-bold rounded-xl border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100">₱500</Button>
+              <Button variant="outline" onClick={() => setCashTendered('1000')} className="h-10 text-[10px] font-bold rounded-xl border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100">₱1000</Button>
+            </div>
+
+            {parseFloat(cashTendered) >= finalTotalPesos && (
+              <div className="flex justify-between items-center p-4 rounded-xl border border-emerald-200 bg-emerald-50 animate-in fade-in zoom-in duration-200">
+                <span className="text-xs font-black uppercase tracking-widest text-emerald-700">Sukli (Change)</span>
+                <span className="text-2xl font-black text-emerald-700">₱{(parseFloat(cashTendered) - finalTotalPesos).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-row gap-2">
+            <Button variant="outline" onClick={() => setShowCashModal(false)} className="rounded-xl h-12 flex-1 font-bold">
+              Bumalik
+            </Button>
+            <Button 
+              onClick={() => {
+                setShowCashModal(false);
+                handleCheckout('cash');
+              }} 
+              disabled={!cashTendered || isNaN(parseFloat(cashTendered)) || parseFloat(cashTendered) < finalTotalPesos || isProcessing}
+              className="rounded-xl h-12 flex-1 font-bold text-white border-none shadow-md bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20"
+            >
+              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Tapusin ang Sale'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ThermalReceiptPreview
         open={showReceipt}

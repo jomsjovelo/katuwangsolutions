@@ -38,7 +38,7 @@ export function FoodDashboard() {
   const [error, setError] = useState<string | null>(null);
 
   // Menu State
-  const { menuItems, availableItems, loading: menuLoading } = useMenu();
+  const { menuItems, availableItems, loading: menuLoading, error: menuError } = useMenu();
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [newMenuName, setNewMenuName] = useState('');
   const [newMenuPrice, setNewMenuPrice] = useState('');
@@ -56,12 +56,23 @@ export function FoodDashboard() {
         orderBy('createdAt', 'desc')) : null;
   }, [currentTenant?.id, db]);
 
-  const [ordersSnapshot, ordersLoading, hookError] = useCollection(ordersQuery as any);
+  const [ordersSnapshot, ordersLoading, ordersError] = useCollection(ordersQuery as any);
   
   const orders = ordersSnapshot?.docs.map((doc: any) => ({
     id: doc.id,
     ...doc.data()
   })) || [];
+
+  React.useEffect(() => {
+    if (ordersError) {
+      console.error("Orders listener error:", ordersError);
+      toast({ title: 'Connection Error', description: 'Failed to sync live orders.', variant: 'destructive' });
+    }
+    if (menuError) {
+      console.error("Menu listener error:", menuError);
+      toast({ title: 'Connection Error', description: 'Failed to sync menu items.', variant: 'destructive' });
+    }
+  }, [ordersError, menuError, toast]);
 
   const pendingOrders = orders.filter((o: any) => o.status === 'pending');
   const preparingOrders = orders.filter((o: any) => o.status === 'preparing');
@@ -205,12 +216,12 @@ export function FoodDashboard() {
                 <CardContent className="p-4 space-y-3">
                   <div className="flex gap-2">
                     <div className="flex-1 space-y-1">
-                      <Label className="text-xs">Item Name</Label>
-                      <Input placeholder="e.g. Pork Adobo" value={newMenuName} onChange={e => setNewMenuName(e.target.value)} />
+                      <Label htmlFor="menu-name" className="text-xs">Item Name</Label>
+                      <Input id="menu-name" name="menuName" placeholder="e.g. Pork Adobo" value={newMenuName} onChange={e => setNewMenuName(e.target.value)} />
                     </div>
                     <div className="w-24 space-y-1">
-                      <Label className="text-xs">Price (₱)</Label>
-                      <Input type="number" placeholder="60" value={newMenuPrice} onChange={e => setNewMenuPrice(e.target.value)} />
+                      <Label htmlFor="menu-price" className="text-xs">Price (₱)</Label>
+                      <Input id="menu-price" name="menuPrice" type="number" placeholder="60" value={newMenuPrice} onChange={e => setNewMenuPrice(e.target.value)} />
                     </div>
                   </div>
                   <Button 
@@ -260,25 +271,38 @@ export function FoodDashboard() {
                 <CardContent className="p-0 max-h-40 overflow-y-auto">
                   <div className="divide-y divide-slate-100">
                     {cart.map((item, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-3 bg-white">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-sm">{item.quantity}x</span>
-                          <span className="text-sm text-slate-700">{item.name}</span>
+                      <div key={idx} className="p-3 bg-white space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-sm">{item.quantity}x</span>
+                            <span className="text-sm text-slate-700">{item.name}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="font-bold text-sm">₱{((item.price * item.quantity) / 100).toLocaleString()}</span>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 rounded-full" onClick={() => removeFromCart(item.menuItemId)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <span className="font-bold text-sm">₱{((item.price * item.quantity) / 100).toLocaleString()}</span>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 rounded-full" onClick={() => removeFromCart(item.menuItemId)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <Input 
+                          placeholder="Add note (e.g. Less ice)" 
+                          className="h-7 text-[10px]" 
+                          value={item.notes || ''} 
+                          onChange={e => {
+                            const newNotes = e.target.value;
+                            setCart(prev => prev.map(i => i.menuItemId === item.menuItemId ? { ...i, notes: newNotes } : i));
+                          }}
+                        />
                       </div>
                     ))}
                   </div>
                 </CardContent>
                 <div className="p-3 bg-white border-t border-slate-100 space-y-3">
                   <div className="space-y-1">
-                    <Label className="text-xs text-slate-500 font-bold uppercase tracking-widest">Table Name / Number</Label>
+                    <Label htmlFor="table-name" className="text-xs text-slate-500 font-bold uppercase tracking-widest">Table Name / Number</Label>
                     <Input 
+                      id="table-name"
+                      name="tableName"
                       placeholder="e.g. Table 5, VIP A, or leave blank for Takeout" 
                       value={selectedTable} 
                       onChange={e => setSelectedTable(e.target.value)}
@@ -332,8 +356,11 @@ export function FoodDashboard() {
                   <div className="p-3 space-y-2">
                     <ul className="space-y-1">
                       {order.items.map((item: any, i: any) => (
-                        <li key={i} className="text-sm flex justify-between border-b border-slate-50 pb-1 last:border-0">
-                          <span className="font-bold text-slate-700">{item.quantity}x {item.name}</span>
+                        <li key={i} className="text-sm flex flex-col border-b border-slate-50 pb-1 last:border-0">
+                          <div className="flex justify-between">
+                            <span className="font-bold text-slate-700">{item.quantity}x {item.name}</span>
+                          </div>
+                          {item.notes && <span className="text-[10px] text-red-500 font-bold uppercase pl-4">Note: {item.notes}</span>}
                         </li>
                       ))}
                     </ul>
@@ -364,8 +391,11 @@ export function FoodDashboard() {
                   <div className="p-3 space-y-2">
                     <ul className="space-y-1">
                       {order.items.map((item: any, i: any) => (
-                        <li key={i} className="text-sm flex justify-between">
-                          <span className="font-medium text-slate-600">{item.quantity}x {item.name}</span>
+                        <li key={i} className="text-sm flex flex-col">
+                          <div className="flex justify-between">
+                            <span className="font-medium text-slate-600">{item.quantity}x {item.name}</span>
+                          </div>
+                          {item.notes && <span className="text-[10px] text-red-400 font-bold uppercase pl-4">Note: {item.notes}</span>}
                         </li>
                       ))}
                     </ul>

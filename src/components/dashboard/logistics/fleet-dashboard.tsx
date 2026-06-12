@@ -45,6 +45,7 @@ export function FleetDashboard() {
   const [destination, setDestination] = useState('');
   const [loadDesc, setLoadDesc] = useState('');
   const [driver, setDriver] = useState('');
+  const [plateNumber, setPlateNumber] = useState('');
   const [fee, setFee] = useState<number | ''>('');
 
   // Expense Form State per Trip
@@ -63,9 +64,17 @@ export function FleetDashboard() {
     ? query(collection(db, 'tenants', currentTenant.id, 'trips'), orderBy('createdAt', 'desc')) : null;
   }, [currentTenant?.id, db]);
 
-  const [tripsSnapshot, loading] = useCollection(tripsQuery as any);
+  const [tripsSnapshot, loading, tripsError] = useCollection(tripsQuery as any);
   
   const trips = tripsSnapshot?.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })) || [];
+
+  React.useEffect(() => {
+    if (tripsError) {
+      console.error("Fleet listener error:", tripsError);
+      toast({ title: 'Connection Error', description: 'Failed to sync live trips.', variant: 'destructive' });
+    }
+  }, [tripsError, toast]);
+
   const plannedTrips = trips.filter((t: any) => t.status === 'planned');
   const activeTrips = trips.filter((t: any) => t.status === 'in_transit' || t.status === 'loading');
   const completedTrips = trips.filter((t: any) => t.status === 'completed').slice(0, 20);
@@ -83,8 +92,8 @@ export function FleetDashboard() {
     }
     try {
       setIsProcessing(true);
-      await addTrip(currentTenant.id, origin, destination, loadDesc, driver, Math.round(feeVal * 100));
-      setOrigin(''); setDestination(''); setLoadDesc(''); setDriver(''); setFee('');
+      await addTrip(currentTenant.id, origin, destination, loadDesc, driver, plateNumber, Math.round(feeVal * 100));
+      setOrigin(''); setDestination(''); setLoadDesc(''); setDriver(''); setPlateNumber(''); setFee('');
       setShowDispatchForm(false);
       toast({ title: 'Truck Dispatched!', description: `Heading to ${destination}` });
     } catch (e: any) {
@@ -94,11 +103,11 @@ export function FleetDashboard() {
     }
   };
 
-  const moveTrip = async (id: string, newStatus: 'loading' | 'in_transit' | 'completed', signatureData?: string) => {
+  const moveTrip = async (id: string, newStatus: 'loading' | 'in_transit' | 'completed', signatureData?: string, paymentMethod?: 'cash' | 'palista') => {
     if (!currentTenant) return;
     try {
       setIsProcessing(true);
-      await updateTripStatus(currentTenant.id, id, newStatus, signatureData);
+      await updateTripStatus(currentTenant.id, id, newStatus, signatureData, paymentMethod);
       if (newStatus === 'completed') {
         setShowSignatureModal(null);
         toast({ title: 'Trip Completed', description: 'Fee, expenses, and ePOD saved.' });
@@ -196,7 +205,7 @@ export function FleetDashboard() {
         toast({ title: 'Charged to Palista', description: `Delivery fee recorded as debt for ${trip.destination}` });
       }
       
-      await moveTrip(showSignatureModal, 'completed', signatureData);
+      await moveTrip(showSignatureModal, 'completed', signatureData, paymentMethod);
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
       setIsProcessing(false);
@@ -241,26 +250,30 @@ export function FleetDashboard() {
             <CardContent className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-[10px] uppercase">Origin</Label>
-                  <Input placeholder="e.g. QC" value={origin} onChange={e => setOrigin(e.target.value)} />
+                  <Label htmlFor="trip-origin" className="text-[10px] uppercase">Origin</Label>
+                  <Input id="trip-origin" name="tripOrigin" placeholder="e.g. QC" value={origin} onChange={e => setOrigin(e.target.value)} />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[10px] uppercase">Destination</Label>
-                  <Input placeholder="e.g. Makati" value={destination} onChange={e => setDestination(e.target.value)} />
+                  <Label htmlFor="trip-destination" className="text-[10px] uppercase">Destination</Label>
+                  <Input id="trip-destination" name="tripDestination" placeholder="e.g. Makati" value={destination} onChange={e => setDestination(e.target.value)} />
                 </div>
               </div>
               <div className="space-y-1">
-                <Label className="text-[10px] uppercase">Load Description</Label>
-                <Input placeholder="e.g. 50 boxes of supplies" value={loadDesc} onChange={e => setLoadDesc(e.target.value)} />
+                <Label htmlFor="trip-load" className="text-[10px] uppercase">Load Description</Label>
+                <Input id="trip-load" name="tripLoad" placeholder="e.g. 50 boxes of supplies" value={loadDesc} onChange={e => setLoadDesc(e.target.value)} />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-[10px] uppercase">Driver Name</Label>
-                  <Input placeholder="e.g. Jun" value={driver} onChange={e => setDriver(e.target.value)} />
+                  <Label htmlFor="trip-driver" className="text-[10px] uppercase">Driver Name</Label>
+                  <Input id="trip-driver" name="tripDriver" placeholder="e.g. Jun" value={driver} onChange={e => setDriver(e.target.value)} />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[10px] uppercase">Delivery Fee (₱)</Label>
-                  <Input type="number" placeholder="0.00" value={fee} onChange={e => setFee(Number(e.target.value) || '')} />
+                  <Label htmlFor="trip-plate" className="text-[10px] uppercase">Plate No.</Label>
+                  <Input id="trip-plate" name="tripPlate" placeholder="e.g. ABC 1234" value={plateNumber} onChange={e => setPlateNumber(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="trip-fee" className="text-[10px] uppercase">Delivery Fee (₱)</Label>
+                  <Input id="trip-fee" name="tripFee" type="number" placeholder="0.00" value={fee} onChange={e => setFee(Number(e.target.value) || '')} />
                 </div>
               </div>
               <Button 
@@ -339,10 +352,14 @@ export function FleetDashboard() {
                     </div>
                   </div>
 
-                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 flex justify-between items-center">
-                    <div>
+                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 grid grid-cols-3 gap-2 items-center text-center">
+                    <div className="text-left">
                       <p className="text-[9px] text-slate-400 font-bold uppercase">Driver</p>
                       <p className="text-xs font-bold text-slate-700">{trip.driverName || 'Unassigned'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase">Vehicle</p>
+                      <p className="text-xs font-bold text-slate-700">{trip.plateNumber || 'TBD'}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-[9px] text-slate-400 font-bold uppercase">Load</p>
@@ -384,7 +401,10 @@ export function FleetDashboard() {
                         </span>
                       </div>
                       <div className="flex gap-2">
+                        <Label htmlFor={`expense-${trip.id}`} className="sr-only">Add Expense Amount</Label>
                         <Input 
+                          id={`expense-${trip.id}`}
+                          name={`expenseAmount`}
                           placeholder="Gas/Toll (₱)" 
                           type="number"
                           className="h-8 text-xs"

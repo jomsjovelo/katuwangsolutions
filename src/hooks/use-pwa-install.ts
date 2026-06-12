@@ -12,11 +12,21 @@ interface BeforeInstallPromptEvent extends Event {
 export function usePWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
     // Check if already installed
-    if (window.matchMedia('(display-mode: standalone)').matches) {
+    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) {
       setIsInstalled(true);
+    }
+
+    // Detect iOS Safari
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
+    const isSafari = userAgent.includes("safari") && !userAgent.includes("chrome");
+    
+    if (isIosDevice && isSafari) {
+      setIsIOS(true);
     }
 
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -50,9 +60,13 @@ export function usePWAInstall() {
     // Wait for the user to respond to the prompt
     const { outcome } = await deferredPrompt.userChoice;
     
+    if (outcome === 'accepted') {
+      setIsInstalled(true);
+    }
+    
     // We've used the prompt, and can't use it again, throw it away
     setDeferredPrompt(null);
   };
 
-  return { deferredPrompt, isInstalled, triggerInstall };
+  return { deferredPrompt, isInstalled, triggerInstall, isIOS };
 }

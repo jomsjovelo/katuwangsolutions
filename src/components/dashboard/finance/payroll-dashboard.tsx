@@ -39,9 +39,16 @@ export function PayrollDashboard() {
     return currentTenant 
     ? query(collection(db, 'tenants', currentTenant.id, 'employees'), orderBy('createdAt', 'desc')) : null;
   }, [currentTenant?.id, db]);
-  const [empSnapshot, loading] = useCollection(empQuery as any);
+  const [empSnapshot, loading, empError] = useCollection(empQuery as any);
   const employees = empSnapshot?.docs.map((d: any) => ({ id: d.id, ...d.data() })) || [];
   const activeEmployees = employees.filter((e: any) => e.isActive !== false);
+
+  React.useEffect(() => {
+    if (empError) {
+      console.error("Employee listener error:", empError);
+      toast({ title: 'Connection Error', description: 'Failed to sync employee data.', variant: 'destructive' });
+    }
+  }, [empError, toast]);
 
   // Estimated period total (gross, before deductions)
   const totalEstimatedPayroll = activeEmployees.reduce((acc: number, e: any) => {
@@ -197,11 +204,13 @@ export function PayrollDashboard() {
           <div className="border-t border-slate-100 p-3 space-y-3 bg-slate-50">
             <div className="flex gap-2">
               <div className="flex-1 space-y-1">
-                <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                <Label htmlFor={`days-${emp.id}`} className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                   {emp.salaryType === 'daily' ? 'Days Worked' : 'Period'}
                 </Label>
                 {emp.salaryType === 'daily' ? (
                   <Input
+                    id={`days-${emp.id}`}
+                    name={`days-${emp.id}`}
                     type="number"
                     placeholder="0"
                     className="h-9 text-sm"
@@ -215,8 +224,10 @@ export function PayrollDashboard() {
                 )}
               </div>
               <div className="flex-1 space-y-1">
-                <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Vale (₱)</Label>
+                <Label htmlFor={`vale-${emp.id}`} className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Vale (₱)</Label>
                 <Input
+                  id={`vale-${emp.id}`}
+                  name={`vale-${emp.id}`}
                   type="number"
                   placeholder="0"
                   className="h-9 text-sm"
@@ -228,7 +239,7 @@ export function PayrollDashboard() {
 
             {/* Govt Deductions Toggle */}
             <div className="flex items-center gap-2 px-1">
-              <input 
+              <Input 
                 type="checkbox" 
                 id={`deduct-${emp.id}`}
                 checked={applyDeductionsInputs[emp.id] || false}
@@ -320,18 +331,20 @@ export function PayrollDashboard() {
             <CardContent className="p-4 pt-0 space-y-3">
               <div className="flex gap-2">
                 <div className="flex-1 space-y-1">
-                  <Label className="text-xs">Full Name</Label>
-                  <Input placeholder="e.g. Maria Santos" value={newName} onChange={e => setNewName(e.target.value)} />
+                  <Label htmlFor="emp-name" className="text-xs">Full Name</Label>
+                  <Input id="emp-name" name="empName" placeholder="e.g. Maria Santos" value={newName} onChange={e => setNewName(e.target.value)} />
                 </div>
                 <div className="flex-1 space-y-1">
-                  <Label className="text-xs">Position</Label>
-                  <Input placeholder="e.g. Cashier" value={newPosition} onChange={e => setNewPosition(e.target.value)} />
+                  <Label htmlFor="emp-position" className="text-xs">Position</Label>
+                  <Input id="emp-position" name="empPosition" placeholder="e.g. Cashier" value={newPosition} onChange={e => setNewPosition(e.target.value)} />
                 </div>
               </div>
               <div className="flex gap-2">
                 <div className="flex-1 space-y-1">
-                  <Label className="text-xs">Pay Type</Label>
+                  <Label htmlFor="salary-type" className="text-xs">Pay Type</Label>
                   <select
+                    id="salary-type"
+                    name="salaryType"
                     className="w-full border-slate-200 rounded-md border p-2 text-sm h-9"
                     value={newSalaryType}
                     onChange={e => setNewSalaryType(e.target.value as 'daily' | 'monthly')}
@@ -341,10 +354,12 @@ export function PayrollDashboard() {
                   </select>
                 </div>
                 <div className="flex-1 space-y-1">
-                  <Label className="text-xs">
+                  <Label htmlFor="emp-rate" className="text-xs">
                     {newSalaryType === 'daily' ? 'Daily Rate (₱)' : 'Monthly Rate (₱)'}
                   </Label>
                   <Input
+                    id="emp-rate"
+                    name="empRate"
                     type="number"
                     placeholder="e.g. 600"
                     value={newRate}

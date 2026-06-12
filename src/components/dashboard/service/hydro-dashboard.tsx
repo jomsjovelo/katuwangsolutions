@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useWaterDeliveries } from '@/hooks/use-water';
 import { useToast } from '@/hooks/use-toast';
+import { CustomerReferralInput } from '@/components/common/customer-referral-input';
 import { 
   Droplet, 
   Plus, 
@@ -42,12 +43,21 @@ export function HydroDashboard() {
   useDynamicThemeColor(theme);
 
   // Deliveries State
-  const { pendingOrders, outForDeliveryOrders, deliveredOrders, loading } = useWaterDeliveries();
+  const { pendingOrders, outForDeliveryOrders, deliveredOrders, loading, error: waterError } = useWaterDeliveries();
+
+  React.useEffect(() => {
+    if (waterError) {
+      console.error("Hydro listener error:", waterError);
+      toast({ title: 'Connection Error', description: 'Failed to sync live deliveries.', variant: 'destructive' });
+    }
+  }, [waterError, toast]);
 
   // Create Delivery Form
   const [showAddForm, setShowAddForm] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [address, setAddress] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [referrerCode, setReferrerCode] = useState('');
   const [roundQty, setRoundQty] = useState<number | ''>('');
   const [slimQty, setSlimQty] = useState<number | ''>('');
   const [priceOverride, setPriceOverride] = useState<number | ''>('');
@@ -81,6 +91,8 @@ export function HydroDashboard() {
         tenantId: currentTenant.id,
         customerName,
         address,
+        customerPhone: customerPhone || null,
+        referrerCode: referrerCode || null,
         driver: '',
         roundOrdered: roundCount,
         slimOrdered: slimCount,
@@ -93,6 +105,8 @@ export function HydroDashboard() {
       });
       setCustomerName('');
       setAddress('');
+      setCustomerPhone('');
+      setReferrerCode('');
       setRoundQty('');
       setSlimQty('');
       setPriceOverride('');
@@ -182,12 +196,22 @@ export function HydroDashboard() {
         </button>
 
         {order.status === 'Delivered' && (
-          <div className="flex gap-2 text-xs font-medium text-emerald-600 mb-3 bg-emerald-50 p-2 rounded-md border border-emerald-100">
-            <span>Returns:</span>
-            {order.roundReturned > 0 && <span>{order.roundReturned} Round</span>}
-            {order.roundReturned > 0 && order.slimReturned > 0 && <span>•</span>}
-            {order.slimReturned > 0 && <span>{order.slimReturned} Slim</span>}
-            {order.roundReturned === 0 && order.slimReturned === 0 && <span>None</span>}
+          <div className="space-y-1 mb-3">
+            <div className="flex gap-2 text-xs font-medium text-emerald-600 bg-emerald-50 p-2 rounded-md border border-emerald-100">
+              <span>Returns:</span>
+              {order.roundReturned > 0 && <span>{order.roundReturned} Round</span>}
+              {order.roundReturned > 0 && order.slimReturned > 0 && <span>•</span>}
+              {order.slimReturned > 0 && <span>{order.slimReturned} Slim</span>}
+              {order.roundReturned === 0 && order.slimReturned === 0 && <span>None</span>}
+            </div>
+            {(order.roundOrdered > order.roundReturned || order.slimOrdered > order.slimReturned) && (
+              <div className="flex gap-2 text-xs font-bold text-amber-600 bg-amber-50 p-2 rounded-md border border-amber-100">
+                <span>Loaned:</span>
+                {order.roundOrdered > order.roundReturned && <span>{order.roundOrdered - order.roundReturned} Round</span>}
+                {order.roundOrdered > order.roundReturned && order.slimOrdered > order.slimReturned && <span>•</span>}
+                {order.slimOrdered > order.slimReturned && <span>{order.slimOrdered - order.slimReturned} Slim</span>}
+              </div>
+            )}
           </div>
         )}
 
@@ -227,29 +251,36 @@ export function HydroDashboard() {
             </CardHeader>
             <CardContent className="p-4 space-y-3 pt-0">
               <div className="space-y-1">
-                <Label className="text-xs">Customer Name</Label>
-                <Input placeholder="e.g. Maria Santos" value={customerName} onChange={e => setCustomerName(e.target.value)} />
+                <Label htmlFor="customer-name" className="text-xs">Customer Name</Label>
+                <Input id="customer-name" name="customerName" placeholder="e.g. Maria Santos" value={customerName} onChange={e => setCustomerName(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Address</Label>
-                <Input placeholder="e.g. Blk 4 Lot 12, Phase 2" value={address} onChange={e => setAddress(e.target.value)} />
+                <Label htmlFor="hydro-address" className="text-xs">Address</Label>
+                <Input id="hydro-address" name="address" placeholder="e.g. Blk 4 Lot 12, Phase 2" value={address} onChange={e => setAddress(e.target.value)} />
               </div>
+              <CustomerReferralInput 
+                customerPhone={customerPhone}
+                setCustomerPhone={setCustomerPhone}
+                referrerCode={referrerCode}
+                setReferrerCode={setReferrerCode}
+                primaryColor={theme.primary}
+              />
               <div className="flex gap-2">
                 <div className="flex-1 space-y-1">
-                  <Label className="text-xs">Round Gallons</Label>
-                  <Input type="number" placeholder="0" value={roundQty} onChange={e => setRoundQty(parseInt(e.target.value) || '')} />
+                  <Label htmlFor="round-qty" className="text-xs">Round Gallons</Label>
+                  <Input id="round-qty" name="roundQty" type="number" placeholder="0" value={roundQty} onChange={e => setRoundQty(parseInt(e.target.value) || '')} />
                 </div>
                 <div className="flex-1 space-y-1">
-                  <Label className="text-xs">Slim Gallons</Label>
-                  <Input type="number" placeholder="0" value={slimQty} onChange={e => setSlimQty(parseInt(e.target.value) || '')} />
+                  <Label htmlFor="slim-qty" className="text-xs">Slim Gallons</Label>
+                  <Input id="slim-qty" name="slimQty" type="number" placeholder="0" value={slimQty} onChange={e => setSlimQty(parseInt(e.target.value) || '')} />
                 </div>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs flex justify-between">
+                <Label htmlFor="price-override" className="text-xs flex justify-between">
                   <span>Total Price (₱)</span>
                   <span className="text-muted-foreground">Suggested: ₱{suggestedPrice}</span>
                 </Label>
-                <Input type="number" placeholder={`₱${suggestedPrice}`} value={priceOverride} onChange={e => setPriceOverride(parseFloat(e.target.value) || '')} />
+                <Input id="price-override" name="priceOverride" type="number" placeholder={`₱${suggestedPrice}`} value={priceOverride} onChange={e => setPriceOverride(parseFloat(e.target.value) || '')} />
               </div>
               <Button 
                 className="w-full h-8 text-xs font-bold text-white" 
@@ -274,12 +305,12 @@ export function HydroDashboard() {
                 <p className="text-xs text-slate-500">How many empty bottles did the driver collect from the customer?</p>
                 <div className="flex gap-2">
                   <div className="flex-1 space-y-1">
-                    <Label className="text-xs">Empty Round</Label>
-                    <Input type="number" placeholder="0" value={roundReturned} onChange={e => setRoundReturned(parseInt(e.target.value) || '')} />
+                    <Label htmlFor="round-returned" className="text-xs">Empty Round</Label>
+                    <Input id="round-returned" name="roundReturned" type="number" placeholder="0" value={roundReturned} onChange={e => setRoundReturned(parseInt(e.target.value) || '')} />
                   </div>
                   <div className="flex-1 space-y-1">
-                    <Label className="text-xs">Empty Slim</Label>
-                    <Input type="number" placeholder="0" value={slimReturned} onChange={e => setSlimReturned(parseInt(e.target.value) || '')} />
+                    <Label htmlFor="slim-returned" className="text-xs">Empty Slim</Label>
+                    <Input id="slim-returned" name="slimReturned" type="number" placeholder="0" value={slimReturned} onChange={e => setSlimReturned(parseInt(e.target.value) || '')} />
                   </div>
                 </div>
                 <div className="flex gap-2 pt-2">

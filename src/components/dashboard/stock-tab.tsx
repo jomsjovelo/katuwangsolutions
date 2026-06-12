@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { Input } from '@/components/ui/input';
 import { useInventory } from '@/hooks/use-inventory';
 import { useTenant } from '@/app/lib/tenant-context';
 import { getModuleTheme } from '@/lib/theme-utils';
@@ -201,7 +202,7 @@ export function StockTab() {
 
                       {/* Stock Restock Input & Button */}
                       <div className="flex items-center gap-1.5">
-                        <input 
+                        <Input 
                           type="number"
                           placeholder={isAuditMode ? "Actual Qty" : "+ Qty"}
                           className="w-16 h-8 text-[10px] px-2 rounded-lg border border-slate-200 text-center focus:outline-none focus:ring-1 focus:ring-slate-300"

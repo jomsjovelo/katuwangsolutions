@@ -42,9 +42,14 @@ export async function updateJobStatus(tenantId: string, jobId: string, newStatus
       masterAccountSnap = await transaction.get(masterAccountRef);
     }
 
-    // 2. Perform all writes
     const jobRef = doc(db, 'tenants', tenantId, 'jobs', jobId);
-    
+    const jobSnap = await transaction.get(jobRef);
+    if (!jobSnap.exists()) throw new Error("Job not found");
+    if (jobSnap.data().status === newStatus) {
+      return; // prevent double execution
+    }
+
+    // 2. Perform all writes
     // Update the Job Status
     const updateData: any = { 
       status: newStatus,
@@ -122,9 +127,14 @@ export async function completeServiceOrder(
       masterAccountSnap = await transaction.get(masterAccountRef);
     }
 
-    // 2. Perform all writes
     const orderRef = doc(db, 'tenants', tenantId, collectionName, orderId);
-    
+    const orderSnap = await transaction.get(orderRef);
+    if (!orderSnap.exists()) throw new Error("Order not found");
+    if (orderSnap.data().status === status) {
+      return; // prevent double execution
+    }
+
+    // 2. Perform all writes
     // Update the Order Status
     const updateData: any = { 
       status,
@@ -132,6 +142,20 @@ export async function completeServiceOrder(
       updatedAt: serverTimestamp(),
       ...extraUpdates
     };
+    
+    // Auto-deduct parts from inventory if they were passed
+    if (extraUpdates && extraUpdates.partsUsed && Array.isArray(extraUpdates.partsUsed)) {
+      for (const part of extraUpdates.partsUsed) {
+        if (part.productId && part.quantity) {
+          const prodRef = doc(db, 'tenants', tenantId, 'products', part.productId);
+          transaction.update(prodRef, {
+            currentStock: increment(-part.quantity),
+            updatedAt: serverTimestamp()
+          });
+        }
+      }
+      delete updateData.partsUsed; // Prevent overwriting the document's array if it's already there
+    }
     
     if (therapistCommissionCentavos && therapistCommissionCentavos > 0) {
       updateData.therapistCommission = therapistCommissionCentavos;
@@ -184,7 +208,9 @@ export async function registerGymMember(
   memberName: string, 
   planType: string, 
   amountCentavos: number,
-  isDaily: boolean
+  isDaily: boolean,
+  memberPhone?: string,
+  referrerCode?: string
 ) {
   if (amountCentavos < 0 || isNaN(amountCentavos)) {
     throw new Error('Invalid payment amount.');
@@ -221,6 +247,8 @@ export async function registerGymMember(
       status,
       amountDue: amountCentavos,
       paymentStatus: 'Paid',
+      memberPhone: memberPhone || null,
+      referrerCode: referrerCode || null,
       createdAt: serverTimestamp(),
       lastCheckIn: serverTimestamp(),
     };
@@ -266,6 +294,16 @@ export async function registerGymMember(
       });
     }
   });
+
+  // Award loyalty points and process referral reward after gym registration
+  if (memberPhone && amountCentavos > 0) {
+    try {
+      const { awardPoints } = await import('@/firebase/firestore/loyalty-actions');
+      await awardPoints(tenantId, memberPhone, amountCentavos, referrerCode);
+    } catch (e) {
+      console.error('Failed to award gym loyalty points:', e);
+    }
+  }
 
   return true;
 }

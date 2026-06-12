@@ -58,6 +58,13 @@ export async function processCheckout(
         throw new Error(`Invalid quantity for ${item.name}.`);
       }
 
+      // Bypass inventory check for custom/misc items
+      if (item.productId.startsWith('misc-')) {
+        // For misc items, we trust the client price since there is no server truth
+        secureTotalAmount += Math.round(item.price * item.quantity);
+        continue;
+      }
+
       const productRef = doc(db, 'tenants', tenantId, 'products', item.productId);
       const productSnap = await transaction.get(productRef);
       
@@ -85,10 +92,12 @@ export async function processCheckout(
 
     // 2. Write Phase: Deduct inventory
     for (const item of cart) {
-      transaction.update(productDocs[item.productId].ref, {
-        currentStock: productDocs[item.productId].newStock,
-        updatedAt: serverTimestamp()
-      });
+      if (!item.productId.startsWith('misc-')) {
+        transaction.update(productDocs[item.productId].ref, {
+          currentStock: productDocs[item.productId].newStock,
+          updatedAt: serverTimestamp()
+        });
+      }
     }
 
     // 3. Write Phase: Record the Sale

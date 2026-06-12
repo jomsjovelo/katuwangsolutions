@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
+import { Input } from '@/components/ui/input';
 // FIX S2-3: Static ES imports replace dynamic require() calls inside useEffect
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
@@ -26,14 +27,18 @@ import {
   Loader2,
   AlertCircle,
   AlertTriangle,
-  Zap
+  Zap,
+  Search,
+  History
 } from "lucide-react";
 import { 
   addBorrower, 
   recordLoan, 
   recordPayment,
   applyMissedDayPenalty,
-  Borrower 
+  getBorrowerLedger,
+  Borrower,
+  CreditTransaction
 } from '@/firebase/firestore/credit-actions';
 import { playSuccessBeep } from './retail/gcash-qr-modal';
 
@@ -42,7 +47,7 @@ import { playCashRegisterSwoosh } from '@/lib/hardware/audio-synthesizer';
 // Synthesize a quick cash register sliding sound when a borrower pays
 const playPaymentSound = () => playCashRegisterSwoosh();
 
-export function HiramDashboard() {
+export function FiveSixDashboard() {
   const { currentTenant } = useTenant();
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
@@ -50,8 +55,13 @@ export function HiramDashboard() {
   // Firestore real-time state listeners
   const [borrowers, setBorrowers] = useState<Borrower[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeDrawer, setActiveDrawer] = useState<'none' | 'add_borrower' | 'record_loan' | 'record_payment' | 'sms_alert'>('none');
+  const [activeDrawer, setActiveDrawer] = useState<'none' | 'add_borrower' | 'record_loan' | 'record_payment' | 'sms_alert' | 'view_ledger'>('none');
   const [selectedBorrower, setSelectedBorrower] = useState<Borrower | null>(null);
+
+  // Feature States
+  const [searchQuery, setSearchQuery] = useState('');
+  const [ledgerHistory, setLedgerHistory] = useState<CreditTransaction[]>([]);
+  const [loadingLedger, setLoadingLedger] = useState(false);
 
   // Notification overlays
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -101,7 +111,13 @@ export function HiramDashboard() {
   // Aggregate metrics
   const activeDebtors = borrowers.filter(b => b.status === 'active');
   const totalOutstandingPesos = borrowers.reduce((acc, curr) => acc + (curr.outstanding || 0), 0) / 100;
-  const totalCollectiblesTodayPesos = activeDebtors.reduce((acc, curr) => acc + (curr.dailyDue || 0), 0) / 100;
+  // Use Math.min to prevent inflated daily expected collections
+  const totalCollectiblesTodayPesos = activeDebtors.reduce((acc, curr) => acc + Math.min(curr.outstanding || 0, curr.dailyDue || 0), 0) / 100;
+
+  // Filter borrowers by search query
+  const filteredBorrowers = borrowers.filter(b => 
+    b.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   // Add Borrower Submit
   const handleAddBorrower = async (e: React.FormEvent) => {
@@ -227,6 +243,22 @@ export function HiramDashboard() {
       setErrorMsg(err.message || 'Failed to apply penalty.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const openLedger = async (borrower: Borrower) => {
+    if (!currentTenant) return;
+    setSelectedBorrower(borrower);
+    setActiveDrawer('view_ledger');
+    setLoadingLedger(true);
+    try {
+      const history = await getBorrowerLedger(currentTenant.id, borrower.id);
+      setLedgerHistory(history);
+    } catch (err) {
+      console.error(err);
+      setErrorMsg('Failed to load ledger history.');
+    } finally {
+      setLoadingLedger(false);
     }
   };
 
@@ -372,23 +404,35 @@ export function HiramDashboard() {
               <UserPlus className="h-4 w-4" /> Add Debtor
             </Button>
           </div>
+          
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+            <Input 
+              id="five-six-search"
+              name="fiveSixSearch"
+              placeholder="Hanapin ang pangalan ng umutang..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-10 bg-white border-slate-200 rounded-xl text-xs"
+            />
+          </div>
 
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 bg-white border border-slate-100 rounded-3xl">
               <Loader2 className="h-8 w-8 animate-spin text-slate-400" style={{ color: theme.primary }} />
               <p className="text-xs text-slate-400 mt-2 font-bold uppercase tracking-wider">Syncing Credit Registry...</p>
             </div>
-          ) : borrowers.length === 0 ? (
+          ) : filteredBorrowers.length === 0 ? (
             <div className="text-center py-16 bg-white border border-slate-200/60 rounded-3xl px-6">
               <Users className="h-10 w-10 mx-auto mb-3 text-slate-300" />
-              <h4 className="text-sm font-black text-slate-800">Walang Nakatalang Borrower</h4>
+              <h4 className="text-sm font-black text-slate-800">Walang Nakita</h4>
               <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto leading-normal">
-                I-tap ang Add Debtor sa itaas para mag-setup ng bagong profile sa pautang ledger!
+                {searchQuery ? "Subukang ibahin ang pangalan na hinahanap." : "I-tap ang Add Debtor sa itaas para mag-setup ng bagong profile sa pautang ledger!"}
               </p>
             </div>
           ) : (
             <div className="grid gap-2.5">
-              {borrowers.map((borrower) => {
+              {filteredBorrowers.map((borrower) => {
                 const outstandingPesos = (borrower.outstanding || 0) / 100;
                 const limitPesos = (borrower.limit || 0) / 100;
                 const dailyDuePesos = (borrower.dailyDue || 0) / 100;
@@ -474,14 +518,22 @@ export function HiramDashboard() {
                            </Button>
                           <Button 
                             variant="outline"
+                            onClick={() => openLedger(borrower)}
+                            className="h-8 rounded-lg px-2 text-[9px] font-black text-slate-500 hover:text-slate-700 flex items-center gap-1 border-slate-200 cursor-pointer"
+                          >
+                            <History className="h-3.5 w-3.5 text-slate-400" />
+                            History
+                          </Button>
+                          
+                          <Button 
+                            variant="outline"
                             onClick={() => {
                               setSelectedBorrower(borrower);
                               setActiveDrawer('sms_alert');
                             }}
-                            className="h-8 rounded-lg px-2 text-[9px] font-black text-slate-500 hover:text-slate-700 flex items-center gap-1 border-slate-200 cursor-pointer"
+                            className="h-8 rounded-lg w-8 p-0 flex items-center justify-center border-slate-200 cursor-pointer"
                           >
                             <MessageSquare className="h-3.5 w-3.5 text-slate-400" />
-                            Remind
                           </Button>
                           
                           <Button 
@@ -523,12 +575,14 @@ export function HiramDashboard() {
                   {activeDrawer === 'record_loan' && <Banknote className="h-4.5 w-4.5" />}
                   {activeDrawer === 'record_payment' && <Wallet className="h-4.5 w-4.5" />}
                   {activeDrawer === 'sms_alert' && <MessageSquare className="h-4.5 w-4.5" />}
+                  {activeDrawer === 'view_ledger' && <History className="h-4.5 w-4.5" />}
                 </div>
                 <h4 className="font-headline font-black text-xs uppercase tracking-widest text-slate-800">
                   {activeDrawer === 'add_borrower' && "Setup Credit Borrower"}
                   {activeDrawer === 'record_loan' && "Mag-disburse ng Pautang"}
                   {activeDrawer === 'record_payment' && "Mag-rehistro ng Bayad"}
                   {activeDrawer === 'sms_alert' && "SMS Billing Assistant"}
+                  {activeDrawer === 'view_ledger' && "Transaction Ledger"}
                 </h4>
               </div>
               <Button 
@@ -557,7 +611,9 @@ export function HiramDashboard() {
                 <form onSubmit={handleAddBorrower} className="space-y-4">
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Pangalan ng Borrower</label>
-                    <input 
+                    <Input 
+                      id="add-borrower-name"
+                      name="newName"
                       type="text" 
                       required
                       placeholder="Hal. Maria Santos"
@@ -569,7 +625,9 @@ export function HiramDashboard() {
 
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Cellphone Number</label>
-                    <input 
+                    <Input 
+                      id="add-borrower-phone"
+                      name="newPhone"
                       type="text" 
                       required
                       placeholder="Hal. 09123456789"
@@ -582,7 +640,9 @@ export function HiramDashboard() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Credit Limit (₱)</label>
-                      <input 
+                      <Input 
+                        id="add-borrower-limit"
+                        name="newLimit"
                         type="number" 
                         required
                         value={newLimit}
@@ -592,7 +652,9 @@ export function HiramDashboard() {
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Daily Target (₱)</label>
-                      <input 
+                      <Input 
+                        id="add-borrower-target"
+                        name="newDailyDue"
                         type="number" 
                         required
                         value={newDailyDue}
@@ -635,7 +697,9 @@ export function HiramDashboard() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Halaga ng Pautang (₱)</label>
-                      <input 
+                      <Input 
+                        id="loan-principal"
+                        name="loanPrincipal"
                         type="number" 
                         required
                         value={loanPrincipal}
@@ -650,7 +714,9 @@ export function HiramDashboard() {
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Patubong Interes (₱)</label>
-                      <input 
+                      <Input 
+                        id="loan-interest"
+                        name="loanInterest"
                         type="number" 
                         required
                         value={loanInterest}
@@ -662,7 +728,9 @@ export function HiramDashboard() {
 
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Arawang Singil (₱)</label>
-                    <input 
+                    <Input 
+                      id="loan-daily-due"
+                      name="loanDailyDue"
                       type="number" 
                       required
                       value={loanDailyDue}
@@ -695,7 +763,9 @@ export function HiramDashboard() {
 
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Halaga ng Bayad (₱)</label>
-                    <input 
+                    <Input 
+                      id="payment-amount"
+                      name="payAmount"
                       type="number" 
                       required
                       value={payAmount}
@@ -741,6 +811,59 @@ export function HiramDashboard() {
                       <Phone className="h-4 w-4" /> Send Alert
                     </Button>
                   </div>
+                </div>
+              )}
+
+              {/* 5. Transaction Ledger View */}
+              {activeDrawer === 'view_ledger' && selectedBorrower && (
+                <div className="space-y-3">
+                  <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex justify-between items-center text-xs">
+                    <span className="font-extrabold text-slate-700">{selectedBorrower.name}</span>
+                    <span className="font-black" style={{ color: theme.primary }}>Utang: ₱{(selectedBorrower.outstanding / 100).toFixed(2)}</span>
+                  </div>
+
+                  {loadingLedger ? (
+                    <div className="flex flex-col items-center justify-center py-10">
+                      <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+                      <span className="text-[10px] font-bold text-slate-400 mt-2 uppercase">Loading Ledger...</span>
+                    </div>
+                  ) : ledgerHistory.length === 0 ? (
+                    <div className="text-center py-10 bg-white border border-slate-100 rounded-2xl">
+                      <History className="h-8 w-8 mx-auto text-slate-300 mb-2" />
+                      <span className="text-xs font-bold text-slate-500">Walang record ng transaksyon.</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {ledgerHistory.map((tx) => {
+                        const amountPesos = (tx.amount / 100).toFixed(2);
+                        const isPayment = tx.type === 'payment';
+                        const isPenalty = tx.type === 'penalty';
+                        
+                        return (
+                          <div key={tx.id} className="flex justify-between items-center p-3 rounded-xl border border-slate-100 bg-white text-xs">
+                            <div className="flex flex-col">
+                              <span className={cn(
+                                "font-black uppercase text-[10px] tracking-wider",
+                                isPayment ? "text-emerald-600" : isPenalty ? "text-red-500" : "text-blue-600"
+                              )}>
+                                {isPayment ? "Bayad" : isPenalty ? "Penalty" : "Pautang"}
+                              </span>
+                              <span className="text-slate-400 font-medium text-[9px] mt-0.5">
+                                {tx.timestamp?.toDate().toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                              {tx.note && <span className="text-slate-500 text-[10px] mt-1">{tx.note}</span>}
+                            </div>
+                            <div className={cn(
+                              "font-headline font-black text-sm",
+                              isPayment ? "text-emerald-600" : "text-slate-700"
+                            )}>
+                              {isPayment ? "-" : "+"}₱{amountPesos}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 

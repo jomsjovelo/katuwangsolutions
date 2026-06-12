@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, where, orderBy, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, orderBy, getDocs, Timestamp } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { useTenant } from '@/app/lib/tenant-context';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from '@/lib/utils';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
-import { TrendingUp, TrendingDown, Calendar, Building2, PieChart as PieChartIcon, Download } from "lucide-react";
+import { TrendingUp, TrendingDown, Calendar, Building2, PieChart as PieChartIcon, Download, Gift, Trophy } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis, Legend, BarChart, Bar, YAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 import { useSales } from '@/hooks/use-sales';
 import { startOfDay, endOfDay, subDays, format } from 'date-fns';
@@ -62,7 +62,7 @@ function RetailMetrics({ selectedDate }: { selectedDate: Date | { start: Date, e
   );
 }
 
-// Specialized Lending Metrics for hiram-snap
+// Specialized Lending Metrics for 5-6-tracker
 function LendingMetrics({ expenseTxs, incomeTxs }: { expenseTxs: any[], incomeTxs: any[] }) {
   const loansReleased = expenseTxs.filter(t => t.category === 'Lending').reduce((acc, t) => acc + (t.totalPesos || 0), 0);
   const collections = incomeTxs.filter(t => t.category === 'Lending').reduce((acc, t) => acc + (t.totalPesos || 0), 0);
@@ -147,6 +147,8 @@ export function ReportsTab() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loadingTx, setLoadingTx] = useState(true);
   const [yesterdayIncomePesos, setYesterdayIncomePesos] = useState<number | null>(null);
+  const [topReferrers, setTopReferrers] = useState<any[]>([]);
+  const [loadingReferrers, setLoadingReferrers] = useState(false);
 
   const getRangeBounds = (range: string) => {
     const now = new Date();
@@ -183,8 +185,8 @@ export function ReportsTab() {
     const txRef = collection(db, 'tenants', currentTenant.id, 'transactions');
     const q = query(
       txRef,
-      where('createdAt', '>=', rangeStart),
-      where('createdAt', '<=', rangeEnd),
+      where('createdAt', '>=', Timestamp.fromDate(rangeStart)),
+      where('createdAt', '<=', Timestamp.fromDate(rangeEnd)),
       orderBy('createdAt', 'desc')
     );
 
@@ -210,8 +212,8 @@ export function ReportsTab() {
 
     const yQuery = query(
       txRef,
-      where('createdAt', '>=', yesterdayStart),
-      where('createdAt', '<=', yesterdayEnd)
+      where('createdAt', '>=', Timestamp.fromDate(yesterdayStart)),
+      where('createdAt', '<=', Timestamp.fromDate(yesterdayEnd))
     );
     
     getDocs(yQuery).then(ySnap => {
@@ -227,6 +229,23 @@ export function ReportsTab() {
 
     return () => unsubscribe();
   }, [currentTenant, dateRangeStr]);
+
+  // Load Top Referrers
+  useEffect(() => {
+    if (!currentTenant) return;
+    setLoadingReferrers(true);
+    const { db } = initializeFirebase();
+    const q = query(
+      collection(db, 'tenants', currentTenant.id, 'customers'),
+      where('totalReferrals', '>', 0),
+      orderBy('totalReferrals', 'desc')
+    );
+    getDocs(q).then(snap => {
+      const refs = snap.docs.slice(0, 5).map(d => ({ id: d.id, ...d.data() }));
+      setTopReferrers(refs);
+      setLoadingReferrers(false);
+    }).catch(() => setLoadingReferrers(false));
+  }, [currentTenant]);
 
   // Aggregate unified metrics
   const incomeTxs = transactions.filter(t => t.type === 'income');
@@ -332,7 +351,7 @@ export function ReportsTab() {
     }));
 
   const isRetail = currentTenant?.moduleType === 'benta-snap' || currentTenant?.moduleType === 'build-stack';
-  const isLending = currentTenant?.moduleType === 'hiram-snap';
+  const isLending = currentTenant?.moduleType === '5-6-tracker';
   const isService = currentTenant?.moduleType === 'wellness-pro' || currentTenant?.moduleType === 'auto-boss' || currentTenant?.moduleType === 'spin-snap';
 
   const handleExportCSV = () => {
@@ -450,7 +469,7 @@ export function ReportsTab() {
         </Card>
 
         {/* Revenue Breakdown */}
-        {pieChartData.length > 0 && (
+        {mounted && pieChartData.length > 0 && (
           <Card className="shadow-none border border-slate-200/60 rounded-[28px] overflow-hidden bg-white mt-1">
              <CardHeader className="p-5 pb-0">
                <div>
@@ -461,38 +480,36 @@ export function ReportsTab() {
                </div>
              </CardHeader>
              <CardContent className="p-5 pt-0">
-                <div className="h-[200px] w-full mt-2">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={pieChartData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                        stroke="none"
-                      >
-                        {pieChartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        formatter={(value: number) => [`₱${value.toLocaleString('en-PH', {minimumFractionDigits: 2})}`, 'Revenue']}
-                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', fontWeight: 'bold' }}
-                        itemStyle={{ color: '#0f172a' }}
-                      />
-                      <Legend 
-                        layout="horizontal" 
-                        verticalAlign="bottom" 
-                        align="center"
-                        iconType="circle"
-                        wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={pieChartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                      stroke="none"
+                    >
+                      {pieChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      formatter={(value: number) => [`₱${value.toLocaleString('en-PH', {minimumFractionDigits: 2})}`, 'Revenue']}
+                      contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', fontWeight: 'bold' }}
+                      itemStyle={{ color: '#0f172a' }}
+                    />
+                    <Legend 
+                      layout="horizontal" 
+                      verticalAlign="bottom" 
+                      align="center"
+                      iconType="circle"
+                      wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
              </CardContent>
           </Card>
         )}
@@ -569,8 +586,7 @@ export function ReportsTab() {
             </div>
           </CardHeader>
           <CardContent className="p-5 pt-4">
-            <div className="h-[160px] w-full relative">
-              <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={160}>
                 <AreaChart data={dualChartData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
@@ -621,13 +637,12 @@ export function ReportsTab() {
                     animationDuration={1500}
                   />
                 </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
 
         {/* Top 5 Best-Selling Products Bar Chart */}
-        {topProductsData.length > 0 && (
+        {mounted && topProductsData.length > 0 && (
           <Card className="shadow-none border border-slate-200/60 rounded-[28px] overflow-hidden bg-white">
             <CardHeader className="p-5 pb-0">
               <div className="flex justify-between items-center">
@@ -643,8 +658,7 @@ export function ReportsTab() {
               </div>
             </CardHeader>
             <CardContent className="p-5 pt-4">
-              <div className="h-[200px] w-full relative">
-                <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={topProductsData} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
                     <XAxis 
@@ -675,11 +689,65 @@ export function ReportsTab() {
                       animationDuration={1500}
                     />
                   </BarChart>
-                </ResponsiveContainer>
-              </div>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
         )}
+
+        {/* Loyalty & Referrals Leaderboard */}
+        <section className="space-y-3.5">
+          <div className="flex items-center gap-2">
+            <Gift className="h-4 w-4 text-pink-400" />
+            <h3 className="text-base font-headline font-black text-slate-800">Loyalty & Referrals</h3>
+          </div>
+
+          <Card className="shadow-none border border-slate-200/60 rounded-[28px] overflow-hidden bg-white">
+            <CardHeader className="p-5 pb-3">
+              <div className="flex justify-between items-center">
+                <div>
+                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Top 5 Nagpadala ng Kliyente</span>
+                  <CardTitle className="text-sm font-headline font-black text-slate-800 mt-1">
+                    Referral Leaderboard
+                  </CardTitle>
+                </div>
+                <Badge variant="outline" className="text-[8px] font-black uppercase bg-pink-50 border-pink-100 text-pink-500 px-2 py-0.5 rounded-full">
+                  ₱10 per Referral
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="px-5 pb-5 space-y-2">
+              {loadingReferrers ? (
+                <p className="text-xs text-slate-400 text-center py-4">Loading referrers...</p>
+              ) : topReferrers.length === 0 ? (
+                <div className="text-center py-6 border-2 border-dashed border-slate-100 rounded-2xl">
+                  <Gift className="h-8 w-8 mx-auto mb-2 text-slate-200" />
+                  <p className="text-xs text-slate-400 font-medium">No referrals yet. Share referral codes!</p>
+                </div>
+              ) : (
+                topReferrers.map((ref, idx) => (
+                  <div key={ref.id} className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="h-8 w-8 rounded-xl flex items-center justify-center font-black text-sm text-white shrink-0"
+                        style={{ backgroundColor: idx === 0 ? '#f59e0b' : idx === 1 ? '#94a3b8' : idx === 2 ? '#b45309' : '#e2e8f0' }}
+                      >
+                        {idx === 0 ? <Trophy className="h-4 w-4" /> : `#${idx + 1}`}
+                      </div>
+                      <div>
+                        <p className="text-xs font-black text-slate-800 font-mono tracking-widest">{ref.referralCode}</p>
+                        <p className="text-[10px] text-slate-400 font-medium">{ref.phoneNumber}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-black" style={{ color: theme.primary }}>{ref.totalReferrals}</p>
+                      <p className="text-[9px] text-slate-400 uppercase font-bold">referrals</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </section>
 
         {/* Cooperative Franchise Dashboard (Multi-store aggregate statistics) */}
         <section className="space-y-3.5">

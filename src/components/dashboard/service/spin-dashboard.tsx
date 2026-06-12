@@ -6,6 +6,7 @@ import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/fi
 import { useFirestore } from '@/firebase/provider';
 import { completeServiceOrder } from '@/firebase/firestore/service-actions';
 import { awardPoints } from '@/firebase/firestore/loyalty-actions';
+import { CustomerReferralInput } from '@/components/common/customer-referral-input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -55,12 +56,21 @@ export function SpinDashboard() {
   useDynamicThemeColor(theme);
 
   // Laundry State
-  const { queuedOrders, washingOrders, readyOrders, claimedOrders, loading } = useLaundry();
+  const { queuedOrders, washingOrders, readyOrders, claimedOrders, loading, error: laundryError } = useLaundry();
+  const [machineAssignments, setMachineAssignments] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (laundryError) {
+      console.error("Spin listener error:", laundryError);
+      toast({ title: 'Connection Error', description: 'Failed to sync live queue.', variant: 'destructive' });
+    }
+  }, [laundryError, toast]);
 
   // Create Drop-off Form
   const [showAddForm, setShowAddForm] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [referrerCode, setReferrerCode] = useState('');
   const [kilos, setKilos] = useState<number | ''>('');
   const [serviceType, setServiceType] = useState('Wash, Dry, Fold');
   const [priceOverride, setPriceOverride] = useState<number | ''>('');
@@ -83,10 +93,12 @@ export function SpinDashboard() {
         status: 'Queued',
         amountDue: Math.round(finalPrice * 100), // convert to cents securely
         paymentStatus: 'Unpaid',
+        referrerCode: referrerCode || null,
         createdAt: serverTimestamp(),
       });
       setCustomerName('');
       setPhoneNumber('');
+      setReferrerCode('');
       setKilos('');
       setPriceOverride('');
       setShowAddForm(false);
@@ -98,7 +110,7 @@ export function SpinDashboard() {
     }
   };
 
-  const updateStatus = async (order: any, status: string, paymentStatus?: string) => {
+  const updateStatus = async (order: any, status: string, paymentStatus?: string, machineNumber?: string) => {
     if (!currentTenant || !db) return;
     try {
       if (paymentStatus === 'Paid') {
@@ -114,12 +126,13 @@ export function SpinDashboard() {
         
         // Loyalty Points
         if (order.phoneNumber) {
-          await awardPoints(currentTenant.id, order.phoneNumber, order.amountDue || 0);
+          await awardPoints(currentTenant.id, order.phoneNumber, order.amountDue || 0, order.referrerCode);
         }
       } else {
         const orderRef = doc(db, 'tenants', currentTenant.id, 'laundry_orders', order.id);
         const updates: any = { status, updatedAt: serverTimestamp() };
         if (paymentStatus) updates.paymentStatus = paymentStatus;
+        if (machineNumber) updates.machineNumber = machineNumber;
         if (status === 'Washing') updates.washStartTime = Date.now();
         await updateDoc(orderRef, updates);
       }
@@ -144,6 +157,11 @@ export function SpinDashboard() {
             <div className="text-xs text-slate-500 flex items-center mt-0.5">
               {order.kilos} kg • {order.serviceType}
               {order.status === 'Washing' && order.washStartTime && <WashTimer startTime={order.washStartTime} />}
+              {order.machineNumber && (
+                <Badge variant="outline" className="text-[9px] border-slate-200 text-slate-600 bg-slate-50 ml-2">
+                  {order.machineNumber}
+                </Badge>
+              )}
             </div>
           </div>
           <div className="text-right">
@@ -188,24 +206,25 @@ export function SpinDashboard() {
               <CardTitle className="text-sm font-bold flex items-center gap-2"><Shirt className="h-4 w-4" /> New Drop-off</CardTitle>
             </CardHeader>
             <CardContent className="p-4 space-y-3 pt-0">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">Customer Name</Label>
-                  <Input placeholder="e.g. Juan Cruz" value={customerName} onChange={e => setCustomerName(e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Phone (For Rewards)</Label>
-                  <Input placeholder="09XX" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} />
-                </div>
+              <div className="grid grid-cols-1 gap-2">
+                <CustomerReferralInput 
+                  customerPhone={phoneNumber}
+                  setCustomerPhone={setPhoneNumber}
+                  referrerCode={referrerCode}
+                  setReferrerCode={setReferrerCode}
+                  primaryColor={theme.primary}
+                />
               </div>
               <div className="flex gap-2">
                 <div className="flex-1 space-y-1">
-                  <Label className="text-xs">Weight (Kilos)</Label>
-                  <Input type="number" placeholder="0" value={kilos} onChange={e => setKilos(parseFloat(e.target.value) || '')} />
+                  <Label htmlFor="laundry-weight" className="text-xs">Weight (Kilos)</Label>
+                  <Input id="laundry-weight" name="laundryWeight" type="number" placeholder="0" value={kilos} onChange={e => setKilos(parseFloat(e.target.value) || '')} />
                 </div>
                 <div className="flex-1 space-y-1">
-                  <Label className="text-xs">Service</Label>
+                  <Label htmlFor="laundry-service" className="text-xs">Service</Label>
                   <select 
+                    id="laundry-service"
+                    name="laundryService"
                     className="w-full border-slate-200 rounded-md border p-2 text-sm h-9"
                     value={serviceType}
                     onChange={(e) => setServiceType(e.target.value)}
@@ -217,11 +236,11 @@ export function SpinDashboard() {
                 </div>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs flex justify-between">
+                <Label htmlFor="price-override" className="text-xs flex justify-between">
                   <span>Total Price (₱)</span>
                   <span className="text-muted-foreground">Suggested: ₱{suggestedPrice}</span>
                 </Label>
-                <Input type="number" placeholder={`₱${suggestedPrice}`} value={priceOverride} onChange={e => setPriceOverride(parseFloat(e.target.value) || '')} />
+                <Input id="price-override" name="priceOverride" type="number" placeholder={`₱${suggestedPrice}`} value={priceOverride} onChange={e => setPriceOverride(parseFloat(e.target.value) || '')} />
               </div>
               <Button 
                 className="w-full h-8 text-xs font-bold text-white" 
@@ -250,9 +269,27 @@ export function SpinDashboard() {
               <div className="space-y-2">
                 {queuedOrders.map(order => (
                   <OrderCard key={order.id} order={order} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-slate-800" onClick={() => updateStatus(order, 'Washing')}>
-                      <Droplets className="h-3 w-3 mr-1" /> Start Washing
-                    </Button>
+                    <div className="w-full flex gap-1">
+                      <select 
+                        className="border border-slate-200 text-[10px] rounded px-1 max-w-[80px]"
+                        value={machineAssignments[order.id as string] || ''}
+                        onChange={e => setMachineAssignments(prev => ({...prev, [order.id as string]: e.target.value}))}
+                      >
+                        <option value="">Washer</option>
+                        <option value="W1">W1</option>
+                        <option value="W2">W2</option>
+                        <option value="W3">W3</option>
+                        <option value="W4">W4</option>
+                      </select>
+                      <Button 
+                        size="sm" 
+                        className="flex-1 h-7 text-[10px] bg-slate-800 disabled:opacity-50" 
+                        disabled={!machineAssignments[order.id as string]}
+                        onClick={() => updateStatus(order, 'Washing', undefined, machineAssignments[order.id as string])}
+                      >
+                        <Droplets className="h-3 w-3 mr-1" /> Start Washing
+                      </Button>
+                    </div>
                   } />
                 ))}
               </div>

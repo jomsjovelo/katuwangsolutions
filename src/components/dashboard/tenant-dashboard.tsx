@@ -8,11 +8,12 @@ import { initializeFirebase } from '@/firebase';
 import { useTenant } from '@/app/lib/tenant-context';
 import dynamic from 'next/dynamic';
 import { useFirestoreDocument } from '@/hooks/use-firestore-subscription';
+import { getModuleTheme } from '@/lib/theme-utils';
 
 // Phase 2: Lazy Load heavy module components to drastically shrink initial JS bundle
 const BentaDashboard = dynamic(() => import('@/components/dashboard/retail/benta-dashboard').then(m => m.BentaDashboard));
 const BuildStackDashboard = dynamic(() => import('@/components/dashboard/retail/build-stack-dashboard').then(m => m.BuildStackDashboard));
-const HiramDashboard = dynamic(() => import('@/components/dashboard/hiram-dashboard').then(m => m.HiramDashboard));
+const FiveSixDashboard = dynamic(() => import('@/components/dashboard/five-six-dashboard').then(m => m.FiveSixDashboard));
 const ReportsTab = dynamic(() => import('@/components/dashboard/reports-tab').then(m => m.ReportsTab));
 const ServiceDashboard = dynamic(() => import('@/components/dashboard/service/service-dashboard').then(m => m.ServiceDashboard));
 const LedgerDashboard = dynamic(() => import('@/components/dashboard/finance/ledger-dashboard').then(m => m.LedgerDashboard));
@@ -28,6 +29,7 @@ const TrimTrackDashboard = dynamic(() => import('@/components/dashboard/service/
 const RepSyncDashboard = dynamic(() => import('@/components/dashboard/service/rep-sync-dashboard').then(m => m.RepSyncDashboard));
 const FleetDashboard = dynamic(() => import('@/components/dashboard/logistics/fleet-dashboard').then(m => m.FleetDashboard));
 const RentalDashboard = dynamic(() => import('@/components/dashboard/rental/rental-dashboard').then(m => m.RentalDashboard));
+const FarmDashboard = dynamic(() => import('@/components/dashboard/farm/farm-dashboard').then(m => m.FarmDashboard));
 
 const ProfileTab = dynamic(() => import('@/components/dashboard/profile-tab').then(m => m.ProfileTab));
 const StockTab = dynamic(() => import('@/components/dashboard/stock-tab').then(m => m.StockTab));
@@ -140,7 +142,7 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
                     >
                       <div className="text-left">
                         <div className="font-bold text-lg">{t.branchName ? `${t.name} - ${t.branchName}` : t.name}</div>
-                        <div className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">{t.moduleType}</div>
+                        <div className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">{getModuleTheme(t.moduleType).name}</div>
                       </div>
                       <div className="flex items-center gap-2">
                         {t.subscriptionStatus === 'pending' && <Badge variant="secondary" className="text-[8px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 border-none">Pending</Badge>}
@@ -162,7 +164,7 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
   const renderIndustryDashboard = () => {
     const activeModule = activeModuleOverride || currentTenant.moduleType;
 
-    if (activeModule === 'hiram-snap') return <HiramDashboard />;
+    if (activeModule === '5-6-tracker') return <FiveSixDashboard />;
     if (activeModule === 'spin-snap') return <SpinDashboard />;
     if (activeModule === 'hydro-sync') return <HydroDashboard />;
     if (activeModule === 'auto-boss') return <AutoBossDashboard />;
@@ -181,7 +183,9 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
     const foodModules = ['bite-snap'];
     if (foodModules.includes(activeModule || '')) return <FoodDashboard />;
     
-    const fleetModules = ['biyahe-sync', 'ani-grow', 'sundo-sync'];
+    if (activeModule === 'ani-grow') return <FarmDashboard />;
+    
+    const fleetModules = ['biyahe-sync'];
     if (fleetModules.includes(activeModule || '')) return <FleetDashboard />;
     
     if (activeModule === 'rental') return <RentalDashboard />;

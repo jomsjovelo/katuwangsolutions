@@ -44,7 +44,15 @@ export function TrimTrackDashboard() {
   useDynamicThemeColor(theme);
 
   // Salon State
-  const { waitingAppointments, inChairAppointments, doneAppointments, loading } = useSalonAppointments();
+  const { waitingAppointments, inChairAppointments, doneAppointments, loading, error: salonError } = useSalonAppointments();
+  const [chairAssignments, setChairAssignments] = useState<Record<string, string>>({});
+
+  React.useEffect(() => {
+    if (salonError) {
+      console.error("Salon listener error:", salonError);
+      toast({ title: 'Connection Error', description: 'Failed to sync appointments.', variant: 'destructive' });
+    }
+  }, [salonError, toast]);
 
   // Create Booking Form
   const [showAddForm, setShowAddForm] = useState(false);
@@ -92,7 +100,7 @@ export function TrimTrackDashboard() {
     }
   };
 
-  const updateStatus = async (appt: any, status: string, paymentStatus?: string) => {
+  const updateStatus = async (appt: any, status: string, paymentStatus?: string, chairNumber?: string) => {
     if (!currentTenant || !db) return;
     try {
       if (status === 'Done' && paymentStatus === 'Paid') {
@@ -113,6 +121,7 @@ export function TrimTrackDashboard() {
         const apptRef = doc(db, 'tenants', currentTenant.id, 'salon_appointments', appt.id);
         const updates: any = { status, updatedAt: serverTimestamp() };
         if (paymentStatus) updates.paymentStatus = paymentStatus;
+        if (chairNumber) updates.chairNumber = chairNumber;
         await updateDoc(apptRef, updates);
       }
       toast({ title: 'Status Updated', description: `Customer moved to ${status}.` });
@@ -148,6 +157,11 @@ export function TrimTrackDashboard() {
               <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
                 by {appointment.stylistName}
               </span>
+              {appointment.chairNumber && (
+                <Badge variant="outline" className="text-[9px] border-slate-200 text-slate-600 bg-slate-50 ml-1">
+                  {appointment.chairNumber}
+                </Badge>
+              )}
             </div>
           </div>
           <div className="text-right">
@@ -211,22 +225,24 @@ export function TrimTrackDashboard() {
             <CardContent className="p-4 space-y-3 pt-0">
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <Label className="text-xs">Customer Name</Label>
-                  <Input placeholder="e.g. John Doe" value={customerName} onChange={e => setCustomerName(e.target.value)} />
+                  <Label htmlFor="customer-name" className="text-xs">Customer Name</Label>
+                  <Input id="customer-name" name="customerName" placeholder="e.g. John Doe" value={customerName} onChange={e => setCustomerName(e.target.value)} />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Phone (For Rewards)</Label>
-                  <Input placeholder="09XX" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} />
+                  <Label htmlFor="phone-number" className="text-xs">Phone (For Rewards)</Label>
+                  <Input id="phone-number" name="phoneNumber" placeholder="09XX" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} />
                 </div>
               </div>
               <div className="flex gap-2">
                 <div className="flex-1 space-y-1">
-                  <Label className="text-xs">Barber / Stylist</Label>
-                  <Input placeholder="e.g. Mark" value={stylistName} onChange={e => setStylistName(e.target.value)} />
+                  <Label htmlFor="stylist-name" className="text-xs">Barber / Stylist</Label>
+                  <Input id="stylist-name" name="stylistName" placeholder="e.g. Mark" value={stylistName} onChange={e => setStylistName(e.target.value)} />
                 </div>
                 <div className="flex-1 space-y-1">
-                  <Label className="text-xs">Service</Label>
+                  <Label htmlFor="service-type" className="text-xs">Service</Label>
                   <select 
+                    id="service-type"
+                    name="serviceType"
                     className="w-full border-slate-200 rounded-md border p-2 text-sm h-9"
                     value={serviceType}
                     onChange={(e) => setServiceType(e.target.value)}
@@ -238,11 +254,11 @@ export function TrimTrackDashboard() {
                 </div>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs flex justify-between">
+                <Label htmlFor="price-override" className="text-xs flex justify-between">
                   <span>Total Price (₱)</span>
                   <span className="text-muted-foreground">Suggested: ₱{suggestedPrice}</span>
                 </Label>
-                <Input type="number" placeholder={`₱${suggestedPrice}`} value={priceOverride} onChange={e => setPriceOverride(parseFloat(e.target.value) || '')} />
+                <Input id="price-override" name="priceOverride" type="number" placeholder={`₱${suggestedPrice}`} value={priceOverride} onChange={e => setPriceOverride(parseFloat(e.target.value) || '')} />
               </div>
               <Button 
                 className="w-full h-8 text-xs font-bold text-white" 
@@ -271,9 +287,27 @@ export function TrimTrackDashboard() {
               <div className="space-y-2">
                 {waitingAppointments.map(appt => (
                   <AppointmentCard key={appt.id} appointment={appt} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-rose-600 hover:bg-rose-700" onClick={() => updateStatus(appt, 'In Chair')}>
-                      <Armchair className="h-3 w-3 mr-1 text-rose-200" /> Sit In Chair
-                    </Button>
+                    <div className="w-full flex gap-1">
+                      <select 
+                        className="border border-slate-200 text-[10px] rounded px-1 max-w-[80px]"
+                        value={chairAssignments[appt.id as string] || ''}
+                        onChange={e => setChairAssignments(prev => ({...prev, [appt.id as string]: e.target.value}))}
+                      >
+                        <option value="">Chair</option>
+                        <option value="Chair 1">Chair 1</option>
+                        <option value="Chair 2">Chair 2</option>
+                        <option value="Chair 3">Chair 3</option>
+                        <option value="Chair 4">Chair 4</option>
+                      </select>
+                      <Button 
+                        size="sm" 
+                        className="flex-1 h-7 text-[10px] bg-rose-600 hover:bg-rose-700 disabled:opacity-50" 
+                        disabled={!chairAssignments[appt.id as string]}
+                        onClick={() => updateStatus(appt, 'In Chair', undefined, chairAssignments[appt.id as string])}
+                      >
+                        <Armchair className="h-3 w-3 mr-1 text-rose-200" /> Sit In Chair
+                      </Button>
+                    </div>
                   } />
                 ))}
               </div>

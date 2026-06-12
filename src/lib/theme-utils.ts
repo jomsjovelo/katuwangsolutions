@@ -53,7 +53,7 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
   },
   
   // 2. Lending
-  'hiram-snap': {
+  '5-6-tracker': {
     primary: '#10B981',
     primaryBg: 'from-emerald-500 to-emerald-600',
     primaryText: 'text-emerald-600',
@@ -63,7 +63,7 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
     secondaryText: 'text-slate-900',
     glowClass: 'joy-glow-emerald',
     name: '5-6 Tracker',
-    tagline: 'Ligtas na pamamahala ng utang at puhunan'
+    tagline: 'Ligtas na pamamahala ng utang at pautang'
   },
   
   // 3. Accounting
@@ -147,7 +147,7 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
     secondaryText: 'text-slate-900',
     glowClass: 'joy-glow-red',
     name: 'Timpla Track',
-    tagline: 'Malinamnam na pagsubaybay sa recipe at sangkap'
+    tagline: 'Mabilis na pamamahala ng kape at cafe menu'
   },
   
   // 9. Food Catering

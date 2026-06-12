@@ -72,7 +72,7 @@ export function useAdminTenants() {
       const batch = writeBatch(db);
       batch.update(tenantRef, { subscriptionStatus: status });
       
-      // If approving from pending, write a billing log and process referral
+      // If approving from pending → active: write billing log and process referral
       if (tenant.subscriptionStatus === 'pending' && status === 'active') {
         const amount = tenant.pricingTier === 'promo_99' ? 99 : tenant.pricingTier === 'standard_199' ? 199 : 499;
         const logRef = doc(collection(db, 'billing_logs'));
@@ -85,9 +85,9 @@ export function useAdminTenants() {
           timestamp: serverTimestamp()
         });
 
-        // Process referral
+        // Process referral credit
         const anyTenant = tenant as any;
-        if (anyTenant.referredBy && !anyTenant.referralPaid) {
+        if (anyTenant.referredBy) {
           const { query, where, increment } = await import('firebase/firestore');
           const usersRef = collection(db, 'users');
           const q = query(usersRef, where('referralCode', '==', anyTenant.referredBy));
@@ -95,16 +95,60 @@ export function useAdminTenants() {
           
           if (!qSnap.empty) {
             const referrerDoc = qSnap.docs[0];
-            batch.update(referrerDoc.ref, {
-              referralEarnings: increment(10)
+            batch.update(referrerDoc.ref, { referralEarnings: increment(10) });
+            
+            const historyRef = doc(collection(db, 'users', referrerDoc.id, 'referral_history'));
+            batch.set(historyRef, {
+              referredTenantId: tenant.id,
+              referredTenantName: tenant.name,
+              referredOwnerEmail: tenant.ownerEmail || '',
+              amountEarned: 10,
+              type: 'activation',
+              creditedAt: serverTimestamp(),
             });
-            batch.update(tenantRef, {
-              referralPaid: true
+
+            batch.update(tenantRef, { referralPaid: true });
+          }
+        }
+      }
+
+      // If reactivating from suspended → active: write a reactivation billing log
+      if (tenant.subscriptionStatus === 'suspended' && status === 'active') {
+        const amount = tenant.pricingTier === 'promo_99' ? 99 : tenant.pricingTier === 'standard_199' ? 199 : 499;
+        const logRef = doc(collection(db, 'billing_logs'));
+        batch.set(logRef, {
+          tenantId: tenant.id,
+          tenantName: tenant.name,
+          pricingTier: tenant.pricingTier,
+          amount: amount,
+          type: 'reactivation',
+          timestamp: serverTimestamp()
+        });
+
+        // Process recurring referral credit on renewal
+        const anyTenant = tenant as any;
+        if (anyTenant.referredBy) {
+          const { query, where, increment } = await import('firebase/firestore');
+          const usersRef = collection(db, 'users');
+          const q = query(usersRef, where('referralCode', '==', anyTenant.referredBy));
+          const qSnap = await getDocs(q);
+          
+          if (!qSnap.empty) {
+            const referrerDoc = qSnap.docs[0];
+            batch.update(referrerDoc.ref, { referralEarnings: increment(10) });
+            
+            const historyRef = doc(collection(db, 'users', referrerDoc.id, 'referral_history'));
+            batch.set(historyRef, {
+              referredTenantId: tenant.id,
+              referredTenantName: tenant.name,
+              referredOwnerEmail: tenant.ownerEmail || '',
+              amountEarned: 10,
+              type: 'renewal',
+              creditedAt: serverTimestamp(),
             });
           }
         }
       }
-      
       
       if (adminUser) {
         await addDoc(collection(db, 'admin_logs'), {
@@ -152,18 +196,36 @@ export function useAdminTenants() {
     try {
       const { db } = initializeFirebase();
       
-      // We must delete subcollections first to avoid orphaned data
-      const productsSnap = await getDocs(collection(db, 'tenants', id, 'products'));
-      const transactionsSnap = await getDocs(collection(db, 'tenants', id, 'transactions'));
-      const invTransSnap = await getDocs(collection(db, 'tenants', id, 'inventory_transactions'));
-      const invAuditsSnap = await getDocs(collection(db, 'tenants', id, 'inventory_audits'));
-
-      const allDocs = [
-        ...productsSnap.docs,
-        ...transactionsSnap.docs,
-        ...invTransSnap.docs,
-        ...invAuditsSnap.docs
+      // ALL known subcollections — exhaustive list to prevent orphaned Firestore data
+      const KNOWN_SUBCOLLECTIONS = [
+        'products',
+        'transactions',
+        'inventory_transactions',
+        'inventory_audits',
+        'food_orders',
+        'menu_items',
+        'ingredients',
+        'jobs',
+        'support_tickets',
+        'gym_memberships',
+        'rental_inventory',
+        'rental_bookings',
+        'rental_customers',
+        'accounts',
+        'loyalty_customers',
+        'announcements',
+        'fleet',
+        'events',
+        'spa_services',
+        'salon_services',
+        'users',
       ];
+
+      const allDocs: any[] = [];
+      for (const subcol of KNOWN_SUBCOLLECTIONS) {
+        const snap = await getDocs(collection(db, 'tenants', id, subcol));
+        snap.docs.forEach(d => allDocs.push(d));
+      }
 
       // Execute batched deletes in chunks of 450 (Firestore limit is 500)
       const chunks = [];
@@ -190,7 +252,7 @@ export function useAdminTenants() {
           adminUid: adminUser.uid,
           adminEmail: adminUser.email || 'Unknown',
           action: 'ANNIHILATE_TENANT',
-          details: `Permanently purged tenant ${id}`,
+          details: `Permanently purged tenant ${id} and all ${KNOWN_SUBCOLLECTIONS.length} subcollections`,
           targetId: id,
           timestamp: serverTimestamp()
         });
@@ -212,5 +274,83 @@ export function useAdminTenants() {
     }
   };
 
-  return { tenants, loading, error, updateTenantStatus, updateTenantPricing, updateNextBillingDate, annihilateTenant };
+  const processTenantRenewal = async (tenant: AdminTenant) => {
+    try {
+      const { db } = initializeFirebase();
+      const auth = getAuth();
+      const adminUser = auth.currentUser;
+      const tenantRef = doc(db, 'tenants', tenant.id);
+      
+      const batch = writeBatch(db);
+      
+      // 1. Extend billing date by 30 days
+      const currentBillingDate = tenant.nextBillingDate 
+        ? new Date(typeof tenant.nextBillingDate === 'object' && 'seconds' in tenant.nextBillingDate ? (tenant.nextBillingDate as any).seconds * 1000 : tenant.nextBillingDate as any)
+        : new Date();
+      
+      // If current billing date is in the past, renew from today. If in future, extend it.
+      const baseDate = currentBillingDate < new Date() ? new Date() : currentBillingDate;
+      const nextDate = new Date(baseDate);
+      nextDate.setDate(nextDate.getDate() + 30);
+      
+      batch.update(tenantRef, { 
+        nextBillingDate: nextDate,
+        subscriptionStatus: 'active' 
+      });
+
+      // 2. Add Billing Log
+      const amount = tenant.pricingTier === 'promo_99' ? 99 : tenant.pricingTier === 'standard_199' ? 199 : 499;
+      const logRef = doc(collection(db, 'billing_logs'));
+      batch.set(logRef, {
+        tenantId: tenant.id,
+        tenantName: tenant.name,
+        pricingTier: tenant.pricingTier,
+        amount: amount,
+        type: 'renewal',
+        timestamp: serverTimestamp()
+      });
+
+      // 3. Process referral credit
+      const anyTenant = tenant as any;
+      if (anyTenant.referredBy) {
+        const { query, where, increment } = await import('firebase/firestore');
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('referralCode', '==', anyTenant.referredBy));
+        const qSnap = await getDocs(q);
+        
+        if (!qSnap.empty) {
+          const referrerDoc = qSnap.docs[0];
+          batch.update(referrerDoc.ref, { referralEarnings: increment(10) });
+          
+          const historyRef = doc(collection(db, 'users', referrerDoc.id, 'referral_history'));
+          batch.set(historyRef, {
+            referredTenantId: tenant.id,
+            referredTenantName: tenant.name,
+            referredOwnerEmail: tenant.ownerEmail || '',
+            amountEarned: 10,
+            type: 'renewal',
+            creditedAt: serverTimestamp(),
+          });
+        }
+      }
+
+      if (adminUser) {
+        await addDoc(collection(db, 'admin_logs'), {
+          adminUid: adminUser.uid,
+          adminEmail: adminUser.email || 'Unknown',
+          action: 'PROCESS_RENEWAL',
+          details: `Processed 30-day renewal for tenant ${tenant.name}`,
+          targetId: tenant.id,
+          timestamp: serverTimestamp()
+        });
+      }
+
+      await batch.commit();
+    } catch (err) {
+      console.error('Failed to process renewal:', err);
+      throw err;
+    }
+  };
+
+  return { tenants, loading, error, updateTenantStatus, updateTenantPricing, updateNextBillingDate, processTenantRenewal, annihilateTenant };
 }

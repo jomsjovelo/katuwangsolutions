@@ -4,7 +4,6 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { AuthGuard } from '@/components/auth/auth-guard';
 import { Toaster } from '@/components/ui/toaster';
 import { Suspense } from 'react';
-import { PwaInstallPrompt } from '@/components/pwa-install-prompt';
 import { ReferralCatcher } from '@/components/referral-catcher';
 
 export const metadata: Metadata = {
@@ -85,7 +84,6 @@ export default function RootLayout({
             <div className="w-full min-h-screen bg-white relative flex flex-col">
               {children}
             </div>
-            <PwaInstallPrompt />
             <Toaster />
             <Suspense fallback={null}>
               <ReferralCatcher />

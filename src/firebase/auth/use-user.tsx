@@ -15,19 +15,22 @@ export function useUser() {
       setUser(user);
       setLoading(false);
     });
-
-    // Explicitly process the redirect result to ensure Firebase finalizes the login
-    getRedirectResult(auth).then((result) => {
-      console.log("Redirect Auth Result:", result);
-      if (result?.user) {
-        console.log("Successfully caught redirect user:", result.user.email);
-      }
-    }).catch((err) => {
-      console.error("Redirect Auth Error:", err);
-    });
-
     return () => unsubscribe();
   }, [auth]);
 
+  // Process redirect result exactly once on mount (e.g. after Google sign-in redirect)
+  useEffect(() => {
+    if (!auth) return;
+    getRedirectResult(auth).catch((err) => {
+      // Only log actual errors, not the expected null result
+      if (err?.code !== 'auth/null-user') {
+        console.error('Redirect Auth Error:', err);
+      }
+    });
+    // Empty dep array: run once per auth instance
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return { user, loading };
 }
+

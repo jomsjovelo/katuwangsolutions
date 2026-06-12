@@ -5,22 +5,28 @@ import { useUser } from '@/firebase/auth/use-user';
 import { getAuth, signOut } from 'firebase/auth';
 import { useFirestore } from '@/firebase/provider';
 import { useTenant } from '@/app/lib/tenant-context';
+import { usePWAInstall } from '@/hooks/use-pwa-install';
 import { 
   collection, 
   query, 
   where, 
   onSnapshot, 
   doc, 
-  getFirestore 
+  getFirestore,
+  updateDoc,
+  setDoc
 } from 'firebase/firestore';
 import { app } from '@/firebase/config';
 import { sendStaffInvite, removeStaffMember } from '@/firebase/firestore/staff-actions';
 import { getModuleTheme } from '@/lib/theme-utils';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useTenantStore } from '@/store/use-tenant-store';
+import { WithdrawReferralSheet } from '@/components/common/withdraw-referral-sheet';
 import { 
   User, 
   Users, 
@@ -35,17 +41,25 @@ import {
   ShieldCheck,
   Store,
   Printer,
-  Bluetooth
+  Bluetooth,
+  ChevronRight,
+  ArrowLeftRight,
+  Download,
+  Share,
+  PlusSquare,
+  Wallet
 } from 'lucide-react';
 import { EscPosBluetoothDriver } from '@/lib/hardware/print-driver';
-import { SupportDrawer } from '@/components/dashboard/support-drawer';
+import { HelpGuideDrawer } from '@/components/shell/help-guide-drawer';
 import { SponsorDialog } from '@/components/dashboard/sponsor-dialog';
 
 export function ProfileTab() {
   const db = useFirestore();
+  const [showInstallGuide, setShowInstallGuide] = useState(false);
   const { user } = useUser();
-  const { currentTenant } = useTenant();
+  const { currentTenant, setCurrentTenant, allTenants } = useTenant();
   const { reset } = useTenantStore();
+  const { deferredPrompt, isInstalled, triggerInstall, isIOS } = usePWAInstall();
   
   const [profile, setProfile] = useState<any>(null);
   const [activeStaff, setActiveStaff] = useState<any[]>([]);
@@ -59,8 +73,14 @@ export function ProfileTab() {
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [isSponsorOpen, setIsSponsorOpen] = useState(false);
   const [sponsorStaffName, setSponsorStaffName] = useState('');
+  
+  // New referral state
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [referralHistory, setReferralHistory] = useState<any[]>([]);
+  const [showAllHistory, setShowAllHistory] = useState(false);
 
   const theme = getModuleTheme(currentTenant?.moduleType);
+  const isOwner = profile?.role === 'owner';
 
   // 1. Fetch Real-time User Profile
   useEffect(() => {
@@ -71,14 +91,40 @@ export function ProfileTab() {
       if (snap.exists()) {
         setProfile(snap.data());
       }
+    }, (err) => {
+      // Suppress non-critical profile read errors
+      console.warn('ProfileTab: Could not read user profile:', err.message);
     });
 
     return () => unsubscribe();
   }, [user]);
 
-  // 2. Fetch Active Staff List (role == staff & tenantId == tenantId)
+  // 1.5 Fetch Referral History
   useEffect(() => {
-    if (!currentTenant) return;
+    if (!user) return;
+    
+    // We import orderBy and limit inside useEffect or at top of file, but we already have `query` etc.
+    // Ensure we import them safely if missing from top level:
+    const fetchHistory = async () => {
+      const { query, collection, orderBy, limit, onSnapshot } = await import('firebase/firestore');
+      const historyRef = collection(db, 'users', user.uid, 'referral_history');
+      const q = query(historyRef, orderBy('creditedAt', 'desc'), limit(10));
+      
+      const unsubscribe = onSnapshot(q, (snap) => {
+        setReferralHistory(snap.docs.map(d => d.data()));
+      });
+      return unsubscribe;
+    };
+    
+    let unsub: (() => void) | undefined;
+    fetchHistory().then(u => { unsub = u; });
+    return () => { if (unsub) unsub(); };
+  }, [user, db]);
+
+  // 2. Fetch Active Staff List (role == staff & tenantId == tenantId)
+  // Only owners can manage staff — non-owners skip this subscription
+  useEffect(() => {
+    if (!currentTenant || !profile || profile.role !== 'owner') return;
 
     const staffQuery = query(
       collection(db, 'users'),
@@ -89,14 +135,19 @@ export function ProfileTab() {
     const unsubscribe = onSnapshot(staffQuery, (snapshot) => {
       const staffList = snapshot.docs.map(d => d.data());
       setActiveStaff(staffList);
+    }, (err) => {
+      // Rule not yet deployed or user not an owner — fail silently
+      console.warn('ProfileTab: Staff list unavailable:', err.message);
+      setActiveStaff([]);
     });
 
     return () => unsubscribe();
-  }, [currentTenant]);
+  }, [currentTenant, profile?.role]);
 
   // 3. Fetch Pending Invites List
+  // Only owners can see invites — non-owners skip this subscription
   useEffect(() => {
-    if (!currentTenant) return;
+    if (!currentTenant || !profile || profile.role !== 'owner') return;
 
     const invitesQuery = query(
       collection(db, 'invites'),
@@ -107,10 +158,37 @@ export function ProfileTab() {
     const unsubscribe = onSnapshot(invitesQuery, (snapshot) => {
       const invitesList = snapshot.docs.map(d => d.data());
       setPendingInvites(invitesList);
+    }, (err) => {
+      // Rule not yet deployed or user not an owner — fail silently
+      console.warn('ProfileTab: Invites list unavailable:', err.message);
+      setPendingInvites([]);
     });
 
     return () => unsubscribe();
-  }, [currentTenant]);
+  }, [currentTenant, profile?.role]);
+
+  // Patch for Demo Account (or any missing code)
+  useEffect(() => {
+    if (!currentTenant || !isOwner) return;
+    if (!currentTenant.businessCode) {
+      const patchCode = async () => {
+        try {
+          // If it's the demo account (by ID or Name), use 8888, otherwise generate one
+          const isDemo = currentTenant.id === 'demo' || currentTenant.name.toLowerCase().includes('demo');
+          const codeToUse = isDemo ? '8888' : Math.floor(1000 + Math.random() * 9000).toString();
+          
+          await setDoc(doc(db, 'business_codes', codeToUse), { tenantId: currentTenant.id });
+          await updateDoc(doc(db, 'tenants', currentTenant.id), { businessCode: codeToUse });
+          
+          // Force local update so the UI updates immediately without needing a full refresh if onSnapshot is slow
+          setCurrentTenant({ ...currentTenant, businessCode: codeToUse });
+        } catch (e) {
+          console.error("Failed to patch business code:", e);
+        }
+      };
+      patchCode();
+    }
+  }, [currentTenant, isOwner, db, setCurrentTenant]);
 
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -164,8 +242,6 @@ export function ProfileTab() {
       console.error("Sign out error:", e);
     }
   };
-
-  const isOwner = profile?.role === 'owner';
 
   const [btStatus, setBtStatus] = useState<string>('Not Connected');
   const handleTestPrinter = async () => {
@@ -223,6 +299,53 @@ export function ProfileTab() {
             </div>
           </CardContent>
         </Card>
+
+        {/* My Apps & Stores */}
+        {allTenants.length > 0 && (
+          <Card className="bg-white border-slate-200 shadow-sm overflow-hidden rounded-[24px]">
+            <CardHeader className="p-4 pb-2 flex flex-row items-center gap-2">
+              <ArrowLeftRight className="h-4 w-4" style={{ color: theme.primary }} />
+              <CardTitle className="text-sm font-black text-slate-800">My Apps &amp; Stores</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="divide-y divide-slate-100">
+                {allTenants.map(t => {
+                  const isActive = t.id === currentTenant?.id;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => !isActive && setCurrentTenant(t)}
+                      disabled={isActive}
+                      className="w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors hover:bg-slate-50 disabled:cursor-default"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="h-9 w-9 rounded-xl flex items-center justify-center text-white shrink-0"
+                          style={{ backgroundColor: isActive ? theme.primary : '#94a3b8' }}
+                        >
+                          <Store className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-800 leading-tight">
+                            {t.branchName ? `${t.name} — ${t.branchName}` : t.name}
+                          </p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-0.5">{t.moduleType}</p>
+                        </div>
+                      </div>
+                      {isActive ? (
+                        <Badge className="text-[9px] font-black uppercase tracking-widest border-none shrink-0" style={{ backgroundColor: `${theme.primary}20`, color: theme.primary }}>
+                          Active
+                        </Badge>
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Printer Settings */}
         <Card className="bg-white border-slate-200 shadow-sm rounded-[24px]">
@@ -433,7 +556,7 @@ export function ProfileTab() {
               <span className="text-xl">🎁</span> Referral Program
             </CardTitle>
             <CardDescription className="text-[11px] font-medium leading-relaxed mt-0.5">
-              I-share ang inyong Referral Code. May ₱10.00 kang kikitain sa bawat tindahang mag-register at magbayad gamit ang code mo!
+              I-share ang inyong Referral Code. May ₱10.00 kang kikitain hindi lang sa una, kundi <strong className="text-amber-800">TUWING mag-rerenew</strong> ng subscription ang tindahang ni-refer mo!
             </CardDescription>
           </CardHeader>
           <CardContent className="p-4 space-y-4">
@@ -441,7 +564,7 @@ export function ProfileTab() {
               <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 flex-1 flex flex-col items-center justify-center text-center">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Your Referral Code</span>
                 <div className="text-3xl font-black text-slate-800 tracking-[0.2em]">
-                  {profile?.referralCode || '----'}
+                  {profile?.referralCode || (user?.uid ? user.uid.substring(0, 4).toUpperCase() : '----')}
                 </div>
               </div>
               <div className="bg-emerald-50 rounded-xl border border-emerald-100 p-4 flex-1 flex flex-col items-center justify-center text-center">
@@ -457,12 +580,12 @@ export function ProfileTab() {
               <div className="flex gap-2">
                 <Input 
                   readOnly 
-                  value={`https://app.katuwangsolutions.com/onboarding?ref=${profile?.referralCode || ''}`}
+                  value={`https://app.katuwangsolutions.com/onboarding?ref=${profile?.referralCode || (user?.uid ? user.uid.substring(0, 4).toUpperCase() : '')}`}
                   className="rounded-xl border-slate-200 text-[10px] bg-slate-50 font-medium h-10"
                 />
                 <Button 
                   onClick={() => {
-                    navigator.clipboard.writeText(`https://app.katuwangsolutions.com/onboarding?ref=${profile?.referralCode || ''}`);
+                    navigator.clipboard.writeText(`https://app.katuwangsolutions.com/onboarding?ref=${profile?.referralCode || (user?.uid ? user.uid.substring(0, 4).toUpperCase() : '')}`);
                     alert('Referral Link Copied!');
                   }}
                   variant="outline"
@@ -472,8 +595,166 @@ export function ProfileTab() {
                 </Button>
               </div>
             </div>
+
+            <div className="pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">My Referral History</h4>
+                {referralHistory.length > 3 && (
+                  <button 
+                    onClick={() => setShowAllHistory(!showAllHistory)}
+                    className="text-[10px] font-bold text-emerald-600 hover:underline"
+                  >
+                    {showAllHistory ? 'Show Less' : 'See All'}
+                  </button>
+                )}
+              </div>
+              
+              {referralHistory.length === 0 ? (
+                <div className="text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  <p className="text-xs font-bold text-slate-400">No referrals yet</p>
+                  <p className="text-[10px] text-slate-400 mt-1">Share your link to start earning!</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {(showAllHistory ? referralHistory : referralHistory.slice(0, 3)).map((ref, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                      <div>
+                        <p className="text-xs font-bold text-slate-800">{ref.referredTenantName}</p>
+                        <p className="text-[10px] text-slate-500 capitalize">{ref.type} &bull; {ref.creditedAt?.seconds ? new Date(ref.creditedAt.seconds * 1000).toLocaleDateString() : 'Just now'}</p>
+                      </div>
+                      <div className="text-sm font-black text-emerald-600">
+                        +₱{ref.amountEarned.toFixed(2)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2">
+              {(profile?.referralEarnings || 0) >= 200 ? (
+                <Button 
+                  onClick={() => setWithdrawOpen(true)}
+                  className="w-full h-12 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg"
+                >
+                  <Wallet className="mr-2 h-4 w-4" />
+                  Withdraw Referral Bonus
+                </Button>
+              ) : (
+                <div className="text-center bg-slate-50 rounded-xl p-3 border border-slate-100">
+                  <p className="text-xs font-bold text-slate-500">
+                    <span className="text-emerald-600">₱{Math.max(0, 200 - (profile?.referralEarnings || 0)).toFixed(2)}</span> more to reach the ₱200 minimum withdrawal.
+                  </p>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
+
+        <WithdrawReferralSheet 
+          open={withdrawOpen} 
+          onOpenChange={setWithdrawOpen}
+          availableBalance={profile?.referralEarnings || 0}
+          userFullName={profile?.fullName || ''}
+          userEmail={user?.email || ''}
+          tenantName={currentTenant?.name || ''}
+          role={profile?.role || 'staff'}
+          uid={user?.uid || ''}
+        />
+
+        {/* Install App Card */}
+        <Card className="bg-white border-slate-200 shadow-sm rounded-[24px] overflow-hidden">
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-sm font-black text-slate-800 flex items-center gap-2">
+              <Download className="h-4 w-4" style={{ color: theme.primary }} />
+              I-install ang Katuwang App
+            </CardTitle>
+            <CardDescription className="text-[11px] font-medium leading-relaxed mt-0.5">
+              Gamitin kahit walang internet! Mag-benta at mag-check ng stock nang mas mabilis sa phone mo.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 space-y-4">
+            {isInstalled ? (
+              <div className="bg-emerald-50 rounded-xl p-4 flex flex-col items-center justify-center text-center border border-emerald-100 gap-2">
+                <CheckCircle className="h-6 w-6 text-emerald-500" />
+                <p className="text-xs font-bold text-emerald-700">App Installed Na!</p>
+                <p className="text-[10px] text-emerald-600 font-medium leading-tight">Hanapin ang Katuwang icon sa home screen ng iyong phone.</p>
+              </div>
+            ) : isIOS ? (
+              <div className="bg-slate-50 rounded-xl p-4 flex flex-col items-center justify-center text-center gap-3 border border-slate-100">
+                <p className="text-[11px] font-bold text-slate-600 flex items-center justify-center gap-1.5 flex-wrap">
+                  Para ma-install sa iPhone, i-tap ang <Share className="h-4 w-4 text-blue-500 inline" /> sa ibaba at piliin ang:
+                </p>
+                <div className="bg-white border border-slate-200 rounded-lg px-4 py-2 flex items-center gap-2 shadow-sm">
+                  <PlusSquare className="h-4 w-4 text-slate-700" />
+                  <span className="text-xs font-bold text-slate-700">Add to Home Screen</span>
+                </div>
+              </div>
+            ) : (
+              <Button 
+                onClick={() => {
+                  if (deferredPrompt) {
+                    triggerInstall();
+                  } else {
+                    setShowInstallGuide(true);
+                  }
+                }}
+                className="w-full h-12 rounded-xl text-white font-bold text-sm shadow-md active:scale-95 transition-all gap-2"
+                style={{ backgroundColor: theme.primary }}
+              >
+                <Download className="h-4 w-4" /> 
+                I-install Ngayon
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Manual Install Guide Dialog */}
+        <Dialog open={showInstallGuide} onOpenChange={setShowInstallGuide}>
+          <DialogContent className="sm:max-w-md rounded-[24px]">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-black text-slate-800">Paano I-install?</DialogTitle>
+              <DialogDescription className="text-slate-500 font-medium">
+                Dahil ikaw ay gumagamit ng iPhone o nasa Test Mode, hindi gumagana ang 1-click install. Sundin ang steps sa ibaba:
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="flex gap-4 items-start bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <div className="bg-white p-2 rounded-lg shadow-sm border border-slate-200 flex-shrink-0">
+                  <span className="font-black text-lg text-slate-800">1</span>
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-slate-800">I-tap ang Browser Menu</h4>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Sa Android (Chrome), i-tap ang <strong>3 tuldok (⋮)</strong> sa itaas. <br/>
+                    Sa iPhone (Safari), i-tap ang <strong>Share icon (<Share className="h-3 w-3 inline"/>)</strong> sa ibaba.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-4 items-start bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <div className="bg-white p-2 rounded-lg shadow-sm border border-slate-200 flex-shrink-0">
+                  <span className="font-black text-lg text-slate-800">2</span>
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-slate-800">Piliin ang "Add to Home Screen"</h4>
+                  <p className="text-xs text-slate-500 mt-1">Hanapin ang <PlusSquare className="h-3 w-3 inline"/> <strong>Add to Home Screen</strong> o <strong>Install App</strong> sa menu at i-click ito.</p>
+                </div>
+              </div>
+              <div className="flex gap-4 items-start bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                <div className="bg-white p-2 rounded-lg shadow-sm border border-emerald-200 flex-shrink-0">
+                  <span className="font-black text-lg text-emerald-600">3</span>
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-emerald-800">Tapos Na! 🎉</h4>
+                  <p className="text-xs text-emerald-600 mt-1">Makikita mo na ang Katuwang App sa home screen ng iyong phone. Pwede mo na itong gamitin parang totoong app!</p>
+                </div>
+              </div>
+            </div>
+            <Button onClick={() => setShowInstallGuide(false)} className="w-full h-12 rounded-xl font-bold bg-slate-800 text-white hover:bg-slate-700">
+              Naiintindihan Ko
+            </Button>
+          </DialogContent>
+        </Dialog>
 
         {/* Support & Sign Out */}
         <div className="pt-2 space-y-3">
@@ -496,7 +777,7 @@ export function ProfileTab() {
 
       </main>
       
-      <SupportDrawer isOpen={isSupportOpen} onClose={() => setIsSupportOpen(false)} />
+      <HelpGuideDrawer isOpen={isSupportOpen} onClose={() => setIsSupportOpen(false)} showFloatingButton={false} />
       <SponsorDialog open={isSponsorOpen} onOpenChange={setIsSponsorOpen} staffName={sponsorStaffName} />
     </div>
   );

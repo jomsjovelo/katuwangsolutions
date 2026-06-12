@@ -15,7 +15,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from 'date-fns';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useCarwashOrders } from '@/hooks/use-carwash';
+import { useInventory } from '@/hooks/use-inventory';
 import { useToast } from '@/hooks/use-toast';
+import { CustomerReferralInput } from '@/components/common/customer-referral-input';
 import { 
   Car, 
   Plus, 
@@ -60,6 +62,7 @@ export function AutoBossDashboard() {
   const { currentTenant } = useTenant();
   const db = useFirestore();
   const { toast } = useToast();
+  const { products, loading: inventoryLoading } = useInventory();
   
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -67,7 +70,14 @@ export function AutoBossDashboard() {
   useDynamicThemeColor(theme);
 
   // Carwash State
-  const { scheduledOrders, queuedOrders, washingOrders, dryingOrders, readyOrders, loading } = useCarwashOrders();
+  const { scheduledOrders, queuedOrders, washingOrders, dryingOrders, readyOrders, loading, error: carwashError } = useCarwashOrders();
+
+  React.useEffect(() => {
+    if (carwashError) {
+      console.error("Auto Boss listener error:", carwashError);
+      toast({ title: 'Connection Error', description: 'Failed to sync live queue.', variant: 'destructive' });
+    }
+  }, [carwashError, toast]);
 
   // Create Drop-off Form
   const [showAddForm, setShowAddForm] = useState(false);
@@ -77,11 +87,16 @@ export function AutoBossDashboard() {
   const [plateNumber, setPlateNumber] = useState('');
   const [vehicleType, setVehicleType] = useState('Sedan');
   const [servicePackage, setServicePackage] = useState('Basic Wash');
+  const [mechanicName, setMechanicName] = useState('');
+  const [partsUsed, setPartsUsed] = useState<{productId: string, quantity: number, name: string, price: number}[]>([]);
+  const [selectedPartId, setSelectedPartId] = useState('');
+  const [selectedPartQty, setSelectedPartQty] = useState('1');
   const [priceOverride, setPriceOverride] = useState<number | ''>('');
   const [inspectionNotes, setInspectionNotes] = useState<string[]>([]);
 
   // Loyalty Program
   const [customerPhone, setCustomerPhone] = useState('');
+  const [referrerCode, setReferrerCode] = useState('');
   const [pointsBalance, setPointsBalance] = useState(0);
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [isFetchingPoints, setIsFetchingPoints] = useState(false);
@@ -121,8 +136,18 @@ export function AutoBossDashboard() {
   const addonPrice = PACKAGE_ADDON_PRICE[servicePackage] || 0;
   const suggestedPrice = basePrice + addonPrice;
   const rawFinalPrice = typeof priceOverride === 'number' ? priceOverride : suggestedPrice;
+  const partsTotal = partsUsed.reduce((sum, p: any) => sum + ((p.price * p.quantity) / 100), 0);
   const pointsDiscount = isRedeeming ? 50 : 0;
-  const finalPrice = Math.max(0, rawFinalPrice - pointsDiscount);
+  const finalPrice = Math.max(0, (rawFinalPrice + partsTotal) - pointsDiscount);
+
+  const handleAddPart = () => {
+    if (!selectedPartId || !selectedPartQty) return;
+    const prod = products.find(p => p.id === selectedPartId);
+    if (!prod) return;
+    setPartsUsed(prev => [...prev, { productId: prod.id!, quantity: parseInt(selectedPartQty), name: prod.name, price: prod.salePrice }]);
+    setSelectedPartId('');
+    setSelectedPartQty('1');
+  };
 
   const handleAddVehicle = async () => {
     if (!currentTenant || !db || !plateNumber || finalPrice < 0 || isNaN(finalPrice)) {
@@ -151,7 +176,10 @@ export function AutoBossDashboard() {
         amountDue: Math.round(finalPrice * 100), // convert to cents safely
         paymentStatus: 'Unpaid',
         inspectionNotes,
+        mechanicName: mechanicName || null,
+        partsUsed,
         customerPhone: customerPhone || null,
+        referrerCode: referrerCode || null,
         appointmentDate: aptTimestamp,
         createdAt: serverTimestamp(),
       });
@@ -160,7 +188,10 @@ export function AutoBossDashboard() {
       setServicePackage('Basic Wash');
       setPriceOverride('');
       setInspectionNotes([]);
+      setMechanicName('');
+      setPartsUsed([]);
       setCustomerPhone('');
+      setReferrerCode('');
       setIsRedeeming(false);
       setIsScheduled(false);
       setAppointmentDate('');
@@ -178,18 +209,24 @@ export function AutoBossDashboard() {
     if (!currentTenant || !db) return;
     try {
       if (status === 'Completed' && paymentStatus === 'Paid') {
+        const commissionPercentage = currentTenant.mechanicCommissionRate ?? 0.30;
+        const laborAmount = order.amountDue - (order.partsUsed?.reduce((sum: number, p: any) => sum + (p.price * p.quantity), 0) || 0);
+        const commissionCentavos = Math.round(Math.max(0, laborAmount) * commissionPercentage);
+
         await completeServiceOrder(
           currentTenant.id, 
           'carwash_orders', 
           order.id, 
           status, 
           order.amountDue, 
-          `Carwash: ${order.plateNumber}`
+          `Auto Boss: ${order.plateNumber}`,
+          commissionCentavos,
+          { partsUsed: order.partsUsed || [] }
         );
         if (order.customerPhone && order.amountDue > 0) {
           try {
             const { awardPoints } = await import('@/firebase/firestore/loyalty-actions');
-            await awardPoints(currentTenant.id, order.customerPhone, order.amountDue);
+            await awardPoints(currentTenant.id, order.customerPhone, order.amountDue, order.referrerCode);
           } catch (e) {
             console.error("Failed to award points:", e);
           }
@@ -225,6 +262,16 @@ export function AutoBossDashboard() {
               )}
             </div>
             <p className="text-xs text-slate-500 font-medium">{order.vehicleType} • {order.servicePackage}</p>
+            {order.mechanicName && <p className="text-[10px] text-slate-400 mt-0.5">Assigned: {order.mechanicName}</p>}
+            {order.partsUsed && order.partsUsed.length > 0 && (
+              <div className="mt-1 flex flex-wrap gap-1">
+                {order.partsUsed.map((p: any, i: number) => (
+                  <Badge key={i} variant="secondary" className="text-[9px] bg-slate-100 text-slate-600">
+                    {p.quantity}x {p.name}
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
           <div className="text-right">
             <Badge variant="outline" className={order.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}>
@@ -235,6 +282,11 @@ export function AutoBossDashboard() {
               <p className="text-[10px] font-bold text-amber-600 mt-0.5 flex items-center justify-end gap-1">
                 <Clock className="h-3 w-3" />
                 {order.appointmentDate.toDate ? format(order.appointmentDate.toDate(), 'MMM d, h:mm a') : format(new Date(order.appointmentDate), 'MMM d, h:mm a')}
+              </p>
+            )}
+            {order.therapistCommission && (
+              <p className="text-[9px] font-bold text-emerald-600 mt-0.5">
+                +₱{(order.therapistCommission / 100).toLocaleString()} Comm
               </p>
             )}
           </div>
@@ -283,23 +335,25 @@ export function AutoBossDashboard() {
               {isScheduled && (
                 <div className="flex gap-2 p-3 bg-slate-50 rounded-lg border border-slate-100">
                   <div className="flex-1 space-y-1">
-                    <Label className="text-xs font-bold text-slate-700">Date</Label>
-                    <Input type="date" value={appointmentDate} onChange={e => setAppointmentDate(e.target.value)} className="h-8 text-xs" />
+                    <Label htmlFor="appointment-date" className="text-xs font-bold text-slate-700">Date</Label>
+                    <Input id="appointment-date" name="appointmentDate" type="date" value={appointmentDate} onChange={e => setAppointmentDate(e.target.value)} className="h-8 text-xs" />
                   </div>
                   <div className="flex-1 space-y-1">
-                    <Label className="text-xs font-bold text-slate-700">Time</Label>
-                    <Input type="time" value={appointmentTime} onChange={e => setAppointmentTime(e.target.value)} className="h-8 text-xs" />
+                    <Label htmlFor="appointment-time" className="text-xs font-bold text-slate-700">Time</Label>
+                    <Input id="appointment-time" name="appointmentTime" type="time" value={appointmentTime} onChange={e => setAppointmentTime(e.target.value)} className="h-8 text-xs" />
                   </div>
                 </div>
               )}
               <div className="space-y-1">
-                <Label className="text-xs">Plate Number</Label>
-                <Input placeholder="e.g. ABC 1234" value={plateNumber} onChange={e => setPlateNumber(e.target.value)} className="uppercase" />
+                <Label htmlFor="plate-number" className="text-xs">Plate Number</Label>
+                <Input id="plate-number" name="plateNumber" placeholder="e.g. ABC 1234" value={plateNumber} onChange={e => setPlateNumber(e.target.value)} className="uppercase" />
               </div>
               <div className="flex gap-2">
                 <div className="flex-1 space-y-1">
-                  <Label className="text-xs">Vehicle Type</Label>
+                  <Label htmlFor="vehicle-type" className="text-xs">Vehicle Type</Label>
                   <select 
+                    id="vehicle-type"
+                    name="vehicleType"
                     className="w-full border-slate-200 rounded-md border p-2 text-sm h-9"
                     value={vehicleType}
                     onChange={(e) => setVehicleType(e.target.value)}
@@ -310,8 +364,10 @@ export function AutoBossDashboard() {
                   </select>
                 </div>
                 <div className="flex-1 space-y-1">
-                  <Label className="text-xs">Service Package</Label>
+                  <Label htmlFor="service-package" className="text-xs">Service Package</Label>
                   <select 
+                    id="service-package"
+                    name="servicePackage"
                     className="w-full border-slate-200 rounded-md border p-2 text-sm h-9"
                     value={servicePackage}
                     onChange={(e) => setServicePackage(e.target.value)}
@@ -320,6 +376,45 @@ export function AutoBossDashboard() {
                       <option key={type} value={type}>{type} (+₱{PACKAGE_ADDON_PRICE[type]})</option>
                     ))}
                   </select>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <div className="flex-1 space-y-1">
+                  <Label htmlFor="mechanic-name" className="text-xs">Mechanic / Staff Name</Label>
+                  <Input id="mechanic-name" name="mechanicName" placeholder="e.g. Kuya J" value={mechanicName} onChange={e => setMechanicName(e.target.value)} className="h-9" />
+                </div>
+              </div>
+
+              <div className="space-y-2 bg-slate-50 p-3 rounded-lg border border-slate-100 mt-2">
+                <Label className="text-xs font-bold">Parts & Materials Used</Label>
+                {partsUsed.length > 0 && (
+                  <ul className="space-y-1 mb-2">
+                    {partsUsed.map((p, idx) => (
+                      <li key={idx} className="text-[10px] flex justify-between border-b border-slate-200 pb-1">
+                        <span>{p.quantity}x {p.name}</span>
+                        <span className="font-bold">₱{((p.price * p.quantity) / 100).toLocaleString()}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1 space-y-1">
+                    <select 
+                      className="w-full border-slate-200 rounded-md border p-2 text-xs h-8"
+                      value={selectedPartId}
+                      onChange={(e) => setSelectedPartId(e.target.value)}
+                    >
+                      <option value="">Select Part...</option>
+                      {products.map((p: any) => (
+                        <option key={p.id} value={p.id}>{p.name} (₱{(p.salePrice/100).toFixed(2)})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="w-16 space-y-1">
+                    <Input type="number" placeholder="Qty" className="h-8 text-xs" value={selectedPartQty} onChange={(e) => setSelectedPartQty(e.target.value)} />
+                  </div>
+                  <Button type="button" size="sm" variant="secondary" className="h-8" onClick={handleAddPart}>Add</Button>
                 </div>
               </div>
 
@@ -344,12 +439,14 @@ export function AutoBossDashboard() {
               </div>
 
               <div className="space-y-1 mt-2">
-                <Label className="text-xs flex justify-between">
-                  <span>Customer Phone (Katuwang Rewards)</span>
-                  {customerPhone && <span className="text-emerald-500 font-bold text-[10px]">{isFetchingPoints ? "..." : `${pointsBalance} pts`}</span>}
-                </Label>
-                <Input placeholder="e.g. 0917..." value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} />
-                {pointsBalance >= 100 && rawFinalPrice >= 50 && (
+                <CustomerReferralInput 
+                    customerPhone={customerPhone}
+                    setCustomerPhone={setCustomerPhone}
+                    referrerCode={referrerCode}
+                    setReferrerCode={setReferrerCode}
+                    primaryColor={theme.primary}
+                />
+                {customerPhone && pointsBalance >= 100 && rawFinalPrice >= 50 && (
                   <div className="flex items-center space-x-2 mt-2 bg-emerald-50 p-2 rounded-lg border border-emerald-100">
                     <Switch 
                       id="redeem-points-autoboss" 
@@ -365,14 +462,15 @@ export function AutoBossDashboard() {
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs flex justify-between">
-                  <span>Total Price (₱)</span>
+                <Label htmlFor="price-override" className="text-xs flex justify-between">
+                  <span>Labor Price (₱)</span>
                   <span className="text-muted-foreground">Suggested: ₱{suggestedPrice}</span>
                 </Label>
                 <div className="flex gap-2 items-center">
-                  <Input className="flex-1" type="number" placeholder={`₱${suggestedPrice}`} value={priceOverride} onChange={e => setPriceOverride(parseFloat(e.target.value) || '')} />
+                  <Input id="price-override" name="priceOverride" className="flex-1" type="number" placeholder={`₱${suggestedPrice}`} value={priceOverride} onChange={e => setPriceOverride(parseFloat(e.target.value) || '')} />
                   {isRedeeming && <span className="text-xs font-bold text-emerald-600">-₱50.00 Rewards</span>}
                 </div>
+                {partsTotal > 0 && <div className="text-xs text-right text-slate-500 mt-1">+ ₱{partsTotal.toLocaleString()} for Parts</div>}
                 <div className="text-right text-lg font-black text-slate-800">
                   Final: ₱{finalPrice.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                 </div>

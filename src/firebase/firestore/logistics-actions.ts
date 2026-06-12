@@ -5,7 +5,7 @@ import { runTransactionResilient } from './resilient-transaction';
 
 export const getKatuwangDb = () => initializeFirebase().db;
 
-export async function addTrip(tenantId: string, origin: string, destination: string, loadDescription: string, driverName: string, deliveryFeeCentavos: number) {
+export async function addTrip(tenantId: string, origin: string, destination: string, loadDescription: string, driverName: string, plateNumber: string, deliveryFeeCentavos: number) {
   if (deliveryFeeCentavos < 0 || isNaN(deliveryFeeCentavos)) {
     throw new Error('Invalid delivery fee.');
   }
@@ -18,6 +18,7 @@ export async function addTrip(tenantId: string, origin: string, destination: str
     destination,
     loadDescription,
     driverName,
+    plateNumber,
     deliveryFee: deliveryFeeCentavos,
     tripExpenses: 0,
     status: 'planned',
@@ -52,7 +53,7 @@ export async function updateTripExpenses(tenantId: string, tripId: string, addit
   });
 }
 
-export async function updateTripStatus(tenantId: string, tripId: string, newStatus: 'planned' | 'loading' | 'in_transit' | 'arrived' | 'completed' | 'cancelled', signatureData?: string) {
+export async function updateTripStatus(tenantId: string, tripId: string, newStatus: 'planned' | 'loading' | 'in_transit' | 'arrived' | 'completed' | 'cancelled', signatureData?: string, paymentMethod: 'cash' | 'palista' = 'cash') {
   const db = getKatuwangDb();
   
   await runTransactionResilient(db, async (transaction) => {
@@ -84,10 +85,12 @@ export async function updateTripStatus(tenantId: string, tripId: string, newStat
     
     transaction.update(tripRef, updatePayload);
 
-    // ERP INTEGRATION: If the trip is completed, deposit the delivery fee into the Ledger
+    // ERP INTEGRATION: If the trip is completed, deposit the delivery fee into the Ledger (if cash)
     // AND deduct the trip expenses (Gas/Toll)
     if (newStatus === 'completed' && masterAccountRef && masterAccountSnap) {
-      const netImpact = deliveryFee - tripExpenses;
+      // If payment was Palista, the fee was already charged to credit, so cash impact is only expenses
+      const cashEarned = paymentMethod === 'cash' ? deliveryFee : 0;
+      const netImpact = cashEarned - tripExpenses;
 
       if (!masterAccountSnap.exists()) {
         transaction.set(masterAccountRef, {
@@ -111,13 +114,13 @@ export async function updateTripStatus(tenantId: string, tripId: string, newStat
       const transactionsRef = collection(db, 'tenants', tenantId, 'transactions');
 
       // Record the Income
-      if (deliveryFee > 0) {
+      if (cashEarned > 0) {
         const newTxRef = doc(transactionsRef);
         transaction.set(newTxRef, {
           id: newTxRef.id,
           tenantId,
           accountId: 'master-cash',
-          amount: deliveryFee,
+          amount: cashEarned,
           type: 'income',
           category: 'Sales',
           description: `Delivery Fee to: ${tripData.destination || 'Client'}`,

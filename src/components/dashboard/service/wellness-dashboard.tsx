@@ -16,6 +16,7 @@ import { format } from 'date-fns';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useSpaAppointments } from '@/hooks/use-spa';
 import { useToast } from '@/hooks/use-toast';
+import { CustomerReferralInput } from '@/components/common/customer-referral-input';
 import { 
   Sun, 
   Plus, 
@@ -48,6 +49,7 @@ export function WellnessDashboard() {
 
   // Spa State
   const { scheduledAppointments, waitingAppointments, inSessionAppointments, restingAppointments, doneAppointments, loading } = useSpaAppointments();
+  const [roomAssignments, setRoomAssignments] = useState<Record<string, string>>({});
 
   // Create Booking Form
   const [showAddForm, setShowAddForm] = useState(false);
@@ -61,6 +63,7 @@ export function WellnessDashboard() {
 
   // Loyalty Program
   const [customerPhone, setCustomerPhone] = useState('');
+  const [referrerCode, setReferrerCode] = useState('');
   const [pointsBalance, setPointsBalance] = useState(0);
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [isFetchingPoints, setIsFetchingPoints] = useState(false);
@@ -119,6 +122,7 @@ export function WellnessDashboard() {
         amountDue: Math.round(finalPrice * 100), // convert to cents securely
         paymentStatus: 'Unpaid',
         customerPhone: customerPhone || null,
+        referrerCode: referrerCode || null,
         appointmentDate: aptTimestamp,
         createdAt: serverTimestamp(),
       });
@@ -127,6 +131,7 @@ export function WellnessDashboard() {
       setServiceType('Massage');
       setPriceOverride('');
       setCustomerPhone('');
+      setReferrerCode('');
       setIsRedeeming(false);
       setIsScheduled(false);
       setAppointmentDate('');
@@ -140,14 +145,14 @@ export function WellnessDashboard() {
     }
   };
 
-  const updateStatus = async (appt: any, status: string, paymentStatus?: string) => {
+  const updateStatus = async (appt: any, status: string, paymentStatus?: string, roomNumber?: string) => {
     if (!currentTenant || !db) return;
     try {
       if (paymentStatus === 'Paid') {
         // ERP INTEGRATION: Complete order and collect payment
         
-        // Calculate 40% commission for the therapist
-        const commissionPercentage = 0.40;
+        // Calculate commission for the therapist (Default 40% if not set in tenant settings)
+        const commissionPercentage = currentTenant.therapistCommissionRate ?? 0.40;
         const commissionCentavos = Math.round((appt.amountDue || 0) * commissionPercentage);
         
         await completeServiceOrder(
@@ -162,7 +167,7 @@ export function WellnessDashboard() {
         if (appt.customerPhone && appt.amountDue > 0) {
           try {
             const { awardPoints } = await import('@/firebase/firestore/loyalty-actions');
-            await awardPoints(currentTenant.id, appt.customerPhone, appt.amountDue);
+            await awardPoints(currentTenant.id, appt.customerPhone, appt.amountDue, appt.referrerCode);
           } catch (e) {
             console.error("Failed to award points:", e);
           }
@@ -171,6 +176,7 @@ export function WellnessDashboard() {
         const apptRef = doc(db, 'tenants', currentTenant.id, 'spa_appointments', appt.id);
         const updates: any = { status, updatedAt: serverTimestamp() };
         if (paymentStatus) updates.paymentStatus = paymentStatus;
+        if (roomNumber) updates.roomNumber = roomNumber;
         await updateDoc(apptRef, updates);
       }
       toast({ title: 'Status Updated', description: `Client moved to ${status}.` });
@@ -195,6 +201,11 @@ export function WellnessDashboard() {
               <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
                 w/ {appointment.therapistName}
               </span>
+              {appointment.roomNumber && (
+                <Badge variant="outline" className="text-[9px] border-slate-200 text-slate-600 bg-slate-50">
+                  {appointment.roomNumber}
+                </Badge>
+              )}
             </div>
           </div>
           <div className="text-right">
@@ -291,12 +302,14 @@ export function WellnessDashboard() {
                 </div>
               </div>
               <div className="space-y-1 mt-2">
-                <Label className="text-xs flex justify-between">
-                  <span>Customer Phone (Katuwang Rewards)</span>
-                  {customerPhone && <span className="text-emerald-500 font-bold text-[10px]">{isFetchingPoints ? "..." : `${pointsBalance} pts`}</span>}
-                </Label>
-                <Input placeholder="e.g. 0917..." value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} />
-                {pointsBalance >= 100 && rawFinalPrice >= 50 && (
+                <CustomerReferralInput 
+                    customerPhone={customerPhone}
+                    setCustomerPhone={setCustomerPhone}
+                    referrerCode={referrerCode}
+                    setReferrerCode={setReferrerCode}
+                    primaryColor={theme.primary}
+                />
+                {customerPhone && pointsBalance >= 100 && rawFinalPrice >= 50 && (
                   <div className="flex items-center space-x-2 mt-2 bg-emerald-50 p-2 rounded-lg border border-emerald-100">
                     <Switch 
                       id="redeem-points-wellness" 
@@ -384,9 +397,27 @@ export function WellnessDashboard() {
               <div className="space-y-2">
                 {waitingAppointments.map(appt => (
                   <AppointmentCard key={appt.id} appointment={appt} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-purple-600 hover:bg-purple-700" onClick={() => updateStatus(appt, 'In Session')}>
-                      <Flower2 className="h-3 w-3 mr-1 text-purple-200" /> Start Session
-                    </Button>
+                    <div className="w-full flex gap-1">
+                      <select 
+                        className="border border-slate-200 text-[10px] rounded px-1 max-w-[80px]"
+                        value={roomAssignments[appt.id as string] || ''}
+                        onChange={e => setRoomAssignments(prev => ({...prev, [appt.id as string]: e.target.value}))}
+                      >
+                        <option value="">Room</option>
+                        <option value="Room 1">Room 1</option>
+                        <option value="Room 2">Room 2</option>
+                        <option value="Room 3">Room 3</option>
+                        <option value="VIP Room">VIP</option>
+                      </select>
+                      <Button 
+                        size="sm" 
+                        className="flex-1 h-7 text-[10px] bg-purple-600 hover:bg-purple-700" 
+                        disabled={!roomAssignments[appt.id as string]}
+                        onClick={() => updateStatus(appt, 'In Session', undefined, roomAssignments[appt.id as string])}
+                      >
+                        <Flower2 className="h-3 w-3 mr-1 text-purple-200" /> Start
+                      </Button>
+                    </div>
                   } />
                 ))}
               </div>

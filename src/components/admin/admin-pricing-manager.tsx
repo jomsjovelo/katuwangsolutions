@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Input } from '@/components/ui/input';
 import { useAppStoreConfig } from '@/hooks/use-app-store-config';
 import { doc, updateDoc, setDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
@@ -98,7 +99,7 @@ export function AdminPricingManager() {
           <div className="flex gap-2">
             <div className="relative flex-1">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-black">₱</span>
-              <input 
+              <Input 
                 type="number"
                 value={basePrice}
                 onChange={(e) => setBasePrice(e.target.value)}
@@ -119,7 +120,7 @@ export function AdminPricingManager() {
         <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
           <label className="text-xs font-black uppercase tracking-widest text-orange-600 block mb-2">Run App Promotion</label>
           <div className="flex flex-col sm:flex-row gap-2">
-            <input 
+            <Input 
               type="text"
               placeholder="App ID (e.g., benta-snap)"
               value={promoAppId}
@@ -128,7 +129,7 @@ export function AdminPricingManager() {
             />
             <div className="relative w-full sm:w-32">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-400 font-black">₱</span>
-              <input 
+              <Input 
                 type="number"
                 placeholder="Promo"
                 value={promoPrice}

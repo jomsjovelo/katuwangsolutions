@@ -18,6 +18,7 @@ import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useMenu } from '@/hooks/use-menu';
 import { useIngredients } from '@/hooks/use-ingredients';
 import { useToast } from '@/hooks/use-toast';
+import { CustomerReferralInput } from '@/components/common/customer-referral-input';
 import { 
   Coffee, 
   ChefHat, 
@@ -42,10 +43,10 @@ export function TimplaDashboard() {
   useDynamicThemeColor(theme);
 
   // Menu State
-  const { menuItems, availableItems, loading: menuLoading } = useMenu();
+  const { menuItems, availableItems, loading: menuLoading, error: menuError } = useMenu();
   
   // Ingredients State
-  const { activeIngredients, loading: ingredientsLoading } = useIngredients();
+  const { activeIngredients, loading: ingredientsLoading, error: ingredientsError } = useIngredients();
 
   // Recipe Builder State
   const [showAddIngredient, setShowAddIngredient] = useState(false);
@@ -62,11 +63,12 @@ export function TimplaDashboard() {
   const [selectedIngAmount, setSelectedIngAmount] = useState('');
 
   // Cart State for POS
-  const [cart, setCart] = useState<{ menuItemId: string; name: string; quantity: number; price: number }[]>([]);
+  const [cart, setCart] = useState<{ menuItemId: string; name: string; quantity: number; price: number; notes?: string }[]>([]);
   const [selectedTable, setSelectedTable] = useState('');
 
   // Loyalty Program
   const [customerPhone, setCustomerPhone] = useState('');
+  const [referrerCode, setReferrerCode] = useState('');
   const [pointsBalance, setPointsBalance] = useState(0);
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [isFetchingPoints, setIsFetchingPoints] = useState(false);
@@ -101,12 +103,27 @@ export function TimplaDashboard() {
         orderBy('createdAt', 'desc')) : null;
   }, [currentTenant?.id, db]);
 
-  const [ordersSnapshot, ordersLoading] = useCollection(ordersQuery as any);
+  const [ordersSnapshot, ordersLoading, ordersError] = useCollection(ordersQuery as any);
   
   const orders = ordersSnapshot?.docs.map((doc: any) => ({
     id: doc.id,
     ...doc.data()
   })) || [];
+
+  React.useEffect(() => {
+    if (ordersError) {
+      console.error("Orders listener error:", ordersError);
+      toast({ title: 'Connection Error', description: 'Failed to sync live orders.', variant: 'destructive' });
+    }
+    if (menuError) {
+      console.error("Menu listener error:", menuError);
+      toast({ title: 'Connection Error', description: 'Failed to sync menu items.', variant: 'destructive' });
+    }
+    if (ingredientsError) {
+      console.error("Ingredients listener error:", ingredientsError);
+      toast({ title: 'Connection Error', description: 'Failed to sync ingredients.', variant: 'destructive' });
+    }
+  }, [ordersError, menuError, ingredientsError, toast]);
 
   const pendingOrders = orders.filter((o: any) => o.status === 'pending');
   const preparingOrders = orders.filter((o: any) => o.status === 'preparing');
@@ -226,11 +243,13 @@ export function TimplaDashboard() {
         tableName,
         cart,
         isRedeeming ? 5000 : 0,
-        customerPhone || undefined
+        customerPhone || undefined,
+        referrerCode || undefined
       );
       setCart([]);
       setSelectedTable('');
       setCustomerPhone('');
+      setReferrerCode('');
       setIsRedeeming(false);
       toast({ title: 'Order Submitted!', description: 'Sent to the Barista.' });
     } catch (e: any) {
@@ -250,7 +269,7 @@ export function TimplaDashboard() {
       if (newStatus === 'served' && order.customerPhone && amount && amount > 0) {
         try {
           const { awardPoints } = await import('@/firebase/firestore/loyalty-actions');
-          await awardPoints(currentTenant.id, order.customerPhone, amount);
+          await awardPoints(currentTenant.id, order.customerPhone, amount, order.referrerCode);
         } catch (e) {
           console.error("Failed to award points:", e);
         }
@@ -337,25 +356,38 @@ export function TimplaDashboard() {
                 <CardContent className="p-0 max-h-40 overflow-y-auto">
                   <div className="divide-y divide-slate-100">
                     {cart.map((item, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-3 bg-white">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-sm">{item.quantity}x</span>
-                          <span className="text-sm text-slate-700">{item.name}</span>
+                      <div key={idx} className="p-3 bg-white space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-sm">{item.quantity}x</span>
+                            <span className="text-sm text-slate-700">{item.name}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="font-bold text-sm">₱{((item.price * item.quantity) / 100).toLocaleString()}</span>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 rounded-full" onClick={() => removeFromCart(item.menuItemId)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <span className="font-bold text-sm">₱{((item.price * item.quantity) / 100).toLocaleString()}</span>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 rounded-full" onClick={() => removeFromCart(item.menuItemId)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <Input 
+                          placeholder="Add note (e.g. Less ice)" 
+                          className="h-7 text-[10px]" 
+                          value={item.notes || ''} 
+                          onChange={e => {
+                            const newNotes = e.target.value;
+                            setCart(prev => prev.map(i => i.menuItemId === item.menuItemId ? { ...i, notes: newNotes } : i));
+                          }}
+                        />
                       </div>
                     ))}
                   </div>
                 </CardContent>
                 <div className="p-3 bg-white border-t border-slate-100 space-y-3">
                   <div className="space-y-1">
-                    <Label className="text-xs text-slate-500 font-bold uppercase tracking-widest">Table Name / Number</Label>
+                    <Label htmlFor="table-name" className="text-xs text-slate-500 font-bold uppercase tracking-widest">Table Name / Number</Label>
                     <Input 
+                      id="table-name"
+                      name="tableName"
                       placeholder="e.g. Table 5, VIP A, or leave blank for Takeout" 
                       value={selectedTable} 
                       onChange={e => setSelectedTable(e.target.value)}
@@ -364,12 +396,14 @@ export function TimplaDashboard() {
                   </div>
                   
                   <div className="space-y-1 mt-2">
-                    <Label className="text-xs flex justify-between">
-                      <span className="text-slate-500 font-bold uppercase tracking-widest">Customer Phone (Rewards)</span>
-                      {customerPhone && <span className="text-emerald-500 font-bold text-[10px]">{isFetchingPoints ? "..." : `${pointsBalance} pts`}</span>}
-                    </Label>
-                    <Input placeholder="e.g. 0917..." value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className="h-9 text-sm" />
-                    {pointsBalance >= 100 && cartTotal >= 5000 && (
+                    <CustomerReferralInput 
+                      customerPhone={customerPhone}
+                      setCustomerPhone={setCustomerPhone}
+                      referrerCode={referrerCode}
+                      setReferrerCode={setReferrerCode}
+                      primaryColor={theme.primary}
+                    />
+                    {customerPhone && pointsBalance >= 100 && cartTotal >= 5000 && (
                       <div className="flex items-center space-x-2 mt-2 bg-emerald-50 p-2 rounded-lg border border-emerald-100">
                         <Switch 
                           id="redeem-points-timpla" 
@@ -425,8 +459,11 @@ export function TimplaDashboard() {
                   <div className="p-3 space-y-2">
                     <ul className="space-y-1">
                       {order.items.map((item: any, i: any) => (
-                        <li key={i} className="text-sm flex justify-between border-b border-slate-50 pb-1 last:border-0">
-                          <span className="font-bold text-slate-700">{item.quantity}x {item.name}</span>
+                        <li key={i} className="text-sm flex flex-col border-b border-slate-50 pb-1 last:border-0">
+                          <div className="flex justify-between">
+                            <span className="font-bold text-slate-700">{item.quantity}x {item.name}</span>
+                          </div>
+                          {item.notes && <span className="text-[10px] text-red-500 font-bold uppercase pl-4">Note: {item.notes}</span>}
                         </li>
                       ))}
                     </ul>
@@ -453,8 +490,11 @@ export function TimplaDashboard() {
                   <div className="p-3 space-y-2">
                     <ul className="space-y-1">
                       {order.items.map((item: any, i: any) => (
-                        <li key={i} className="text-sm flex justify-between">
-                          <span className="font-medium text-slate-600">{item.quantity}x {item.name}</span>
+                        <li key={i} className="text-sm flex flex-col">
+                          <div className="flex justify-between">
+                            <span className="font-medium text-slate-600">{item.quantity}x {item.name}</span>
+                          </div>
+                          {item.notes && <span className="text-[10px] text-red-400 font-bold uppercase pl-4">Note: {item.notes}</span>}
                         </li>
                       ))}
                     </ul>
@@ -493,17 +533,17 @@ export function TimplaDashboard() {
               <Card className="shadow-sm border-slate-200 bg-white">
                 <CardContent className="p-4 space-y-3">
                   <div className="space-y-1">
-                    <Label className="text-xs">Ingredient Name</Label>
-                    <Input placeholder="e.g. Espresso Beans" value={newIngName} onChange={e => setNewIngName(e.target.value)} />
+                    <Label htmlFor="ing-name" className="text-xs">Ingredient Name</Label>
+                    <Input id="ing-name" name="ingName" placeholder="e.g. Espresso Beans" value={newIngName} onChange={e => setNewIngName(e.target.value)} />
                   </div>
                   <div className="flex gap-2">
                     <div className="flex-1 space-y-1">
-                      <Label className="text-xs">Unit (e.g. grams, pumps)</Label>
-                      <Input placeholder="grams" value={newIngUnit} onChange={e => setNewIngUnit(e.target.value)} />
+                      <Label htmlFor="ing-unit" className="text-xs">Unit (e.g. grams, pumps)</Label>
+                      <Input id="ing-unit" name="ingUnit" placeholder="grams" value={newIngUnit} onChange={e => setNewIngUnit(e.target.value)} />
                     </div>
                     <div className="flex-1 space-y-1">
-                      <Label className="text-xs">Cost per unit (¢)</Label>
-                      <Input type="number" placeholder="50" value={newIngCostStr} onChange={e => setNewIngCostStr(e.target.value)} />
+                      <Label htmlFor="ing-cost" className="text-xs">Cost per unit (¢)</Label>
+                      <Input id="ing-cost" name="ingCost" type="number" placeholder="50" value={newIngCostStr} onChange={e => setNewIngCostStr(e.target.value)} />
                       <p className="text-[9px] text-slate-400">Example: 50¢ per gram</p>
                     </div>
                   </div>
@@ -543,12 +583,12 @@ export function TimplaDashboard() {
                 <CardContent className="p-4 space-y-4">
                   <div className="flex gap-2">
                     <div className="flex-1 space-y-1">
-                      <Label className="text-xs">Drink Name</Label>
-                      <Input placeholder="e.g. Iced Latte" value={newMenuName} onChange={e => setNewMenuName(e.target.value)} />
+                      <Label htmlFor="menu-name" className="text-xs">Drink Name</Label>
+                      <Input id="menu-name" name="menuName" placeholder="e.g. Iced Latte" value={newMenuName} onChange={e => setNewMenuName(e.target.value)} />
                     </div>
                     <div className="w-24 space-y-1">
-                      <Label className="text-xs">Price (₱)</Label>
-                      <Input type="number" placeholder="120" value={newMenuPrice} onChange={e => setNewMenuPrice(e.target.value)} />
+                      <Label htmlFor="menu-price" className="text-xs">Price (₱)</Label>
+                      <Input id="menu-price" name="menuPrice" type="number" placeholder="120" value={newMenuPrice} onChange={e => setNewMenuPrice(e.target.value)} />
                     </div>
                   </div>
                   
@@ -585,7 +625,10 @@ export function TimplaDashboard() {
                         </select>
                       </div>
                       <div className="w-16 space-y-1">
+                        <Label htmlFor="recipe-qty" className="sr-only">Quantity</Label>
                         <Input 
+                          id="recipe-qty"
+                          name="recipeQty"
                           type="number" 
                           placeholder="Qty" 
                           className="h-8 text-xs" 

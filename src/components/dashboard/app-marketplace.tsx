@@ -18,10 +18,16 @@ interface AppMarketplaceProps {
 
 const APPS = [
   { id: 'benta-snap', name: 'Benta Snap', category: 'Retail', desc: 'Retail POS & Sari-Sari Store checkout', price: 199 },
-  { id: 'hiram-snap', name: 'Hiram Snap', category: 'Retail', desc: 'Micro-lending and 5-6 tracker', price: 149 },
   { id: 'fresh-tally', name: 'Fresh Tally', category: 'Retail', desc: 'Palengke and fresh goods inventory', price: 149 },
-  { id: 'tindahan-flow', name: 'Tindahan Flow', category: 'Retail', desc: 'Wholesale and local warehouse monitor', price: 299 },
+  { id: 'build-stack', name: 'Build Stack', category: 'Retail', desc: 'Hardware and construction supplies', price: 299 },
+  { id: '5-6-tracker', name: '5-6 Tracker', category: 'Finance', desc: 'Micro-lending and collection tracker', price: 149 },
   
+  { id: 'ledger-flow', name: 'Ledger Flow', category: 'Corporate', desc: 'Simple, clear accounting and main cash', price: 299 },
+  { id: 'sahod-flow', name: 'Sahod Flow', category: 'Corporate', desc: 'Automated staff payroll and timesheets', price: 249 },
+  
+  { id: 'biyahe-sync', name: 'Biyahe Sync', category: 'Logistics', desc: 'Trucking and delivery fee tracker', price: 349 },
+  { id: 'ani-grow', name: 'Ani Grow', category: 'Agriculture', desc: 'Farm harvest and bodega crop tracking', price: 199 },
+
   { id: 'bite-snap', name: 'Bite Snap', category: 'Food', desc: 'Eatery POS with Kitchen Display (KDS)', price: 299 },
   { id: 'timpla-track', name: 'Timpla Track', category: 'Food', desc: 'Cafe operations and counter orders', price: 199 },
   { id: 'ganap-master', name: 'Ganap Master', category: 'Events', desc: 'Catering and bulk order management', price: 399 },
@@ -32,14 +38,6 @@ const APPS = [
   { id: 'wellness-pro', name: 'Wellness Pro', category: 'Service', desc: 'Spa and wellness booking center', price: 199 },
   { id: 'trim-track', name: 'Trim Track', category: 'Service', desc: 'Salon and barbershop chair tracking', price: 149 },
   { id: 'rep-sync', name: 'Rep Sync', category: 'Service', desc: 'Gym membership and daily walk-ins', price: 299 },
-  
-  { id: 'ledger-flow', name: 'Ledger Flow', category: 'Corporate', desc: 'Simple, clear accounting and main cash', price: 299 },
-  { id: 'sahod-flow', name: 'Sahod Flow', category: 'Corporate', desc: 'Automated staff payroll and timesheets', price: 249 },
-  
-  { id: 'biyahe-sync', name: 'Biyahe Sync', category: 'Logistics', desc: 'Trucking and delivery fee tracker', price: 349 },
-  { id: 'sundo-sync', name: 'Sundo Sync', category: 'Logistics', desc: 'Tricycle / Transport terminal dispatcher', price: 199 },
-  { id: 'build-stack', name: 'Build Stack', category: 'Construction', desc: 'Hardware and construction supplies', price: 299 },
-  { id: 'ani-grow', name: 'Ani Grow', category: 'Agriculture', desc: 'Farm harvest and bodega crop tracking', price: 199 },
   
   { id: 'rental', name: 'Rental', category: 'Service', desc: 'Equipment and vehicle rentals', price: 249 },
 ];

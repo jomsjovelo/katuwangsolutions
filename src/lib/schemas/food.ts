@@ -47,6 +47,7 @@ export const FoodOrderSchema = z.object({
   })),
   totalAmount: z.coerce.number(),
   customerPhone: z.string().optional(),
+  referrerCode: z.string().optional(),
   createdAt: z.any().optional(),
 });
 

@@ -20,24 +20,56 @@ interface BillingLog {
   timestamp: any;
 }
 
+type MonthFilter = 'current' | 'last' | 'all';
+
 export function AdminBillingLogs() {
   const [logs, setLogs] = useState<BillingLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [monthFilter, setMonthFilter] = useState<MonthFilter>('all');
 
   useEffect(() => {
     const { db } = initializeFirebase();
     const q = query(collection(db, 'billing_logs'), orderBy('timestamp', 'desc'));
     
-    const unsubscribe = onSnapshot(q, (snap) => {
-      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as BillingLog));
-      setLogs(data);
-      setLoading(false);
-    });
+    const unsubscribe = onSnapshot(q, 
+      (snap) => {
+        const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as BillingLog));
+        setLogs(data);
+        setLoading(false);
+        setError(null);
+      },
+      (err) => {
+        console.error("Billing logs listener error:", err);
+        setError("Failed to load billing logs. Check your permissions.");
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
   }, []);
 
-  const totalCollected = logs.reduce((acc, log) => acc + log.amount, 0);
+  const filterLogsByMonth = (logs: BillingLog[], filter: MonthFilter) => {
+    if (filter === 'all') return logs;
+    const now = new Date();
+    const targetMonth = filter === 'current' ? now.getMonth() : now.getMonth() - 1;
+    const targetYear = filter === 'current' ? now.getFullYear() : (now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear());
+    return logs.filter(log => {
+      if (!log.timestamp) return false;
+      const d = new Date(log.timestamp.seconds * 1000);
+      return d.getMonth() === targetMonth && d.getFullYear() === targetYear;
+    });
+  };
+
+  const filteredLogs = filterLogsByMonth(logs, monthFilter);
+  const totalCollected = filteredLogs.reduce((acc, log) => acc + log.amount, 0);
+
+  // MoM delta
+  const currentMonthLogs = filterLogsByMonth(logs, 'current');
+  const lastMonthLogs = filterLogsByMonth(logs, 'last');
+  const currentTotal = currentMonthLogs.reduce((a, l) => a + l.amount, 0);
+  const lastTotal = lastMonthLogs.reduce((a, l) => a + l.amount, 0);
+  const momDelta = lastTotal > 0 ? Math.round(((currentTotal - lastTotal) / lastTotal) * 100) : null;
 
   // Prepare chart data
   const revenueByDate = logs.reduce((acc, log) => {
@@ -54,16 +86,48 @@ export function AdminBillingLogs() {
 
   return (
     <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl text-sm font-medium flex items-center gap-2">
+          <span>⚠️ {error}</span>
+        </div>
+      )}
+
+      {/* Month Filter */}
+      <div className="flex items-center gap-2">
+        {(['current', 'last', 'all'] as MonthFilter[]).map(f => (
+          <button
+            key={f}
+            onClick={() => setMonthFilter(f)}
+            className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-colors ${
+              monthFilter === f ? 'bg-primary text-white shadow-md' : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'
+            }`}
+          >
+            {f === 'current' ? 'This Month' : f === 'last' ? 'Last Month' : 'All Time'}
+          </button>
+        ))}
+        {momDelta !== null && (
+          <span className={`text-xs font-bold ml-2 px-2 py-1 rounded-full ${
+            momDelta >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+          }`}>
+            {momDelta >= 0 ? '↑' : '↓'} {Math.abs(momDelta)}% vs last month
+          </span>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-xl border-none col-span-1">
           <CardHeader className="pb-2">
-            <CardDescription className="text-white/70 font-bold uppercase tracking-widest text-[10px]">Total Revenue Logged</CardDescription>
+            <CardDescription className="text-white/70 font-bold uppercase tracking-widest text-[10px]">
+              {monthFilter === 'all' ? 'All-Time Revenue' : monthFilter === 'current' ? 'This Month Revenue' : 'Last Month Revenue'}
+            </CardDescription>
             <CardTitle className="text-4xl font-black">₱{totalCollected.toLocaleString()}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2 text-emerald-100 text-xs font-medium">
               <ArrowUpRight className="h-4 w-4" />
-              <span>All time collections via approval</span>
+              <span>{filteredLogs.length} billing event{filteredLogs.length !== 1 ? 's' : ''}</span>
             </div>
           </CardContent>
         </Card>
@@ -113,14 +177,14 @@ export function AdminBillingLogs() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {logs.length === 0 ? (
+              {filteredLogs.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-12 text-slate-400 font-medium">
                     No billing logs found. Approve a tenant to generate a log.
                   </TableCell>
                 </TableRow>
               ) : (
-                logs.map(log => (
+                filteredLogs.map(log => (
                   <TableRow key={log.id} className="hover:bg-slate-50/50 transition-colors">
                     <TableCell>
                       <div className="flex items-center gap-2 text-sm text-slate-600">

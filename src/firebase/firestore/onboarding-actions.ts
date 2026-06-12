@@ -10,6 +10,7 @@ import {
 } from 'firebase/auth';
 import { initializeFirebase } from '../index';
 import { BusinessInfoSchema, AccountSchema } from '@/lib/schemas/onboarding';
+import { generateUniqueReferralCode } from './referral-utils';
 
 export async function registerNewTenant(onboardingData: any) {
   const { auth, db } = initializeFirebase();
@@ -53,25 +54,7 @@ export async function registerNewTenant(onboardingData: any) {
     }
 
     // 2.5 Generate Unique 4-Char Referral Code
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let referralCode = '';
-    let isRefUnique = false;
-    let refAttempts = 0;
-    while (!isRefUnique && refAttempts < 10) {
-      referralCode = '';
-      for (let i = 0; i < 4; i++) {
-        referralCode += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-      const refCodeSnap = await getDoc(doc(db, 'referral_codes', referralCode));
-      if (!refCodeSnap.exists()) {
-        isRefUnique = true;
-      }
-      refAttempts++;
-    }
-
-    if (!isRefUnique) {
-      throw new Error("Failed to generate a unique referral code. Please try again.");
-    }
+    const referralCode = await generateUniqueReferralCode(db);
 
     // 3. Atomic Firestore Write
     try {

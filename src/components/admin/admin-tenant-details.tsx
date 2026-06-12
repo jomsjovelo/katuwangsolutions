@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Tenant } from '@/store/use-tenant-store';
 import { Button } from "@/components/ui/button";
@@ -16,11 +17,13 @@ interface AdminTenantDetailsProps {
   isOpen: boolean;
   onClose: () => void;
   updateNextBillingDate: (id: string, date: Date | null) => Promise<void>;
+  processTenantRenewal?: (tenant: Tenant) => Promise<void>;
 }
 
-export function AdminTenantDetails({ tenant, isOpen, onClose, updateNextBillingDate }: AdminTenantDetailsProps) {
+export function AdminTenantDetails({ tenant, isOpen, onClose, updateNextBillingDate, processTenantRenewal }: AdminTenantDetailsProps) {
   const [isSendingReset, setIsSendingReset] = useState(false);
   const [isUpdatingDate, setIsUpdatingDate] = useState(false);
+  const [isRenewing, setIsRenewing] = useState(false);
   const [staffList, setStaffList] = useState<any[]>([]);
 
   useEffect(() => {
@@ -130,9 +133,33 @@ export function AdminTenantDetails({ tenant, isOpen, onClose, updateNextBillingD
                 </Badge>
               </div>
               <div className="pt-2 border-t border-slate-200">
-                <span className="text-sm font-medium text-slate-500 block mb-2">Next Billing Date</span>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-slate-500 block">Next Billing Date</span>
+                  {processTenantRenewal && (
+                    <Button 
+                      size="sm"
+                      onClick={async () => {
+                        if (confirm(`Are you sure you want to process a 30-day renewal for ${tenant.name}? This will apply any referral bonuses if applicable.`)) {
+                          setIsRenewing(true);
+                          try {
+                            await processTenantRenewal(tenant);
+                            alert("Renewal processed successfully.");
+                          } catch (err) {
+                            alert("Failed to process renewal.");
+                          } finally {
+                            setIsRenewing(false);
+                          }
+                        }
+                      }}
+                      disabled={isRenewing}
+                      className="h-7 text-[10px] font-bold bg-emerald-500 hover:bg-emerald-600 text-white tracking-widest uppercase rounded-lg"
+                    >
+                      {isRenewing ? 'Processing...' : '+30 Days (Renew)'}
+                    </Button>
+                  )}
+                </div>
                 <div className="flex items-center gap-2">
-                  <input 
+                  <Input 
                     type="date"
                     className="flex-1 text-sm font-bold border border-slate-200 rounded-xl h-12 px-3 focus:ring-2 focus:ring-primary focus:outline-none"
                     defaultValue={tenant.nextBillingDate ? new Date(typeof tenant.nextBillingDate === 'object' && tenant.nextBillingDate !== null && 'seconds' in tenant.nextBillingDate ? (tenant.nextBillingDate as any).seconds * 1000 : tenant.nextBillingDate as any).toISOString().split('T')[0] : ''}
@@ -142,7 +169,7 @@ export function AdminTenantDetails({ tenant, isOpen, onClose, updateNextBillingD
                       updateNextBillingDate(tenant.id, new Date(e.target.value))
                         .finally(() => setIsUpdatingDate(false));
                     }}
-                    disabled={isUpdatingDate}
+                    disabled={isUpdatingDate || isRenewing}
                   />
                   {tenant.nextBillingDate && (
                     <Button 
@@ -152,7 +179,7 @@ export function AdminTenantDetails({ tenant, isOpen, onClose, updateNextBillingD
                         updateNextBillingDate(tenant.id, null).finally(() => setIsUpdatingDate(false));
                       }}
                       className="text-slate-400 hover:text-destructive h-12 px-4 rounded-xl font-bold"
-                      disabled={isUpdatingDate}
+                      disabled={isUpdatingDate || isRenewing}
                     >
                       Clear
                     </Button>

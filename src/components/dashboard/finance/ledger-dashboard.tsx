@@ -3,8 +3,8 @@
 import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { addTransaction } from '@/firebase/firestore/finance-actions';
-import { useCollection } from 'react-firebase-hooks/firestore';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
+import { useCollection, useDocument } from 'react-firebase-hooks/firestore';
+import { collection, query, orderBy, limit, doc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -55,17 +55,33 @@ export function LedgerDashboard() {
         orderBy('createdAt', 'desc'),
         limit(50)) : null;
   }, [currentTenant?.id, db]);
-  const [txSnapshot, loading] = useCollection(txQuery as any);
+  const [txSnapshot, loading, txError] = useCollection(txQuery as any);
 
-  let totalIncome = 0;
-  let totalExpense = 0;
+  // Live stream of the True Master Cash Balance
+  const masterAccountRef = React.useMemo(() => {
+    return currentTenant && db
+    ? doc(db, 'tenants', currentTenant.id, 'accounts', 'master-cash')
+    : null;
+  }, [currentTenant?.id, db]);
+  
+  const [masterSnap, masterLoading, masterError] = useDocument(masterAccountRef as any);
+  const trueCashBalance = masterSnap?.exists() ? (masterSnap.data().balance || 0) : 0;
+
+  React.useEffect(() => {
+    if (txError || masterError) {
+      console.error("Ledger listener error:", txError || masterError);
+      toast({ title: 'Connection Error', description: 'Failed to sync live ledger data.', variant: 'destructive' });
+    }
+  }, [txError, masterError, toast]);
+
+  let recentIncome = 0;
+  let recentExpense = 0;
   const transactions = txSnapshot?.docs.map((doc: any) => {
     const data = doc.data();
-    if (data.type === 'income') totalIncome += data.amount;
-    if (data.type === 'expense') totalExpense += data.amount;
+    if (data.type === 'income') recentIncome += data.amount;
+    if (data.type === 'expense') recentExpense += data.amount;
     return { id: doc.id, ...data };
   }) || [];
-  const cashBalance = totalIncome - totalExpense;
 
   // --- Add Entry Form ---
   const [showForm, setShowForm] = useState(false);
@@ -79,7 +95,7 @@ export function LedgerDashboard() {
   const categories = entryType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
 
   const budgetThreshold = budgetLimit * 100 * 0.8;
-  const showBudgetWarning = totalExpense >= budgetThreshold;
+  const showBudgetWarning = recentExpense >= budgetThreshold;
 
   // Reset category when toggling entry type
   const switchType = (type: 'income' | 'expense') => {
@@ -195,7 +211,7 @@ export function LedgerDashboard() {
             <div>
               <h4 className="text-sm font-bold text-rose-700">Budget Alert</h4>
               <p className="text-xs text-rose-600 mt-0.5">
-                You have spent ₱{(totalExpense / 100).toLocaleString()} which is near or over your ₱{budgetLimit.toLocaleString()} limit.
+                You have recently spent ₱{(recentExpense / 100).toLocaleString()} which is near or over your ₱{budgetLimit.toLocaleString()} warning limit.
               </p>
             </div>
           </div>
@@ -234,8 +250,10 @@ export function LedgerDashboard() {
 
               {/* Amount */}
               <div className="space-y-1">
-                <Label className="text-xs">Amount (₱)</Label>
+                <Label htmlFor="ledger-amount" className="text-xs">Amount (₱)</Label>
                 <Input
+                  id="ledger-amount"
+                  name="ledgerAmount"
                   type="number"
                   placeholder="e.g. 3500"
                   className="text-lg font-bold h-11"
@@ -269,8 +287,10 @@ export function LedgerDashboard() {
 
               {/* Description / Notes */}
               <div className="space-y-1">
-                <Label className="text-xs">Notes (Optional)</Label>
+                <Label htmlFor="ledger-notes" className="text-xs">Notes (Optional)</Label>
                 <Input
+                  id="ledger-notes"
+                  name="ledgerNotes"
                   placeholder="e.g. Breakfast orders, Electric bill..."
                   value={description}
                   onChange={e => setDescription(e.target.value)}
@@ -302,21 +322,21 @@ export function LedgerDashboard() {
           <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/5" />
           <div className="absolute -left-6 -bottom-6 h-32 w-32 rounded-full bg-white/5" />
           <CardContent className="p-4 relative z-10">
-            <p className="text-[10px] font-black uppercase tracking-widest text-white/70">Cash Balance</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-white/70">Master Cash Balance</p>
             <p className={cn(
               "text-4xl font-black font-headline tracking-tighter mt-1",
-              cashBalance < 0 && "text-red-200"
+              trueCashBalance < 0 && "text-red-200"
             )}>
-              ₱{(cashBalance / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+              ₱{(trueCashBalance / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
             </p>
             <div className="flex gap-3 mt-3">
               <div className="bg-white/10 rounded-lg px-3 py-1.5 backdrop-blur-sm">
-                <p className="text-[9px] text-white/60 uppercase tracking-wider font-bold">Income</p>
-                <p className="text-sm font-black text-emerald-300">+₱{(totalIncome / 100).toLocaleString('en-PH')}</p>
+                <p className="text-[9px] text-white/60 uppercase tracking-wider font-bold">Recent Income</p>
+                <p className="text-sm font-black text-emerald-300">+₱{(recentIncome / 100).toLocaleString('en-PH')}</p>
               </div>
               <div className="bg-white/10 rounded-lg px-3 py-1.5 backdrop-blur-sm">
-                <p className="text-[9px] text-white/60 uppercase tracking-wider font-bold">Expenses</p>
-                <p className="text-sm font-black text-red-300">-₱{(totalExpense / 100).toLocaleString('en-PH')}</p>
+                <p className="text-[9px] text-white/60 uppercase tracking-wider font-bold">Recent Expenses</p>
+                <p className="text-sm font-black text-red-300">-₱{(recentExpense / 100).toLocaleString('en-PH')}</p>
               </div>
             </div>
           </CardContent>

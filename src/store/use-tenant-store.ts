@@ -22,6 +22,8 @@ export interface Tenant {
   // Multi-Branch Enterprise Support
   parentTenantId?: string; 
   branchName?: string;
+  therapistCommissionRate?: number;
+  mechanicCommissionRate?: number;
 }
 
 export interface UserProfile {
