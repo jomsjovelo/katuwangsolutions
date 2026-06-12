@@ -42,7 +42,35 @@ export default function TermsPage() {
             <p className="text-slate-600 leading-relaxed">
               <strong>Pricing:</strong> Access to a single Katuwang module is billed at ₱99.00 per month (Philippine Peso). <br />
               <strong>No Auto-Renew:</strong> We do not automatically charge your payment method at the end of your billing cycle. You must manually renew your subscription to continue accessing the module. <br />
-              <strong>Cancellation:</strong> You may cancel your use of the service at any time. Because there is no auto-renew, simply allowing your subscription to expire acts as cancellation. We do not offer refunds for partial months used.
+              <strong>Cancellation:</strong> You may cancel your use of the service at any time. Because there is no auto-renew, simply allowing your subscription to expire acts as cancellation.
+            </p>
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mt-4">
+              <strong className="text-red-800 block mb-1">Strict No Refunds Policy</strong>
+              <p className="text-red-700 text-sm">
+                All payments made for subscriptions and module unlocks are final and non-refundable. We do not provide refunds or credits for any partial-month membership periods or unused software features. Please ensure you fully intend to use the module before making a payment.
+              </p>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="text-xl font-bold text-slate-900">3. App Marketplace & Modules</h2>
+            <p className="text-slate-600 leading-relaxed">
+              Katuwang Solutions offers an ecosystem of modules (e.g., Inventory, Retail POS, Food & Bev, Farm, Rental). 
+              You may request access to additional modules through the App Marketplace inside your dashboard. 
+              Activation of additional modules requires manual verification and payment of the corresponding subscription fee.
+            </p>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="text-xl font-bold text-slate-900">4. Referral Program</h2>
+            <p className="text-slate-600 leading-relaxed">
+              We offer a single-tier affiliate Referral Program allowing users to earn commission by inviting other businesses to use Katuwang Solutions.
+              <br /><br />
+              <strong>Earnings Structure:</strong> Referrers earn a base commission of ₱10.00 upon a successful activation or renewal by a referred user. An additional ₱10.00 is awarded for every extra App Module the referred user has active.
+              <br />
+              <strong>Withdrawals:</strong> Earnings can be withdrawn to a GCash or Maya account once the minimum threshold of ₱200.00 is reached.
+              <br />
+              <strong>Fraud & Abuse:</strong> Katuwang Solutions strictly monitors the referral system. We reserve the right to permanently suspend accounts, forfeit referral balances, and reject withdrawal requests if we detect any fraudulent activities, self-referrals, or abuse of the referral program.
             </p>
           </section>
 

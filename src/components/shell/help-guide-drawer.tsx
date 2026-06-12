@@ -206,7 +206,7 @@ export function HelpGuideDrawer({
                    <div>
                      <p className="text-xs font-bold text-amber-900 mb-0.5">Ano ang kikitain ko?</p>
                      <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
-                       Makakakuha ka ng <strong className="font-black text-emerald-600">₱10.00</strong> tuwing may mag-aactivate gamit ang code mo, at <strong className="font-black text-emerald-600">₱10.00 ulit</strong> tuwing mag-rerenew sila ng subscription. Direct referrals lang po ang may kita.
+                       Makakakuha ka ng base amount na <strong className="font-black text-emerald-600">₱10.00</strong>, at dagdag na <strong className="font-black text-emerald-600">₱10.00</strong> para sa bawat karagdagang App Module na active sa kanilang store, tuwing sila ay mag-aactivate o mag-rerenew. Mas maraming gamit na apps ang invite mo, mas malaki ang kita mo! Direct referrals lang po ang may kita.
                      </p>
                    </div>
                  </div>
@@ -226,7 +226,7 @@ export function HelpGuideDrawer({
                    <div>
                      <p className="text-xs font-bold text-amber-900 mb-0.5">Paano i-withdraw (Cash Out)?</p>
                      <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
-                       Kapag umabot na ng <strong className="font-black text-emerald-600">₱200.00</strong> ang ipon mo, lalabas ang "Withdraw" button sa Profile Tab. Ipasok ang inyong GCash o Maya details at matatanggap ang payout sa loob ng 24-48 hours.
+                       Kapag umabot na ng <strong className="font-black text-emerald-600">₱200.00</strong> ang ipon mo, lalabas ang "Withdraw" button sa Profile Tab. Ipasok ang inyong GCash o Maya details. Kung magka-error o ma-reject ang inyong request (halimbawa, maling GCash number), ibabalik agad namin ang pera sa inyong Katuwang Balance para mai-withdraw ulit nang tama.
                      </p>
                    </div>
                  </div>
