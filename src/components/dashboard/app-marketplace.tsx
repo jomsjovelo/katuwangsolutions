@@ -100,6 +100,19 @@ export function AppMarketplace({ isOpen, onClose }: AppMarketplaceProps) {
           </button>
         </div>
 
+        {/* Urgency Banner */}
+        <div className="bg-gradient-to-r from-red-500 to-rose-600 p-3 rounded-xl mb-4 shrink-0 shadow-md animate-in slide-in-from-top-2">
+          <div className="flex items-start gap-2">
+            <span className="text-xl">🔥</span>
+            <div>
+              <p className="text-white text-xs font-black uppercase tracking-widest mb-0.5">Early Adopter Promo!</p>
+              <p className="text-red-100 text-[10px] font-medium leading-snug">
+                Get modules for just ₱99/mo instead of ₱199. <strong className="text-white">Lock in this price forever</strong> before the promo ends!
+              </p>
+            </div>
+          </div>
+        </div>
+
         {checkoutApp ? (
           <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-6 animate-in slide-in-from-right-4">
             <div className="w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 mb-2">
@@ -174,15 +187,15 @@ export function AppMarketplace({ isOpen, onClose }: AppMarketplaceProps) {
                         return (
                           <>
                             {pricing.isPromo && (
-                              <div className="text-[10px] font-bold text-red-500 mb-0.5 animate-pulse uppercase tracking-widest">
-                                Promo Sale!
+                              <div className="text-[9px] font-black text-white bg-red-500 px-2 py-0.5 rounded-md mb-1 inline-block uppercase tracking-widest shadow-sm">
+                                SAVE ₱{pricing.originalPrice - pricing.price}/mo
                               </div>
                             )}
-                            <div className="font-black text-slate-800 tracking-tight flex items-center justify-end gap-1">
+                            <div className="font-black text-slate-800 tracking-tight flex items-center justify-end gap-1.5">
                               {pricing.isPromo && (
-                                <span className="text-slate-300 line-through text-[10px]">₱{pricing.originalPrice}</span>
+                                <span className="text-slate-400 line-through text-[11px] font-bold">₱{pricing.originalPrice}</span>
                               )}
-                              <span>₱{pricing.price}<span className="text-[8px] text-slate-400 font-bold">/mo</span></span>
+                              <span className="text-emerald-600">₱{pricing.price}<span className="text-[9px] text-slate-400 font-bold ml-0.5">/mo</span></span>
                             </div>
                           </>
                         );

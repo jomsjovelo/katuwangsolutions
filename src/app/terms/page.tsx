@@ -40,7 +40,8 @@ export default function TermsPage() {
           <section className="space-y-4">
             <h2 className="text-xl font-bold text-slate-900">2. Subscription and Billing</h2>
             <p className="text-slate-600 leading-relaxed">
-              <strong>Pricing:</strong> Access to a single Katuwang module is billed at ₱99.00 per month (Philippine Peso). <br />
+              <strong>Pricing:</strong> The standard rate for a single Katuwang module is ₱199.00 per month (Philippine Peso). <br />
+              <strong>Promotional Rates & Grandfather Clause:</strong> We may occasionally offer promotional rates (e.g., ₱99.00 per month). If you subscribe during a promotional period, you lock in that discounted rate for the lifetime of your continuous subscription. However, if your subscription lapses or expires, you will be subject to the standard ₱199.00 rate upon reactivation.<br />
               <strong>No Auto-Renew:</strong> We do not automatically charge your payment method at the end of your billing cycle. You must manually renew your subscription to continue accessing the module. <br />
               <strong>Cancellation:</strong> You may cancel your use of the service at any time. Because there is no auto-renew, simply allowing your subscription to expire acts as cancellation.
             </p>
@@ -75,7 +76,7 @@ export default function TermsPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">3. Data Privacy and Security</h2>
+            <h2 className="text-xl font-bold text-slate-900">5. Data Privacy and Security</h2>
             <p className="text-slate-600 leading-relaxed">
               We respect your business data. Katuwang Solutions acts as a data processor for your store's inventory, sales, and employee data. 
               <br /><br />
@@ -86,21 +87,21 @@ export default function TermsPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">4. Service Availability</h2>
+            <h2 className="text-xl font-bold text-slate-900">6. Service Availability</h2>
             <p className="text-slate-600 leading-relaxed">
               While we strive for a 99.9% uptime, Katuwang Solutions is provided "as is" and "as available". We do not guarantee that the service will be uninterrupted or error-free. We reserve the right to temporarily suspend the service for maintenance or updates.
             </p>
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">5. User Conduct</h2>
+            <h2 className="text-xl font-bold text-slate-900">7. User Conduct</h2>
             <p className="text-slate-600 leading-relaxed">
               You agree not to use the Service for any unlawful purpose or in any way that could damage, disable, or impair our servers or networks. You are solely responsible for compliance with all local laws and regulations (including BIR tax regulations) pertaining to your business operations. Katuwang Solutions is a tool to assist your business, but does not replace professional legal or accounting advice.
             </p>
           </section>
           
           <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">6. Modifications to Terms</h2>
+            <h2 className="text-xl font-bold text-slate-900">8. Modifications to Terms</h2>
             <p className="text-slate-600 leading-relaxed">
               We reserve the right to modify these terms at any time. We will notify users of any significant changes via email or an in-app announcement. Continued use of the service after such changes constitutes acceptance of the new terms.
             </p>

@@ -5,6 +5,10 @@
   },
   "hosting": {
     "source": ".",
+    "frameworksBackend": {
+      "minInstances": 1,
+      "concurrency": 80
+    },
     "ignore": [
       "firebase.json",
       "**/.*",

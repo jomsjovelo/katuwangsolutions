@@ -196,7 +196,7 @@ export function HelpGuideDrawer({
                    <div>
                      <p className="text-xs font-bold text-amber-900 mb-0.5">Paano kumita?</p>
                      <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
-                       Hanapin ang iyong 4-letter <strong className="font-black">Referral Code</strong> o Link sa <strong className="font-bold underline">Profile Tab</strong>. I-share ito sa ibang business owners.
+                       Hanapin ang iyong 4-letter <strong className="font-black">Referral Code</strong> o Link sa <strong className="font-bold underline">Profile Tab</strong>. I-share ito sa ibang business owners. <strong className="font-bold text-red-600">TIP: I-invite na sila habang ₱99/mo Promo pa ang Katuwang para mas madali silang mapasali!</strong>
                      </p>
                    </div>
                  </div>
