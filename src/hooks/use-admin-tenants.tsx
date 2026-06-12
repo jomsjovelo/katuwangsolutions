@@ -87,27 +87,35 @@ export function useAdminTenants() {
 
         // Process referral credit
         const anyTenant = tenant as any;
-        if (anyTenant.referredBy) {
+        if (anyTenant.referredBy && !anyTenant.referralPaid) {
           const { query, where, increment } = await import('firebase/firestore');
           const usersRef = collection(db, 'users');
           const q = query(usersRef, where('referralCode', '==', anyTenant.referredBy));
           const qSnap = await getDocs(q);
           
           if (!qSnap.empty) {
+            const totalModules = 1 + (tenant.unlockedModules?.length || 0);
+            const rewardAmount = totalModules * 10;
             const referrerDoc = qSnap.docs[0];
-            batch.update(referrerDoc.ref, { referralEarnings: increment(10) });
+            batch.update(referrerDoc.ref, { 
+              referralEarnings: increment(rewardAmount),
+              availableBalance: increment(rewardAmount)
+            });
             
             const historyRef = doc(collection(db, 'users', referrerDoc.id, 'referral_history'));
             batch.set(historyRef, {
               referredTenantId: tenant.id,
               referredTenantName: tenant.name,
               referredOwnerEmail: tenant.ownerEmail || '',
-              amountEarned: 10,
+              amountEarned: rewardAmount,
               type: 'activation',
               creditedAt: serverTimestamp(),
             });
 
-            batch.update(tenantRef, { referralPaid: true });
+            batch.update(tenantRef, { 
+              referralPaid: true,
+              lastReferralPaidAt: serverTimestamp()
+            });
           }
         }
       }
@@ -128,24 +136,36 @@ export function useAdminTenants() {
         // Process recurring referral credit on renewal
         const anyTenant = tenant as any;
         if (anyTenant.referredBy) {
-          const { query, where, increment } = await import('firebase/firestore');
-          const usersRef = collection(db, 'users');
-          const q = query(usersRef, where('referralCode', '==', anyTenant.referredBy));
-          const qSnap = await getDocs(q);
+          const lastPaidMillis = anyTenant.lastReferralPaidAt?.seconds ? anyTenant.lastReferralPaidAt.seconds * 1000 : 0;
+          const daysSinceLastPaid = (Date.now() - lastPaidMillis) / (1000 * 60 * 60 * 24);
           
-          if (!qSnap.empty) {
-            const referrerDoc = qSnap.docs[0];
-            batch.update(referrerDoc.ref, { referralEarnings: increment(10) });
+          if (daysSinceLastPaid > 20) {
+            const { query, where, increment } = await import('firebase/firestore');
+            const usersRef = collection(db, 'users');
+            const q = query(usersRef, where('referralCode', '==', anyTenant.referredBy));
+            const qSnap = await getDocs(q);
             
-            const historyRef = doc(collection(db, 'users', referrerDoc.id, 'referral_history'));
-            batch.set(historyRef, {
-              referredTenantId: tenant.id,
-              referredTenantName: tenant.name,
-              referredOwnerEmail: tenant.ownerEmail || '',
-              amountEarned: 10,
-              type: 'renewal',
-              creditedAt: serverTimestamp(),
-            });
+            if (!qSnap.empty) {
+              const totalModules = 1 + (tenant.unlockedModules?.length || 0);
+              const rewardAmount = totalModules * 10;
+              const referrerDoc = qSnap.docs[0];
+              batch.update(referrerDoc.ref, { 
+                referralEarnings: increment(rewardAmount),
+                availableBalance: increment(rewardAmount)
+              });
+              
+              const historyRef = doc(collection(db, 'users', referrerDoc.id, 'referral_history'));
+              batch.set(historyRef, {
+                referredTenantId: tenant.id,
+                referredTenantName: tenant.name,
+                referredOwnerEmail: tenant.ownerEmail || '',
+                amountEarned: rewardAmount,
+                type: 'renewal',
+                creditedAt: serverTimestamp(),
+              });
+
+              batch.update(tenantRef, { lastReferralPaidAt: serverTimestamp() });
+            }
           }
         }
       }
@@ -188,6 +208,37 @@ export function useAdminTenants() {
       }
     } catch (err) {
       console.error('Failed to update tenant pricing:', err);
+      throw err;
+    }
+  };
+
+  const toggleTenantModule = async (id: string, currentModules: string[] | undefined, moduleId: string) => {
+    try {
+      const { db } = initializeFirebase();
+      const auth = getAuth();
+      const adminUser = auth.currentUser;
+      const tenantRef = doc(db, 'tenants', id);
+      
+      const current = currentModules || [];
+      const isRemoving = current.includes(moduleId);
+      const { arrayUnion, arrayRemove } = await import('firebase/firestore');
+
+      await updateDoc(tenantRef, { 
+        unlockedModules: isRemoving ? arrayRemove(moduleId) : arrayUnion(moduleId) 
+      });
+
+      if (adminUser) {
+        await addDoc(collection(db, 'admin_logs'), {
+          adminUid: adminUser.uid,
+          adminEmail: adminUser.email || 'Unknown',
+          action: 'TOGGLE_TENANT_MODULE',
+          details: `${isRemoving ? 'Removed' : 'Added'} module ${moduleId} for tenant ${id}`,
+          targetId: id,
+          timestamp: serverTimestamp()
+        });
+      }
+    } catch (err) {
+      console.error('Failed to toggle tenant module:', err);
       throw err;
     }
   };
@@ -293,11 +344,6 @@ export function useAdminTenants() {
       const nextDate = new Date(baseDate);
       nextDate.setDate(nextDate.getDate() + 30);
       
-      batch.update(tenantRef, { 
-        nextBillingDate: nextDate,
-        subscriptionStatus: 'active' 
-      });
-
       // 2. Add Billing Log
       const amount = tenant.pricingTier === 'promo_99' ? 99 : tenant.pricingTier === 'standard_199' ? 199 : 499;
       const logRef = doc(collection(db, 'billing_logs'));
@@ -311,28 +357,46 @@ export function useAdminTenants() {
       });
 
       // 3. Process referral credit
+      let paidReferralNow = false;
       const anyTenant = tenant as any;
       if (anyTenant.referredBy) {
-        const { query, where, increment } = await import('firebase/firestore');
-        const usersRef = collection(db, 'users');
-        const q = query(usersRef, where('referralCode', '==', anyTenant.referredBy));
-        const qSnap = await getDocs(q);
+        const lastPaidMillis = anyTenant.lastReferralPaidAt?.seconds ? anyTenant.lastReferralPaidAt.seconds * 1000 : 0;
+        const daysSinceLastPaid = (Date.now() - lastPaidMillis) / (1000 * 60 * 60 * 24);
         
-        if (!qSnap.empty) {
-          const referrerDoc = qSnap.docs[0];
-          batch.update(referrerDoc.ref, { referralEarnings: increment(10) });
+        if (daysSinceLastPaid > 20) {
+          const { query, where, increment } = await import('firebase/firestore');
+          const usersRef = collection(db, 'users');
+          const q = query(usersRef, where('referralCode', '==', anyTenant.referredBy));
+          const qSnap = await getDocs(q);
           
-          const historyRef = doc(collection(db, 'users', referrerDoc.id, 'referral_history'));
-          batch.set(historyRef, {
-            referredTenantId: tenant.id,
-            referredTenantName: tenant.name,
-            referredOwnerEmail: tenant.ownerEmail || '',
-            amountEarned: 10,
-            type: 'renewal',
-            creditedAt: serverTimestamp(),
-          });
+          if (!qSnap.empty) {
+            const totalModules = 1 + (tenant.unlockedModules?.length || 0);
+            const rewardAmount = totalModules * 10;
+            const referrerDoc = qSnap.docs[0];
+            batch.update(referrerDoc.ref, { 
+              referralEarnings: increment(rewardAmount),
+              availableBalance: increment(rewardAmount)
+            });
+            
+            const historyRef = doc(collection(db, 'users', referrerDoc.id, 'referral_history'));
+            batch.set(historyRef, {
+              referredTenantId: tenant.id,
+              referredTenantName: tenant.name,
+              referredOwnerEmail: tenant.ownerEmail || '',
+              amountEarned: rewardAmount,
+              type: 'renewal',
+              creditedAt: serverTimestamp(),
+            });
+            paidReferralNow = true;
+          }
         }
       }
+
+      batch.update(tenantRef, { 
+        nextBillingDate: nextDate,
+        subscriptionStatus: 'active',
+        ...(paidReferralNow && { lastReferralPaidAt: serverTimestamp() })
+      });
 
       if (adminUser) {
         await addDoc(collection(db, 'admin_logs'), {
@@ -352,5 +416,5 @@ export function useAdminTenants() {
     }
   };
 
-  return { tenants, loading, error, updateTenantStatus, updateTenantPricing, updateNextBillingDate, processTenantRenewal, annihilateTenant };
+  return { tenants, loading, error, updateTenantStatus, updateTenantPricing, toggleTenantModule, updateNextBillingDate, processTenantRenewal, annihilateTenant };
 }

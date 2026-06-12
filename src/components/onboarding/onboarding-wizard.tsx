@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Logo } from '@/components/ui/logo';
 import { ChevronLeft } from 'lucide-react';
+import { ModeSelectionStep } from './steps/mode-selection';
 import { AppPickerStep } from './steps/app-picker';
 import { BusinessInfoStep } from './steps/business-info';
 import { AccountStep } from './steps/account';
@@ -15,7 +16,7 @@ import { registerNewTenant } from '@/firebase/firestore/onboarding-actions';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type Step = 'apps' | 'business' | 'account' | 'success' | 'payment' | 'pending';
+type Step = 'mode' | 'apps' | 'business' | 'account' | 'success' | 'payment' | 'pending';
 
 const FORM_STEPS: Step[] = ['apps', 'business', 'account'];
 
@@ -32,7 +33,7 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
 
   const handleComplete = onComplete ?? (() => router.push('/dashboard'));
   const handleCancel = onCancel ?? (() => router.push('/'));
-  const [step, setStep] = useState<Step>(initialAppId ? 'business' : 'apps');
+  const [step, setStep] = useState<Step>(initialAppId ? 'business' : 'mode');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState({
@@ -56,7 +57,7 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
 
   const next = async () => {
     setError(null);
-    const all: Step[] = ['apps', 'business', 'account', 'success', 'payment', 'pending'];
+    const all: Step[] = ['mode', 'apps', 'business', 'account', 'success', 'payment', 'pending'];
     const currentIndex = all.indexOf(step);
     const nextStep = all[currentIndex + 1];
 
@@ -81,7 +82,8 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
 
   const back = () => {
     if (isLoading) return;
-    if (step === 'apps') { handleCancel(); return; }
+    if (step === 'mode') { handleCancel(); return; }
+    if (step === 'apps') { setStep('mode'); return; }
     if (step === 'business' && initialAppId) { handleCancel(); return; }
     if (step === 'success' || step === 'payment' || step === 'pending') return;
     const all: Step[] = ['apps', 'business', 'account'];
@@ -155,6 +157,11 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
 
       {/* ── Step Content ── */}
       <div className={cn("flex-1 overflow-y-auto bg-slate-50/30", isLoading && "pointer-events-none opacity-50")}>
+        {step === 'mode' && (
+          <ModeSelectionStep 
+            onSelectStartBusiness={() => setStep('apps')}
+          />
+        )}
         {step === 'apps' && (
           <AppPickerStep
             selectedId={data.appId}

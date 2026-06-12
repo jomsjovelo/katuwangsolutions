@@ -10,11 +10,11 @@ import {
 } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { useUser } from '@/firebase/auth/use-user';
-import { markWithdrawalPaid } from '@/firebase/firestore/referral-withdrawal-actions';
+import { markWithdrawalPaid, rejectWithdrawal } from '@/firebase/firestore/referral-withdrawal-actions';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Wallet, CheckCircle2, Clock, Check, Loader2 } from "lucide-react";
+import { Wallet, CheckCircle2, Clock, Check, Loader2, XCircle } from "lucide-react";
 
 export function AdminWithdrawals() {
   const db = useFirestore();
@@ -45,6 +45,20 @@ export function AdminWithdrawals() {
     } catch (err) {
       console.error("Failed to mark paid", err);
       alert("Failed to mark as paid");
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
+  const handleReject = async (id: string, uid: string, amountPesos: number) => {
+    if (!user?.email) return;
+    if (!window.confirm(`Are you sure you want to reject this request and refund ₱${amountPesos} back to the user's available balance?`)) return;
+    setLoadingId(id);
+    try {
+      await rejectWithdrawal(id, uid, amountPesos, user.email);
+    } catch (err) {
+      console.error("Failed to reject", err);
+      alert("Failed to reject request");
     } finally {
       setLoadingId(null);
     }
@@ -129,14 +143,24 @@ export function AdminWithdrawals() {
                 </div>
 
                 {filter === 'pending' && (
-                  <Button 
-                    onClick={() => handleMarkPaid(w.id)}
-                    disabled={loadingId === w.id}
-                    className="w-full font-bold bg-amber-500 hover:bg-amber-600 text-white"
-                  >
-                    {loadingId === w.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
-                    Mark as Paid
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={() => handleMarkPaid(w.id)}
+                      disabled={loadingId === w.id}
+                      className="flex-1 font-bold bg-amber-500 hover:bg-amber-600 text-white"
+                    >
+                      {loadingId === w.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
+                      Mark as Paid
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={() => handleReject(w.id, w.uid, w.amountPesos)}
+                      disabled={loadingId === w.id}
+                      className="font-bold border-destructive text-destructive hover:bg-destructive/10"
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </Button>
+                  </div>
                 )}
 
                 {filter === 'paid' && w.processedBy && (

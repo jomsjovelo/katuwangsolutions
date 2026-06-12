@@ -60,6 +60,10 @@ export function LoginDialog({ children }: { children: React.ReactNode }) {
     if (initialCode) {
       setOpen(true);
       form.setValue('businessCode', initialCode);
+      // Immediately clear the code from the URL to prevent phantom links
+      if (typeof window !== 'undefined') {
+        window.history.replaceState({}, '', '/');
+      }
     }
   }, [initialCode, form]);
 

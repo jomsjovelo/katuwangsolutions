@@ -69,7 +69,7 @@ interface SystemConfig {
 }
 
 export default function AdminKillSwitch() {
-  const { tenants, loading, error, updateTenantStatus, updateTenantPricing, updateNextBillingDate, processTenantRenewal, annihilateTenant } = useAdminTenants();
+  const { tenants, loading, error, updateTenantStatus, updateTenantPricing, updateNextBillingDate, processTenantRenewal, toggleTenantModule, annihilateTenant } = useAdminTenants();
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [activeTab, setActiveTab] = useState<"tenants" | "pnl" | "announcements" | "billing" | "activity" | "support" | "admins" | "settings" | "withdrawals">("tenants");
@@ -463,6 +463,7 @@ export default function AdminKillSwitch() {
                 onClose={() => setSelectedTenant(null)}
                 updateNextBillingDate={updateNextBillingDate}
                 processTenantRenewal={processTenantRenewal}
+                toggleTenantModule={toggleTenantModule}
               />
             </>
           )}

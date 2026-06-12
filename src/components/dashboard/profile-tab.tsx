@@ -405,35 +405,13 @@ export function ProfileTab() {
                   </div>
                   {currentTenant?.businessCode && (
                     <div className="bg-slate-50 rounded-xl border border-slate-100 p-2 flex items-center justify-center shrink-0">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img 
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://app.katuwangsolutions.com/?code=${currentTenant.businessCode}`} 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${currentTenant.businessCode}`} 
                         alt="QR Code"
                         className="w-20 h-20 rounded-lg"
                       />
                     </div>
                   )}
-                </div>
-
-                <div className="space-y-2">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">O ipasa ang Direct Link:</p>
-                  <div className="flex gap-2">
-                    <Input 
-                      readOnly 
-                      value={`https://app.katuwangsolutions.com/?code=${currentTenant?.businessCode || ''}`}
-                      className="rounded-xl border-slate-200 text-[10px] bg-slate-50 font-medium h-10"
-                    />
-                    <Button 
-                      onClick={() => {
-                        navigator.clipboard.writeText(`https://app.katuwangsolutions.com/?code=${currentTenant?.businessCode || ''}`);
-                        alert('Link Copied!');
-                      }}
-                      variant="outline"
-                      className="rounded-xl h-10 text-[10px] font-bold border-slate-200"
-                    >
-                      Copy
-                    </Button>
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -580,12 +558,12 @@ export function ProfileTab() {
               <div className="flex gap-2">
                 <Input 
                   readOnly 
-                  value={`https://app.katuwangsolutions.com/onboarding?ref=${profile?.referralCode || (user?.uid ? user.uid.substring(0, 4).toUpperCase() : '')}`}
+                  value={`https://katuwangsolutions.com/onboarding?ref=${profile?.referralCode || (user?.uid ? user.uid.substring(0, 4).toUpperCase() : '')}`}
                   className="rounded-xl border-slate-200 text-[10px] bg-slate-50 font-medium h-10"
                 />
                 <Button 
                   onClick={() => {
-                    navigator.clipboard.writeText(`https://app.katuwangsolutions.com/onboarding?ref=${profile?.referralCode || (user?.uid ? user.uid.substring(0, 4).toUpperCase() : '')}`);
+                    navigator.clipboard.writeText(`https://katuwangsolutions.com/onboarding?ref=${profile?.referralCode || (user?.uid ? user.uid.substring(0, 4).toUpperCase() : '')}`);
                     alert('Referral Link Copied!');
                   }}
                   variant="outline"

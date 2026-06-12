@@ -48,7 +48,7 @@ export function AppMarketplace({ isOpen, onClose }: AppMarketplaceProps) {
   const { toast } = useToast();
   
   const { switchActiveModule, unlockModule } = useTenantStore();
-  const [isProcessing, setIsProcessing] = useState<string | null>(null);
+  const [checkoutApp, setCheckoutApp] = useState<{id: string, name: string, price: number} | null>(null);
   const { getAppPrice } = useAppStoreConfig();
 
   if (!isOpen || !currentTenant) return null;
@@ -59,38 +59,8 @@ export function AppMarketplace({ isOpen, onClose }: AppMarketplaceProps) {
   // Is the specific app already available for the user?
   const isUnlocked = (appId: string) => appId === currentTenant.moduleType || unlocked.includes(appId);
 
-  const handleSimulatePayment = async (appId: string) => {
-    // 2C: Prevent double-processing if already in a payment flow
-    if (isProcessing !== null) return;
-    setIsProcessing(appId);
-    try {
-      // Update remote Firestore
-      const tenantRef = doc(db, 'tenants', currentTenant.id);
-      await updateDoc(tenantRef, {
-        unlockedModules: arrayUnion(appId)
-      });
-      
-      // Update local Zustand state
-      unlockModule(currentTenant.id, appId);
-      
-      toast({
-        title: "App Unlocked! 🎉",
-        description: `You can now access the newly purchased module.`,
-      });
-      
-      // Switch to the newly bought app automatically
-      switchActiveModule(appId);
-      onClose();
-    } catch (e) {
-      console.error(e);
-      toast({
-        title: "Transaction Failed",
-        description: "Unable to process simulated payment.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsProcessing(null);
-    }
+  const handleSimulatePayment = (appId: string, appName: string, price: number) => {
+    setCheckoutApp({ id: appId, name: appName, price });
   };
 
   const handleOpenApp = (appId: string) => {
@@ -130,80 +100,124 @@ export function AppMarketplace({ isOpen, onClose }: AppMarketplaceProps) {
           </button>
         </div>
 
-        {/* Scrollable App List */}
-        <div className="flex-1 overflow-y-auto min-h-0 space-y-4 pr-1 pb-10">
-          {APPS.map((app) => {
-            const hasApp = isUnlocked(app.id);
-            const appTheme = getModuleTheme(app.id);
+        {checkoutApp ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-6 animate-in slide-in-from-right-4">
+            <div className="w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 mb-2">
+              <CreditCard className="h-8 w-8" />
+            </div>
+            <div>
+              <h3 className="font-black text-xl text-slate-800 uppercase tracking-tight mb-2">Unlock {checkoutApp.name}</h3>
+              <p className="text-sm text-slate-500 font-medium leading-relaxed">
+                To unlock this module, please send <strong className="text-slate-800">₱{checkoutApp.price}</strong> via GCash or Maya.
+              </p>
+            </div>
             
-            return (
-              <div 
-                key={app.id} 
-                className="p-4 rounded-2xl border border-slate-100 bg-white shadow-sm flex flex-col gap-3"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full text-slate-500 bg-slate-100">
-                      {app.category}
-                    </span>
-                    <h3 className="font-headline font-black text-slate-800 text-sm mt-1.5">{app.name}</h3>
-                    <p className="text-xs text-slate-500 font-medium leading-snug max-w-[200px] mt-0.5">
-                      {app.desc}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    {(() => {
-                      const pricing = getAppPrice(app.id, app.price);
-                      return (
-                        <>
-                          {pricing.isPromo && (
-                            <div className="text-[10px] font-bold text-red-500 mb-0.5 animate-pulse uppercase tracking-widest">
-                              Promo Sale!
-                            </div>
-                          )}
-                          <div className="font-black text-slate-800 tracking-tight flex items-center justify-end gap-1">
-                            {pricing.isPromo && (
-                              <span className="text-slate-300 line-through text-[10px]">₱{pricing.originalPrice}</span>
-                            )}
-                            <span>₱{pricing.price}<span className="text-[8px] text-slate-400 font-bold">/mo</span></span>
-                          </div>
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
+            <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl w-full space-y-3">
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest text-left">Instructions</p>
+              <ul className="text-left text-sm text-slate-600 space-y-2 font-medium">
+                <li className="flex items-start gap-2">
+                  <span className="font-black text-indigo-500">1.</span> Send payment to our official GCash/Maya account.
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="font-black text-indigo-500">2.</span> Take a screenshot of the successful transfer.
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="font-black text-indigo-500">3.</span> Send the screenshot to our Facebook Messenger page along with your Business Name.
+                </li>
+              </ul>
+            </div>
 
-                {hasApp ? (
-                  <Button 
-                    variant="outline"
-                    className="w-full rounded-xl h-10 font-bold border-slate-200 text-slate-600 hover:bg-slate-50"
-                    onClick={() => handleOpenApp(app.id)}
-                  >
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500 mr-2" />
-                    Open App
-                  </Button>
-                ) : (
-                  <Button 
-                    className="w-full rounded-xl h-10 font-bold text-white shadow-md transition-transform active:scale-[0.98]"
-                    style={{ backgroundColor: appTheme.primary }}
-                    disabled={isProcessing === app.id}
-                    onClick={() => handleSimulatePayment(app.id)}
-                  >
-                    {isProcessing === app.id ? (
-                      <span className="animate-pulse">Processing Payment...</span>
-                    ) : (
-                      <>
-                        <CreditCard className="h-4 w-4 mr-2 opacity-80" />
-                        Avail Now
-                        <ChevronRight className="h-4 w-4 ml-1 opacity-50" />
-                      </>
-                    )}
-                  </Button>
-                )}
-              </div>
-            );
-          })}
-        </div>
+            <div className="pt-4 w-full space-y-3">
+              <Button 
+                className="w-full rounded-xl h-12 font-bold text-white shadow-md active:scale-95 transition-transform"
+                onClick={() => {
+                  window.open('https://m.me/katuwangsolutions', '_blank');
+                  onClose();
+                  setCheckoutApp(null);
+                }}
+              >
+                Message us on Messenger
+              </Button>
+              <Button 
+                variant="ghost" 
+                className="w-full rounded-xl h-12 font-bold text-slate-500"
+                onClick={() => setCheckoutApp(null)}
+              >
+                Go Back
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto min-h-0 space-y-4 pr-1 pb-10">
+            {APPS.map((app) => {
+              const hasApp = isUnlocked(app.id);
+              const appTheme = getModuleTheme(app.id);
+              
+              return (
+                <div 
+                  key={app.id} 
+                  className="p-4 rounded-2xl border border-slate-100 bg-white shadow-sm flex flex-col gap-3"
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full text-slate-500 bg-slate-100">
+                        {app.category}
+                      </span>
+                      <h3 className="font-headline font-black text-slate-800 text-sm mt-1.5">{app.name}</h3>
+                      <p className="text-xs text-slate-500 font-medium leading-snug max-w-[200px] mt-0.5">
+                        {app.desc}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      {(() => {
+                        const pricing = getAppPrice(app.id, app.price);
+                        return (
+                          <>
+                            {pricing.isPromo && (
+                              <div className="text-[10px] font-bold text-red-500 mb-0.5 animate-pulse uppercase tracking-widest">
+                                Promo Sale!
+                              </div>
+                            )}
+                            <div className="font-black text-slate-800 tracking-tight flex items-center justify-end gap-1">
+                              {pricing.isPromo && (
+                                <span className="text-slate-300 line-through text-[10px]">₱{pricing.originalPrice}</span>
+                              )}
+                              <span>₱{pricing.price}<span className="text-[8px] text-slate-400 font-bold">/mo</span></span>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
+                  {hasApp ? (
+                    <Button 
+                      variant="outline"
+                      className="w-full rounded-xl h-10 font-bold border-slate-200 text-slate-600 hover:bg-slate-50"
+                      onClick={() => handleOpenApp(app.id)}
+                    >
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500 mr-2" />
+                      Open App
+                    </Button>
+                  ) : (
+                    <Button 
+                      className="w-full rounded-xl h-10 font-bold text-white shadow-md transition-transform active:scale-[0.98]"
+                      style={{ backgroundColor: appTheme.primary }}
+                      onClick={() => {
+                        const pricing = getAppPrice(app.id, app.price);
+                        handleSimulatePayment(app.id, app.name, pricing.price);
+                      }}
+                    >
+                      <CreditCard className="h-4 w-4 mr-2 opacity-80" />
+                      Avail Now
+                      <ChevronRight className="h-4 w-4 ml-1 opacity-50" />
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
         
       </div>
     </div>

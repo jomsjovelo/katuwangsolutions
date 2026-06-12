@@ -30,19 +30,21 @@ export async function submitReferralWithdrawal(
       throw new Error("User profile not found.");
     }
 
-    const currentEarnings = userSnap.data()?.referralEarnings || 0;
+    const userData = userSnap.data();
+    const currentEarnings = userData?.referralEarnings || 0;
+    const currentAvailable = userData?.availableBalance !== undefined ? userData.availableBalance : currentEarnings;
     
-    if (currentEarnings < 200) {
+    if (currentAvailable < 200) {
       throw new Error("Minimum withdrawal amount is ₱200.");
     }
     
-    if (amountPesos !== currentEarnings) {
+    if (amountPesos !== currentAvailable) {
       throw new Error("Withdrawal amount must match total available balance.");
     }
 
-    // Deduct the earnings atomically
+    // Deduct the earnings atomically from availableBalance only
     transaction.update(userRef, {
-      referralEarnings: currentEarnings - amountPesos,
+      availableBalance: currentAvailable - amountPesos,
       updatedAt: serverTimestamp()
     });
 
@@ -82,5 +84,44 @@ export async function markWithdrawalPaid(
     status: 'paid',
     processedAt: serverTimestamp(),
     processedBy: adminEmail
+  });
+}
+
+export async function rejectWithdrawal(
+  withdrawalId: string,
+  uid: string,
+  amountPesos: number,
+  adminEmail: string
+): Promise<void> {
+  const { db } = initializeFirebase();
+
+  await runTransactionResilient(db, async (transaction) => {
+    const withdrawalRef = doc(db, 'referral_withdrawals', withdrawalId);
+    const userRef = doc(db, 'users', uid);
+    
+    const [withdrawalSnap, userSnap] = await Promise.all([
+      transaction.get(withdrawalRef),
+      transaction.get(userRef)
+    ]);
+
+    if (!withdrawalSnap.exists()) throw new Error("Withdrawal request not found.");
+    if (!userSnap.exists()) throw new Error("User profile not found.");
+    if (withdrawalSnap.data()?.status !== 'pending') throw new Error("Only pending requests can be rejected.");
+
+    const currentEarnings = userSnap.data()?.referralEarnings || 0;
+    const currentAvailable = userSnap.data()?.availableBalance || currentEarnings; // Fallback to earnings if availableBalance is missing
+
+    // Refund the user's available balance
+    transaction.update(userRef, {
+      availableBalance: currentAvailable + amountPesos,
+      updatedAt: serverTimestamp()
+    });
+
+    // Mark withdrawal as rejected
+    transaction.update(withdrawalRef, {
+      status: 'rejected',
+      processedAt: serverTimestamp(),
+      processedBy: adminEmail
+    });
   });
 }

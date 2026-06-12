@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
 import { initializeFirebase } from '@/firebase';
 import { getFirestore, collection, query, where, onSnapshot } from 'firebase/firestore';
-import { Mail, Key, Store, Calendar, Layers, ShieldAlert, Activity, User, Fingerprint } from 'lucide-react';
+import { Mail, Key, Store, Calendar, Layers, ShieldAlert, Activity, User, Fingerprint, X, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AdminTenantDetailsProps {
@@ -18,12 +18,17 @@ interface AdminTenantDetailsProps {
   onClose: () => void;
   updateNextBillingDate: (id: string, date: Date | null) => Promise<void>;
   processTenantRenewal?: (tenant: Tenant) => Promise<void>;
+  toggleTenantModule?: (id: string, current: string[] | undefined, moduleId: string) => Promise<void>;
 }
 
-export function AdminTenantDetails({ tenant, isOpen, onClose, updateNextBillingDate, processTenantRenewal }: AdminTenantDetailsProps) {
+const AVAILABLE_MODULES = ['benta-snap', 'fresh-tally', 'build-stack', '5-6-tracker', 'ledger-flow', 'sahod-flow', 'biyahe-sync', 'ani-grow', 'bite-snap', 'timpla-track', 'ganap-master', 'spin-snap', 'hydro-sync', 'auto-boss', 'wellness-pro', 'trim-track', 'rep-sync', 'rental'];
+
+export function AdminTenantDetails({ tenant, isOpen, onClose, updateNextBillingDate, processTenantRenewal, toggleTenantModule }: AdminTenantDetailsProps) {
   const [isSendingReset, setIsSendingReset] = useState(false);
   const [isUpdatingDate, setIsUpdatingDate] = useState(false);
   const [isRenewing, setIsRenewing] = useState(false);
+  const [isTogglingModule, setIsTogglingModule] = useState(false);
+  const [selectedModuleToAdd, setSelectedModuleToAdd] = useState('');
   const [staffList, setStaffList] = useState<any[]>([]);
 
   useEffect(() => {
@@ -186,18 +191,70 @@ export function AdminTenantDetails({ tenant, isOpen, onClose, updateNextBillingD
                   )}
                 </div>
               </div>
-              {tenant.unlockedModules && tenant.unlockedModules.length > 0 && (
-                <div className="pt-2 border-t border-slate-200">
-                  <span className="text-xs font-bold uppercase text-slate-500 mb-2 block">Unlocked Add-ons</span>
-                  <div className="flex flex-wrap gap-2">
-                    {tenant.unlockedModules.map(mod => (
-                      <Badge key={mod} className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20">
-                        {mod}
-                      </Badge>
-                    ))}
-                  </div>
+              <div className="pt-2 border-t border-slate-200">
+                <span className="text-xs font-bold uppercase text-slate-500 mb-2 block">Unlocked Add-ons</span>
+                
+                {/* Existing Modules */}
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {(!tenant.unlockedModules || tenant.unlockedModules.length === 0) && (
+                    <span className="text-xs text-slate-400">No add-ons unlocked.</span>
+                  )}
+                  {tenant.unlockedModules?.map(mod => (
+                    <Badge key={mod} className="bg-primary/10 text-primary border-primary/20 flex items-center gap-1 py-1">
+                      {mod}
+                      {toggleTenantModule && (
+                        <button 
+                          onClick={async () => {
+                            if(confirm(`Remove module ${mod}?`)) {
+                              setIsTogglingModule(true);
+                              await toggleTenantModule(tenant.id, tenant.unlockedModules, mod).finally(() => setIsTogglingModule(false));
+                            }
+                          }}
+                          disabled={isTogglingModule}
+                          className="hover:bg-primary/20 rounded-full p-0.5 ml-1 transition-colors"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </Badge>
+                  ))}
                 </div>
-              )}
+
+                {/* Add Module UI */}
+                {toggleTenantModule && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <select 
+                      className="flex-1 h-9 rounded-lg border border-slate-200 text-xs font-medium px-2 focus:ring-2 focus:ring-primary focus:outline-none"
+                      value={selectedModuleToAdd}
+                      onChange={(e) => setSelectedModuleToAdd(e.target.value)}
+                      disabled={isTogglingModule}
+                    >
+                      <option value="">Select app to add...</option>
+                      {AVAILABLE_MODULES
+                        .filter(m => m !== tenant.moduleType && !(tenant.unlockedModules || []).includes(m))
+                        .map(m => (
+                          <option key={m} value={m}>{m}</option>
+                        ))
+                      }
+                    </select>
+                    <Button 
+                      size="sm"
+                      disabled={!selectedModuleToAdd || isTogglingModule}
+                      onClick={async () => {
+                        if (selectedModuleToAdd) {
+                          setIsTogglingModule(true);
+                          await toggleTenantModule(tenant.id, tenant.unlockedModules, selectedModuleToAdd)
+                            .then(() => setSelectedModuleToAdd(''))
+                            .finally(() => setIsTogglingModule(false));
+                        }
+                      }}
+                      className="h-9 px-3 rounded-lg text-xs font-bold"
+                    >
+                      <Plus className="h-3 w-3 mr-1" /> Add
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
