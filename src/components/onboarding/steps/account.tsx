@@ -23,16 +23,7 @@ interface AccountStepProps {
   onNext: () => void;
 }
 
-const Field = ({ id, label, error, optional = false, children }: any) => (
-  <div className="space-y-1.5">
-    <Label htmlFor={id} className="text-xs font-bold uppercase tracking-widest text-slate-500">
-      {label}
-      {optional && <span className="ml-1 font-normal normal-case text-slate-400">(Optional)</span>}
-    </Label>
-    {children}
-    {error && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{error}</p>}
-  </div>
-);
+
 
 export function AccountStep({ data, onUpdate, onNext }: AccountStepProps) {
   const [errors, setErrors] = useState<any>({});
@@ -73,7 +64,10 @@ export function AccountStep({ data, onUpdate, onNext }: AccountStepProps) {
 
         {/* ── Login Credentials ── */}
         <div className="space-y-4">
-          <Field id="email" label="Email Address" error={errors.email}>
+          <div className="space-y-1.5">
+            <Label htmlFor="email" className="text-xs font-bold uppercase tracking-widest text-slate-500">
+              Email Address
+            </Label>
             <Input
               id="email"
               type="email"
@@ -82,9 +76,13 @@ export function AccountStep({ data, onUpdate, onNext }: AccountStepProps) {
               onChange={(e) => onUpdate({ email: e.target.value })}
               className={errors.email ? 'border-destructive' : ''}
             />
-          </Field>
+            {errors.email && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.email}</p>}
+          </div>
 
-          <Field id="password" label="Password" error={errors.password}>
+          <div className="space-y-1.5">
+            <Label htmlFor="password" className="text-xs font-bold uppercase tracking-widest text-slate-500">
+              Password
+            </Label>
             <div className="relative">
               <Input
                 id="password"
@@ -99,7 +97,8 @@ export function AccountStep({ data, onUpdate, onNext }: AccountStepProps) {
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
-          </Field>
+            {errors.password && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.password}</p>}
+          </div>
         </div>
 
         {/* ── Terms & Conditions Checkbox ── */}
