@@ -7,7 +7,7 @@ import { Suspense } from 'react';
 import { ReferralCatcher } from '@/components/referral-catcher';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://www.katuwangsolutions.com'),
+  metadataBase: new URL('https://katuwangsolutions.com'),
   title: 'Katuwang Solutions | Ang Katuwang mo sa Negosyo',
   description: 'Sales, inventory, at utang tracking para sa mga tindahan, palengke, at services. Mura. Mabilis. Maaasahan.',
   manifest: '/manifest.json',
@@ -17,11 +17,11 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Katuwang Solutions | Ang Katuwang mo sa Negosyo',
     description: 'Sales, inventory, at utang tracking para sa mga tindahan, palengke, at services. Mura. Mabilis. Maaasahan.',
-    url: 'https://www.katuwangsolutions.com',
+    url: 'https://katuwangsolutions.com',
     siteName: 'Katuwang Solutions',
     images: [
       {
-        url: 'https://www.katuwangsolutions.com/opengraph-image.jpg',
+        url: 'https://katuwangsolutions.com/opengraph-image.jpg',
         width: 1200,
         height: 630,
         alt: 'Katuwang Solutions Preview Image',
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Katuwang Solutions | Ang Katuwang mo sa Negosyo',
     description: 'Sales, inventory, at utang tracking para sa mga tindahan, palengke, at services. Mura. Mabilis. Maaasahan.',
-    images: ['https://www.katuwangsolutions.com/opengraph-image.jpg'],
+    images: ['https://katuwangsolutions.com/opengraph-image.jpg'],
   },
   appleWebApp: {
     capable: true,
