@@ -131,7 +131,7 @@ export const useTenantStore = create<TenantState>()(
   setError: (error) => set({ error: error }),
   
   reset: () => {
-    set({ activeTenant: null, userProfile: null, activeModuleOverride: null, isLoading: false, error: null });
+    set({ activeTenant: null, allTenants: [], userProfile: null, activeModuleOverride: null, isLoading: false, error: null });
   }
     }),
     {

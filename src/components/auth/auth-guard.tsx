@@ -41,6 +41,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     if (authLoading) return;
 
     if (!user) {
+      useTenantStore.getState().reset();
       setIsAdmin(false);
       if (pathname !== '/' && !pathname.startsWith('/rsvp') && !pathname.startsWith('/product') && !pathname.startsWith('/terms') && !pathname.startsWith('/onboarding')) router.push('/');
       setChecking(false);
