@@ -42,8 +42,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
     if (!user) {
       useTenantStore.getState().reset();
-      setIsAdmin(false);
-      if (pathname !== '/' && !pathname.startsWith('/rsvp') && !pathname.startsWith('/product') && !pathname.startsWith('/terms') && !pathname.startsWith('/onboarding')) router.push('/');
+      setIsAdmin(null);
+      const isPublicPath = pathname === '/' || pathname === '/admin' || pathname.startsWith('/rsvp') || pathname.startsWith('/product') || pathname.startsWith('/terms') || pathname.startsWith('/onboarding');
+      if (!isPublicPath) {
+        router.push('/');
+      }
       setChecking(false);
       setLoading(false);
       return;
@@ -214,7 +217,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   // Helper to check if current route is public
-  const isPublicRoute = pathname === '/' || pathname.startsWith('/rsvp') || pathname.startsWith('/product') || pathname.startsWith('/terms') || pathname.startsWith('/onboarding');
+  const isPublicRoute = pathname === '/' || pathname === '/admin' || pathname.startsWith('/rsvp') || pathname.startsWith('/product') || pathname.startsWith('/terms') || pathname.startsWith('/onboarding');
 
   // 1.5 Maintenance Mode View
   if (maintenance?.mode && !isAdmin && !isPublicRoute) {
@@ -408,12 +411,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   // 4. Strict Routing Render Locks (Prevents FOUC)
   const isUnauthorized = 
-    (!user && pathname !== '/' && !pathname.startsWith('/rsvp') && !pathname.startsWith('/product') && !pathname.startsWith('/onboarding') && !pathname.startsWith('/terms')) ||
-    (isAdmin === false && pathname === '/admin') ||
+    (!user && pathname !== '/' && pathname !== '/admin' && !pathname.startsWith('/rsvp') && !pathname.startsWith('/product') && !pathname.startsWith('/onboarding') && !pathname.startsWith('/terms')) ||
+    (user !== null && isAdmin === false && pathname === '/admin') ||
     (isAdmin === true && pathname !== '/admin' && pathname !== '/dashboard' && !pathname.startsWith('/module/'));
 
   if (isUnauthorized) {
-    console.log("AuthGuard: Unauthorized route, hiding content while redirecting. Path:", pathname);
+    // console.log("AuthGuard: Unauthorized route, hiding content while redirecting. Path:", pathname);
     return (
       <div className="w-full min-h-screen bg-white">
         <div className="hidden">{children}</div>

@@ -7,6 +7,10 @@ import { initializeFirebase } from '@/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useAdminTenants } from '@/hooks/use-admin-tenants';
 import { useTenantStore, PricingTier } from '@/store/use-tenant-store';
+import { useUser } from '@/firebase/auth/use-user';
+import { loginUser } from '@/firebase/firestore/staff-actions';
+import { FirebaseError } from 'firebase/app';
+import { BrandLogo } from '@/components/ui/brand-logo';
 import { AdminAnnouncements } from '@/components/admin/admin-announcements';
 import { AdminBillingLogs } from '@/components/admin/admin-billing-logs';
 import { AdminManagement } from '@/components/admin/admin-management';
@@ -69,6 +73,7 @@ interface SystemConfig {
 }
 
 export default function AdminKillSwitch() {
+  const { user, loading: authLoading } = useUser();
   const { tenants, loading, error, updateTenantStatus, updateTenantPricing, updateNextBillingDate, processTenantRenewal, toggleTenantModule, annihilateTenant } = useAdminTenants();
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -76,6 +81,12 @@ export default function AdminKillSwitch() {
   const [selectedTenant, setSelectedTenant] = useState<any | null>(null);
   const [mounted, setMounted] = useState(false);
   const [systemConfig, setSystemConfig] = useState<SystemConfig>({ promoPrice: 99, standardPrice: 199, enterprisePrice: 499 });
+
+  // Admin Login States
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminLoginLoading, setAdminLoginLoading] = useState(false);
+  const [adminAuthError, setAdminAuthError] = useState<string | null>(null);
 
   // Purge confirmation dialog state
   const [purgeDialogTenant, setPurgeDialogTenant] = useState<any | null>(null);
@@ -143,7 +154,66 @@ export default function AdminKillSwitch() {
     setMounted(true);
   }, []);
 
-  if (!mounted) return null;
+  if (!mounted || authLoading) return null;
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl flex flex-col items-center">
+          <BrandLogo theme="dark" showText={false} className="mb-6 !h-16 !w-16" />
+          <h1 className="text-2xl font-black text-white uppercase tracking-widest mb-1">Command Center</h1>
+          <p className="text-slate-400 text-sm mb-8 font-medium">System Owner Authentication</p>
+          
+          {adminAuthError && (
+            <div className="w-full bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl mb-6 text-sm text-center font-medium">
+              {adminAuthError}
+            </div>
+          )}
+
+          <form className="w-full space-y-4" onSubmit={async (e) => {
+            e.preventDefault();
+            setAdminLoginLoading(true);
+            setAdminAuthError(null);
+            try {
+              await loginUser(adminEmail, adminPassword);
+              // Router will automatically refresh since AuthGuard handles routing logic
+            } catch (error: any) {
+              if (error instanceof FirebaseError && error.code === 'auth/invalid-credential') {
+                setAdminAuthError('Invalid system credentials.');
+              } else {
+                setAdminAuthError(error.message || 'Authentication failed.');
+              }
+              setAdminLoginLoading(false);
+            }
+          }}>
+            <Input 
+              type="email" 
+              placeholder="Admin Email" 
+              value={adminEmail} 
+              onChange={e => setAdminEmail(e.target.value)}
+              className="bg-slate-950 border-slate-800 text-white h-12 rounded-xl focus:ring-cyan-500 focus:border-cyan-500"
+              required 
+            />
+            <Input 
+              type="password" 
+              placeholder="••••••••" 
+              value={adminPassword} 
+              onChange={e => setAdminPassword(e.target.value)}
+              className="bg-slate-950 border-slate-800 text-white h-12 rounded-xl focus:ring-cyan-500 focus:border-cyan-500"
+              required 
+            />
+            <Button 
+              type="submit" 
+              className="w-full h-12 mt-4 bg-cyan-600 hover:bg-cyan-500 text-white font-bold tracking-widest uppercase rounded-xl transition-all"
+              disabled={adminLoginLoading}
+            >
+              {adminLoginLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Enter Command Center'}
+            </Button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   const filteredTenants = tenants.filter(t => {
     const matchesSearch = t.name.toLowerCase().includes(search.toLowerCase()) || 
@@ -289,7 +359,7 @@ export default function AdminKillSwitch() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="h-[200px] w-full p-0">
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                         <PieChart>
                           <Pie
                             data={pieData}

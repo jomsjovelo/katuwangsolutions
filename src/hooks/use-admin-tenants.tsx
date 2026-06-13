@@ -47,13 +47,17 @@ export function useAdminTenants() {
             setError(null);
           })
           .catch(err => {
-            console.error("Error fetching users for admin:", err);
+            if (!err.message?.includes('Missing or insufficient permissions') && err.code !== 'permission-denied') {
+              console.error("Error fetching users for admin:", err);
+            }
             setTenants(tenantData);
             setLoading(false);
           });
       },
       (err) => {
-        console.error('Error fetching admin tenants:', err);
+        if (!err.message?.includes('Missing or insufficient permissions') && err.code !== 'permission-denied') {
+          console.error('Error fetching admin tenants:', err);
+        }
         setError(err.message);
         setLoading(false);
       }
