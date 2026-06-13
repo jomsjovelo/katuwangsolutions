@@ -238,7 +238,7 @@ export function HelpGuideDrawer({
                    <div>
                      <p className="text-xs font-bold text-amber-900 mb-0.5">Paano i-withdraw (Cash Out)?</p>
                      <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
-                       Kapag umabot na ng <strong className="font-black text-emerald-600">₱200.00</strong> ang ipon mo, lalabas ang "Withdraw" button sa Profile Tab. Ipasok ang inyong GCash o Maya details. <strong className="font-bold text-red-600">Siguraduhing tama ang inyong Account Name at Number.</strong> Hindi pananagutan ng Katuwang Solutions kung ang pera ay maipadala sa ibang account dahil sa maling impormasyon na inyong ibinigay.
+                       Kapag umabot na ng <strong className="font-black text-emerald-600">₱200.00</strong> ang ipon mo, lalabas ang "Withdraw" button sa Profile Tab. Ipasok ang inyong GCash o Maya details. <strong className="font-bold text-amber-700">Paalala: Paki-double check po nang mabuti ang inyong Account Name at Number.</strong> Para sa inyong seguridad, hindi po namin maibabalik ang pera kung ito ay tuluyan nang naipadala sa ibang account dahil sa maling detalye.
                      </p>
                    </div>
                  </div>
