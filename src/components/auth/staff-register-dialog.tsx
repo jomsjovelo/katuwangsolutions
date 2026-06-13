@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { FirebaseError } from 'firebase/app';
-import { Loader2, LogIn } from 'lucide-react';
+import { Loader2, UserPlus } from 'lucide-react';
 import { BrandLogo } from '@/components/ui/brand-logo';
-import { useRouter } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 import {
   Dialog,
@@ -29,32 +29,52 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-import { loginUser } from '@/firebase/firestore/staff-actions';
+import { registerStaff } from '@/firebase/firestore/staff-actions';
 
-const loginSchema = z.object({
+const staffRegisterSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
+  businessCode: z.string().min(4, 'Business code must be exactly 4 characters').max(4, 'Business code must be exactly 4 characters'),
 });
 
-type LoginFormValues = z.infer<typeof loginSchema>;
+type StaffRegisterFormValues = z.infer<typeof staffRegisterSchema>;
 
-export function LoginDialog({ children }: { children: React.ReactNode }) {
+export function StaffRegisterDialog({ children }: { children?: React.ReactNode }) {
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const hasCodeParam = searchParams.has('code');
+  const initialCode = searchParams.get('code') || '';
+  
+  // We ONLY open this dialog if the URL has ?code= (even if empty)
+  const [open, setOpen] = useState(hasCodeParam);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  const form = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
+  const form = useForm<StaffRegisterFormValues>({
+    resolver: zodResolver(staffRegisterSchema),
     defaultValues: {
       email: '',
       password: '',
+      businessCode: initialCode || '',
     },
   });
 
-  const onSubmit = async (data: LoginFormValues) => {
+  useEffect(() => {
+    if (hasCodeParam) {
+      setOpen(true);
+      if (initialCode) {
+        form.setValue('businessCode', initialCode);
+      }
+      // Immediately clear the code from the URL to prevent phantom links on refresh
+      if (typeof window !== 'undefined') {
+        window.history.replaceState({}, '', '/');
+      }
+    }
+  }, [hasCodeParam, initialCode, form]);
+
+  const onSubmit = async (data: StaffRegisterFormValues) => {
     try {
       setAuthError(null);
-      await loginUser(data.email, data.password);
+      await registerStaff(data.email, data.password, data.businessCode);
       
       // Delay to allow Firebase Auth state to propagate to AuthGuard 
       await new Promise(resolve => setTimeout(resolve, 800));
@@ -62,20 +82,11 @@ export function LoginDialog({ children }: { children: React.ReactNode }) {
       setOpen(false);
       form.reset();
       
-      // Force navigation to dashboard after successful login
+      // Force navigation to dashboard after successful registration
       router.push('/dashboard');
     } catch (error: any) {
       if (error instanceof FirebaseError) {
-        switch (error.code) {
-          case 'auth/invalid-credential':
-            setAuthError('Invalid email or password.');
-            break;
-          case 'auth/too-many-requests':
-            setAuthError('Too many failed attempts. Please try again later.');
-            break;
-          default:
-            setAuthError('An error occurred during login.');
-        }
+        setAuthError(error.message);
       } else {
         setAuthError(error.message || 'Network error. Please check your connection.');
       }
@@ -94,10 +105,10 @@ export function LoginDialog({ children }: { children: React.ReactNode }) {
           </div>
           <div>
             <DialogTitle className="text-2xl font-black font-headline uppercase tracking-tight">
-              Magsimula Na
+              Join Store Team
             </DialogTitle>
             <DialogDescription className="text-slate-500 font-medium mt-1">
-              I-enter ang inyong account details upang makapasok sa Katuwang Environment.
+              Create your staff account to join the store.
             </DialogDescription>
           </div>
         </DialogHeader>
@@ -140,11 +151,33 @@ export function LoginDialog({ children }: { children: React.ReactNode }) {
                     <Input 
                       type="password" 
                       placeholder="••••••••" 
-                      autoComplete="current-password"
+                      autoComplete="new-password"
                       className="h-12 rounded-xl border-slate-200 bg-slate-50 focus-visible:ring-primary focus-visible:ring-offset-2" 
                       {...field} 
                     />
                   </FormControl>
+                  <FormMessage className="text-xs font-bold" />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="businessCode"
+              render={({ field }) => (
+                <FormItem className={initialCode ? "hidden" : ""}>
+                  <FormLabel className="text-xs font-bold uppercase tracking-widest text-slate-400">Business Code</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="Halimbawa: 8391" 
+                      className="h-12 rounded-xl border-slate-200 bg-slate-50 focus-visible:ring-primary focus-visible:ring-offset-2 text-center text-lg font-bold tracking-[0.2em]" 
+                      maxLength={4}
+                      {...field} 
+                    />
+                  </FormControl>
+                  {!initialCode && (
+                     <p className="text-[10px] text-slate-500 font-medium leading-tight">Hingin ang 4-digit code sa inyong Store Owner.</p>
+                  )}
                   <FormMessage className="text-xs font-bold" />
                 </FormItem>
               )}
@@ -160,35 +193,15 @@ export function LoginDialog({ children }: { children: React.ReactNode }) {
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
                   <>
-                    <LogIn className="h-5 w-5" />
-                    Mag-Login
+                    <UserPlus className="h-5 w-5" />
+                    Register as Staff
                   </>
                 )}
               </Button>
             </div>
           </form>
         </Form>
-
-        <div className="mt-6 pt-6 border-t border-slate-100 flex flex-col items-center gap-3">
-          <p className="text-xs font-medium text-slate-500">
-            May ibinigay bang Invite Code ang Store Owner mo?
-          </p>
-          <Button 
-            variant="outline" 
-            className="w-full h-12 rounded-xl border-dashed border-slate-300 text-slate-600 font-bold active:scale-95 transition-transform"
-            onClick={() => {
-              setOpen(false);
-              // Small delay to allow dialog animation to complete before changing route
-              setTimeout(() => {
-                router.push('/?code=');
-              }, 150);
-            }}
-          >
-            Register bilang Staff
-          </Button>
-        </div>
       </DialogContent>
     </Dialog>
   );
 }
-

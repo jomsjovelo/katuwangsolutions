@@ -31,7 +31,7 @@ export function InvitationGuard({ children }: { children: React.ReactNode }) {
     // Listen to real-time invites matching user email
     const invitesQuery = query(
       collection(db, 'invites'),
-      where('email', '==', user.email.toLowerCase()),
+      where('email', '==', user.email),
       where('status', '==', 'pending')
     );
 

@@ -1,1 +1,33 @@
-const sharp = require('sharp'); async function removeBg() { try { const { data, info } = await sharp('C:/Users/Celeste/.gemini/antigravity-ide/brain/9e020cf8-a9fc-420d-85a1-faf2dc58b82d/media__1779891271571.png').ensureAlpha().raw().toBuffer({ resolveWithObject: true }); for (let i = 0; i < data.length; i += 4) { const r = data[i]; const g = data[i + 1]; const b = data[i + 2]; const distFromWhite = Math.sqrt(Math.pow(255 - r, 2) + Math.pow(255 - g, 2) + Math.pow(255 - b, 2)); if (distFromWhite < 15) { data[i + 3] = 0; } else if (distFromWhite < 60) { data[i + 3] = Math.floor(distFromWhite * 4); } } await sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } }).png().toFile('public/katuwang-icon-transparent.png'); console.log('Done!'); } catch (e) { console.error(e); } } removeBg();
+const Jimp = require('jimp');
+
+async function removeWhite() {
+  const imagePath = process.argv[2];
+  const outputPath = process.argv[3];
+  
+  if (!imagePath || !outputPath) {
+    console.error('Usage: node remove-bg.js <input> <output>');
+    process.exit(1);
+  }
+
+  try {
+    const image = await Jimp.read(imagePath);
+    
+    image.scan(0, 0, image.bitmap.width, image.bitmap.height, function(x, y, idx) {
+      const red = this.bitmap.data[idx + 0];
+      const green = this.bitmap.data[idx + 1];
+      const blue = this.bitmap.data[idx + 2];
+      
+      // If the pixel is very close to white, make it transparent
+      if (red > 240 && green > 240 && blue > 240) {
+        this.bitmap.data[idx + 3] = 0; // Set alpha to 0
+      }
+    });
+
+    await image.writeAsync(outputPath);
+    console.log('Successfully processed image.');
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+removeWhite();

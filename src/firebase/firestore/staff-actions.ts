@@ -1,21 +1,100 @@
-import { 
-  doc, 
-  getDoc,
-  updateDoc,
-  collection, 
-  query, 
-  where, 
-  getDocs,
-  setDoc,
-  orderBy,
-  serverTimestamp,
-  arrayUnion,
-  arrayRemove
-} from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion, serverTimestamp, collection, query, where, getDocs, setDoc, arrayRemove } from 'firebase/firestore';
 import { initializeFirebase } from '../index';
 import { runTransactionResilient } from './resilient-transaction';
 import { generateUniqueReferralCode } from './referral-utils';
 
+/**
+ * Cleanly logs in an existing user.
+ * Assumes the user already exists in the database.
+ */
+export async function loginUser(email: string, password: string) {
+  const { auth } = initializeFirebase();
+
+  try {
+    const { signInWithEmailAndPassword } = await import('firebase/auth');
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    return { success: true, user: userCredential.user };
+  } catch (error: any) {
+    if (error.code === 'auth/invalid-credential') {
+      throw new Error('Invalid email or password.');
+    }
+    console.error('Login failed:', error);
+    throw new Error(error.message || 'Login failed. Please try again.');
+  }
+}
+
+/**
+ * Registers a NEW staff member using a Business Code.
+ * Validates the code, creates the auth account, and securely links the profile to the tenant.
+ */
+export async function registerStaff(email: string, password: string, businessCode: string) {
+  const { auth, db } = initializeFirebase();
+
+  // 1. Validate business code
+  const codeRef = doc(db, 'business_codes', businessCode);
+  const codeSnap = await getDoc(codeRef);
+  
+  if (!codeSnap.exists()) {
+    throw new Error('Invalid Business Code. Please check the code provided by your Store Owner.');
+  }
+
+  const tenantIdFromCode = codeSnap.data().tenantId;
+  const moduleType = codeSnap.data().moduleType || 'rental';
+
+  try {
+    // 2. Create the user in Auth
+    const { createUserWithEmailAndPassword } = await import('firebase/auth');
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const uid = userCredential.user.uid;
+    const nameFromEmail = email.split('@')[0];
+
+    // 3. Atomic Database Setup
+    try {
+      await runTransactionResilient(db, async (transaction) => {
+        const userRef = doc(db, 'users', uid);
+        const tenantRef = doc(db, 'tenants', tenantIdFromCode);
+        
+        // Double check tenant exists
+        const tenantSnap = await transaction.get(tenantRef);
+        if (!tenantSnap.exists()) {
+          throw new Error('Store no longer exists.');
+        }
+
+        // Create User Profile
+        transaction.set(userRef, {
+          uid: uid,
+          fullName: nameFromEmail,
+          email: email,
+          personalPhone: '',
+          address: '',
+          role: 'staff',
+          tenantId: tenantIdFromCode,
+          moduleType: moduleType,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+
+        // Add to tenant's staffUids
+        transaction.update(tenantRef, {
+          staffUids: arrayUnion(uid),
+          updatedAt: serverTimestamp(),
+        });
+      });
+
+      return { success: true, user: userCredential.user };
+    } catch (transactionError: any) {
+      // Rollback Auth user if DB setup fails
+      await userCredential.user.delete().catch(console.error);
+      throw transactionError;
+    }
+  } catch (error: any) {
+    if (error.code === 'auth/email-already-in-use') {
+      throw new Error('An account with this email already exists. Please log in directly.');
+    }
+    console.error('Staff registration failed:', error);
+    throw new Error(error.message || 'Registration failed. Please try again.');
+  }
+}
 /**
  * Logs a Time-In or Time-Out entry for a staff member.
  * When Time-Out, also increments daysWorkedThisPeriod on the employee.
@@ -216,116 +295,3 @@ export async function removeStaffMember(tenantId: string, staffUid: string) {
   return true;
 }
 
-/**
- * Handles unified Login & Registration for Team Members using a Business Code.
- * If login fails (user not found), it uses the Business Code to auto-register them.
- */
-export async function loginOrRegisterStaff(email: string, password: string, businessCode: string) {
-  const { auth, db } = initializeFirebase();
-
-  // Validate business code first (MANDATORY)
-  const codeRef = doc(db, 'business_codes', businessCode);
-  const codeSnap = await getDoc(codeRef);
-  
-  if (!codeSnap.exists()) {
-    throw new Error('Invalid Business Code.');
-  }
-
-  const tenantIdFromCode = codeSnap.data().tenantId;
-  const moduleType = codeSnap.data().moduleType || 'rental'; // fallback
-
-  try {
-    // Attempt standard login first
-    const { signInWithEmailAndPassword } = await import('firebase/auth');
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    
-    // Security Check: Verify if the logged in user belongs to this tenant
-    const userRef = doc(db, 'users', userCredential.user.uid);
-    const userSnap = await getDoc(userRef);
-    if (userSnap.exists()) {
-      const userData = userSnap.data();
-      if (userData.tenantId !== tenantIdFromCode && userData.role !== 'superadmin') {
-        // Sign out to clean up if business code doesn't match their account
-        await auth.signOut();
-        throw new Error('Invalid Business Code for this account.');
-      }
-    }
-    
-    return { success: true, user: userCredential.user };
-  } catch (error: any) {
-    if (error.message === 'Invalid Business Code for this account.') {
-      throw error;
-    }
-
-    // If login fails because user doesn't exist, use the business code to auto-register them
-    if (error.code === 'auth/invalid-credential') {
-      try {
-        const { createUserWithEmailAndPassword } = await import('firebase/auth');
-        const newUserCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const uid = newUserCredential.user.uid;
-
-        // Generate Unique 4-Char Referral Code
-        const referralCode = await generateUniqueReferralCode(db);
-
-        // Atomic write to create user profile and link to tenant
-        await runTransactionResilient(db, async (transaction) => {
-          const userRef = doc(db, 'users', uid);
-          const tenantRef = doc(db, 'tenants', tenantIdFromCode);
-          const refCodeDoc = doc(db, 'referral_codes', referralCode);
-
-          // Check if tenant exists
-          const tenantSnap = await transaction.get(tenantRef);
-          if (!tenantSnap.exists()) {
-            throw new Error("Business not found.");
-          }
-
-          const refCodeSnap = await transaction.get(refCodeDoc);
-          if (refCodeSnap.exists()) {
-             throw new Error("Collision during transaction for referral code.");
-          }
-
-          transaction.set(refCodeDoc, {
-            uid: uid,
-            createdAt: serverTimestamp(),
-          });
-
-          // Create User Profile
-          transaction.set(userRef, {
-            uid: uid,
-            email: email,
-            role: 'staff',
-            tenantId: tenantIdFromCode,
-            moduleType: tenantSnap.data().moduleType || moduleType,
-            referralCode: referralCode,
-            referralEarnings: 0,
-            subscriptionStatus: 'pending', // Requires payment verification
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          });
-
-          // Add to Tenant's staff list
-          transaction.update(tenantRef, {
-            staffUids: arrayUnion(uid),
-            updatedAt: serverTimestamp(),
-          });
-        });
-
-        return { success: true, user: newUserCredential.user, isNewRegistration: true };
-      } catch (registrationError: any) {
-        // If email is already in use, it means they typed the wrong password during standard login
-        if (registrationError.code === 'auth/email-already-in-use') {
-          throw new Error('Invalid email or password.');
-        }
-        
-        // Clean up orphaned auth user if transaction failed
-        if (auth.currentUser) {
-           await auth.currentUser.delete().catch(console.error);
-        }
-        throw new Error(registrationError.message || 'Registration failed. Please try again.');
-      }
-    }
-
-    // Re-throw original error if no business code or different error
-    throw error;
-  }
-}

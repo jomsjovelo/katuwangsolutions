@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { ChevronRight, Zap } from 'lucide-react';
 import { LoginDialog } from '@/components/auth/login-dialog';
+import { StaffRegisterDialog } from '@/components/auth/staff-register-dialog';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { RegisterSheet, useRegisterSheet } from '@/components/marketing/register-sheet';
 
@@ -84,6 +85,11 @@ export function Hero() {
       </section>
 
       <RegisterSheet open={open} onClose={closeSheet} />
+      
+      {/* Invisible Staff Register Dialog - Will pop open automatically if URL has ?code= */}
+      <React.Suspense fallback={null}>
+        <StaffRegisterDialog />
+      </React.Suspense>
     </>
   );
 }

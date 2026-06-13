@@ -48,34 +48,45 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Check Admin status using Firestore
-    const adminRef = doc(db, 'admins', user.uid);
-    // getDoc instead of onSnapshot for admin check to save reads, assuming admin status rarely changes during a session
-    import('firebase/firestore').then(({ getDoc }) => {
-      getDoc(adminRef).then((snap) => {
-        const isUserAdmin = snap.exists();
-        setIsAdmin(isUserAdmin);
-        
-        if (isUserAdmin) {
-          if (pathname !== '/admin' && pathname !== '/dashboard' && !pathname.startsWith('/module/')) {
-            router.push('/admin');
-          }
-          setChecking(false);
-          setLoading(false);
-        } else {
-          if (pathname === '/admin') {
-            router.push('/dashboard');
-          }
-          // Non-admins continue to tenant fetch effects
+    // If admin status is already known, just handle routing
+    if (isAdmin !== null) {
+      if (isAdmin === true) {
+        if (pathname !== '/admin' && pathname !== '/dashboard' && !pathname.startsWith('/module/')) {
+          router.push('/admin');
         }
-      }).catch((err) => {
-        console.error('Admin check error:', err);
-        setIsAdmin(false);
-        if (pathname === '/admin') router.push('/dashboard');
-      });
-    });
+        setChecking(false);
+        setLoading(false);
+      } else if (isAdmin === false) {
+        if (pathname === '/admin') {
+          router.push('/dashboard');
+        }
+      }
+      return;
+    }
 
-  }, [user, authLoading, pathname, router, setLoading]);
+    // We only reach here if user is logged in AND isAdmin is null (initial load or fresh login)
+    // Force Auth SDK to yield and ensure token is minted before Firestore queries.
+    // passing `true` forces a refresh if needed, ensuring the backend sees the new token.
+    user.getIdToken(true).then(() => {
+      // Check Admin status using Firestore
+      const adminRef = doc(db, 'admins', user.uid);
+      // getDoc instead of onSnapshot for admin check to save reads, assuming admin status rarely changes during a session
+      import('firebase/firestore').then(({ getDoc }) => {
+        getDoc(adminRef).then((snap) => {
+          const isUserAdmin = snap.exists();
+          setIsAdmin(isUserAdmin);
+          // Routing will be handled by the next effect trigger since isAdmin changed
+          setChecking(false);
+        }).catch((err) => {
+          console.error('Admin check error:', err);
+          setIsAdmin(false);
+        });
+      });
+    }).catch((err) => {
+      console.error('Token fetch error:', err);
+      setIsAdmin(false);
+    });
+  }, [user, db, router, pathname, authLoading, isAdmin]);
 
   // 2. Fetch User Profile to get Tenant ID
   useEffect(() => {
@@ -123,35 +134,54 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   // 3. Fetch Tenant Data
   useEffect(() => {
     if (!tenantId) return;
-
+    
+    setLoading(true);
     const tenantRef = doc(db, 'tenants', tenantId);
-    const unsubscribeTenant = onSnapshot(tenantRef, (tenantSnap) => {
-      if (tenantSnap.exists()) {
-        const tenantData = { id: tenantSnap.id, ...tenantSnap.data() } as Tenant;
-        setActiveTenant(tenantData);
-        setError(null);
-      } else {
-        setActiveTenant(null);
-        setError('Tenant configuration missing.');
-      }
-      setChecking(false);
-      setLoading(false);
-    }, (err) => {
-      console.error('AuthGuard: Tenant Fetch Security/Network Error', err);
-      setActiveTenant(null);
-      // Auto-recover from stale Zustand persistence by falling back to profile
-      if (profileTenantId && profileTenantId !== tenantId) {
-        console.log('Auto-recovering to profile tenant ID...', profileTenantId);
-        setTimeout(() => setTenantId(profileTenantId), 0);
-        return;
-      }
-      setError('Connection interrupted while fetching tenant.');
-      setChecking(false);
-      setLoading(false);
-    });
+    
+    let unsubscribeTenant: (() => void) | undefined;
+    let retryTimeout: NodeJS.Timeout;
+    let retryCount = 0;
+    const MAX_RETRIES = 5;
 
-    return () => unsubscribeTenant();
-  }, [tenantId, profileTenantId, db, setActiveTenant, setError, setLoading]);
+    const attachListener = () => {
+      unsubscribeTenant = onSnapshot(tenantRef, (tenantSnap) => {
+        if (tenantSnap.exists()) {
+          const tenantData = { id: tenantSnap.id, ...tenantSnap.data() } as Tenant;
+          setActiveTenant(tenantData);
+          if (pathname === '/') router.push('/dashboard');
+        } else {
+          setError('Business account not found or was deleted.');
+        }
+        setChecking(false);
+        setLoading(false);
+      }, (err) => {
+        // If the user was just signed out, ignore this error. It's an expected side-effect of signOut() invalidating the token.
+        const auth = getAuth(app);
+        if (!auth.currentUser) {
+          console.log('AuthGuard: Ignoring fetch error because user is signed out.');
+          return;
+        }
+
+        console.error(`AuthGuard: Tenant Fetch Security/Network Error (Attempt ${retryCount + 1}/${MAX_RETRIES})`, err);
+        if (retryCount < MAX_RETRIES) {
+          retryCount++;
+          // Exponential backoff: 500ms, 1000ms, 2000ms, etc.
+          retryTimeout = setTimeout(attachListener, 500 * Math.pow(2, retryCount - 1));
+        } else {
+          setError('Connection interrupted while fetching business data after multiple retries. Please refresh.');
+          setChecking(false);
+          setLoading(false);
+        }
+      });
+    };
+
+    attachListener();
+
+    return () => {
+      if (unsubscribeTenant) unsubscribeTenant();
+      clearTimeout(retryTimeout);
+    };
+  }, [tenantId, db, pathname, router, setActiveTenant]);
 
   // 1. Initial Loading/Hydration State
   if (authLoading || checking || isLoading || (user && isAdmin === null)) {

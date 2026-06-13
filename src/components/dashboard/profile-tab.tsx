@@ -284,7 +284,7 @@ export function ProfileTab() {
               <CardTitle className="text-base font-black text-slate-800">{profile?.fullName || 'User Profile'}</CardTitle>
               <CardDescription className="text-xs font-semibold text-slate-400 uppercase tracking-widest flex items-center gap-1 mt-0.5">
                 <ShieldCheck className="h-3.5 w-3.5" style={{ color: theme.secondary }} />
-                {profile?.role === 'owner' ? 'Store Owner' : 'Helper / Tindera'}
+                {profile?.role === 'owner' ? 'Store Owner' : 'Staff'}
               </CardDescription>
             </div>
           </CardHeader>
@@ -380,7 +380,7 @@ export function ProfileTab() {
           <section className="space-y-4">
             <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
               <Users className="h-5 w-5" style={{ color: theme.primary }} />
-              <h3 className="text-sm font-black uppercase tracking-widest text-slate-700">Staff & Tindera</h3>
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-700">Staff</h3>
             </div>
 
             {/* Business Code & Invite section */}
@@ -413,13 +413,36 @@ export function ProfileTab() {
                     </div>
                   )}
                 </div>
+
+                {currentTenant?.businessCode && (
+                  <div className="space-y-2 mt-4 pt-4 border-t border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Invite Link:</p>
+                    <div className="flex gap-2">
+                      <Input 
+                        readOnly 
+                        value={`https://katuwangsolutions.com/?code=${currentTenant.businessCode}`}
+                        className="rounded-xl border-slate-200 text-[10px] bg-slate-50 font-medium h-10"
+                      />
+                      <Button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(`https://katuwangsolutions.com/?code=${currentTenant.businessCode}`);
+                          alert('Invite Link Copied!');
+                        }}
+                        variant="outline"
+                        className="rounded-xl h-10 text-[10px] font-bold border-slate-200"
+                      >
+                        Copy
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
             {/* Active Staff List */}
             <Card className="bg-white border-slate-200 shadow-sm rounded-[24px]">
               <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400">Mga Aktibong Tindera</CardTitle>
+                <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400">Mga Aktibong Staff</CardTitle>
               </CardHeader>
               <CardContent className="p-4 pt-0 space-y-3">
                 {activeStaff.length === 0 ? (

@@ -13,15 +13,15 @@ export function BrandLogo({ className, theme = 'light', showText = true }: Brand
   
   return (
     <div className={cn("flex items-center gap-2.5 select-none", className)}>
-      {/* Official AI-Generated Branding Icon (Transparent) */}
+      {/* Official Provided Branding Icon (with multiply blend to remove white bg) */}
       <div className="relative h-12 w-12 sm:h-14 sm:w-14 flex-shrink-0">
         <Image 
-          src="/katuwang-icon-transparent.png" 
-          alt="Katuwang Icon" 
-          fill 
-          sizes="(max-width: 640px) 48px, 56px"
-          className="object-contain"
+          src="/katuwang-logo.png" 
+          alt="Katuwang Logo"
+          fill
+          className="object-contain mix-blend-multiply"
           priority
+          unoptimized
         />
       </div>
       

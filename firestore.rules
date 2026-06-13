@@ -44,14 +44,7 @@ service cloud.firestore {
     match /tenants/{tenantId} {
       // Allow any authenticated user to fetch basic tenant metadata (needed for AuthGuard verification)
       // Strict data isolation is enforced on the subcollections.
-      allow get: if isAuthenticated();
-
-      // Master Admins can list everything.
-      allow list: if isMasterAdmin();
-      
-      // Regular users can list tenants they own or are staff of (query must include where clause).
-      allow list: if isAuthenticated() && request.auth.uid == resource.data.ownerUid;
-      allow list: if isAuthenticated() && request.auth.uid in resource.data.staffUids;
+      allow read: if isAuthenticated();
       
       // Allow users to create their own tenant document
       allow create: if isAuthenticated() && request.auth.uid == request.resource.data.ownerUid;
@@ -67,7 +60,7 @@ service cloud.firestore {
       );
 
       // 2. Sub-collections (Universal Inventory, Sales, etc.)
-      match /{allSubcollections=**} {
+      match /{subcollection}/{document=**} {
         // Strict isolation: Access granted only to verified tenant owners/staff
         allow read, create, update: if hasTenantAccess(tenantId);
         // Fraud Prevention & Right to be Forgotten: Only Store Owners or SuperAdmins can delete their data
