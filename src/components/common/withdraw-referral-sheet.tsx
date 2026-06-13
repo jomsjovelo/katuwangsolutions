@@ -227,6 +227,12 @@ export function WithdrawReferralSheet({
                 </div>
               </div>
 
+              <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
+                <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
+                  <strong className="font-bold text-amber-900">Paalala: Paki-double check po nang mabuti ang inyong Account Name at Number.</strong> Para sa inyong seguridad, hindi po namin maibabalik ang pera kung ito ay tuluyan nang naipadala sa ibang account dahil sa maling detalye.
+                </p>
+              </div>
+
               {error && (
                 <p className="text-sm font-bold text-destructive text-center bg-destructive/10 p-3 rounded-xl">
                   {error}
