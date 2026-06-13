@@ -136,7 +136,7 @@ export function AccountStep({ data, onUpdate, onNext }: AccountStepProps) {
               htmlFor="terms"
               className="text-sm font-medium leading-snug text-slate-700 cursor-pointer"
             >
-              I have read and agree to the{' '}
+              I confirm that I am at least 18 years old, and I agree to the{' '}
               <button 
                 type="button"
                 onClick={(e) => {
