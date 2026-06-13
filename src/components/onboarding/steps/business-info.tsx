@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { BusinessInfoSchema } from '@/lib/schemas/onboarding';
 
@@ -52,6 +53,48 @@ export function BusinessInfoStep({ data, onUpdate, onNext }: BusinessInfoStepPro
               className={errors.fullName ? "border-destructive" : ""}
             />
             {errors.fullName && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.fullName}</p>}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="birthday" className="text-xs font-bold uppercase tracking-widest text-slate-500">Birthday (18+)</Label>
+              <Input 
+                id="birthday"
+                type="date"
+                value={data.birthday || ''}
+                onChange={(e) => onUpdate({ birthday: e.target.value })}
+                className={errors.birthday ? "border-destructive" : ""}
+              />
+              {errors.birthday && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.birthday}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="gender" className="text-xs font-bold uppercase tracking-widest text-slate-500">Gender</Label>
+              <Select value={data.gender || 'Prefer not to say'} onValueChange={(val) => onUpdate({ gender: val })}>
+                <SelectTrigger className={errors.gender ? "border-destructive" : ""}>
+                  <SelectValue placeholder="Pumili..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Lalaki">Lalaki</SelectItem>
+                  <SelectItem value="Babae">Babae</SelectItem>
+                  <SelectItem value="Iba pa">Iba pa</SelectItem>
+                  <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.gender && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.gender}</p>}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="address" className="text-xs font-bold uppercase tracking-widest text-slate-500">Kumpletong Address</Label>
+            <Input 
+              id="address"
+              placeholder="House No., Street, Brgy., City, Province"
+              value={data.address || ''}
+              onChange={(e) => onUpdate({ address: e.target.value })}
+              className={errors.address ? "border-destructive" : ""}
+            />
+            {errors.address && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.address}</p>}
           </div>
 
           <div className="space-y-2">

@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { BookOpen, HelpCircle, Download, Share, PlusSquare, Gift, Smartphone, Info, Wallet, History, Users } from 'lucide-react';
+import { BookOpen, HelpCircle, Download, Share, PlusSquare, Gift, Smartphone, Info, Wallet, History, Users, WifiOff } from 'lucide-react';
 import { getModuleTheme } from '@/lib/theme-utils';
 import { useHaptic } from '@/hooks/use-haptic';
 import { MODULE_GUIDES, DEFAULT_GUIDE } from '@/components/common/module-guide';
@@ -129,6 +129,18 @@ export function HelpGuideDrawer({
                 </div>
               </div>
             )}
+            {/* Offline Mode & Syncing */}
+            <div className="bg-indigo-50 border border-indigo-200 p-5 rounded-2xl flex items-start gap-3">
+               <div className="bg-indigo-100 p-2.5 rounded-xl shrink-0 mt-0.5">
+                 <WifiOff className="h-5 w-5 text-indigo-600" />
+               </div>
+               <div>
+                 <h4 className="font-black text-sm text-indigo-900 tracking-tight leading-tight mb-1">Offline Mode & Syncing</h4>
+                 <p className="text-[11px] text-indigo-800 font-medium leading-relaxed">
+                   Pwede mong gamitin ang Katuwang App kahit <strong className="font-black">walang internet (Offline)</strong>! Patuloy kang makakapaglista ng benta o gastos. Ngunit, para mag-sync at ma-save ang iyong mga nilista sa system (at makita ng ibang staff), <strong className="font-black">kailangan mong kumonekta sa internet</strong>.
+                 </p>
+               </div>
+            </div>
             
             <div className="bg-blue-50 border border-blue-100 p-5 rounded-2xl flex items-start gap-3">
                <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />

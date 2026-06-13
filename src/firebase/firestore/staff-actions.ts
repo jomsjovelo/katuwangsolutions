@@ -27,7 +27,15 @@ export async function loginUser(email: string, password: string) {
  * Registers a NEW staff member using a Business Code.
  * Validates the code, creates the auth account, and securely links the profile to the tenant.
  */
-export async function registerStaff(email: string, password: string, businessCode: string) {
+export async function registerStaff(
+  email: string, 
+  password: string, 
+  businessCode: string,
+  fullName?: string,
+  birthday?: string,
+  gender?: string,
+  address?: string
+) {
   const { auth, db } = initializeFirebase();
 
   // 1. Validate business code
@@ -63,10 +71,12 @@ export async function registerStaff(email: string, password: string, businessCod
         // Create User Profile
         transaction.set(userRef, {
           uid: uid,
-          fullName: nameFromEmail,
+          fullName: fullName || nameFromEmail,
           email: email,
           personalPhone: '',
-          address: '',
+          birthday: birthday || '',
+          gender: gender || 'Prefer not to say',
+          address: address || '',
           role: 'staff',
           tenantId: tenantIdFromCode,
           moduleType: moduleType,

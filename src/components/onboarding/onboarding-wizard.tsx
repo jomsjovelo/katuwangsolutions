@@ -43,8 +43,10 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
     businessPhone: '',
     // Personal
     fullName: '',
-    personalPhone: '',
+    birthday: '',
+    gender: 'Prefer not to say',
     address: '',
+    personalPhone: '',
     // Credentials
     email: '',
     confirmEmail: '',

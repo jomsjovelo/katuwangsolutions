@@ -18,6 +18,9 @@ export async function registerNewTenant(onboardingData: any) {
   // Validate inputs
   const businessInfo = BusinessInfoSchema.parse({
     fullName: onboardingData.fullName,
+    birthday: onboardingData.birthday,
+    gender: onboardingData.gender,
+    address: onboardingData.address,
     businessName: onboardingData.businessName,
   });
 
@@ -110,7 +113,9 @@ export async function registerNewTenant(onboardingData: any) {
           fullName: businessInfo.fullName,
           email: accountInfo.email,
           personalPhone: '', // Removed for frictionless onboarding
-          address: '', // Removed for frictionless onboarding
+          birthday: businessInfo.birthday,
+          gender: businessInfo.gender,
+          address: businessInfo.address,
           role: 'owner',
           tenantId: tenantId,
           moduleType: onboardingData.appId,

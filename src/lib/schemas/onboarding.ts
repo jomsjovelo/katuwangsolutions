@@ -2,6 +2,18 @@ import { z } from 'zod';
 
 export const BusinessInfoSchema = z.object({
   fullName: z.string().min(2, 'Kailangan ang buong pangalan mo'),
+  birthday: z.string().min(1, 'Kailangan ang birthday mo').refine(val => {
+    const today = new Date();
+    const birthDate = new Date(val);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age >= 18;
+  }, { message: 'Kailangan ay 18 years old pataas upang makapag-register.' }),
+  gender: z.enum(['Lalaki', 'Babae', 'Iba pa', 'Prefer not to say']),
+  address: z.string().min(5, 'Kailangan ng kumpletong address'),
   businessName: z.string().min(2, 'Kailangan ang pangalan ng tindahan').max(100),
 });
 

@@ -7,6 +7,7 @@ import * as z from 'zod';
 import { FirebaseError } from 'firebase/app';
 import { Loader2, UserPlus } from 'lucide-react';
 import { BrandLogo } from '@/components/ui/brand-logo';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSearchParams, useRouter } from 'next/navigation';
 
 import {
@@ -35,6 +36,19 @@ const staffRegisterSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   businessCode: z.string().min(4, 'Business code must be exactly 4 characters').max(4, 'Business code must be exactly 4 characters'),
+  fullName: z.string().min(2, 'Kailangan ang buong pangalan mo'),
+  birthday: z.string().min(1, 'Kailangan ang birthday mo').refine(val => {
+    const today = new Date();
+    const birthDate = new Date(val);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age >= 18;
+  }, { message: 'Kailangan ay 18 years old pataas upang makapag-register.' }),
+  gender: z.enum(['Lalaki', 'Babae', 'Iba pa', 'Prefer not to say']),
+  address: z.string().min(5, 'Kailangan ng kumpletong address'),
 });
 
 type StaffRegisterFormValues = z.infer<typeof staffRegisterSchema>;
@@ -55,6 +69,10 @@ export function StaffRegisterDialog({ children }: { children?: React.ReactNode }
       email: '',
       password: '',
       businessCode: initialCode || '',
+      fullName: '',
+      birthday: '',
+      gender: 'Prefer not to say',
+      address: '',
     },
   });
 
@@ -74,7 +92,15 @@ export function StaffRegisterDialog({ children }: { children?: React.ReactNode }
   const onSubmit = async (data: StaffRegisterFormValues) => {
     try {
       setAuthError(null);
-      await registerStaff(data.email, data.password, data.businessCode);
+      await registerStaff(
+        data.email, 
+        data.password, 
+        data.businessCode,
+        data.fullName,
+        data.birthday,
+        data.gender,
+        data.address
+      );
       
       // Delay to allow Firebase Auth state to propagate to AuthGuard 
       await new Promise(resolve => setTimeout(resolve, 800));
@@ -123,6 +149,86 @@ export function StaffRegisterDialog({ children }: { children?: React.ReactNode }
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="fullName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs font-bold uppercase tracking-widest text-slate-400">Buong Pangalan</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="Halimbawa: Juan dela Cruz" 
+                      className="h-12 rounded-xl border-slate-200 bg-slate-50 focus-visible:ring-primary focus-visible:ring-offset-2" 
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage className="text-xs font-bold" />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="birthday"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs font-bold uppercase tracking-widest text-slate-400">Birthday (18+)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="date"
+                        className="h-12 rounded-xl border-slate-200 bg-slate-50 focus-visible:ring-primary focus-visible:ring-offset-2" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage className="text-[10px] font-bold" />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="gender"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs font-bold uppercase tracking-widest text-slate-400">Gender</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="h-12 rounded-xl border-slate-200 bg-slate-50 focus-visible:ring-primary focus-visible:ring-offset-2">
+                          <SelectValue placeholder="Pumili..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Lalaki">Lalaki</SelectItem>
+                        <SelectItem value="Babae">Babae</SelectItem>
+                        <SelectItem value="Iba pa">Iba pa</SelectItem>
+                        <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage className="text-[10px] font-bold" />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs font-bold uppercase tracking-widest text-slate-400">Kumpletong Address</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="House No., Street, Brgy., City, Province" 
+                      className="h-12 rounded-xl border-slate-200 bg-slate-50 focus-visible:ring-primary focus-visible:ring-offset-2" 
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage className="text-[10px] font-bold" />
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="email"

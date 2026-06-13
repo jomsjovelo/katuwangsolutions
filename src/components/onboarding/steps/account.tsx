@@ -165,9 +165,9 @@ export function AccountStep({ data, onUpdate, onNext }: AccountStepProps) {
                 </p>
               </section>
               <section>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">3. Data Privacy</h3>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">3. Data Privacy & Collection</h3>
                 <p className="text-slate-600">
-                  You retain full ownership of all data you input into the system. We do not sell your business data, customer lists, or financial records to third parties. We employ industry-standard encryption to protect your data.
+                  We collect essential personal information (such as your full name, birthday, gender, and complete address) for identity verification and account security. You must be at least 18 years old to create a business account. You retain full ownership of all data you input into the system. We do not sell your business data, customer lists, or financial records to third parties. We employ industry-standard encryption to protect your data.
                 </p>
               </section>
               <section>
