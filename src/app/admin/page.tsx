@@ -229,6 +229,7 @@ export default function AdminKillSwitch() {
     if (t.pricingTier === 'promo_99') return acc + (systemConfig.promoPrice ?? 99);
     if (t.pricingTier === 'standard_199') return acc + (systemConfig.standardPrice ?? 199);
     if (t.pricingTier === 'enterprise') return acc + (systemConfig.enterprisePrice ?? 499);
+    if (t.pricingTier === 'foc') return acc + 0;
     return acc;
   }, 0);
 
@@ -452,12 +453,14 @@ export default function AdminKillSwitch() {
                                     "text-xs font-bold p-1.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-primary w-fit cursor-pointer",
                                     tenant.pricingTier === 'promo_99' ? "bg-amber-50 text-amber-700 border-amber-200" :
                                     tenant.pricingTier === 'enterprise' ? "bg-purple-50 text-purple-700 border-purple-200" :
+                                    tenant.pricingTier === 'foc' ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
                                     "bg-slate-50 text-slate-700 border-slate-200"
                                   )}
                                 >
                                   <option value="promo_99">Promo ₱{systemConfig.promoPrice ?? 99}</option>
                                   <option value="standard_199">Standard ₱{systemConfig.standardPrice ?? 199}</option>
                                   <option value="enterprise">Enterprise ₱{systemConfig.enterprisePrice ?? 499}</option>
+                                  <option value="foc">Free of Charge (FOC)</option>
                                 </select>
                               </div>
                             </div>

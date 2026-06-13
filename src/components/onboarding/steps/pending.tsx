@@ -4,7 +4,6 @@ import React from 'react';
 import { Clock, ExternalLink } from 'lucide-react';
 
 const FB_MESSENGER_URL = 'https://m.me/KatuwangSolutions';
-const PAYMENT_NUMBER = '09951665423';
 
 interface PendingStepProps {
   data: any;
@@ -33,20 +32,12 @@ export function PendingStep({ data }: PendingStepProps) {
         </p>
       </div>
 
-      {/* GCash Payment Instructions */}
+      {/* Payment Screenshot Instructions */}
       <div className="w-full bg-amber-50 border border-amber-100 rounded-3xl p-5 text-left space-y-4">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 mb-1">Step 1: Send GCash Payment</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 mb-1">Final Step: Send Screenshot</p>
           <p className="text-sm text-amber-900 font-medium">
-            Please send exactly <strong className="text-amber-700">₱99.00</strong> to GCash number: <br/>
-            <strong className="text-lg text-amber-800 tracking-wider">{PAYMENT_NUMBER}</strong>
-          </p>
-        </div>
-        
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 mb-1">Step 2: Send Screenshot</p>
-          <p className="text-sm text-amber-900 font-medium">
-            Send your GCash receipt to our Facebook Messenger page along with your registered Email or Business Name.
+            If you haven't already, please send your QR payment screenshot to our Facebook Messenger page along with your registered Email or Business Name so we can activate your account immediately.
           </p>
         </div>
       </div>
@@ -61,10 +52,10 @@ export function PendingStep({ data }: PendingStepProps) {
           style={{ background: '#0099FF' }}
         >
           <ExternalLink className="h-5 w-5" />
-          Send GCash Receipt on Messenger
+          Send Payment Screenshot on Messenger
         </a>
         <p className="text-[9px] text-slate-400 uppercase tracking-widest font-bold">
-          <span translate="no" className="notranslate">Katuwang Solutions</span> · {PAYMENT_NUMBER}
+          <span translate="no" className="notranslate">Katuwang Solutions</span>
         </p>
       </div>
 

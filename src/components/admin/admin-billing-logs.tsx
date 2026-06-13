@@ -203,6 +203,7 @@ export function AdminBillingLogs() {
                         "font-bold uppercase tracking-wider text-[10px]",
                         log.pricingTier === 'promo_99' ? "text-amber-600 border-amber-200 bg-amber-50" : 
                         log.pricingTier === 'enterprise' ? "text-purple-600 border-purple-200 bg-purple-50" :
+                        log.pricingTier === 'foc' ? "text-emerald-600 border-emerald-200 bg-emerald-50" :
                         "text-slate-600 border-slate-200 bg-slate-50"
                       )}>
                         {log.pricingTier.replace('_', ' ')}

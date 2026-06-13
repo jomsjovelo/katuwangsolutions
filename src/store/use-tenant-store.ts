@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import deepEqual from 'fast-deep-equal';
 
-export type PricingTier = 'promo_99' | 'standard_199' | 'enterprise';
+export type PricingTier = 'promo_99' | 'standard_199' | 'enterprise' | 'foc';
 export type SubscriptionStatus = 'active' | 'suspended' | 'trial' | 'pending';
 
 export interface Tenant {

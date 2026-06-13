@@ -59,7 +59,7 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
 
   const next = async () => {
     setError(null);
-    const all: Step[] = ['mode', 'apps', 'business', 'account', 'success', 'payment', 'pending'];
+    const all: Step[] = ['mode', 'apps', 'business', 'account', 'payment', 'pending', 'success'];
     const currentIndex = all.indexOf(step);
     const nextStep = all[currentIndex + 1];
 
@@ -68,7 +68,7 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
       try {
         const referredBy = typeof window !== 'undefined' ? localStorage.getItem('katuwang_ref') : null;
         await registerNewTenant({ ...data, referredBy });
-        setStep('success');
+        setStep('payment');
       } catch (err: any) {
         setError(err.message || 'Failed to create account. Please try again.');
         return;

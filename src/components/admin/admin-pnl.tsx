@@ -47,18 +47,21 @@ const TIER_COLORS: Record<string, string> = {
   promo_99: '#F97316',
   standard_199: '#06B6D4',
   enterprise: '#8B5CF6',
+  foc: '#10B981',
 };
 
 const TIER_LABELS: Record<string, string> = {
   promo_99: 'Promo ₱99',
   standard_199: 'Standard ₱199',
   enterprise: 'Enterprise ₱499',
+  foc: 'Free of Charge',
 };
 
 const TIER_PRICES: Record<string, number> = {
   promo_99: 99,
   standard_199: 199,
   enterprise: 499,
+  foc: 0,
 };
 
 export function AdminPnL() {

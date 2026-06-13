@@ -78,7 +78,7 @@ export function useAdminTenants() {
       
       // If approving from pending → active: write billing log and process referral
       if (tenant.subscriptionStatus === 'pending' && status === 'active') {
-        const amount = tenant.pricingTier === 'promo_99' ? 99 : tenant.pricingTier === 'standard_199' ? 199 : 499;
+        const amount = tenant.pricingTier === 'promo_99' ? 99 : tenant.pricingTier === 'standard_199' ? 199 : tenant.pricingTier === 'foc' ? 0 : 499;
         const logRef = doc(collection(db, 'billing_logs'));
         batch.set(logRef, {
           tenantId: tenant.id,
@@ -126,7 +126,7 @@ export function useAdminTenants() {
 
       // If reactivating from suspended → active: write a reactivation billing log
       if (tenant.subscriptionStatus === 'suspended' && status === 'active') {
-        const amount = tenant.pricingTier === 'promo_99' ? 99 : tenant.pricingTier === 'standard_199' ? 199 : 499;
+        const amount = tenant.pricingTier === 'promo_99' ? 99 : tenant.pricingTier === 'standard_199' ? 199 : tenant.pricingTier === 'foc' ? 0 : 499;
         const logRef = doc(collection(db, 'billing_logs'));
         batch.set(logRef, {
           tenantId: tenant.id,
@@ -349,7 +349,7 @@ export function useAdminTenants() {
       nextDate.setDate(nextDate.getDate() + 30);
       
       // 2. Add Billing Log
-      const amount = tenant.pricingTier === 'promo_99' ? 99 : tenant.pricingTier === 'standard_199' ? 199 : 499;
+      const amount = tenant.pricingTier === 'promo_99' ? 99 : tenant.pricingTier === 'standard_199' ? 199 : tenant.pricingTier === 'foc' ? 0 : 499;
       const logRef = doc(collection(db, 'billing_logs'));
       batch.set(logRef, {
         tenantId: tenant.id,
