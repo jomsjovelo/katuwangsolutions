@@ -23,6 +23,17 @@ interface AccountStepProps {
   onNext: () => void;
 }
 
+const Field = ({ id, label, error, optional = false, children }: any) => (
+  <div className="space-y-1.5">
+    <Label htmlFor={id} className="text-xs font-bold uppercase tracking-widest text-slate-500">
+      {label}
+      {optional && <span className="ml-1 font-normal normal-case text-slate-400">(Optional)</span>}
+    </Label>
+    {children}
+    {error && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{error}</p>}
+  </div>
+);
+
 export function AccountStep({ data, onUpdate, onNext }: AccountStepProps) {
   const [errors, setErrors] = useState<any>({});
   const [showPassword, setShowPassword] = useState(false);
@@ -49,16 +60,7 @@ export function AccountStep({ data, onUpdate, onNext }: AccountStepProps) {
     onNext();
   };
 
-  const Field = ({ id, label, error, optional = false, children }: any) => (
-    <div className="space-y-1.5">
-      <Label htmlFor={id} className="text-xs font-bold uppercase tracking-widest text-slate-500">
-        {label}
-        {optional && <span className="ml-1 font-normal normal-case text-slate-400">(Optional)</span>}
-      </Label>
-      {children}
-      {error && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{error}</p>}
-    </div>
-  );
+
 
   return (
     <div className="p-6 space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
