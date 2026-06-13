@@ -597,6 +597,41 @@ export function ProfileTab() {
               </div>
             </div>
 
+            <div className="pt-2">
+              <div className="bg-emerald-50/50 rounded-xl border border-emerald-100 p-3 space-y-3">
+                <p className="text-[11px] font-bold text-emerald-800 text-center leading-tight">
+                  Basta active ang mga tindahang na-refer mo, tuloy-tuloy ang kita mo buwan-buwan! 💸
+                </p>
+                
+                <div className="grid grid-cols-2 gap-2 text-center">
+                  <div className="bg-white rounded-lg border border-emerald-100 p-2 shadow-sm">
+                    <p className="text-[10px] font-black uppercase text-slate-400">10 Referrals</p>
+                    <p className="text-sm font-black text-emerald-600">₱100 <span className="text-[9px] text-slate-400">/mo</span></p>
+                  </div>
+                  <div className="bg-white rounded-lg border border-emerald-100 p-2 shadow-sm">
+                    <p className="text-[10px] font-black uppercase text-slate-400">100 Referrals</p>
+                    <p className="text-sm font-black text-emerald-600">₱1,000 <span className="text-[9px] text-slate-400">/mo</span></p>
+                  </div>
+                  <div className="bg-white rounded-lg border border-emerald-100 p-2 shadow-sm">
+                    <p className="text-[10px] font-black uppercase text-slate-400">500 Referrals</p>
+                    <p className="text-sm font-black text-emerald-600">₱5,000 <span className="text-[9px] text-slate-400">/mo</span></p>
+                  </div>
+                  <div className="bg-white rounded-lg border border-emerald-100 p-2 shadow-sm">
+                    <p className="text-[10px] font-black uppercase text-slate-400">1K Referrals</p>
+                    <p className="text-sm font-black text-emerald-600">₱10,000 <span className="text-[9px] text-slate-400">/mo</span></p>
+                  </div>
+                  <div className="bg-white rounded-lg border border-emerald-100 p-2 shadow-sm">
+                    <p className="text-[10px] font-black uppercase text-slate-400">5K Referrals</p>
+                    <p className="text-sm font-black text-emerald-600">₱50,000 <span className="text-[9px] text-slate-400">/mo</span></p>
+                  </div>
+                  <div className="bg-white rounded-lg border border-emerald-100 p-2 shadow-sm">
+                    <p className="text-[10px] font-black uppercase text-slate-400">10K Referrals</p>
+                    <p className="text-sm font-black text-emerald-600">₱100,000 <span className="text-[9px] text-slate-400">/mo</span></p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="pt-2 border-t border-slate-100">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">My Referral History</h4>
