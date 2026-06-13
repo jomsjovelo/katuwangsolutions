@@ -597,6 +597,61 @@ export function ProfileTab() {
               </div>
             </div>
 
+            {/* Social Mission Section */}
+            <div className="pt-4 border-t border-slate-100">
+              <div className="bg-blue-50/50 rounded-xl border border-blue-100 overflow-hidden">
+                <div className="bg-blue-100/50 px-3 py-2 border-b border-blue-100 flex items-center justify-center">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-800">🚀 2-Step Social Mission</p>
+                </div>
+                <div className="p-3 space-y-4">
+                  {/* Step 1 */}
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-bold text-slate-700">1. Like & Follow our Page</p>
+                    <a 
+                      href="https://www.facebook.com/katuwangsolutions" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 w-full h-10 bg-[#1877F2] hover:bg-[#166FE5] text-white rounded-lg text-xs font-bold transition-colors"
+                    >
+                      <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                      Like & Follow us on Facebook
+                    </a>
+                  </div>
+
+                  {/* Step 2 */}
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-bold text-slate-700">2. Share to your Timeline</p>
+                    <p className="text-[9px] text-slate-500 leading-tight">Copy this viral caption and post it to Facebook! It already includes your link and the ₱99 Promo.</p>
+                    <div className="bg-white rounded-lg border border-slate-200 p-2.5 shadow-sm space-y-2">
+                      <p className="text-[10px] text-slate-600 leading-relaxed italic">
+                        "Gusto mo bang ma-automate ang negosyo mo? Gamit ang Katuwang Solutions, sobrang dali na i-track ang daily sales, i-monitor ang revenue, at i-manage ang expenses at inventory mo! Naka-PROMO sila ngayon for only ₱99! Upgrade your business today. Mag register sa link:<br/><br/>👉 https://katuwangsolutions.com/onboarding?ref={profile?.referralCode || (user?.uid ? user.uid.substring(0, 4).toUpperCase() : '')}"
+                      </p>
+                      <div className="flex gap-2">
+                        <Button 
+                          onClick={() => {
+                            const caption = `Gusto mo bang ma-automate ang negosyo mo? Gamit ang Katuwang Solutions, sobrang dali na i-track ang daily sales, i-monitor ang revenue, at i-manage ang expenses at inventory mo! Naka-PROMO sila ngayon for only ₱99! Upgrade your business today. Mag register sa link:\n\n👉 https://katuwangsolutions.com/onboarding?ref=${profile?.referralCode || (user?.uid ? user.uid.substring(0, 4).toUpperCase() : '')}`;
+                            navigator.clipboard.writeText(caption);
+                            alert('Caption & Link Copied!');
+                          }}
+                          className="flex-1 h-8 text-[10px] font-bold bg-slate-800 text-white rounded-lg hover:bg-slate-700"
+                        >
+                          Copy Caption
+                        </Button>
+                        <a 
+                          href={`https://www.facebook.com/sharer/sharer.php?u=https://katuwangsolutions.com/onboarding?ref=${profile?.referralCode || (user?.uid ? user.uid.substring(0, 4).toUpperCase() : '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center px-3 h-8 text-[10px] font-bold bg-[#1877F2] text-white rounded-lg hover:bg-[#166FE5]"
+                        >
+                          Share to FB
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="pt-2">
               <div className="bg-emerald-50/50 rounded-xl border border-emerald-100 p-3 space-y-3">
                 <p className="text-[11px] font-bold text-emerald-800 text-center leading-tight">
