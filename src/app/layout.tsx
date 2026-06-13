@@ -5,6 +5,7 @@ import { AuthGuard } from '@/components/auth/auth-guard';
 import { Toaster } from '@/components/ui/toaster';
 import { Suspense } from 'react';
 import { ReferralCatcher } from '@/components/referral-catcher';
+import { InAppBrowserBlocker } from '@/components/common/in-app-browser-blocker';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://katuwangsolutions.com'),
@@ -82,6 +83,7 @@ export default function RootLayout({
         <FirebaseClientProvider>
           <AuthGuard>
             <div className="w-full min-h-screen bg-white relative flex flex-col">
+              <InAppBrowserBlocker />
               {children}
             </div>
             <Toaster />
