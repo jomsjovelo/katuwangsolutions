@@ -187,8 +187,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     };
   }, [tenantId, db, pathname, router, setActiveTenant]);
 
+  // Helper to check if current route is public
+  const isPublicRoute = pathname === '/' || pathname === '/admin' || pathname.startsWith('/rsvp') || pathname.startsWith('/product') || pathname.startsWith('/terms') || pathname.startsWith('/onboarding');
+  const isOnboarding = pathname.startsWith('/onboarding');
+
   // 1. Initial Loading/Hydration State
-  if (authLoading || checking || isLoading || (user && isAdmin === null)) {
+  // We do not block render on /onboarding (except for initial auth load) because creating an account 
+  // automatically logs the user in. If we block render, it unmounts the onboarding wizard and resets its state!
+  if (authLoading || (!isOnboarding && (checking || isLoading || (user && isAdmin === null)))) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-white">
         <div className="relative flex flex-col items-center gap-6">
@@ -215,9 +221,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-
-  // Helper to check if current route is public
-  const isPublicRoute = pathname === '/' || pathname === '/admin' || pathname.startsWith('/rsvp') || pathname.startsWith('/product') || pathname.startsWith('/terms') || pathname.startsWith('/onboarding');
 
   // 1.5 Maintenance Mode View
   if (maintenance?.mode && !isAdmin && !isPublicRoute) {
