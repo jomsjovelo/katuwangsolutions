@@ -1,11 +1,9 @@
 "use client"
 
-import React, { useState } from 'react';
-import { ExternalLink, Copy, CheckCircle2, Download } from 'lucide-react';
+import React from 'react';
+import { ExternalLink, Download } from 'lucide-react';
 import Image from 'next/image';
 
-const PAYMENT_NUMBER = '09951665423';
-const ACCOUNT_NAME = 'Katuwang Solutions';
 const FB_MESSENGER_URL = 'https://m.me/KatuwangSolutions';
 
 interface PaymentStepProps {
@@ -14,20 +12,6 @@ interface PaymentStepProps {
 }
 
 export function PaymentStep({ data, onPaymentSent }: PaymentStepProps) {
-  const [copiedGcash, setCopiedGcash] = useState(false);
-  const [copiedMaya, setCopiedMaya] = useState(false);
-
-  const copyNumber = (type: 'gcash' | 'maya') => {
-    navigator.clipboard.writeText(PAYMENT_NUMBER);
-    if (type === 'gcash') {
-      setCopiedGcash(true);
-      setTimeout(() => setCopiedGcash(false), 2500);
-    } else {
-      setCopiedMaya(true);
-      setTimeout(() => setCopiedMaya(false), 2500);
-    }
-  };
-
   const downloadQR = () => {
     const link = document.createElement('a');
     link.href = '/images/gcash-qr.jpg';
@@ -83,45 +67,6 @@ export function PaymentStep({ data, onPaymentSent }: PaymentStepProps) {
         >
           <Download className="h-4 w-4" /> Download QR Code
         </button>
-      </div>
-
-      {/* Manual Options (Collapsed/Secondary) */}
-      <div className="space-y-3">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Or Pay via Mobile Number</p>
-
-        {/* GCash Card */}
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="h-6 w-6 rounded flex items-center justify-center font-black text-[10px] text-white" style={{ background: '#00A3E0' }}>G</div>
-              <span className="font-black uppercase tracking-wide text-xs" style={{ color: '#00A3E0' }}>GCash</span>
-            </div>
-            <p className="font-bold text-slate-900 text-xs"><span translate="no" className="notranslate">{ACCOUNT_NAME}</span></p>
-          </div>
-          <div className="flex items-center justify-between bg-white rounded-xl px-4 py-2 border border-blue-100">
-            <span className="font-black text-lg tracking-wider text-slate-900">{PAYMENT_NUMBER}</span>
-            <button onClick={() => copyNumber('gcash')} className="active:scale-90 transition-transform" style={{ color: '#00A3E0' }}>
-              {copiedGcash ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-            </button>
-          </div>
-        </div>
-
-        {/* Maya Card */}
-        <div className="bg-green-50 border border-green-100 rounded-2xl p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="h-6 w-6 rounded flex items-center justify-center font-black text-[10px] text-white" style={{ background: '#2ECC71' }}>M</div>
-              <span className="font-black uppercase tracking-wide text-xs" style={{ color: '#27AE60' }}>Maya</span>
-            </div>
-            <p className="font-bold text-slate-900 text-xs"><span translate="no" className="notranslate">{ACCOUNT_NAME}</span></p>
-          </div>
-          <div className="flex items-center justify-between bg-white rounded-xl px-4 py-2 border border-green-100">
-            <span className="font-black text-lg tracking-wider text-slate-900">{PAYMENT_NUMBER}</span>
-            <button onClick={() => copyNumber('maya')} className="active:scale-90 transition-transform text-green-600">
-              {copiedMaya ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-            </button>
-          </div>
-        </div>
       </div>
 
       {/* How-to Instructions */}
