@@ -28,6 +28,7 @@ interface AccountStepProps {
 export function AccountStep({ data, onUpdate, onNext }: AccountStepProps) {
   const [errors, setErrors] = useState<any>({});
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -98,6 +99,27 @@ export function AccountStep({ data, onUpdate, onNext }: AccountStepProps) {
               </button>
             </div>
             {errors.password && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.password}</p>}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="confirmPassword" className="text-xs font-bold uppercase tracking-widest text-slate-500">
+              Confirm Password
+            </Label>
+            <div className="relative">
+              <Input
+                id="confirmPassword"
+                type={showConfirmPassword ? 'text' : 'password'}
+                placeholder="Re-type your password"
+                value={data.confirmPassword || ''}
+                onChange={(e) => onUpdate({ confirmPassword: e.target.value })}
+                className={`pr-10 ${errors.confirmPassword ? 'border-destructive' : ''}`}
+              />
+              <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            {errors.confirmPassword && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.confirmPassword}</p>}
           </div>
         </div>
 

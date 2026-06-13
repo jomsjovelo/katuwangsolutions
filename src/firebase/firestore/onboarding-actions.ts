@@ -27,6 +27,7 @@ export async function registerNewTenant(onboardingData: any) {
   const accountInfo = AccountSchema.parse({
     email: onboardingData.email,
     password: onboardingData.password,
+    confirmPassword: onboardingData.confirmPassword,
   });
 
   try {
