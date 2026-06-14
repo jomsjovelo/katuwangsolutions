@@ -66,7 +66,7 @@ async function seedDemoAccount() {
       { id: 'rental', name: 'Katuwang Rental Demo' }
     ];
 
-    const DEMO_BUSINESS_CODE = '8888';
+    const UNIFIED_DEMO_CODE = 'DEMO123';
     const primaryTenantId = `demo-${modules[0].id}-${uid.substring(0, 5)}`;
 
     console.log(`🏢 Provisioning ${modules.length} Tenants for Demo Account...`);
@@ -85,16 +85,16 @@ async function seedDemoAccount() {
         ownerUid: uid,
         ownerEmail: DEMO_EMAIL,
         staffUids: [],
-        businessCode: DEMO_BUSINESS_CODE,
+        businessCode: UNIFIED_DEMO_CODE,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
     }
 
     // Create Business Code Document for Primary Tenant
-    const codeRef = doc(db, 'business_codes', DEMO_BUSINESS_CODE);
+    const codeRef = doc(db, 'business_codes', UNIFIED_DEMO_CODE);
     await setDoc(codeRef, {
-      code: DEMO_BUSINESS_CODE,
+      code: UNIFIED_DEMO_CODE,
       tenantId: primaryTenantId,
       moduleType: modules[0].id,
       createdAt: serverTimestamp()
@@ -108,8 +108,16 @@ async function seedDemoAccount() {
       role: 'owner',
       tenantId: primaryTenantId,
       moduleType: modules[0].id,
+      referralCode: UNIFIED_DEMO_CODE,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
+    });
+
+    // Create Referral Code Document for Owner
+    const refCodeDoc = doc(db, 'referral_codes', UNIFIED_DEMO_CODE);
+    await setDoc(refCodeDoc, {
+      uid: uid,
+      createdAt: serverTimestamp()
     });
 
     console.log(`✅ Profiles Created. Waiting 2 seconds for security rules propagation...`);

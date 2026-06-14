@@ -14,7 +14,8 @@ import {
   doc, 
   getFirestore,
   updateDoc,
-  setDoc
+  setDoc,
+  getDoc
 } from 'firebase/firestore';
 import { app } from '@/firebase/config';
 import { sendStaffInvite, removeStaffMember } from '@/firebase/firestore/staff-actions';
@@ -27,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useTenantStore } from '@/store/use-tenant-store';
 import { WithdrawReferralSheet } from '@/components/common/withdraw-referral-sheet';
+import { ReferralHistorySheet } from '@/components/dashboard/referral-history-sheet';
 import { 
   User, 
   Users, 
@@ -169,26 +171,47 @@ export function ProfileTab() {
 
   // Patch for Demo Account (or any missing code)
   useEffect(() => {
-    if (!currentTenant || !isOwner) return;
-    if (!currentTenant.businessCode) {
+    if (!user || !currentTenant || !isOwner) return;
+    if (!currentTenant.businessCode || (profile && !profile.referralCode)) {
       const patchCode = async () => {
         try {
-          // If it's the demo account (by ID or Name), use 8888, otherwise generate one
           const isDemo = currentTenant.id === 'demo' || currentTenant.name.toLowerCase().includes('demo');
-          const codeToUse = isDemo ? '8888' : Math.floor(1000 + Math.random() * 9000).toString();
           
-          await setDoc(doc(db, 'business_codes', codeToUse), { tenantId: currentTenant.id });
-          await updateDoc(doc(db, 'tenants', currentTenant.id), { businessCode: codeToUse });
+          let codeToUse = 'DEMO123';
+          if (!isDemo) {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let isUnique = false;
+            let attempts = 0;
+            while (!isUnique && attempts < 10) {
+              codeToUse = Array.from({ length: 7 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
+              const bSnap = await getDoc(doc(db, 'business_codes', codeToUse));
+              const rSnap = await getDoc(doc(db, 'referral_codes', codeToUse));
+              if (!bSnap.exists() && !rSnap.exists()) isUnique = true;
+              attempts++;
+            }
+          }
           
-          // Force local update so the UI updates immediately without needing a full refresh if onSnapshot is slow
-          setCurrentTenant({ ...currentTenant, businessCode: codeToUse });
+          // Patch business code
+          if (!currentTenant.businessCode) {
+            await setDoc(doc(db, 'business_codes', codeToUse), { tenantId: currentTenant.id });
+            await updateDoc(doc(db, 'tenants', currentTenant.id), { businessCode: codeToUse });
+            setCurrentTenant({ ...currentTenant, businessCode: codeToUse });
+          }
+
+          // Patch referral code
+          if (profile && !profile.referralCode) {
+            await setDoc(doc(db, 'referral_codes', codeToUse), { uid: user.uid });
+            await updateDoc(doc(db, 'users', user.uid), { referralCode: codeToUse });
+            setProfile({ ...profile, referralCode: codeToUse });
+          }
+
         } catch (e) {
-          console.error("Failed to patch business code:", e);
+          console.error("Failed to patch business/referral code:", e);
         }
       };
       patchCode();
     }
-  }, [currentTenant, isOwner, db, setCurrentTenant]);
+  }, [currentTenant, isOwner, db, setCurrentTenant, profile, user]);
 
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -414,28 +437,6 @@ export function ProfileTab() {
                   )}
                 </div>
 
-                {currentTenant?.businessCode && (
-                  <div className="space-y-2 mt-4 pt-4 border-t border-slate-100">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Invite Link:</p>
-                    <div className="flex gap-2">
-                      <Input 
-                        readOnly 
-                        value={`https://katuwangsolutions.com/?code=${currentTenant.businessCode}`}
-                        className="rounded-xl border-slate-200 text-[10px] bg-slate-50 font-medium h-10"
-                      />
-                      <Button 
-                        onClick={() => {
-                          navigator.clipboard.writeText(`https://katuwangsolutions.com/?code=${currentTenant.businessCode}`);
-                          alert('Invite Link Copied!');
-                        }}
-                        variant="outline"
-                        className="rounded-xl h-10 text-[10px] font-bold border-slate-200"
-                      >
-                        Copy
-                      </Button>
-                    </div>
-                  </div>
-                )}
               </CardContent>
             </Card>
 
@@ -692,10 +693,10 @@ export function ProfileTab() {
                 <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">My Referral History</h4>
                 {referralHistory.length > 3 && (
                   <button 
-                    onClick={() => setShowAllHistory(!showAllHistory)}
+                    onClick={() => setShowAllHistory(true)}
                     className="text-[10px] font-bold text-emerald-600 hover:underline"
                   >
-                    {showAllHistory ? 'Show Less' : 'See All'}
+                    See All
                   </button>
                 )}
               </div>
@@ -707,7 +708,7 @@ export function ProfileTab() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {(showAllHistory ? referralHistory : referralHistory.slice(0, 3)).map((ref, i) => (
+                  {referralHistory.slice(0, 3).map((ref, i) => (
                     <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
                       <div>
                         <p className="text-xs font-bold text-slate-800">{ref.referredTenantName}</p>
@@ -751,6 +752,13 @@ export function ProfileTab() {
           tenantName={currentTenant?.name || ''}
           role={profile?.role || 'staff'}
           uid={user?.uid || ''}
+        />
+
+        <ReferralHistorySheet
+          open={showAllHistory}
+          onOpenChange={setShowAllHistory}
+          uid={user?.uid || ''}
+          moduleType={currentTenant?.moduleType}
         />
 
         {/* Install App Card */}

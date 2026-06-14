@@ -8,8 +8,8 @@ export function ReferralCatcher() {
 
   useEffect(() => {
     const refCode = searchParams.get('ref');
-    if (refCode && refCode.length === 4) {
-      // Store the 4-character referral code in localStorage
+    if (refCode && refCode.length >= 4 && refCode.length <= 7) {
+      // Store the referral code in localStorage (case-insensitive conversion)
       localStorage.setItem('katuwang_ref', refCode.toUpperCase());
     }
   }, [searchParams]);
