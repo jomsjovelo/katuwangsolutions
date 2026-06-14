@@ -16,7 +16,7 @@ export function ModeSelectionStep({ onSelectStartBusiness }: ModeSelectionStepPr
 
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (businessCode.length !== 4) return;
+    if (businessCode.length !== 7) return;
     setIsJoining(true);
     // Redirect to login modal with the business code pre-filled
     router.push(`/?code=${businessCode.toUpperCase()}`);
@@ -33,14 +33,14 @@ export function ModeSelectionStep({ onSelectStartBusiness }: ModeSelectionStepPr
           Sali sa Team
         </h2>
         <p className="text-sm font-medium text-slate-500 mb-8 max-w-[280px]">
-          I-type ang 4-digit Business Code na binigay ng inyong Store Owner.
+          I-type ang 7-character Business Code na binigay ng inyong Store Owner.
         </p>
 
         <form onSubmit={handleJoin} className="w-full space-y-6">
           <Input
             value={businessCode}
-            onChange={(e) => setBusinessCode(e.target.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 4))}
-            placeholder="0000"
+            onChange={(e) => setBusinessCode(e.target.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 7).toUpperCase())}
+            placeholder="A4X9BQ2"
             className="h-20 text-center text-4xl font-black tracking-[0.5em] uppercase rounded-2xl bg-white border-2 border-slate-200 focus-visible:border-primary focus-visible:ring-primary shadow-sm"
             autoFocus
           />
@@ -48,7 +48,7 @@ export function ModeSelectionStep({ onSelectStartBusiness }: ModeSelectionStepPr
           <div className="space-y-3">
             <Button 
               type="submit"
-              disabled={businessCode.length !== 4 || isJoining}
+              disabled={businessCode.length !== 7 || isJoining}
               className="w-full h-14 rounded-xl font-bold uppercase tracking-widest text-sm shadow-lg hover:shadow-xl transition-all joy-glow active:scale-95 flex items-center justify-center gap-2"
             >
               {isJoining ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Mag-patuloy'}

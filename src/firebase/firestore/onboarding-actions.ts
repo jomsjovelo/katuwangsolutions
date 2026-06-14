@@ -39,26 +39,30 @@ export async function registerNewTenant(onboardingData: any) {
     );
     const uid = userCredential.user.uid;
 
-    // 2. Generate Unique 4-Digit Code
-    let businessCode = '';
+    // 2. Generate Unique Unified 6-Char Code
+    let unifiedCode = '';
     let isUnique = false;
     let attempts = 0;
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    
     while (!isUnique && attempts < 10) {
-      businessCode = Math.floor(1000 + Math.random() * 9000).toString();
-      const codeRef = doc(db, 'business_codes', businessCode);
-      const codeSnap = await getDoc(codeRef);
-      if (!codeSnap.exists()) {
+      unifiedCode = Array.from({ length: 7 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
+      const codeRef = doc(db, 'business_codes', unifiedCode);
+      const refRef = doc(db, 'referral_codes', unifiedCode);
+      const [codeSnap, refSnap] = await Promise.all([getDoc(codeRef), getDoc(refRef)]);
+      
+      if (!codeSnap.exists() && !refSnap.exists()) {
         isUnique = true;
       }
       attempts++;
     }
 
     if (!isUnique) {
-      throw new Error("Failed to generate a unique business code. Please try again.");
+      throw new Error("Failed to generate a unique unified code. Please try again.");
     }
 
-    // 2.5 Generate Unique 4-Char Referral Code
-    const referralCode = await generateUniqueReferralCode(db);
+    const businessCode = unifiedCode;
+    const referralCode = unifiedCode;
 
     // 3. Atomic Firestore Write
     try {
@@ -95,16 +99,23 @@ export async function registerNewTenant(onboardingData: any) {
         transaction.set(tenantRef, {
           id: tenantId,
           name: businessInfo.businessName,
-          businessPhone: '', // Removed for frictionless onboarding
-          moduleType: onboardingData.appId,
-          pricingTier: 'promo_99',
-          subscriptionStatus: 'pending', // Waiting for GCash verification
+          searchableName: businessInfo.businessName.toLowerCase(),
           ownerUid: uid,
-          staffUids: [],
+          ownerEmail: accountInfo.email,
           businessCode: businessCode,
+          pricingTier: 'promo_99',
+          nextBillingDate: null,
+          subscriptionStatus: 'pending',
+          contactPhone: '',
+          address: businessInfo.address,
+          moduleType: onboardingData.appId,
+          staffUids: [],
           referredBy: onboardingData.referredBy || null,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
+          settings: {
+            theme: 'default'
+          }
         });
 
         // Create User Profile Doc

@@ -6,6 +6,7 @@ import { getAuth, signOut } from 'firebase/auth';
 import { initializeFirebase } from '@/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useAdminTenants } from '@/hooks/use-admin-tenants';
+import { useAdminStats } from '@/hooks/use-admin-stats';
 import { useTenantStore, PricingTier } from '@/store/use-tenant-store';
 import { useUser } from '@/firebase/auth/use-user';
 import { loginUser } from '@/firebase/firestore/staff-actions';
@@ -19,6 +20,7 @@ import { AdminTenantDetails } from '@/components/admin/admin-tenant-details';
 import { AdminTickets } from '@/components/admin/admin-tickets';
 import { AdminPnL } from '@/components/admin/admin-pnl';
 import { AdminWithdrawals } from '@/components/admin/admin-withdrawals';
+import { AdminOwnerRow, OwnerGroup } from '@/components/admin/admin-owner-row';
 import { cn } from "@/lib/utils";
 import { 
   Table, 
@@ -59,7 +61,10 @@ import {
   TrendingUp,
   AlertCircle,
   Loader2,
-  Wallet
+  Wallet,
+  ChevronLeft,
+  ChevronRight,
+  Database
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
@@ -74,10 +79,11 @@ interface SystemConfig {
 
 export default function AdminKillSwitch() {
   const { user, loading: authLoading } = useUser();
-  const { tenants, loading, error, updateTenantStatus, updateTenantPricing, updateNextBillingDate, processTenantRenewal, toggleTenantModule, annihilateTenant } = useAdminTenants();
+  const { tenants, loading, error, fetchTenants, searchTenants, hasNextPage, hasPrevPage, updateTenantStatus, updateTenantPricing, updateNextBillingDate, processTenantRenewal, toggleTenantModule, annihilateTenant } = useAdminTenants();
+  const { stats, loading: statsLoading } = useAdminStats();
+  
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [activeTab, setActiveTab] = useState<"tenants" | "pnl" | "announcements" | "billing" | "activity" | "support" | "admins" | "settings" | "withdrawals">("tenants");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "directory" | "pnl" | "announcements" | "billing" | "activity" | "support" | "admins" | "settings" | "withdrawals">("dashboard");
   const [selectedTenant, setSelectedTenant] = useState<any | null>(null);
   const [mounted, setMounted] = useState(false);
   const [systemConfig, setSystemConfig] = useState<SystemConfig>({ promoPrice: 99, standardPrice: 199, enterprisePrice: 499 });
@@ -95,6 +101,23 @@ export default function AdminKillSwitch() {
 
   // Per-row pricing update state
   const [updatingPricingFor, setUpdatingPricingFor] = useState<string | null>(null);
+
+  const groupedTenants = React.useMemo(() => {
+    const groups: Record<string, OwnerGroup> = {};
+    tenants.forEach(t => {
+      const groupId = t.ownerEmail || t.ownerUid || t.id;
+      if (!groups[groupId]) {
+        groups[groupId] = {
+          id: groupId,
+          ownerEmail: t.ownerEmail || 'Unknown Email',
+          primaryBusinessName: t.name,
+          tenants: []
+        };
+      }
+      groups[groupId].tenants.push(t);
+    });
+    return Object.values(groups);
+  }, [tenants]);
 
   const router = useRouter();
 
@@ -215,37 +238,24 @@ export default function AdminKillSwitch() {
     );
   }
 
-  const filteredTenants = tenants.filter(t => {
-    const matchesSearch = t.name.toLowerCase().includes(search.toLowerCase()) || 
-                          t.id.toLowerCase().includes(search.toLowerCase()) ||
-                          (t.ownerEmail && t.ownerEmail.toLowerCase().includes(search.toLowerCase()));
-    const matchesStatus = filterStatus === 'all' || t.subscriptionStatus === filterStatus;
-    return matchesSearch && matchesStatus;
-  });
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    searchTenants(search);
+  };
 
-  // MRR: reads from live system config, not hardcoded values
-  const totalRevenue = tenants.reduce((acc, t) => {
-    if (t.subscriptionStatus !== 'active') return acc;
-    if (t.pricingTier === 'promo_99') return acc + (systemConfig.promoPrice ?? 99);
-    if (t.pricingTier === 'standard_199') return acc + (systemConfig.standardPrice ?? 199);
-    if (t.pricingTier === 'enterprise') return acc + (systemConfig.enterprisePrice ?? 499);
-    if (t.pricingTier === 'foc') return acc + 0;
-    return acc;
-  }, 0);
+  const totalRevenue = stats?.mrr || 0;
+  const activeCount = stats?.activeTenants || 0;
 
-  const moduleDistribution = tenants.reduce((acc, t) => {
-    const mod = t.moduleType || 'Unknown';
-    acc[mod] = (acc[mod] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-
-  const pieData = Object.keys(moduleDistribution).map((key) => ({
-    name: key,
-    value: moduleDistribution[key]
-  })).sort((a, b) => b.value - a.value);
+  const pieData = [
+    { name: 'Promo', value: stats?.promoCount || 0 },
+    { name: 'Standard', value: stats?.standardCount || 0 },
+    { name: 'Enterprise', value: stats?.enterpriseCount || 0 },
+    { name: 'Free of Charge', value: stats?.focCount || 0 },
+  ].filter(d => d.value > 0);
 
   const NAV_TABS = [
-    { key: 'tenants', label: 'Tenants', icon: Layers },
+    { key: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+    { key: 'directory', label: 'Tenant Directory', icon: Database },
     { key: 'pnl', label: 'P&L', icon: TrendingUp },
     { key: 'announcements', label: 'Announcements', icon: Megaphone },
     { key: 'billing', label: 'Billing Logs', icon: Receipt },
@@ -278,13 +288,15 @@ export default function AdminKillSwitch() {
         </div>
 
         <div className="relative w-full md:w-96 mt-4 md:mt-0">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input 
-            placeholder="Search Tenant UID or Name..." 
-            className="pl-12 bg-secondary/30 border-secondary h-12 rounded-xl focus:ring-primary w-full text-base sm:text-sm"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          <form onSubmit={handleSearch}>
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input 
+              placeholder="Search Email or Business Name..." 
+              className="pl-12 bg-secondary/30 border-secondary h-12 rounded-xl focus:ring-primary w-full text-base sm:text-sm"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </form>
         </div>
       </header>
 
@@ -295,32 +307,32 @@ export default function AdminKillSwitch() {
             key={key}
             variant={activeTab === key ? 'default' : 'ghost'}
             className="font-bold shrink-0 snap-start"
-            onClick={() => setActiveTab(key)}
+            onClick={() => setActiveTab(key as any)}
           >
             <Icon className="h-4 w-4 mr-2" /> {label}
           </Button>
         ))}
       </div>
 
-      {/* ── TENANTS TAB ──────────────────────────────────────────────────── */}
-      {activeTab === 'tenants' && (
+      {/* ── DASHBOARD TAB ──────────────────────────────────────────────────── */}
+      {activeTab === 'dashboard' && (
         <>
           {/* Error State */}
           {error && (
             <div className="flex items-center gap-3 bg-destructive/10 border border-destructive/30 text-destructive p-4 rounded-xl mb-6 text-sm font-medium">
               <AlertCircle className="h-5 w-5 flex-shrink-0" />
-              <span>Failed to load tenants: {error}. Please check your Firestore permissions.</span>
+              <span>Failed to load system stats: {error}. Please check your Firestore permissions.</span>
             </div>
           )}
 
           {/* Loading State */}
-          {loading && (
+          {statsLoading && (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           )}
 
-          {!loading && !error && (
+          {!statsLoading && !error && (
             <>
               {/* Analytics Row */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-12">
@@ -341,7 +353,7 @@ export default function AdminKillSwitch() {
                   <Card className="bg-white border-secondary/50 shadow-md">
                     <CardHeader className="pb-2">
                       <CardDescription className="font-bold uppercase tracking-widest text-[10px] text-slate-400">Total Active Tenants</CardDescription>
-                      <CardTitle className="text-4xl font-headline font-black text-slate-800">{tenants.filter(t => t.subscriptionStatus === 'active').length}</CardTitle>
+                      <CardTitle className="text-4xl font-headline font-black text-slate-800">{activeCount}</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="flex items-center gap-2 text-primary font-bold text-sm">
@@ -383,153 +395,79 @@ export default function AdminKillSwitch() {
                   </Card>
                 </div>
               </div>
+            </>
+          )}
+        </>
+      )}
 
-              {/* Status Filters */}
-              <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2">
-                {['all', 'pending', 'active', 'suspended'].map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => setFilterStatus(status)}
-                    className={cn(
-                      "px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-colors whitespace-nowrap shrink-0 snap-start",
-                      filterStatus === status 
-                        ? "bg-primary text-primary-foreground shadow-md" 
-                        : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
-                    )}
-                  >
-                    {status} ({status === 'all' ? tenants.length : tenants.filter(t => t.subscriptionStatus === status).length})
-                  </button>
-                ))}
-              </div>
+      {/* ── DIRECTORY TAB ──────────────────────────────────────────────────── */}
+      {activeTab === 'directory' && (
+        <>
+          {error && (
+            <div className="flex items-center gap-3 bg-destructive/10 border border-destructive/30 text-destructive p-4 rounded-xl mb-6 text-sm font-medium">
+              <AlertCircle className="h-5 w-5 flex-shrink-0" />
+              <span>Failed to load tenants: {error}.</span>
+            </div>
+          )}
 
-              {/* Tenants Table */}
-              <div className="bg-card rounded-2xl border border-secondary/50 shadow-2xl overflow-hidden">
+          {loading && (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          )}
+
+          {!loading && !error && (
+            <>
+              <div className="bg-card rounded-2xl border border-secondary/50 shadow-2xl overflow-hidden mb-6">
                 <div className="overflow-x-auto min-w-full">
                   <Table>
                     <TableHeader className="bg-secondary/40">
                       <TableRow className="border-secondary hover:bg-transparent">
-                        <TableHead className="font-bold text-xs uppercase tracking-widest py-6">Tenant Identity</TableHead>
-                        <TableHead className="font-bold text-xs uppercase tracking-widest py-6">Module & Pricing</TableHead>
-                        <TableHead className="font-bold text-xs uppercase tracking-widest py-6">Status</TableHead>
+                        <TableHead className="font-bold text-xs uppercase tracking-widest py-6">Owner Identity</TableHead>
+                        <TableHead className="font-bold text-xs uppercase tracking-widest py-6 hidden md:table-cell">Subscribed Modules</TableHead>
+                        <TableHead className="font-bold text-xs uppercase tracking-widest py-6 hidden md:table-cell">Overall Status</TableHead>
                         <TableHead className="text-right font-bold text-xs uppercase tracking-widest py-6">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredTenants.map((tenant) => (
-                        <TableRow key={tenant.id} className="border-secondary/30 hover:bg-secondary/10 transition-colors">
-                          <TableCell>
-                            <div className="flex flex-col gap-1">
-                              <span className="font-bold text-lg">{tenant.name}</span>
-                              <div className="flex items-center gap-2 text-muted-foreground text-xs">
-                                <span className="font-mono">{tenant.id}</span>
-                                <span>&bull;</span>
-                                <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {tenant.ownerEmail || 'No Email'}</span>
-                              </div>
-                              {tenant.createdAt && (
-                                <div className="flex items-center gap-1 text-[10px] text-slate-400">
-                                  <Calendar className="h-3 w-3" />
-                                  <span>Created: {new Date(typeof tenant.createdAt === 'object' && tenant.createdAt !== null && 'seconds' in tenant.createdAt ? (tenant.createdAt as any).seconds * 1000 : tenant.createdAt as any).toLocaleDateString()}</span>
-                                </div>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col gap-2">
-                              <div className="flex items-center gap-2">
-                                <Layers className="h-4 w-4 text-primary" />
-                                <span className="font-bold text-sm uppercase tracking-wider">{tenant.moduleType}</span>
-                              </div>
-                              <div className="relative">
-                                {updatingPricingFor === tenant.id && (
-                                  <div className="absolute inset-0 flex items-center justify-center bg-white/70 rounded-lg z-10">
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                                  </div>
-                                )}
-                                <select
-                                  value={tenant.pricingTier}
-                                  onChange={(e) => handlePricingChange(tenant.id, e.target.value as PricingTier)}
-                                  disabled={updatingPricingFor === tenant.id}
-                                  className={cn(
-                                    "text-xs font-bold p-1.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-primary w-fit cursor-pointer",
-                                    tenant.pricingTier === 'promo_99' ? "bg-amber-50 text-amber-700 border-amber-200" :
-                                    tenant.pricingTier === 'enterprise' ? "bg-purple-50 text-purple-700 border-purple-200" :
-                                    tenant.pricingTier === 'foc' ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                                    "bg-slate-50 text-slate-700 border-slate-200"
-                                  )}
-                                >
-                                  <option value="promo_99">Promo ₱{systemConfig.promoPrice ?? 99}</option>
-                                  <option value="standard_199">Standard ₱{systemConfig.standardPrice ?? 199}</option>
-                                  <option value="enterprise">Enterprise ₱{systemConfig.enterprisePrice ?? 499}</option>
-                                  <option value="foc">Free of Charge (FOC)</option>
-                                </select>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge 
-                              className={cn(
-                                "font-bold px-3 py-1",
-                                tenant.subscriptionStatus === 'active' ? "bg-chart-2/20 text-chart-2 border-chart-2/40" : 
-                                tenant.subscriptionStatus === 'pending' ? "bg-amber-100 text-amber-700 border-amber-200" :
-                                "bg-destructive/20 text-destructive border-destructive/40"
-                              )}
-                            >
-                              {tenant.subscriptionStatus.toUpperCase()}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              {tenant.subscriptionStatus === 'pending' && (
-                                <Button 
-                                  size="sm" 
-                                  onClick={() => updateTenantStatus(tenant, 'active')}
-                                  className="bg-amber-500 hover:bg-amber-600 text-white font-bold h-8 px-4"
-                                >
-                                  Approve
-                                </Button>
-                              )}
-                              <div className="flex items-center gap-2 border-l pl-3 ml-1 border-secondary/50">
-                                <span className={cn("text-[10px] font-bold uppercase tracking-wider w-16 text-right hidden sm:block", 
-                                  tenant.subscriptionStatus === 'suspended' ? "text-destructive" : 
-                                  tenant.subscriptionStatus === 'pending' ? "text-amber-500" : "text-chart-2"
-                                )}>
-                                  {tenant.subscriptionStatus === 'suspended' ? "KILLED" : tenant.subscriptionStatus}
-                                </span>
-                                <Switch 
-                                  checked={tenant.subscriptionStatus === 'active'}
-                                  onCheckedChange={(checked) => updateTenantStatus(tenant, checked ? 'active' : 'suspended')}
-                                  className="data-[state=checked]:bg-chart-2"
-                                />
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setSelectedTenant(tenant)}
-                                className="ml-2 bg-secondary/30 hover:bg-primary/10 hover:text-primary font-bold text-xs"
-                              >
-                                Details
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => {
-                                  setPurgeDialogTenant(tenant);
-                                  setPurgeConfirmInput('');
-                                }}
-                                className="h-8 w-8 text-destructive hover:bg-destructive hover:text-white ml-2 transition-colors"
-                                title="Purge Tenant Data"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
+                      {groupedTenants.map((group) => (
+                        <AdminOwnerRow 
+                          key={group.id} 
+                          group={group} 
+                          updatingPricingFor={updatingPricingFor}
+                          onUpdatePricing={handlePricingChange}
+                          onUpdateStatus={updateTenantStatus}
+                          onShowDetails={setSelectedTenant}
+                          onPurge={(t) => { setPurgeDialogTenant(t); setPurgeConfirmInput(''); }}
+                        />
                       ))}
                     </TableBody>
                   </Table>
                 </div>
               </div>
               
+              <div className="flex items-center justify-between mb-12">
+                <Button 
+                  variant="outline" 
+                  disabled={!hasPrevPage} 
+                  onClick={() => fetchTenants('prev')}
+                  className="font-bold"
+                >
+                  <ChevronLeft className="w-4 h-4 mr-2" /> Previous Page
+                </Button>
+                <div className="text-sm font-bold text-muted-foreground tracking-widest uppercase">
+                  Showing {tenants.length} tenants
+                </div>
+                <Button 
+                  variant="outline" 
+                  disabled={!hasNextPage || tenants.length < 50} 
+                  onClick={() => fetchTenants('next')}
+                  className="font-bold"
+                >
+                  Next Page <ChevronRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
+
               <AdminTenantDetails 
                 tenant={selectedTenant}
                 isOpen={!!selectedTenant}

@@ -35,7 +35,7 @@ import { registerStaff } from '@/firebase/firestore/staff-actions';
 const staffRegisterSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
-  businessCode: z.string().min(4, 'Business code must be exactly 4 characters').max(4, 'Business code must be exactly 4 characters'),
+  businessCode: z.string().min(7, 'Business code must be exactly 7 characters').max(7, 'Business code must be exactly 7 characters'),
   fullName: z.string().min(2, 'Kailangan ang buong pangalan mo'),
   birthday: z.string().min(1, 'Kailangan ang birthday mo').refine(val => {
     const today = new Date();
@@ -275,14 +275,15 @@ export function StaffRegisterDialog({ children }: { children?: React.ReactNode }
                   <FormLabel className="text-xs font-bold uppercase tracking-widest text-slate-400">Business Code</FormLabel>
                   <FormControl>
                     <Input 
-                      placeholder="Halimbawa: 8391" 
-                      className="h-12 rounded-xl border-slate-200 bg-slate-50 focus-visible:ring-primary focus-visible:ring-offset-2 text-center text-lg font-bold tracking-[0.2em]" 
-                      maxLength={4}
-                      {...field} 
+                      placeholder="Halimbawa: A4X9BQ2" 
+                      className="h-12 rounded-xl border-slate-200 bg-slate-50 focus-visible:ring-primary focus-visible:ring-offset-2 text-center text-lg font-bold tracking-[0.2em] uppercase" 
+                      maxLength={7}
+                      {...field}
+                      onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                     />
                   </FormControl>
                   {!initialCode && (
-                     <p className="text-[10px] text-slate-500 font-medium leading-tight">Hingin ang 4-digit code sa inyong Store Owner.</p>
+                     <p className="text-[10px] text-slate-500 font-medium leading-tight">Hingin ang 7-character code sa inyong Store Owner.</p>
                   )}
                   <FormMessage className="text-xs font-bold" />
                 </FormItem>

@@ -39,7 +39,8 @@ export async function registerStaff(
   const { auth, db } = initializeFirebase();
 
   // 1. Validate business code
-  const codeRef = doc(db, 'business_codes', businessCode);
+  const upperBusinessCode = businessCode.toUpperCase();
+  const codeRef = doc(db, 'business_codes', upperBusinessCode);
   const codeSnap = await getDoc(codeRef);
   
   if (!codeSnap.exists()) {
@@ -251,6 +252,13 @@ export async function acceptStaffInvite(inviteId: string, userUid: string) {
     if (!hasCode) {
       const newCode = await generateUniqueReferralCode(db);
       const refCodeDoc = doc(db, 'referral_codes', newCode);
+      
+      // Ensure absolute uniqueness inside the transaction
+      const collisionCheck = await transaction.get(refCodeDoc);
+      if (collisionCheck.exists()) {
+        throw new Error('Collision detected during transaction. Please try accepting the invite again.');
+      }
+      
       transaction.set(refCodeDoc, { uid: userUid, createdAt: serverTimestamp() });
       userUpdates.referralCode = newCode;
       if (!userSnap.exists() || userSnap.data()?.referralEarnings === undefined) {

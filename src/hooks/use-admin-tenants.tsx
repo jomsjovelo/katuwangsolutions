@@ -13,57 +13,97 @@ export function useAdminTenants() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const { db } = initializeFirebase();
-    const tenantsRef = collection(db, 'tenants');
+  // Pagination state
+  const [lastVisible, setLastVisible] = useState<any>(null);
+  const [pageStack, setPageStack] = useState<any[]>([]); // To go backwards
 
-    const unsubscribeTenants = onSnapshot(tenantsRef, 
-      (snapshot) => {
-        const tenantData: AdminTenant[] = [];
-        snapshot.forEach((doc) => {
-          tenantData.push({ id: doc.id, ...doc.data() } as AdminTenant);
-        });
+  const fetchTenants = async (direction: 'next' | 'prev' | 'initial' = 'initial') => {
+    setLoading(true);
+    try {
+      const { db } = initializeFirebase();
+      const { query, collection, orderBy, limit, startAfter, getDocs } = await import('firebase/firestore');
+      
+      let q = query(collection(db, 'tenants'), orderBy('createdAt', 'desc'), limit(50));
+
+      if (direction === 'next' && lastVisible) {
+        q = query(collection(db, 'tenants'), orderBy('createdAt', 'desc'), startAfter(lastVisible), limit(50));
+      } else if (direction === 'prev' && pageStack.length > 0) {
+        const newStack = [...pageStack];
+        newStack.pop(); // remove current page's start
+        const prevPageStart = newStack.length > 0 ? newStack[newStack.length - 1] : null;
+        setPageStack(newStack);
         
-        // After getting tenants, fetch ONLY the users who are owners to map emails
-        const ownerUids = Array.from(new Set(tenantData.map(t => t.ownerUid)));
-        
-        Promise.all(ownerUids.map(uid => getDoc(doc(db, 'users', uid))))
-          .then((userDocs) => {
-            const userEmails: Record<string, string> = {};
-            userDocs.forEach(uSnap => {
-              if (uSnap.exists()) {
-                const data = uSnap.data();
-                if (data.email) userEmails[uSnap.id] = data.email;
-              }
-            });
-            
-            const enrichedTenants = tenantData.map(t => ({
-              ...t,
-              ownerEmail: userEmails[t.ownerUid] || 'Unknown Email'
-            }));
-            
-            setTenants(enrichedTenants);
-            setLoading(false);
-            setError(null);
-          })
-          .catch(err => {
-            if (!err.message?.includes('Missing or insufficient permissions') && err.code !== 'permission-denied') {
-              console.error("Error fetching users for admin:", err);
-            }
-            setTenants(tenantData);
-            setLoading(false);
-          });
-      },
-      (err) => {
-        if (!err.message?.includes('Missing or insufficient permissions') && err.code !== 'permission-denied') {
-          console.error('Error fetching admin tenants:', err);
-        }
-        setError(err.message);
-        setLoading(false);
+        q = prevPageStart ? 
+          query(collection(db, 'tenants'), orderBy('createdAt', 'desc'), startAfter(prevPageStart), limit(50)) :
+          query(collection(db, 'tenants'), orderBy('createdAt', 'desc'), limit(50));
       }
-    );
 
-    return () => unsubscribeTenants();
+      const snap = await getDocs(q);
+      
+      // We no longer need N+1 query because ownerEmail is stored on the tenant document
+      const data: AdminTenant[] = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as AdminTenant));
+      
+      setTenants(data);
+      if (snap.docs.length > 0) {
+        const currentLastVisible = snap.docs[snap.docs.length - 1];
+        if (direction === 'initial') {
+           setPageStack([]);
+        } else if (direction === 'next') {
+           setPageStack([...pageStack, lastVisible]);
+        }
+        setLastVisible(currentLastVisible);
+      }
+      setError(null);
+    } catch (err: any) {
+      console.error('Error fetching admin tenants:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const searchTenants = async (searchTerm: string) => {
+    if (!searchTerm) return fetchTenants('initial');
+    setLoading(true);
+    try {
+      const { db } = initializeFirebase();
+      const { query, collection, where, getDocs, limit } = await import('firebase/firestore');
+      
+      const term = searchTerm.toLowerCase().trim();
+      let data: AdminTenant[] = [];
+
+      // Try Email match (exact) if it contains @
+      if (term.includes('@')) {
+        const qEmail = query(collection(db, 'tenants'), where('ownerEmail', '==', term), limit(50));
+        const snapEmail = await getDocs(qEmail);
+        data = snapEmail.docs.map(doc => ({ id: doc.id, ...doc.data() } as AdminTenant));
+      } else {
+        // Try Business Name Prefix match
+        const qName = query(
+          collection(db, 'tenants'),
+          where('searchableName', '>=', term),
+          where('searchableName', '<=', term + '\uf8ff'),
+          limit(50)
+        );
+        const snapName = await getDocs(qName);
+        data = snapName.docs.map(doc => ({ id: doc.id, ...doc.data() } as AdminTenant));
+      }
+
+      setTenants(data);
+      setError(null);
+      // Reset pagination for search results
+      setLastVisible(null);
+      setPageStack([]);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTenants('initial');
   }, []);
 
   const updateTenantStatus = async (tenant: AdminTenant, status: SubscriptionStatus) => {
@@ -186,6 +226,7 @@ export function useAdminTenants() {
       }
 
       await batch.commit();
+      setTenants(prev => prev.map(t => t.id === tenant.id ? { ...t, subscriptionStatus: status } : t));
     } catch (err) {
       console.error('Failed to update tenant status:', err);
       throw err;
@@ -210,6 +251,7 @@ export function useAdminTenants() {
           timestamp: serverTimestamp()
         });
       }
+      setTenants(prev => prev.map(t => t.id === id ? { ...t, pricingTier: tier } : t));
     } catch (err) {
       console.error('Failed to update tenant pricing:', err);
       throw err;
@@ -241,6 +283,13 @@ export function useAdminTenants() {
           timestamp: serverTimestamp()
         });
       }
+      setTenants(prev => prev.map(t => {
+        if (t.id === id) {
+          const current = t.unlockedModules || [];
+          return { ...t, unlockedModules: isRemoving ? current.filter(m => m !== moduleId) : [...current, moduleId] };
+        }
+        return t;
+      }));
     } catch (err) {
       console.error('Failed to toggle tenant module:', err);
       throw err;
@@ -312,6 +361,7 @@ export function useAdminTenants() {
           timestamp: serverTimestamp()
         });
       }
+      setTenants(prev => prev.filter(t => t.id !== id));
     } catch (err) {
       console.error('Failed to annihilate tenant:', err);
       throw err;
@@ -323,6 +373,7 @@ export function useAdminTenants() {
       const { db } = initializeFirebase();
       const tenantRef = doc(db, 'tenants', id);
       await updateDoc(tenantRef, { nextBillingDate: date });
+      setTenants(prev => prev.map(t => t.id === id ? { ...t, nextBillingDate: date } : t));
     } catch (err) {
       console.error('Failed to update billing date:', err);
       throw err;
@@ -414,11 +465,26 @@ export function useAdminTenants() {
       }
 
       await batch.commit();
+      setTenants(prev => prev.map(t => t.id === tenant.id ? { ...t, subscriptionStatus: 'active', nextBillingDate: nextDate } : t));
     } catch (err) {
       console.error('Failed to process renewal:', err);
       throw err;
     }
   };
 
-  return { tenants, loading, error, updateTenantStatus, updateTenantPricing, toggleTenantModule, updateNextBillingDate, processTenantRenewal, annihilateTenant };
+  return { 
+    tenants, 
+    loading, 
+    error, 
+    fetchTenants, 
+    searchTenants, 
+    hasPrevPage: pageStack.length > 0,
+    hasNextPage: !!lastVisible,
+    updateTenantStatus, 
+    updateTenantPricing, 
+    toggleTenantModule, 
+    updateNextBillingDate, 
+    processTenantRenewal, 
+    annihilateTenant 
+  };
 }

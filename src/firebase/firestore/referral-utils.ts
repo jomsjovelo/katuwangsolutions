@@ -12,7 +12,7 @@ export async function generateUniqueReferralCode(db: Firestore): Promise<string>
   
   while (!isRefUnique && refAttempts < 10) {
     referralCode = '';
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 7; i++) {
       referralCode += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     const refCodeSnap = await getDoc(doc(db, 'referral_codes', referralCode));
