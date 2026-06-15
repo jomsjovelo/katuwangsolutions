@@ -204,7 +204,19 @@ export async function sendStaffInvite(tenantId: string, tenantName: string, modu
 export async function acceptStaffInvite(inviteId: string, userUid: string) {
   const { db } = initializeFirebase();
 
+  const userProfileRef = doc(db, 'users', userUid);
+  // We need to use dynamic import for getDoc since it might not be at the top level
+  const { getDoc } = await import('firebase/firestore');
+  const userSnapDoc = await getDoc(userProfileRef);
+  const hasCode = userSnapDoc.exists() && userSnapDoc.data()?.referralCode;
+
+  let preGeneratedCode = '';
+  if (!hasCode) {
+    preGeneratedCode = await generateUniqueReferralCode(db);
+  }
+
   await runTransactionResilient(db, async (transaction) => {
+    // 1. Gather all reads
     const inviteRef = doc(db, 'invites', inviteId);
     const inviteSnap = await transaction.get(inviteRef);
 
@@ -224,8 +236,19 @@ export async function acceptStaffInvite(inviteId: string, userUid: string) {
       throw new Error('Hindi nahanap ang tindahan na nag-invite sa inyo.');
     }
 
-    const userProfileRef = doc(db, 'users', userUid);
+    const userSnap = await transaction.get(userProfileRef);
+    
+    let refCodeDoc = null;
+    let collisionCheck = null;
+    if (!hasCode && preGeneratedCode) {
+      refCodeDoc = doc(db, 'referral_codes', preGeneratedCode);
+      collisionCheck = await transaction.get(refCodeDoc);
+      if (collisionCheck.exists()) {
+        throw new Error('Collision detected. Please try accepting the invite again.');
+      }
+    }
 
+    // 2. Perform all writes
     // Update invite status
     transaction.update(inviteRef, { 
       status: 'accepted',
@@ -237,10 +260,6 @@ export async function acceptStaffInvite(inviteId: string, userUid: string) {
       staffUids: arrayUnion(userUid),
       updatedAt: serverTimestamp()
     });
-
-    // Configure User Profile as Staff member
-    const userSnap = await transaction.get(userProfileRef);
-    const hasCode = userSnap.exists() && userSnap.data()?.referralCode;
     
     let userUpdates: any = {
       role: 'staff',
@@ -249,18 +268,9 @@ export async function acceptStaffInvite(inviteId: string, userUid: string) {
       updatedAt: serverTimestamp()
     };
 
-    if (!hasCode) {
-      const newCode = await generateUniqueReferralCode(db);
-      const refCodeDoc = doc(db, 'referral_codes', newCode);
-      
-      // Ensure absolute uniqueness inside the transaction
-      const collisionCheck = await transaction.get(refCodeDoc);
-      if (collisionCheck.exists()) {
-        throw new Error('Collision detected during transaction. Please try accepting the invite again.');
-      }
-      
+    if (!hasCode && preGeneratedCode && refCodeDoc) {
       transaction.set(refCodeDoc, { uid: userUid, createdAt: serverTimestamp() });
-      userUpdates.referralCode = newCode;
+      userUpdates.referralCode = preGeneratedCode;
       if (!userSnap.exists() || userSnap.data()?.referralEarnings === undefined) {
         userUpdates.referralEarnings = 0;
       }

@@ -40,7 +40,7 @@ import {
   Borrower,
   CreditTransaction
 } from '@/firebase/firestore/credit-actions';
-import { playSuccessBeep } from './retail/gcash-qr-modal';
+import { playSuccessBeep } from '@/components/common/gcash-qr-modal';
 
 import { playCashRegisterSwoosh } from '@/lib/hardware/audio-synthesizer';
 

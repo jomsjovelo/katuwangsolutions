@@ -90,6 +90,13 @@ export async function processCheckout(
       };
     }
 
+    // 1.5 Read Phase: Master Cash Ledger (Firestore requires all reads before writes)
+    let masterAccountSnap = null;
+    const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+    if (secureTotalAmount > 0 && paymentMethod !== 'utang') {
+      masterAccountSnap = await transaction.get(masterAccountRef);
+    }
+
     // 2. Write Phase: Deduct inventory
     for (const item of cart) {
       if (!item.productId.startsWith('misc-')) {
@@ -122,10 +129,7 @@ export async function processCheckout(
     transaction.set(newSaleRef, saleRecord);
 
     // ERP INTEGRATION: Deposit the income into the Master Cash Ledger
-    if (secureTotalAmount > 0 && paymentMethod !== 'utang') {
-      const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
-      const masterAccountSnap = await transaction.get(masterAccountRef);
-
+    if (secureTotalAmount > 0 && paymentMethod !== 'utang' && masterAccountSnap) {
       if (!masterAccountSnap.exists()) {
         transaction.set(masterAccountRef, {
           id: 'master-cash',

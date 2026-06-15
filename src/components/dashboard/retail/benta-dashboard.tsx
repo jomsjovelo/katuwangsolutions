@@ -11,15 +11,13 @@ import { useCart } from '@/hooks/use-cart';
 import { processCheckout, addProduct, CartItem } from '@/firebase/firestore/retail-actions';
 import { Card, CardContent } from "@/components/ui/card";
 import { useUser } from '@/firebase/auth/use-user';
-import { CustomerReferralInput } from '@/components/common/customer-referral-input';
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { cn } from '@/lib/utils';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
-import { GCashQrModal } from './gcash-qr-modal';
+import { GCashQrModal } from '@/components/common/gcash-qr-modal';
 import { BarcodeScannerModal } from './barcode-scanner-modal';
 import { ThermalReceiptPreview } from './thermal-receipt-preview';
 import { 
@@ -111,40 +109,9 @@ function BentaDashboardContent() {
   const [tingiPrice, setTingiPrice] = useState('');
   const [tingiName, setTingiName] = useState('');
   
-  // Loyalty Program
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [referrerCode, setReferrerCode] = useState('');
-  const [pointsBalance, setPointsBalance] = useState(0);
-  const [isRedeeming, setIsRedeeming] = useState(false);
-  const [isFetchingPoints, setIsFetchingPoints] = useState(false);
-
   // Palista / Store Credit
   const [palistaName, setPalistaName] = useState('');
   const [showPalistaInput, setShowPalistaInput] = useState(false);
-
-  useEffect(() => {
-    const fetchPoints = async () => {
-      const cleanPhone = customerPhone.replace(/[^0-9+]/g, '');
-      if (cleanPhone.length >= 10 && currentTenant) {
-        setIsFetchingPoints(true);
-        try {
-          const { getCustomerPoints } = await import('@/firebase/firestore/loyalty-actions');
-          const points = await getCustomerPoints(currentTenant.id, cleanPhone);
-          setPointsBalance(points);
-        } catch (e) {
-          console.error("Failed to fetch points", e);
-        } finally {
-          setIsFetchingPoints(false);
-        }
-      } else {
-        setPointsBalance(0);
-        setIsRedeeming(false);
-      }
-    };
-    
-    const timer = setTimeout(fetchPoints, 500);
-    return () => clearTimeout(timer);
-  }, [customerPhone, currentTenant]);
 
   const [completedSale, setCompletedSale] = useState<{
     items: CartItem[];
@@ -157,8 +124,7 @@ function BentaDashboardContent() {
   // Dynamically resolve Katuwang industry theme based on active tenant's moduleType
   const theme = getModuleTheme(currentTenant?.moduleType);
 
-  const pointsDiscountCentavos = isRedeeming ? 5000 : 0;
-  const finalTotalCentavos = Math.max(0, totalCentavos - pointsDiscountCentavos);
+  const finalTotalCentavos = totalCentavos;
   const finalTotalPesos = finalTotalCentavos / 100;
   
   // Immersive dynamic status bar viewport tracking for PWA Android/iOS notch
@@ -212,39 +178,20 @@ function BentaDashboardContent() {
       // Execute safe atomic transaction in Firestore — returns real Firestore document ID
       const saleId = await processCheckout(currentTenant.id, cart, finalTotalCentavos, paymentMethod, gcashRef);
       
-      let pointsEarned = 0;
-      let redeemed = false;
-      if (customerPhone && finalTotalCentavos > 0) {
-        try {
-          const { awardPoints, redeemPoints } = await import('@/firebase/firestore/loyalty-actions');
-          if (isRedeeming && pointsBalance >= 100) {
-            await redeemPoints(currentTenant.id, customerPhone, 100);
-            redeemed = true;
-          }
-          pointsEarned = await awardPoints(currentTenant.id, customerPhone, finalTotalCentavos, referrerCode);
-        } catch(e) {
-          console.error("Failed to process points", e);
-        }
-      }
-
       // Store transaction data for receipt representation with the REAL Firestore ID
       setCompletedSale({
         items: [...cart],
         total: finalTotalCentavos,
         paymentMethod,
         saleId, // Always the real Firestore document ID — never Math.random()
-        pointsEarned,
+        pointsEarned: 0,
       });
       
       setCart([]);
-      setCustomerPhone('');
-      setReferrerCode('');
-      setPointsBalance(0);
-      setIsRedeeming(false);
       setShowMobileCart(false);
       setShowReceipt(true);
       
-      setSuccessMsg(`Benta Kumpleto! ${redeemed ? "Redeemed 100 points. " : ""}Stock deducted automatically.`);
+      setSuccessMsg(`Benta Kumpleto! Stock deducted automatically.`);
       setTimeout(() => setSuccessMsg(null), 4000);
     } catch (e: any) {
       setError(e.message);
@@ -270,10 +217,8 @@ function BentaDashboardContent() {
       );
       setCompletedSale({ items: [...cart], total: finalTotalCentavos, paymentMethod: 'utang (Palista)', saleId });
       setCart([]);
-      setCustomerPhone('');
       setPalistaName('');
       setShowPalistaInput(false);
-      setIsRedeeming(false);
       setShowMobileCart(false);
       setShowReceipt(true);
       setSuccessMsg(`Naitala sa 5-6 Tracker ni ${palistaName}! Stock deducted.`);
@@ -619,38 +564,8 @@ function BentaDashboardContent() {
 
                 {/* Checkout pricing details block */}
                 <div className="border-t border-slate-100 bg-slate-50/70 p-4 space-y-4">
-                  <CustomerReferralInput 
-                    customerPhone={customerPhone}
-                    setCustomerPhone={setCustomerPhone}
-                    referrerCode={referrerCode}
-                    setReferrerCode={setReferrerCode}
-                    primaryColor={theme.primary}
-                  />
-                  {customerPhone && (
-                    <div className="space-y-1">
-                      {pointsBalance >= 100 && totalCentavos >= 5000 && (
-                        <div className="flex items-center space-x-2 mt-2 bg-emerald-50 p-2 rounded-lg border border-emerald-100">
-                          <Switch 
-                            id="redeem-points-desktop" 
-                            checked={isRedeeming}
-                            onCheckedChange={setIsRedeeming}
-                            className="data-[state=checked]:bg-emerald-500"
-                          />
-                          <Label htmlFor="redeem-points-desktop" className="text-xs font-bold text-emerald-800 cursor-pointer">
-                            Redeem 100 pts for ₱50 Off
-                          </Label>
-                        </div>
-                      )}
-                    </div>
-                  )}
                   
                   <div className="flex flex-col gap-1">
-                    {isRedeeming && (
-                      <div className="flex justify-between items-center text-emerald-600">
-                        <span className="text-xs font-bold">Rewards Discount</span>
-                        <span className="text-xs font-black">-₱50.00</span>
-                      </div>
-                    )}
                     <div className="flex justify-between items-end">
                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Kabuuang Halaga</span>
                       <span className="text-3xl font-black font-headline tracking-tighter text-slate-900 leading-none">
@@ -687,38 +602,40 @@ function BentaDashboardContent() {
                     </Button>
                   </div>
                   {/* Palista / Store Credit */}
-                  <div className="pt-1">
-                    {!showPalistaInput ? (
-                      <button
-                        onClick={() => setShowPalistaInput(true)}
-                        className="w-full h-9 rounded-xl border-2 border-dashed border-amber-300 text-amber-700 text-xs font-black bg-amber-50 hover:bg-amber-100 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        📋 Charge to Utang (5-6 Tracker)
-                      </button>
-                    ) : (
-                      <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                        <Input
-                          id="benta-palista-desktop"
-                          name="palistaName"
-                          placeholder="Customer name for Palista..."
-                          value={palistaName}
-                          onChange={e => setPalistaName(e.target.value)}
-                          className="h-9 bg-amber-50 border-amber-200 text-xs"
-                          autoFocus
-                        />
-                        <div className="grid grid-cols-2 gap-2">
-                          <Button onClick={() => { setShowPalistaInput(false); setPalistaName(''); }} variant="outline" className="h-9 text-xs rounded-xl">Cancel</Button>
-                          <Button
-                            onClick={handlePalistaCheckout}
-                            disabled={!palistaName.trim() || isProcessing || cart.length === 0}
-                            className="h-9 text-xs font-black rounded-xl bg-amber-500 hover:bg-amber-600 text-white"
-                          >
-                            {isProcessing ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Confirm Palista'}
-                          </Button>
+                  {currentTenant?.unlockedModules?.includes('5-6-tracker') && (
+                    <div className="pt-1">
+                      {!showPalistaInput ? (
+                        <button
+                          onClick={() => setShowPalistaInput(true)}
+                          className="w-full h-9 rounded-xl border-2 border-dashed border-amber-300 text-amber-700 text-xs font-black bg-amber-50 hover:bg-amber-100 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          📋 Charge to Utang (5-6 Tracker)
+                        </button>
+                      ) : (
+                        <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                          <Input
+                            id="benta-palista-desktop"
+                            name="palistaName"
+                            placeholder="Customer name for Palista..."
+                            value={palistaName}
+                            onChange={e => setPalistaName(e.target.value)}
+                            className="h-9 bg-amber-50 border-amber-200 text-xs"
+                            autoFocus
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <Button onClick={() => { setShowPalistaInput(false); setPalistaName(''); }} variant="outline" className="h-9 text-xs rounded-xl">Cancel</Button>
+                            <Button
+                              onClick={handlePalistaCheckout}
+                              disabled={!palistaName.trim() || isProcessing || cart.length === 0}
+                              className="h-9 text-xs font-black rounded-xl bg-amber-500 hover:bg-amber-600 text-white"
+                            >
+                              {isProcessing ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Confirm Palista'}
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -828,38 +745,8 @@ function BentaDashboardContent() {
 
           {/* Bottom Total & Actions */}
           <div className="border-t border-slate-100 pt-4 mt-4 space-y-4">
-            <CustomerReferralInput 
-              customerPhone={customerPhone}
-              setCustomerPhone={setCustomerPhone}
-              referrerCode={referrerCode}
-              setReferrerCode={setReferrerCode}
-              primaryColor={theme.primary}
-            />
-            {customerPhone && (
-              <div className="space-y-1">
-                {pointsBalance >= 100 && totalCentavos >= 5000 && (
-                  <div className="flex items-center space-x-2 mt-2 bg-emerald-50 p-2 rounded-lg border border-emerald-100">
-                    <Switch 
-                      id="redeem-points-mobile" 
-                      checked={isRedeeming}
-                      onCheckedChange={setIsRedeeming}
-                      className="data-[state=checked]:bg-emerald-500"
-                    />
-                    <Label htmlFor="redeem-points-mobile" className="text-xs font-bold text-emerald-800 cursor-pointer">
-                      Redeem 100 pts for ₱50 Off
-                    </Label>
-                  </div>
-                )}
-              </div>
-            )}
             
             <div className="flex flex-col gap-1">
-              {isRedeeming && (
-                <div className="flex justify-between items-center text-emerald-600">
-                  <span className="text-xs font-bold">Rewards Discount</span>
-                  <span className="text-xs font-black">-₱50.00</span>
-                </div>
-              )}
               <div className="flex justify-between items-end">
                 <span className="text-xs font-black uppercase text-slate-500">Kabuuang Halaga</span>
                 <span className="text-3xl font-black font-headline text-slate-900">
@@ -886,35 +773,39 @@ function BentaDashboardContent() {
               </Button>
             </div>
             {/* Mobile Palista */}
-            {!showPalistaInput ? (
-              <button
-                onClick={() => setShowPalistaInput(true)}
-                className="w-full h-10 rounded-xl border-2 border-dashed border-amber-300 text-amber-700 text-xs font-black bg-amber-50 flex items-center justify-center gap-1.5 cursor-pointer mt-1"
-              >
-                📋 Charge to Utang (5-6 Tracker)
-              </button>
-            ) : (
-              <div className="space-y-2 mt-1 animate-in fade-in duration-200">
-                <Input
-                  id="benta-palista-mobile"
-                  name="palistaName"
-                  placeholder="Customer name for Palista..."
-                  value={palistaName}
-                  onChange={e => setPalistaName(e.target.value)}
-                  className="h-10 bg-amber-50 border-amber-200 text-xs"
-                  autoFocus
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  <Button onClick={() => { setShowPalistaInput(false); setPalistaName(''); }} variant="outline" className="h-9 text-xs rounded-xl">Cancel</Button>
-                  <Button
-                    onClick={handlePalistaCheckout}
-                    disabled={!palistaName.trim() || isProcessing}
-                    className="h-9 text-xs font-black rounded-xl bg-amber-500 hover:bg-amber-600 text-white"
+            {currentTenant?.unlockedModules?.includes('5-6-tracker') && (
+              <>
+                {!showPalistaInput ? (
+                  <button
+                    onClick={() => setShowPalistaInput(true)}
+                    className="w-full h-10 rounded-xl border-2 border-dashed border-amber-300 text-amber-700 text-xs font-black bg-amber-50 flex items-center justify-center gap-1.5 cursor-pointer mt-1"
                   >
-                    {isProcessing ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Confirm Palista'}
-                  </Button>
-                </div>
-              </div>
+                    📋 Charge to Utang (5-6 Tracker)
+                  </button>
+                ) : (
+                  <div className="space-y-2 mt-1 animate-in fade-in duration-200">
+                    <Input
+                      id="benta-palista-mobile"
+                      name="palistaName"
+                      placeholder="Customer name for Palista..."
+                      value={palistaName}
+                      onChange={e => setPalistaName(e.target.value)}
+                      className="h-10 bg-amber-50 border-amber-200 text-xs"
+                      autoFocus
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button onClick={() => { setShowPalistaInput(false); setPalistaName(''); }} variant="outline" className="h-9 text-xs rounded-xl">Cancel</Button>
+                      <Button
+                        onClick={handlePalistaCheckout}
+                        disabled={!palistaName.trim() || isProcessing}
+                        className="h-9 text-xs font-black rounded-xl bg-amber-500 hover:bg-amber-600 text-white"
+                      >
+                        {isProcessing ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Confirm Palista'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </SheetContent>
@@ -1041,14 +932,6 @@ function BentaDashboardContent() {
               <span className="font-bold text-slate-500 uppercase text-xs">Total Amount</span>
               <span className="font-black text-2xl" style={{ color: theme.primary }}>₱{finalTotalPesos.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
             </div>
-            
-            <CustomerReferralInput 
-                customerPhone={customerPhone}
-                setCustomerPhone={setCustomerPhone}
-                referrerCode={referrerCode}
-                setReferrerCode={setReferrerCode}
-                primaryColor={theme.primary}
-            />
 
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase text-emerald-600 tracking-widest">Pera na Ibinayad (Tendered)</Label>

@@ -32,6 +32,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         const data = snap.data();
         setMaintenance({ mode: data.maintenanceMode, message: data.maintenanceMessage });
       }
+    }, (err) => {
+      // Suppress harmless Firebase 400 Bad Request / Listen channel fallback errors from cluttering the console
+      if (err.code !== 'permission-denied') {
+        console.debug('Firebase system config listener network status:', err.message);
+      }
     });
     return () => unsub();
   }, [db]);

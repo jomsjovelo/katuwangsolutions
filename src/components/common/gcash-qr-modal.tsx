@@ -32,6 +32,7 @@ interface GCashQrModalProps {
   paymentType?: 'gcash' | 'maya'; // defaults to gcash
 }
 
+import { useTenantStore } from '@/store/use-tenant-store';
 import { playCashlessDoubleBeep } from '@/lib/hardware/audio-synthesizer';
 
 // Synthesize premium retro-cashier checkout sound using standard HTML5 AudioContext
@@ -59,9 +60,13 @@ export function GCashQrModal({
   const amountPesos = totalAmount / 100;
   const [gcashRef] = useState(() => `KAT${Date.now().toString(36).toUpperCase()}`);
   const qrData = `payph://merchant/${encodeURIComponent(tenantName)}?amount=${amountPesos}&ref=${gcashRef}`;
+  const { activeTenant } = useTenantStore();
   
+  // Try to use the owner's uploaded QR first
+  const customQrImage = activeTenant?.gcashQrImageBase64;
+
   // Real-time dynamic QR Ph code using QRServer
-  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(customQrImage || null);
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
   // Countdown timer effect
@@ -71,28 +76,12 @@ export function GCashQrModal({
     setVerificationSuccess(false);
     setIsVerifying(false);
 
-    // Fetch the dynamic payment link from our PayMongo API route
-    const generatePaymentLink = async () => {
-      try {
-        const res = await fetch('/api/payments', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            amount: amountPesos,
-            description: `${paymentLabel} Payment for ${tenantName}`,
-            type: paymentType  // 'gcash' or 'maya'
-          })
-        });
-        const data = await res.json();
-        if (data.qrUrl) {
-          setQrCodeUrl(data.qrUrl);
-          setCheckoutUrl(data.checkoutUrl);
-        }
-      } catch (err) {
-        console.error('Failed to generate PayMongo link', err);
-      }
-    };
-    generatePaymentLink();
+    // If no custom QR, fallback to a placeholder/mock QR
+    if (!customQrImage) {
+      setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=MOCK-${paymentLabel.toUpperCase()}-${amountPesos}`);
+    } else {
+      setQrCodeUrl(customQrImage);
+    }
 
     const timer = setInterval(() => {
       setTimeLeft(prev => {
@@ -105,7 +94,7 @@ export function GCashQrModal({
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [open]);
+  }, [open, customQrImage, paymentLabel, amountPesos]);
 
   // Format seconds into MM:SS
   const formatTime = (seconds: number) => {
@@ -232,12 +221,20 @@ export function GCashQrModal({
                 {qrCodeUrl ? (
                   <img src={qrCodeUrl} className="h-44 w-44 object-contain rounded-2xl" alt="Payment QR" />
                 ) : (
-                  <div className="h-44 w-44 flex flex-col items-center justify-center bg-slate-50 rounded-2xl">
-                    <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+                  <div className="h-44 w-44 flex flex-col items-center justify-center bg-slate-50 rounded-2xl p-4 text-center">
+                    <AlertTriangle className="h-6 w-6 text-slate-400 mb-2" />
+                    <p className="text-[10px] text-slate-500 font-bold leading-tight">No QR Code Uploaded</p>
+                  </div>
+                )}
+                {!customQrImage && (
+                  <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center rounded-2xl p-4 text-center">
+                     <AlertTriangle className="h-8 w-8 text-amber-500 mb-2" />
+                     <p className="text-[10px] text-slate-700 font-bold leading-tight">Walang GCash QR Code na nakalagay.</p>
+                     <p className="text-[8px] text-slate-500 mt-1">Mangyaring sabihan ang Store Owner na mag-upload sa Settings.</p>
                   </div>
                 )}
                 {isVerifying && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5">
+                  <div className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center gap-1.5 rounded-2xl">
                     <Loader2 className="h-7 w-7 animate-spin text-indigo-600" />
                     <span className="text-[9px] font-black uppercase text-indigo-700 tracking-wider">Verifying...</span>
                   </div>

@@ -49,7 +49,15 @@ import {
   Download,
   Share,
   PlusSquare,
-  Wallet
+  Wallet,
+  Upload,
+  QrCode,
+  X,
+  Share2,
+  Banknote,
+  Link as LinkIcon,
+  CheckCircle2,
+  Copy
 } from 'lucide-react';
 import { EscPosBluetoothDriver } from '@/lib/hardware/print-driver';
 import { HelpGuideDrawer } from '@/components/shell/help-guide-drawer';
@@ -80,6 +88,11 @@ export function ProfileTab() {
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [referralHistory, setReferralHistory] = useState<any[]>([]);
   const [showAllHistory, setShowAllHistory] = useState(false);
+  const [isCopiedLink, setIsCopiedLink] = useState(false);
+
+  // QR Upload state
+  const [isUploadingQr, setIsUploadingQr] = useState(false);
+  const [qrUploadError, setQrUploadError] = useState<string | null>(null);
 
   const theme = getModuleTheme(currentTenant?.moduleType);
   const isOwner = profile?.role === 'owner';
@@ -255,6 +268,93 @@ export function ProfileTab() {
     }
   };
 
+  const handleInstallClick = () => {
+    if (deferredPrompt) {
+      triggerInstall();
+    } else {
+      setShowInstallGuide(true);
+    }
+  };
+
+  const handleQrUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentTenant) return;
+    
+    setIsUploadingQr(true);
+    setQrUploadError(null);
+    
+    try {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new window.Image();
+        img.onload = async () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 300;
+          const MAX_HEIGHT = 300;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) throw new Error("Could not get canvas context");
+          
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          const base64String = canvas.toDataURL('image/jpeg', 0.8);
+          
+          await updateDoc(doc(db, 'tenants', currentTenant.id), {
+            gcashQrImageBase64: base64String,
+            updatedAt: new Date()
+          });
+          
+          setIsUploadingQr(false);
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.onerror = () => {
+        throw new Error("Failed to read file.");
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      console.error(err);
+      setQrUploadError(err.message || 'Error processing QR code.');
+      setIsUploadingQr(false);
+    }
+  };
+
+  const handleRemoveQr = async () => {
+    if (!currentTenant) return;
+    if (!confirm("Sigurado ka bang gusto mong alisin ang GCash QR Code na ito?")) return;
+    
+    setIsUploadingQr(true);
+    try {
+      await updateDoc(doc(db, 'tenants', currentTenant.id), {
+        gcashQrImageBase64: null,
+        updatedAt: new Date()
+      });
+    } catch (err: any) {
+      console.error(err);
+      setQrUploadError("Failed to remove QR code.");
+    } finally {
+      setIsUploadingQr(false);
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       const auth = getAuth(app);
@@ -398,6 +498,79 @@ export function ProfileTab() {
           </CardContent>
         </Card>
 
+        {/* Owner Only Sections */}
+        {isOwner && (
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+              <QrCode className="h-5 w-5" style={{ color: theme.primary }} />
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-700">Settings & Payments</h3>
+            </div>
+
+            {/* Payment Settings Card */}
+            <Card className="bg-white border-slate-200 shadow-sm rounded-[24px]">
+              <CardHeader className="p-4 pb-2">
+                <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                  <QrCode className="h-4 w-4" /> GCash / Maya QR Code
+                </CardTitle>
+                <CardDescription className="text-[10px]">
+                  I-upload ang iyong GCash o Maya QR Ph code para awtomatiko itong lumabas sa cashier app tuwing Cashless Checkout.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 pt-2">
+                {currentTenant?.gcashQrImageBase64 ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="relative border-4 border-blue-500 rounded-2xl p-2 bg-white shadow-sm inline-block">
+                      <img 
+                        src={currentTenant.gcashQrImageBase64} 
+                        alt="My GCash QR" 
+                        className="w-32 h-32 object-contain rounded-xl"
+                      />
+                      {isUploadingQr && (
+                        <div className="absolute inset-0 bg-white/70 flex items-center justify-center rounded-xl">
+                          <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                        </div>
+                      )}
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleRemoveQr}
+                      disabled={isUploadingQr}
+                      className="text-red-500 hover:text-red-600 hover:bg-red-50 border-red-200 text-[10px] font-bold h-8 rounded-lg"
+                    >
+                      <X className="h-3 w-3 mr-1" /> Alisin ang QR Code
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-center w-full">
+                      <label htmlFor="qr-upload" className="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-300 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100">
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <Upload className="w-6 h-6 mb-2 text-slate-400" />
+                          <p className="mb-1 text-[11px] font-bold text-slate-500 text-center px-4">
+                            Pindutin para mag-upload ng QR Photo
+                          </p>
+                          <p className="text-[9px] text-slate-400">PNG, JPG (Max 5MB)</p>
+                        </div>
+                        <input 
+                          id="qr-upload" 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={handleQrUpload}
+                          disabled={isUploadingQr}
+                        />
+                      </label>
+                    </div>
+                    {isUploadingQr && <p className="text-[10px] font-bold text-blue-500 text-center animate-pulse">Ina-upload ang QR Code...</p>}
+                    {qrUploadError && <p className="text-[10px] font-bold text-red-500 text-center">{qrUploadError}</p>}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </section>
+        )}
+
         {/* Staff Management Section (Owners Only) */}
         {isOwner && (
           <section className="space-y-4">
@@ -526,6 +699,8 @@ export function ProfileTab() {
                 </CardContent>
               </Card>
             )}
+            
+
 
           </section>
         )}
@@ -550,51 +725,84 @@ export function ProfileTab() {
           </Card>
         )}
 
-        {/* Referral Program Section */}
+        {/* Referral Program Section - Gamified & Highly Enticing */}
         <Card className="bg-white border-slate-200 shadow-sm rounded-[24px] overflow-hidden">
-          <div className="h-1 bg-gradient-to-r" style={{ backgroundImage: `linear-gradient(to right, ${theme.primary}, ${theme.secondary})` }} />
-          <CardHeader className="p-4 pb-2">
-            <CardTitle className="text-sm font-black text-slate-800 flex items-center gap-2">
-              <span className="text-xl">🎁</span> Referral Program
-            </CardTitle>
-            <CardDescription className="text-[11px] font-medium leading-relaxed mt-0.5">
-              I-share ang inyong Referral Code. May ₱10.00 kang kikitain hindi lang sa una, kundi <strong className="text-amber-800">TUWING mag-rerenew</strong> ng subscription ang tindahang ni-refer mo!
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-4 space-y-4">
-            <div className="flex gap-4">
-              <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 flex-1 flex flex-col items-center justify-center text-center">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Your Referral Code</span>
-                <div className="text-3xl font-black text-slate-800 tracking-[0.2em]">
-                  {profile?.referralCode || (user?.uid ? user.uid.substring(0, 4).toUpperCase() : '----')}
-                </div>
+          <div className="bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 px-6 py-5 text-white">
+            <div className="flex justify-between items-start mb-2">
+              <Badge className="bg-white/20 text-white hover:bg-white/30 border-none font-black uppercase tracking-widest text-[9px]">
+                🚀 Passive Income
+              </Badge>
+              <div className="flex items-center gap-1.5 bg-white/20 px-2.5 py-1 rounded-full">
+                <span className="text-xl">💸</span>
+                <span className="font-black text-sm tracking-wider">₱{(profile?.referralEarnings || 0).toFixed(2)}</span>
               </div>
-              <div className="bg-emerald-50 rounded-xl border border-emerald-100 p-4 flex-1 flex flex-col items-center justify-center text-center">
-                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-[0.2em] mb-1">Total Earnings</span>
-                <div className="text-3xl font-black text-emerald-600">
-                  ₱{(profile?.referralEarnings || 0).toFixed(2)}
+            </div>
+            <h3 className="font-headline font-black text-lg leading-tight mb-1">
+              Kumita ng ₱1,000 pataas linggo-linggo!
+            </h3>
+            <p className="text-emerald-50 text-xs font-medium max-w-sm leading-relaxed opacity-90">
+              I-share lang ang iyong Katuwang Referral Link sa mga kaibigang may negosyo. Kikita ka ng ₱10.00 <strong className="text-white bg-emerald-800/40 px-1 py-0.5 rounded">TUWING mag-rerenew</strong> sila ng subscription! Pwede mo itong i-withdraw via GCash.
+            </p>
+          </div>
+
+          <CardContent className="p-5 space-y-5">
+            
+            {/* Gamified 3-Step Pipeline */}
+            <div className="grid grid-cols-3 gap-2 px-1">
+              <div className="flex flex-col items-center text-center">
+                <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center mb-1.5 border border-emerald-100 shadow-sm">
+                  <Share2 className="h-5 w-5 text-emerald-500" />
                 </div>
+                <span className="text-[9px] font-bold text-slate-500 uppercase">1. Share Link</span>
+              </div>
+              <div className="flex flex-col items-center text-center">
+                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center mb-1.5 border border-blue-100 shadow-sm">
+                  <UserPlus className="h-5 w-5 text-blue-500" />
+                </div>
+                <span className="text-[9px] font-bold text-slate-500 uppercase">2. They Setup</span>
+              </div>
+              <div className="flex flex-col items-center text-center">
+                <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center mb-1.5 border border-amber-100 shadow-sm relative">
+                  <div className="absolute -top-1 -right-1 flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                  </div>
+                  <Banknote className="h-5 w-5 text-amber-500" />
+                </div>
+                <span className="text-[9px] font-bold text-amber-600 uppercase">3. You Earn!</span>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Referral Link:</p>
-              <div className="flex gap-2">
-                <Input 
-                  readOnly 
-                  value={`https://katuwangsolutions.com/onboarding?ref=${profile?.referralCode || (user?.uid ? user.uid.substring(0, 4).toUpperCase() : '')}`}
-                  className="rounded-xl border-slate-200 text-[10px] bg-slate-50 font-medium h-10"
-                />
-                <Button 
-                  onClick={() => {
-                    navigator.clipboard.writeText(`https://katuwangsolutions.com/onboarding?ref=${profile?.referralCode || (user?.uid ? user.uid.substring(0, 4).toUpperCase() : '')}`);
-                    alert('Referral Link Copied!');
-                  }}
-                  variant="outline"
-                  className="rounded-xl h-10 text-[10px] font-bold border-slate-200"
-                >
-                  Copy
-                </Button>
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-3 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-3 opacity-5">
+                <QrCode className="w-24 h-24" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                  <LinkIcon className="h-3.5 w-3.5" /> Ang Iyong Personal Link:
+                </p>
+                <div className="flex items-center gap-2">
+                  <Input 
+                    readOnly 
+                    value={`${window.location.origin}/onboarding?ref=${profile?.referralCode || (user?.uid ? user.uid.substring(0, 4).toUpperCase() : '')}`}
+                    className="rounded-xl border-slate-200 text-xs text-indigo-700 bg-white font-bold h-11 focus-visible:ring-0 cursor-text shadow-sm"
+                  />
+                  <Button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/onboarding?ref=${profile?.referralCode || (user?.uid ? user.uid.substring(0, 4).toUpperCase() : '')}`);
+                      setIsCopiedLink(true);
+                      setTimeout(() => setIsCopiedLink(false), 2000);
+                    }}
+                    className={`rounded-xl h-11 px-4 font-bold text-xs shadow-sm transition-all duration-300 ${
+                      isCopiedLink 
+                        ? 'bg-emerald-500 hover:bg-emerald-600 text-white' 
+                        : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                    }`}
+                  >
+                    {isCopiedLink ? <CheckCircle2 className="h-4 w-4 mr-1.5" /> : <Copy className="h-4 w-4 mr-1.5" />}
+                    {isCopiedLink ? 'Copied!' : 'Copy'}
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -791,13 +999,7 @@ export function ProfileTab() {
               </div>
             ) : (
               <Button 
-                onClick={() => {
-                  if (deferredPrompt) {
-                    triggerInstall();
-                  } else {
-                    setShowInstallGuide(true);
-                  }
-                }}
+                onClick={handleInstallClick}
                 className="w-full h-12 rounded-xl text-white font-bold text-sm shadow-md active:scale-95 transition-all gap-2"
                 style={{ backgroundColor: theme.primary }}
               >

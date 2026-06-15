@@ -56,14 +56,8 @@ export function LoginDialog({ children }: { children: React.ReactNode }) {
       setAuthError(null);
       await loginUser(data.email, data.password);
       
-      // Delay to allow Firebase Auth state to propagate to AuthGuard 
-      await new Promise(resolve => setTimeout(resolve, 800));
-
-      setOpen(false);
-      form.reset();
-      
-      // Force navigation to dashboard after successful login
-      router.push('/dashboard');
+      // Force a hard navigation to dashboard to guarantee AuthGuard sees the clean persisted auth state
+      window.location.href = '/dashboard';
     } catch (error: any) {
       if (error instanceof FirebaseError) {
         switch (error.code) {

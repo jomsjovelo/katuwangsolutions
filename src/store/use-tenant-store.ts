@@ -19,6 +19,8 @@ export interface Tenant {
   nextBillingDate?: string | number | Date | null;
   trialEndsAt?: string | number | Date | null;
   businessCode?: string; // 4-digit code for team member registration
+  // Custom Payment
+  gcashQrImageBase64?: string;
   // Multi-Branch Enterprise Support
   parentTenantId?: string; 
   branchName?: string;

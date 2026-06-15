@@ -69,8 +69,8 @@ export async function updateFoodOrderStatus(tenantId: string, orderId: string, n
   const db = getKatuwangDb();
   
   await runTransactionResilient(db, async (transaction) => {
+    // --- READ PHASE ---
     const orderRef = doc(db, 'tenants', tenantId, 'food_orders', orderId);
-    
     const orderSnap = await transaction.get(orderRef);
     if (!orderSnap.exists()) throw new Error("Order not found");
     const orderData = orderSnap.data();
@@ -78,48 +78,59 @@ export async function updateFoodOrderStatus(tenantId: string, orderId: string, n
     if (orderData.status === newStatus) {
       return; // Prevent double-execution
     }
+
+    // Read Phase: Pre-fetch Menu items for Recipe Yield Deduction
+    const menuSnaps: Record<string, any> = {};
+    if (newStatus === 'served' && orderData.items && Array.isArray(orderData.items)) {
+      for (const item of orderData.items) {
+        if (!menuSnaps[item.menuItemId]) {
+          const menuRef = doc(db, 'tenants', tenantId, 'menu_items', item.menuItemId);
+          const snap = await transaction.get(menuRef);
+          if (snap.exists()) {
+            menuSnaps[item.menuItemId] = snap.data();
+          }
+        }
+      }
+    }
+
+    // Read Phase: Master Account Ledger
+    let masterAccountSnap: any = null;
+    const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+    const shouldRecordIncome = (newStatus === 'paid' || newStatus === 'served') && amountCentavos !== undefined && amountCentavos > 0;
     
-    // Update the Order Status
+    if (shouldRecordIncome) {
+      if (isNaN(amountCentavos!)) {
+        throw new Error("Invalid payment amount for ledger recording.");
+      }
+      masterAccountSnap = await transaction.get(masterAccountRef);
+    }
+
+    // --- WRITE PHASE ---
     const updateData: any = { 
       status: newStatus,
       updatedAt: serverTimestamp()
     };
-    
     transaction.update(orderRef, updateData);
 
     // RECIPE YIELD DEDUCTION: If the food is SERVED, deduct raw ingredients
-    if (newStatus === 'served') {
-      if (orderData.items && Array.isArray(orderData.items)) {
-        for (const item of orderData.items) {
-          const menuRef = doc(db, 'tenants', tenantId, 'menu_items', item.menuItemId);
-          const menuSnap = await transaction.get(menuRef);
-          if (menuSnap.exists()) {
-            const menuData = menuSnap.data();
-            if (menuData.recipe && Array.isArray(menuData.recipe)) {
-              for (const req of menuData.recipe) {
-                const ingRef = doc(db, 'tenants', tenantId, 'ingredients', req.ingredientId);
-                const deductAmount = req.amount * item.quantity;
-                // Deduct ingredient stock
-                transaction.update(ingRef, {
-                  currentStock: increment(-deductAmount),
-                  updatedAt: serverTimestamp()
-                });
-              }
-            }
+    if (newStatus === 'served' && orderData.items && Array.isArray(orderData.items)) {
+      for (const item of orderData.items) {
+        const menuData = menuSnaps[item.menuItemId];
+        if (menuData && menuData.recipe && Array.isArray(menuData.recipe)) {
+          for (const req of menuData.recipe) {
+            const ingRef = doc(db, 'tenants', tenantId, 'ingredients', req.ingredientId);
+            const deductAmount = req.amount * item.quantity;
+            transaction.update(ingRef, {
+              currentStock: increment(-deductAmount),
+              updatedAt: serverTimestamp()
+            });
           }
         }
       }
     }
 
     // ERP INTEGRATION: If the food is PAID or SERVED, automatically deposit the money into the Master Cash Ledger!
-    if ((newStatus === 'paid' || newStatus === 'served') && amountCentavos !== undefined && amountCentavos > 0) {
-      if (isNaN(amountCentavos)) {
-        throw new Error("Invalid payment amount for ledger recording.");
-      }
-
-      const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
-      const masterAccountSnap = await transaction.get(masterAccountRef);
-      
+    if (shouldRecordIncome && masterAccountSnap) {
       if (!masterAccountSnap.exists()) {
         transaction.set(masterAccountRef, {
           id: 'master-cash',
@@ -134,7 +145,7 @@ export async function updateFoodOrderStatus(tenantId: string, orderId: string, n
       } else {
         // Add the income to the balance safely using increment
         transaction.update(masterAccountRef, {
-          balance: increment(amountCentavos),
+          balance: increment(amountCentavos!),
           updatedAt: serverTimestamp()
         });
       }

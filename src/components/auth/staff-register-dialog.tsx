@@ -102,14 +102,8 @@ export function StaffRegisterDialog({ children }: { children?: React.ReactNode }
         data.address
       );
       
-      // Delay to allow Firebase Auth state to propagate to AuthGuard 
-      await new Promise(resolve => setTimeout(resolve, 800));
-
-      setOpen(false);
-      form.reset();
-      
-      // Force navigation to dashboard after successful registration
-      router.push('/dashboard');
+      // Force a hard navigation to dashboard to guarantee AuthGuard sees the clean persisted auth state
+      window.location.href = '/dashboard';
     } catch (error: any) {
       if (error instanceof FirebaseError) {
         setAuthError(error.message);
