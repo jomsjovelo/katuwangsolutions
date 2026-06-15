@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useSalonAppointments } from '@/hooks/use-salon';
 import { useToast } from '@/hooks/use-toast';
+import { ServicePaymentModal } from '@/components/common/service-payment-modal';
 import { 
   Scissors, 
   Plus, 
@@ -61,6 +62,7 @@ export function TrimTrackDashboard() {
   const [stylistName, setStylistName] = useState('');
   const [serviceType, setServiceType] = useState('Haircut');
   const [priceOverride, setPriceOverride] = useState<number | ''>('');
+  const [selectedOrderForPayment, setSelectedOrderForPayment] = useState<any>(null);
 
   // Auto-calculate suggested price
   const suggestedPrice = SERVICE_PRICES[serviceType] || 0;
@@ -100,7 +102,7 @@ export function TrimTrackDashboard() {
     }
   };
 
-  const updateStatus = async (appt: any, status: string, paymentStatus?: string, chairNumber?: string) => {
+  const updateStatus = async (appt: any, status: string, paymentStatus?: string, chairNumber?: string, paymentMethod: string = 'cash') => {
     if (!currentTenant || !db) return;
     try {
       if (status === 'Done' && paymentStatus === 'Paid') {
@@ -110,7 +112,10 @@ export function TrimTrackDashboard() {
           appt.id, 
           status, 
           appt.amountDue, 
-          `Salon: ${appt.serviceType} for ${appt.customerName}`
+          `Salon: ${appt.serviceType} for ${appt.customerName}`,
+          undefined,
+          {},
+          paymentMethod
         );
         
         // Loyalty Points
@@ -323,7 +328,7 @@ export function TrimTrackDashboard() {
               <div className="space-y-2">
                 {inChairAppointments.map(appt => (
                   <AppointmentCard key={appt.id} appointment={appt} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white" onClick={() => updateStatus(appt, 'Done', 'Paid')}>
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white" onClick={() => setSelectedOrderForPayment(appt)}>
                       <CircleDollarSign className="h-3 w-3 mr-1" /> Finish & Checkout
                     </Button>
                   } />
@@ -381,6 +386,18 @@ export function TrimTrackDashboard() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {selectedOrderForPayment && (
+          <ServicePaymentModal
+            isOpen={!!selectedOrderForPayment}
+            onClose={() => setSelectedOrderForPayment(null)}
+            amountDue={selectedOrderForPayment.amountDue}
+            onConfirm={(method) => {
+              updateStatus(selectedOrderForPayment, 'Done', 'Paid', undefined, method);
+              setSelectedOrderForPayment(null);
+            }}
+          />
         )}
 
       </main>

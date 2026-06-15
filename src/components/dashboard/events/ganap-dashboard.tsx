@@ -16,6 +16,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useEvents } from '@/hooks/use-events';
 import { useToast } from '@/hooks/use-toast';
+import { GCashQrModal } from '@/components/common/gcash-qr-modal';
+import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { 
   CalendarHeart, 
   Plus, 
@@ -69,6 +71,15 @@ export function GanapDashboard() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState<number | ''>('');
   const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [showGCashQr, setShowGCashQr] = useState(false);
+  
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [completedSale, setCompletedSale] = useState<{
+    items: any[];
+    total: number;
+    paymentMethod: string;
+    saleId?: string;
+  } | null>(null);
 
   // Guest List State
   const [guests, setGuests] = useState<any[]>([]);
@@ -190,7 +201,7 @@ export function GanapDashboard() {
     }
   };
 
-  const handleRecordPayment = async () => {
+  const handleRecordPayment = async (method: string = 'cash') => {
     const amount = typeof paymentAmount === 'number' ? paymentAmount : 0;
     if (!currentTenant || !selectedEvent?.id || amount <= 0) return;
     
@@ -198,8 +209,17 @@ export function GanapDashboard() {
     try {
       await recordEventPayment(currentTenant.id, selectedEvent.id, Math.round(amount * 100), `Client Payment for Event: ${selectedEvent.title}`);
       setSelectedEvent({ ...selectedEvent, amountPaid: (selectedEvent.amountPaid || 0) + Math.round(amount * 100) });
+      
+      setCompletedSale({
+        items: [{ name: `Payment for ${selectedEvent.title}`, quantity: 1, price: Math.round(amount * 100) }],
+        total: Math.round(amount * 100),
+        paymentMethod: method,
+        saleId: selectedEvent.id
+      });
+      
       setPaymentAmount('');
       setShowPaymentModal(false);
+      setShowReceipt(true);
       toast({ title: 'Payment Received', description: `₱${amount.toLocaleString()} has been recorded.` });
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
@@ -332,14 +352,26 @@ export function GanapDashboard() {
                           onChange={e => setPaymentAmount(parseFloat(e.target.value) || '')} 
                         />
                       </div>
-                      <Button 
-                        className="w-full text-white" 
-                        style={{ backgroundColor: theme.primary }}
-                        onClick={handleRecordPayment}
-                        disabled={paymentProcessing || !paymentAmount}
-                      >
-                        {paymentProcessing ? 'Processing...' : 'Confirm Payment'}
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button 
+                          className="w-full text-white" 
+                          style={{ backgroundColor: theme.primary }}
+                          onClick={() => handleRecordPayment('cash')}
+                          disabled={paymentProcessing || !paymentAmount}
+                        >
+                          {paymentProcessing ? 'Processing...' : 'Pay Cash'}
+                        </Button>
+                        <Button 
+                          className="w-full text-white bg-blue-500 hover:bg-blue-600 border-none"
+                          onClick={() => {
+                            setShowPaymentModal(false);
+                            setShowGCashQr(true);
+                          }}
+                          disabled={paymentProcessing || !paymentAmount}
+                        >
+                          {paymentProcessing ? 'Processing...' : 'Pay GCash'}
+                        </Button>
+                      </div>
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -486,6 +518,32 @@ export function GanapDashboard() {
             </CardContent>
           </Card>
         </main>
+
+        <GCashQrModal
+          open={showGCashQr}
+          onClose={() => setShowGCashQr(false)}
+          totalAmount={Math.round((typeof paymentAmount === 'number' ? paymentAmount : 0) * 100)}
+          tenantName={currentTenant?.name || "Katuwang Events"}
+          paymentType="gcash"
+          onPaymentVerified={async (paymentMethod, gcashRef) => {
+            setShowGCashQr(false);
+            await handleRecordPayment(paymentMethod);
+          }}
+          theme={theme}
+        />
+        
+        <ThermalReceiptPreview
+          open={showReceipt}
+          onClose={() => setShowReceipt(false)}
+          storeName={currentTenant?.name || "Katuwang Events"}
+          receiptType="EVENT PAYMENT RECEIPT"
+          items={completedSale?.items || []}
+          totalAmountPesos={(completedSale?.total || 0) / 100}
+          paymentMethod={completedSale?.paymentMethod || "cash"}
+          transactionId={completedSale?.saleId}
+          theme={theme}
+        />
+
       </div>
     );
   }

@@ -53,7 +53,7 @@ export async function updateTripExpenses(tenantId: string, tripId: string, addit
   });
 }
 
-export async function updateTripStatus(tenantId: string, tripId: string, newStatus: 'planned' | 'loading' | 'in_transit' | 'arrived' | 'completed' | 'cancelled', signatureData?: string, paymentMethod: 'cash' | 'palista' = 'cash') {
+export async function updateTripStatus(tenantId: string, tripId: string, newStatus: 'planned' | 'loading' | 'in_transit' | 'arrived' | 'completed' | 'cancelled', signatureData?: string, paymentMethod: string = 'cash') {
   const db = getKatuwangDb();
   
   await runTransactionResilient(db, async (transaction) => {

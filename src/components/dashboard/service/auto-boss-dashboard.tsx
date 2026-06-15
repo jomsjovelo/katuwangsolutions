@@ -17,7 +17,7 @@ import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useCarwashOrders } from '@/hooks/use-carwash';
 import { useInventory } from '@/hooks/use-inventory';
 import { useToast } from '@/hooks/use-toast';
-import { CustomerReferralInput } from '@/components/common/customer-referral-input';
+import { ServicePaymentModal } from '@/components/common/service-payment-modal';
 import { 
   Car, 
   Plus, 
@@ -96,10 +96,13 @@ export function AutoBossDashboard() {
 
   // Loyalty Program
   const [customerPhone, setCustomerPhone] = useState('');
-  const [referrerCode, setReferrerCode] = useState('');
   const [pointsBalance, setPointsBalance] = useState(0);
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [isFetchingPoints, setIsFetchingPoints] = useState(false);
+
+  // UI State
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [selectedOrderForPayment, setSelectedOrderForPayment] = useState<any>(null);
 
   React.useEffect(() => {
     const fetchPoints = async () => {
@@ -179,7 +182,6 @@ export function AutoBossDashboard() {
         mechanicName: mechanicName || null,
         partsUsed,
         customerPhone: customerPhone || null,
-        referrerCode: referrerCode || null,
         appointmentDate: aptTimestamp,
         createdAt: serverTimestamp(),
       });
@@ -191,7 +193,6 @@ export function AutoBossDashboard() {
       setMechanicName('');
       setPartsUsed([]);
       setCustomerPhone('');
-      setReferrerCode('');
       setIsRedeeming(false);
       setIsScheduled(false);
       setAppointmentDate('');
@@ -205,7 +206,7 @@ export function AutoBossDashboard() {
     }
   };
 
-  const updateStatus = async (order: any, status: string, paymentStatus?: string) => {
+  const updateStatus = async (order: any, status: string, paymentStatus?: string, paymentMethod: string = 'cash') => {
     if (!currentTenant || !db) return;
     try {
       if (status === 'Completed' && paymentStatus === 'Paid') {
@@ -221,7 +222,8 @@ export function AutoBossDashboard() {
           order.amountDue, 
           `Auto Boss: ${order.plateNumber}`,
           commissionCentavos,
-          { partsUsed: order.partsUsed || [] }
+          { partsUsed: order.partsUsed || [] },
+          paymentMethod
         );
         if (order.customerPhone && order.amountDue > 0) {
           try {
@@ -379,73 +381,84 @@ export function AutoBossDashboard() {
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                <div className="flex-1 space-y-1">
-                  <Label htmlFor="mechanic-name" className="text-xs">Mechanic / Staff Name</Label>
-                  <Input id="mechanic-name" name="mechanicName" placeholder="e.g. Kuya J" value={mechanicName} onChange={e => setMechanicName(e.target.value)} className="h-9" />
-                </div>
+              <div className="flex items-center justify-between mt-4 mb-2">
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-xs text-slate-500 font-bold"
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                >
+                  {showAdvanced ? 'Hide Advanced Options' : '+ Show Advanced Options (Mechanic, Parts, Inspection)'}
+                </Button>
               </div>
 
-              <div className="space-y-2 bg-slate-50 p-3 rounded-lg border border-slate-100 mt-2">
-                <Label className="text-xs font-bold">Parts & Materials Used</Label>
-                {partsUsed.length > 0 && (
-                  <ul className="space-y-1 mb-2">
-                    {partsUsed.map((p, idx) => (
-                      <li key={idx} className="text-[10px] flex justify-between border-b border-slate-200 pb-1">
-                        <span>{p.quantity}x {p.name}</span>
-                        <span className="font-bold">₱{((p.price * p.quantity) / 100).toLocaleString()}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                <div className="flex gap-2 items-end">
-                  <div className="flex-1 space-y-1">
-                    <select 
-                      className="w-full border-slate-200 rounded-md border p-2 text-xs h-8"
-                      value={selectedPartId}
-                      onChange={(e) => setSelectedPartId(e.target.value)}
-                    >
-                      <option value="">Select Part...</option>
-                      {products.map((p: any) => (
-                        <option key={p.id} value={p.id}>{p.name} (₱{(p.salePrice/100).toFixed(2)})</option>
-                      ))}
-                    </select>
+              {showAdvanced && (
+                <div className="space-y-3 p-3 bg-slate-50 border border-slate-100 rounded-lg animate-in slide-in-from-top-2">
+                  <div className="flex gap-2">
+                    <div className="flex-1 space-y-1">
+                      <Label htmlFor="mechanic-name" className="text-xs">Mechanic / Staff Name</Label>
+                      <Input id="mechanic-name" name="mechanicName" placeholder="e.g. Kuya J" value={mechanicName} onChange={e => setMechanicName(e.target.value)} className="h-9 bg-white" />
+                    </div>
                   </div>
-                  <div className="w-16 space-y-1">
-                    <Input type="number" placeholder="Qty" className="h-8 text-xs" value={selectedPartQty} onChange={(e) => setSelectedPartQty(e.target.value)} />
+
+                  <div className="space-y-2 bg-white p-3 rounded-lg border border-slate-200 mt-2">
+                    <Label className="text-xs font-bold">Parts & Materials Used</Label>
+                    {partsUsed.length > 0 && (
+                      <ul className="space-y-1 mb-2">
+                        {partsUsed.map((p, idx) => (
+                          <li key={idx} className="text-[10px] flex justify-between border-b border-slate-100 pb-1">
+                            <span>{p.quantity}x {p.name}</span>
+                            <span className="font-bold">₱{((p.price * p.quantity) / 100).toLocaleString()}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <div className="flex gap-2 items-end">
+                      <div className="flex-1 space-y-1">
+                        <select 
+                          className="w-full border-slate-200 rounded-md border p-2 text-xs h-8 bg-white"
+                          value={selectedPartId}
+                          onChange={(e) => setSelectedPartId(e.target.value)}
+                        >
+                          <option value="">Select Part...</option>
+                          {products.map((p: any) => (
+                            <option key={p.id} value={p.id}>{p.name} (₱{(p.salePrice/100).toFixed(2)})</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="w-16 space-y-1">
+                        <Input type="number" placeholder="Qty" className="h-8 text-xs bg-white" value={selectedPartQty} onChange={(e) => setSelectedPartQty(e.target.value)} />
+                      </div>
+                      <Button type="button" size="sm" variant="secondary" className="h-8 bg-slate-200 hover:bg-slate-300" onClick={handleAddPart}>Add</Button>
+                    </div>
                   </div>
-                  <Button type="button" size="sm" variant="secondary" className="h-8" onClick={handleAddPart}>Add</Button>
-                </div>
-              </div>
 
-              <div className="space-y-1 mt-2">
-                <Label className="text-xs">Pre-Wash Inspection Checklist</Label>
-                <div className="flex flex-wrap gap-1.5 mt-1">
-                  {INSPECTION_ITEMS.map(item => {
-                    const isSelected = inspectionNotes.includes(item);
-                    return (
-                      <Badge 
-                        key={item}
-                        variant={isSelected ? "default" : "outline"}
-                        className={`text-[9px] cursor-pointer py-0.5 px-2 ${isSelected ? '' : 'text-slate-500 bg-slate-50 border-slate-200'}`}
-                        style={isSelected ? { backgroundColor: theme.primary } : {}}
-                        onClick={() => toggleInspectionItem(item)}
-                      >
-                        {item}
-                      </Badge>
-                    );
-                  })}
+                  <div className="space-y-1 mt-2">
+                    <Label className="text-xs">Pre-Wash Inspection Checklist</Label>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {INSPECTION_ITEMS.map(item => {
+                        const isSelected = inspectionNotes.includes(item);
+                        return (
+                          <Badge 
+                            key={item}
+                            variant={isSelected ? "default" : "outline"}
+                            className={`text-[9px] cursor-pointer py-0.5 px-2 ${isSelected ? '' : 'text-slate-500 bg-white border-slate-200'}`}
+                            style={isSelected ? { backgroundColor: theme.primary } : {}}
+                            onClick={() => toggleInspectionItem(item)}
+                          >
+                            {item}
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div className="space-y-1 mt-2">
-                <CustomerReferralInput 
-                    customerPhone={customerPhone}
-                    setCustomerPhone={setCustomerPhone}
-                    referrerCode={referrerCode}
-                    setReferrerCode={setReferrerCode}
-                    primaryColor={theme.primary}
-                />
+              <div className="space-y-1 mt-4 border-t border-slate-100 pt-3">
+                <Label htmlFor="customer-phone" className="text-xs">Customer Phone (For Loyalty Points)</Label>
+                <Input id="customer-phone" placeholder="e.g. 09171234567" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className="h-9" />
                 {customerPhone && pointsBalance >= 100 && rawFinalPrice >= 50 && (
                   <div className="flex items-center space-x-2 mt-2 bg-emerald-50 p-2 rounded-lg border border-emerald-100">
                     <Switch 
@@ -589,7 +602,7 @@ export function AutoBossDashboard() {
               <div className="space-y-2">
                 {readyOrders.map(order => (
                   <OrderCard key={order.id} order={order} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600" onClick={() => updateStatus(order, 'Completed', 'Paid')}>
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600" onClick={() => setSelectedOrderForPayment(order)}>
                       <CircleDollarSign className="h-3 w-3 mr-1" /> Pay & Release
                     </Button>
                   } />
@@ -601,6 +614,18 @@ export function AutoBossDashboard() {
         )}
           </TabsContent>
         </Tabs>
+
+        {selectedOrderForPayment && (
+          <ServicePaymentModal
+            isOpen={!!selectedOrderForPayment}
+            onClose={() => setSelectedOrderForPayment(null)}
+            amountDue={selectedOrderForPayment.amountDue}
+            onConfirm={(method) => {
+              updateStatus(selectedOrderForPayment, 'Completed', 'Paid', method);
+              setSelectedOrderForPayment(null);
+            }}
+          />
+        )}
 
       </main>
     </div>

@@ -15,6 +15,8 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useToast } from '@/hooks/use-toast';
+import { GCashQrModal } from '@/components/common/gcash-qr-modal';
+import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { 
   Truck, 
   MapPin, 
@@ -29,7 +31,9 @@ import {
   MapIcon,
   ChevronDown,
   ChevronUp,
-  Tractor
+  Tractor,
+  Receipt,
+  Coins
 } from "lucide-react";
 
 export function FleetDashboard() {
@@ -53,8 +57,20 @@ export function FleetDashboard() {
 
   // Signature Pad State
   const [showSignatureModal, setShowSignatureModal] = useState<string | null>(null);
+  const [pendingGCashTripId, setPendingGCashTripId] = useState<string | null>(null);
+  const [pendingGCashSignature, setPendingGCashSignature] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
+
+  const [showGCashQr, setShowGCashQr] = useState(false);
+  
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [completedSale, setCompletedSale] = useState<{
+    items: any[];
+    total: number;
+    paymentMethod: string;
+    saleId?: string;
+  } | null>(null);
 
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
@@ -103,7 +119,7 @@ export function FleetDashboard() {
     }
   };
 
-  const moveTrip = async (id: string, newStatus: 'loading' | 'in_transit' | 'completed', signatureData?: string, paymentMethod?: 'cash' | 'palista') => {
+  const moveTrip = async (id: string, newStatus: 'loading' | 'in_transit' | 'completed', signatureData?: string, paymentMethod?: string) => {
     if (!currentTenant) return;
     try {
       setIsProcessing(true);
@@ -191,21 +207,32 @@ export function FleetDashboard() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   };
 
-  const handleSaveSignatureAndComplete = async (paymentMethod: 'cash' | 'palista' = 'cash') => {
-    if (!showSignatureModal || !currentTenant) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const signatureData = canvas.toDataURL('image/png');
+  const handleSaveSignatureAndComplete = async (paymentMethod: string = 'cash', overrideTripId?: string, overrideSignature?: string) => {
+    const tripIdToUse = overrideTripId || showSignatureModal;
+    if (!tripIdToUse || !currentTenant) return;
+    
+    let signatureDataToUse = overrideSignature;
+    if (!signatureDataToUse) {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      signatureDataToUse = canvas.toDataURL('image/png');
+    }
     
     try {
       setIsProcessing(true);
-      const trip = trips.find((t: any) => t.id === showSignatureModal);
-      if (paymentMethod === 'palista' && trip && trip.deliveryFee > 0) {
-        await chargeRetailSaleToCredit(currentTenant.id, `Client at ${trip.destination}`, trip.deliveryFee, `Delivery fee charged to Palista for trip ${trip.id}`);
-        toast({ title: 'Charged to Palista', description: `Delivery fee recorded as debt for ${trip.destination}` });
-      }
+      const trip = trips.find((t: any) => t.id === tripIdToUse);
       
-      await moveTrip(showSignatureModal, 'completed', signatureData, paymentMethod);
+      await moveTrip(tripIdToUse, 'completed', signatureDataToUse, paymentMethod);
+      
+      if (trip && trip.deliveryFee > 0) {
+        setCompletedSale({
+          items: [{ name: `Delivery: ${trip.origin} to ${trip.destination}`, quantity: 1, price: trip.deliveryFee }],
+          total: trip.deliveryFee,
+          paymentMethod,
+          saleId: trip.id
+        });
+        setShowReceipt(true);
+      }
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
       setIsProcessing(false);
@@ -530,26 +557,64 @@ export function FleetDashboard() {
                 </div>
                 <div className="flex gap-2 pt-2">
                   <Button 
-                    variant="outline" 
-                    className="flex-1 text-[10px] font-bold text-amber-600 border-amber-200 bg-amber-50"
-                    onClick={() => handleSaveSignatureAndComplete('palista')}
-                    disabled={isProcessing}
-                  >
-                    {isProcessing ? <Loader2 className="h-3 w-3 animate-spin" /> : "Charge to Utang (Palista)"}
-                  </Button>
-                  <Button 
                     className="flex-1 text-white font-bold text-[10px]"
                     style={{ backgroundColor: theme.primary }}
                     onClick={() => handleSaveSignatureAndComplete('cash')}
                     disabled={isProcessing}
                   >
-                    {isProcessing ? <Loader2 className="h-3 w-3 animate-spin" /> : "Paid Cash & Complete"}
+                    {isProcessing ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Coins className="h-3 w-3 mr-1" /> Paid Cash</>}
+                  </Button>
+                  <Button 
+                    className="flex-1 text-white font-bold text-[10px]"
+                    style={{ backgroundColor: '#007aff' }}
+                    onClick={() => {
+                      const canvas = canvasRef.current;
+                      if (canvas) {
+                        setPendingGCashSignature(canvas.toDataURL('image/png'));
+                      }
+                      setPendingGCashTripId(showSignatureModal);
+                      setShowSignatureModal(null);
+                      setShowGCashQr(true);
+                    }}
+                    disabled={isProcessing}
+                  >
+                    {isProcessing ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Receipt className="h-3 w-3 mr-1" /> GCash</>}
                   </Button>
                 </div>
               </CardContent>
             </Card>
           </div>
         )}
+
+        <GCashQrModal
+          open={showGCashQr}
+          onClose={() => {
+            setShowGCashQr(false);
+            setPendingGCashTripId(null);
+          }}
+          totalAmount={trips.find((t: any) => t.id === pendingGCashTripId)?.deliveryFee || 0}
+          tenantName={currentTenant?.name || "Katuwang Logistics"}
+          paymentType="gcash"
+          onPaymentVerified={async (paymentMethod, gcashRef) => {
+            setShowGCashQr(false);
+            if (pendingGCashTripId && pendingGCashSignature) {
+              await handleSaveSignatureAndComplete(paymentMethod, pendingGCashTripId, pendingGCashSignature);
+            }
+          }}
+          theme={theme}
+        />
+        
+        <ThermalReceiptPreview
+          open={showReceipt}
+          onClose={() => setShowReceipt(false)}
+          storeName={currentTenant?.name || "Katuwang Logistics"}
+          receiptType="DELIVERY RECEIPT (ePOD)"
+          items={completedSale?.items || []}
+          totalAmountPesos={(completedSale?.total || 0) / 100}
+          paymentMethod={completedSale?.paymentMethod || "cash"}
+          transactionId={completedSale?.saleId}
+          theme={theme}
+        />
 
       </main>
     </div>

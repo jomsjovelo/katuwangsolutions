@@ -21,13 +21,17 @@ export function createConverter<T extends z.ZodObject<any>>(
 ): FirestoreDataConverter<z.infer<T>> {
   return {
     toFirestore(modelObject: z.infer<T>): DocumentData {
-      // Exclude 'id' field from Firestore document body if it exists
-      const { id, ...data } = modelObject;
-      return schema.parse(data);
+      // Validate the full object first
+      const parsed = schema.parse(modelObject);
+      // Exclude 'id' field from Firestore document body
+      const { id, ...data } = parsed;
+      return data;
     },
     fromFirestore(snapshot: QueryDocumentSnapshot): z.infer<T> {
       const data = snapshot.data();
-      const parsed = schema.safeParse(data);
+      // Inject the document ID into the data object before validation
+      const dataWithId = { id: snapshot.id, ...data };
+      const parsed = schema.safeParse(dataWithId);
       
       if (!parsed.success) {
         console.error(

@@ -17,6 +17,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useToast } from '@/hooks/use-toast';
+import { GCashQrModal } from '@/components/common/gcash-qr-modal';
+import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { 
   Plus, 
   Clock, 
@@ -24,7 +26,9 @@ import {
   CheckCircle2,
   Loader2,
   AlertCircle,
-  MessageSquare
+  MessageSquare,
+  Receipt,
+  Coins
 } from "lucide-react";
 
 export function ServiceDashboard() {
@@ -72,8 +76,27 @@ export function ServiceDashboard() {
   const [serviceDesc, setServiceDesc] = useState('');
   const [price, setPrice] = useState<number | ''>('');
   
+  const commonServices = [
+    { name: 'Change Oil', price: 1500 },
+    { name: 'Tire Rotation', price: 500 },
+    { name: 'Brake Pads', price: 2500 },
+    { name: 'Diagnostic', price: 1000 },
+    { name: 'Car Wash', price: 250 }
+  ];
+  
   const [smsText, setSmsText] = useState('');
   const [activeSmsJob, setActiveSmsJob] = useState<string | null>(null);
+
+  const [showGCashQr, setShowGCashQr] = useState(false);
+  const [pendingJobPayment, setPendingJobPayment] = useState<any | null>(null);
+
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [completedSale, setCompletedSale] = useState<{
+    items: any[];
+    total: number;
+    paymentMethod: string;
+    saleId?: string;
+  } | null>(null);
 
   const handleAddJob = async () => {
     if (!currentTenant || !customerName || !serviceDesc || !price) return;
@@ -94,15 +117,24 @@ export function ServiceDashboard() {
     }
   };
 
-  const moveJob = async (job: any, newStatus: JobStatus) => {
+  const moveJob = async (job: any, newStatus: JobStatus, paymentMethod: string = 'cash') => {
     if (!currentTenant) return;
     try {
       setIsProcessing(true);
       setError(null);
       await updateJobStatus(currentTenant.id, job.id, newStatus, job.amount, job.customerName);
       
-      if (newStatus === 'completed' && job.phoneNumber) {
-        await awardPoints(currentTenant.id, job.phoneNumber, job.amount || 0);
+      if (newStatus === 'completed') {
+        if (job.phoneNumber) {
+          await awardPoints(currentTenant.id, job.phoneNumber, job.amount || 0);
+        }
+        setCompletedSale({
+          items: [{ name: job.serviceId, quantity: 1, price: job.amount }],
+          total: job.amount,
+          paymentMethod,
+          saleId: job.id
+        });
+        setShowReceipt(true);
       }
     } catch (e: any) {
       setError(e.message);
@@ -168,14 +200,29 @@ export function ServiceDashboard() {
           </Button>
         )}
         {job.status === 'in_progress' && (
-          <Button 
-            disabled={isProcessing} 
-            size="sm" 
-            onClick={() => moveJob(job, 'completed')} 
-            className="w-full h-8 text-[10px] font-bold uppercase tracking-widest bg-emerald-500 hover:bg-emerald-600 text-white"
-          >
-            Complete & Pay
-          </Button>
+          <div className="flex gap-2 w-full">
+            <Button 
+              disabled={isProcessing} 
+              size="sm" 
+              onClick={() => moveJob(job, 'completed', 'cash')} 
+              className="w-full h-8 text-[10px] font-bold uppercase tracking-widest text-white border-none"
+              style={{ backgroundColor: theme.primary }}
+            >
+              <Coins className="h-3 w-3 mr-1" /> Cash
+            </Button>
+            <Button 
+              disabled={isProcessing} 
+              size="sm" 
+              onClick={() => {
+                setPendingJobPayment(job);
+                setShowGCashQr(true);
+              }} 
+              className="w-full h-8 text-[10px] font-bold uppercase tracking-widest text-white border-none"
+              style={{ backgroundColor: '#007aff' }}
+            >
+              <Receipt className="h-3 w-3 mr-1" /> GCash
+            </Button>
+          </div>
         )}
         {job.status === 'completed' && (
           <div className="flex flex-col gap-2 w-full">
@@ -235,13 +282,33 @@ export function ServiceDashboard() {
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label htmlFor="customer-name" className="text-xs">Customer Name</Label>
-                  <Input id="customer-name" name="customerName" placeholder="e.g. Juan" value={customerName} onChange={e => setCustomerName(e.target.value)} />
+                  <Input id="customer-name" name="customerName" placeholder="e.g. Juan" value={customerName} onChange={e => setCustomerName(e.target.value)} autoFocus />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="phone-number" className="text-xs">Phone (For Rewards/SMS)</Label>
-                  <Input id="phone-number" name="phoneNumber" placeholder="09XX" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} />
+                  <Label htmlFor="phone-number" className="text-xs">Phone (Optional)</Label>
+                  <Input id="phone-number" name="phoneNumber" placeholder="09XX..." value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} />
                 </div>
               </div>
+              
+              <div className="space-y-2">
+                <Label className="text-xs">Quick Select Service</Label>
+                <div className="flex flex-wrap gap-2">
+                  {commonServices.map(svc => (
+                    <Badge 
+                      key={svc.name}
+                      variant="outline"
+                      className="cursor-pointer hover:bg-slate-100 text-[10px] py-1 border-slate-200"
+                      onClick={() => {
+                        setServiceDesc(svc.name);
+                        setPrice(svc.price);
+                      }}
+                    >
+                      {svc.name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
               <div className="space-y-1">
                 <Label htmlFor="service-desc" className="text-xs">Service Description</Label>
                 <Input id="service-desc" name="serviceDesc" placeholder="e.g. Premium Wash & Wax" value={serviceDesc} onChange={e => setServiceDesc(e.target.value)} />
@@ -331,6 +398,38 @@ export function ServiceDashboard() {
         </div>
 
       </main>
+
+      <GCashQrModal
+        open={showGCashQr}
+        onClose={() => {
+          setShowGCashQr(false);
+          setPendingJobPayment(null);
+        }}
+        totalAmount={pendingJobPayment?.amount || 0}
+        tenantName={currentTenant?.name || "Katuwang Service"}
+        paymentType="gcash"
+        onPaymentVerified={async (paymentMethod, gcashRef) => {
+          setShowGCashQr(false);
+          if (pendingJobPayment) {
+            await moveJob(pendingJobPayment, 'completed', paymentMethod);
+            setPendingJobPayment(null);
+          }
+        }}
+        theme={theme}
+      />
+      
+      <ThermalReceiptPreview
+        open={showReceipt}
+        onClose={() => setShowReceipt(false)}
+        storeName={currentTenant?.name || "Katuwang Service"}
+        receiptType="SERVICE INVOICE"
+        items={completedSale?.items || []}
+        totalAmountPesos={(completedSale?.total || 0) / 100}
+        paymentMethod={completedSale?.paymentMethod || "cash"}
+        transactionId={completedSale?.saleId}
+        theme={theme}
+      />
+
     </div>
   );
 }

@@ -13,7 +13,6 @@ import { Label } from '@/components/ui/label';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useWaterDeliveries } from '@/hooks/use-water';
 import { useToast } from '@/hooks/use-toast';
-import { CustomerReferralInput } from '@/components/common/customer-referral-input';
 import { 
   Droplet, 
   Plus, 
@@ -57,7 +56,6 @@ export function HydroDashboard() {
   const [customerName, setCustomerName] = useState('');
   const [address, setAddress] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  const [referrerCode, setReferrerCode] = useState('');
   const [roundQty, setRoundQty] = useState<number | ''>('');
   const [slimQty, setSlimQty] = useState<number | ''>('');
   const [priceOverride, setPriceOverride] = useState<number | ''>('');
@@ -92,7 +90,6 @@ export function HydroDashboard() {
         customerName,
         address,
         customerPhone: customerPhone || null,
-        referrerCode: referrerCode || null,
         driver: '',
         roundOrdered: roundCount,
         slimOrdered: slimCount,
@@ -106,7 +103,6 @@ export function HydroDashboard() {
       setCustomerName('');
       setAddress('');
       setCustomerPhone('');
-      setReferrerCode('');
       setRoundQty('');
       setSlimQty('');
       setPriceOverride('');
@@ -135,7 +131,7 @@ export function HydroDashboard() {
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${encoded}`, '_blank');
   };
 
-  const handleSettleAndDeliver = async () => {
+  const handleSettleAndDeliver = async (paymentMethod: string = 'cash') => {
     if (!settleOrderId || !currentTenant || !db) return;
     setIsProcessing(true);
     try {
@@ -152,7 +148,8 @@ export function HydroDashboard() {
           {
             roundReturned: typeof roundReturned === 'number' ? roundReturned : 0,
             slimReturned: typeof slimReturned === 'number' ? slimReturned : 0,
-          }
+          },
+          paymentMethod
         );
         toast({ title: 'Delivery Updated', description: `Order moved to Delivered.` });
       }
@@ -258,13 +255,6 @@ export function HydroDashboard() {
                 <Label htmlFor="hydro-address" className="text-xs">Address</Label>
                 <Input id="hydro-address" name="address" placeholder="e.g. Blk 4 Lot 12, Phase 2" value={address} onChange={e => setAddress(e.target.value)} />
               </div>
-              <CustomerReferralInput 
-                customerPhone={customerPhone}
-                setCustomerPhone={setCustomerPhone}
-                referrerCode={referrerCode}
-                setReferrerCode={setReferrerCode}
-                primaryColor={theme.primary}
-              />
               <div className="flex gap-2">
                 <div className="flex-1 space-y-1">
                   <Label htmlFor="round-qty" className="text-xs">Round Gallons</Label>
@@ -315,8 +305,11 @@ export function HydroDashboard() {
                 </div>
                 <div className="flex gap-2 pt-2">
                   <Button variant="outline" className="flex-1" onClick={() => setSettleOrderId(null)}>Cancel</Button>
-                  <Button className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white" onClick={handleSettleAndDeliver} disabled={isProcessing}>
-                    Confirm & Paid
+                  <Button className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-bold" onClick={() => handleSettleAndDeliver('cash')} disabled={isProcessing}>
+                    Paid via Cash
+                  </Button>
+                  <Button className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold" onClick={() => handleSettleAndDeliver('gcash')} disabled={isProcessing}>
+                    Paid via GCash
                   </Button>
                 </div>
               </CardContent>

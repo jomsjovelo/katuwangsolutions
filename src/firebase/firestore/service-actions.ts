@@ -30,7 +30,7 @@ export async function addJob(tenantId: string, customerName: string, serviceName
   return newJobRef.id;
 }
 
-export async function updateJobStatus(tenantId: string, jobId: string, newStatus: JobStatus, amountCentavos?: number, customerName?: string) {
+export async function updateJobStatus(tenantId: string, jobId: string, newStatus: JobStatus, amountCentavos?: number, customerName?: string, paymentMethod: string = 'cash', gcashRef?: string) {
   const db = getKatuwangDb();
   
   await runTransactionResilient(db, async (transaction) => {
@@ -92,10 +92,29 @@ export async function updateJobStatus(tenantId: string, jobId: string, newStatus
         accountId: 'master-cash',
         amount: amountCentavos,
         type: 'income',
-        description: `Service Income: ${customerName || 'Customer'}`,
+        category: 'Services',
+        description: `Service Income: ${customerName || 'Customer'} (${paymentMethod})`,
         date: new Date(),
         createdAt: serverTimestamp()
       });
+
+      // Write to unified sales subcollection
+      const salesRef = collection(db, 'tenants', tenantId, 'sales');
+      const newSaleRef = doc(salesRef);
+      const serviceName = jobSnap.data().serviceId || 'Service Job';
+      
+      const saleRecord: Record<string, unknown> = {
+        id: newSaleRef.id,
+        tenantId,
+        module: 'service',
+        items: [{ productId: jobId, name: serviceName, price: amountCentavos, quantity: 1 }],
+        totalAmount: amountCentavos,
+        paymentMethod: paymentMethod,
+        createdAt: serverTimestamp()
+      };
+      if (gcashRef) saleRecord.gcashRef = gcashRef;
+      
+      transaction.set(newSaleRef, saleRecord);
     }
   });
 
@@ -110,7 +129,9 @@ export async function completeServiceOrder(
   amountCentavos: number, 
   description: string,
   therapistCommissionCentavos?: number,
-  extraUpdates: any = {}
+  extraUpdates: any = {},
+  paymentMethod: string = 'cash',
+  gcashRef?: string
 ) {
   if (amountCentavos < 0 || isNaN(amountCentavos)) {
     throw new Error('Invalid payment amount.');
@@ -197,6 +218,23 @@ export async function completeServiceOrder(
         date: new Date(),
         createdAt: serverTimestamp()
       });
+
+      // Write to unified sales subcollection
+      const salesRef = collection(db, 'tenants', tenantId, 'sales');
+      const newSaleRef = doc(salesRef);
+      
+      const saleRecord: Record<string, unknown> = {
+        id: newSaleRef.id,
+        tenantId,
+        module: 'service',
+        items: [{ productId: orderId, name: description, price: amountCentavos, quantity: 1, ...(extraUpdates.partsUsed && { partsUsed: extraUpdates.partsUsed }) }],
+        totalAmount: amountCentavos,
+        paymentMethod: paymentMethod,
+        createdAt: serverTimestamp()
+      };
+      if (gcashRef) saleRecord.gcashRef = gcashRef;
+      
+      transaction.set(newSaleRef, saleRecord);
     }
   });
 

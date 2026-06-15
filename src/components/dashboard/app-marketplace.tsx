@@ -107,7 +107,7 @@ export function AppMarketplace({ isOpen, onClose }: AppMarketplaceProps) {
             <div>
               <p className="text-white text-xs font-black uppercase tracking-widest mb-0.5">Early Adopter Promo!</p>
               <p className="text-red-100 text-[10px] font-medium leading-snug">
-                Get modules for just ₱99/mo instead of ₱199. <strong className="text-white">Lock in this price forever</strong> before the promo ends!
+                Get modules for just ₱99/mo instead of ₱199.
               </p>
             </div>
           </div>

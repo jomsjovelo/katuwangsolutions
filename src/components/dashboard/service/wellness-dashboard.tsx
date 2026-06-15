@@ -16,7 +16,7 @@ import { format } from 'date-fns';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useSpaAppointments } from '@/hooks/use-spa';
 import { useToast } from '@/hooks/use-toast';
-import { CustomerReferralInput } from '@/components/common/customer-referral-input';
+import { ServicePaymentModal } from '@/components/common/service-payment-modal';
 import { 
   Sun, 
   Plus, 
@@ -60,10 +60,10 @@ export function WellnessDashboard() {
   const [therapistName, setTherapistName] = useState('');
   const [serviceType, setServiceType] = useState('Massage');
   const [priceOverride, setPriceOverride] = useState<number | ''>('');
+  const [selectedOrderForPayment, setSelectedOrderForPayment] = useState<any>(null);
 
   // Loyalty Program
   const [customerPhone, setCustomerPhone] = useState('');
-  const [referrerCode, setReferrerCode] = useState('');
   const [pointsBalance, setPointsBalance] = useState(0);
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [isFetchingPoints, setIsFetchingPoints] = useState(false);
@@ -122,7 +122,6 @@ export function WellnessDashboard() {
         amountDue: Math.round(finalPrice * 100), // convert to cents securely
         paymentStatus: 'Unpaid',
         customerPhone: customerPhone || null,
-        referrerCode: referrerCode || null,
         appointmentDate: aptTimestamp,
         createdAt: serverTimestamp(),
       });
@@ -131,7 +130,6 @@ export function WellnessDashboard() {
       setServiceType('Massage');
       setPriceOverride('');
       setCustomerPhone('');
-      setReferrerCode('');
       setIsRedeeming(false);
       setIsScheduled(false);
       setAppointmentDate('');
@@ -145,7 +143,7 @@ export function WellnessDashboard() {
     }
   };
 
-  const updateStatus = async (appt: any, status: string, paymentStatus?: string, roomNumber?: string) => {
+  const updateStatus = async (appointment: any, status: string, paymentStatus?: string, roomName?: string, paymentMethod: string = 'cash') => {
     if (!currentTenant || !db) return;
     try {
       if (paymentStatus === 'Paid') {
@@ -153,30 +151,32 @@ export function WellnessDashboard() {
         
         // Calculate commission for the therapist (Default 40% if not set in tenant settings)
         const commissionPercentage = currentTenant.therapistCommissionRate ?? 0.40;
-        const commissionCentavos = Math.round((appt.amountDue || 0) * commissionPercentage);
+        const commissionCentavos = Math.round((appointment.amountDue || 0) * commissionPercentage);
         
         await completeServiceOrder(
           currentTenant.id,
           'spa_appointments',
-          appt.id,
+          appointment.id,
           status,
-          appt.amountDue || 0,
-          `Spa/Wellness: ${appt.clientName} (${appt.serviceType})`,
-          commissionCentavos
+          appointment.amountDue || 0,
+          `Spa/Massage: ${appointment.clientName} (${appointment.serviceType})`,
+          commissionCentavos,
+          {},
+          paymentMethod
         );
-        if (appt.customerPhone && appt.amountDue > 0) {
+        if (appointment.customerPhone && appointment.amountDue > 0) {
           try {
             const { awardPoints } = await import('@/firebase/firestore/loyalty-actions');
-            await awardPoints(currentTenant.id, appt.customerPhone, appt.amountDue, appt.referrerCode);
+            await awardPoints(currentTenant.id, appointment.customerPhone, appointment.amountDue, appointment.referrerCode);
           } catch (e) {
             console.error("Failed to award points:", e);
           }
         }
       } else {
-        const apptRef = doc(db, 'tenants', currentTenant.id, 'spa_appointments', appt.id);
+        const apptRef = doc(db, 'tenants', currentTenant.id, 'spa_appointments', appointment.id);
         const updates: any = { status, updatedAt: serverTimestamp() };
         if (paymentStatus) updates.paymentStatus = paymentStatus;
-        if (roomNumber) updates.roomNumber = roomNumber;
+        if (roomName) updates.roomNumber = roomName;
         await updateDoc(apptRef, updates);
       }
       toast({ title: 'Status Updated', description: `Client moved to ${status}.` });
@@ -302,13 +302,8 @@ export function WellnessDashboard() {
                 </div>
               </div>
               <div className="space-y-1 mt-2">
-                <CustomerReferralInput 
-                    customerPhone={customerPhone}
-                    setCustomerPhone={setCustomerPhone}
-                    referrerCode={referrerCode}
-                    setReferrerCode={setReferrerCode}
-                    primaryColor={theme.primary}
-                />
+                <Label htmlFor="customer-phone" className="text-xs">Customer Phone (For Points)</Label>
+                <Input id="customer-phone" placeholder="e.g. 09171234567" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className="h-9" />
                 {customerPhone && pointsBalance >= 100 && rawFinalPrice >= 50 && (
                   <div className="flex items-center space-x-2 mt-2 bg-emerald-50 p-2 rounded-lg border border-emerald-100">
                     <Switch 
@@ -451,7 +446,7 @@ export function WellnessDashboard() {
               <div className="space-y-2">
                 {restingAppointments.map(appt => (
                   <AppointmentCard key={appt.id} appointment={appt} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white" onClick={() => updateStatus(appt, 'Done', 'Paid')}>
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white" onClick={() => setSelectedOrderForPayment(appt)}>
                       <CircleDollarSign className="h-3 w-3 mr-1" /> Checkout & Pay
                     </Button>
                   } />
@@ -482,6 +477,18 @@ export function WellnessDashboard() {
 
           </TabsContent>
         </Tabs>
+
+        {selectedOrderForPayment && (
+          <ServicePaymentModal
+            isOpen={!!selectedOrderForPayment}
+            onClose={() => setSelectedOrderForPayment(null)}
+            amountDue={selectedOrderForPayment.amountDue}
+            onConfirm={(method) => {
+              updateStatus(selectedOrderForPayment, 'Done', 'Paid', undefined, method);
+              setSelectedOrderForPayment(null);
+            }}
+          />
+        )}
 
       </main>
     </div>

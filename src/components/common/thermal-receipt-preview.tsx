@@ -15,16 +15,30 @@ import {
 } from "lucide-react";
 import { EscPosBluetoothDriver } from '@/lib/hardware/print-driver';
 
+interface ReceiptItem {
+  productId?: string;
+  name: string;
+  quantity: number;
+  price: number;
+}
+
+interface ModuleTheme {
+  primary: string;
+}
+
 interface ThermalReceiptPreviewProps {
   open: boolean;
   onClose: () => void;
   storeName: string;
-  items: any[];
+  receiptType?: string; // e.g., 'KITCHEN SLIP', 'RENTAL', 'BENTA'
+  items: ReceiptItem[];
   totalAmountPesos: number;
-  paymentMethod: string;
-  transactionId?: string;
-  theme: any;
+  cashReceivedPesos?: number;
+  changePesos?: number;
+  theme?: ModuleTheme;
   pointsEarned?: number;
+  transactionId?: string;
+  paymentMethod?: string;
 }
 
 export function ThermalReceiptPreview({
@@ -33,10 +47,11 @@ export function ThermalReceiptPreview({
   storeName,
   items,
   totalAmountPesos,
-  paymentMethod,
   transactionId,
   theme,
-  pointsEarned
+  pointsEarned,
+  paymentMethod = 'cash',
+  receiptType = "KATUWANG POS RESIBO"
 }: ThermalReceiptPreviewProps) {
   const [isPrintingBt, setIsPrintingBt] = useState(false);
   const [btError, setBtError] = useState<string | null>(null);
@@ -139,7 +154,7 @@ export function ThermalReceiptPreview({
           <div className="flex items-center gap-2">
             <div 
               className="h-8 w-8 rounded-xl flex items-center justify-center text-white"
-              style={{ backgroundColor: theme.primary }}
+              style={{ backgroundColor: theme?.primary || '#000' }}
             >
               <Printer className="h-4.5 w-4.5" />
             </div>
@@ -174,7 +189,7 @@ export function ThermalReceiptPreview({
               <h4 className="font-sans font-black text-xs uppercase text-slate-900 leading-tight">
                 {storeName}
               </h4>
-              <p className="text-[8px] font-bold text-slate-400 leading-none">KATUWANG POS RESIBO</p>
+              <p className="text-[8px] font-bold text-slate-400 leading-none">{receiptType}</p>
               <p className="text-[7px] text-slate-400 leading-normal font-sans font-bold">Ang Katuwang mo sa Negosyo</p>
               <div className="text-slate-300 tracking-tighter text-[9px]">--------------------------------</div>
             </div>
@@ -285,8 +300,8 @@ export function ThermalReceiptPreview({
               onClick={handleSystemPrint}
               className="h-11 text-white font-black rounded-xl flex items-center justify-center gap-1.5 text-xs border-none cursor-pointer"
               style={{ 
-                backgroundColor: theme.primary,
-                boxShadow: `0 8px 16px -4px ${theme.primary}40` 
+                backgroundColor: theme?.primary || '#000',
+                boxShadow: `0 8px 16px -4px ${theme?.primary || '#000'}40` 
               }}
             >
               <FileText className="h-4 w-4" />

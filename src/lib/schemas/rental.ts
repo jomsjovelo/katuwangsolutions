@@ -25,6 +25,8 @@ export const RentalBookingSchema = z.object({
   status: z.enum(['active', 'returned', 'reserved']),
   totalCost: z.number(),
   depositStatus: z.enum(['pending', 'paid', 'refunded']),
+  paymentStatus: z.enum(['unpaid', 'paid']).default('unpaid'),
+  paymentMethod: z.string().optional(),
   createdAt: z.custom<Timestamp | Date | string | number>(),
   updatedAt: z.custom<Timestamp | Date | string | number>(),
 });

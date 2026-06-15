@@ -18,7 +18,6 @@ import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useMenu } from '@/hooks/use-menu';
 import { useIngredients } from '@/hooks/use-ingredients';
 import { useToast } from '@/hooks/use-toast';
-import { CustomerReferralInput } from '@/components/common/customer-referral-input';
 import { 
   Coffee, 
   ChefHat, 
@@ -68,7 +67,6 @@ export function TimplaDashboard() {
 
   // Loyalty Program
   const [customerPhone, setCustomerPhone] = useState('');
-  const [referrerCode, setReferrerCode] = useState('');
   const [pointsBalance, setPointsBalance] = useState(0);
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [isFetchingPoints, setIsFetchingPoints] = useState(false);
@@ -243,13 +241,11 @@ export function TimplaDashboard() {
         tableName,
         cart,
         isRedeeming ? 5000 : 0,
-        customerPhone || undefined,
-        referrerCode || undefined
+        customerPhone || undefined
       );
       setCart([]);
       setSelectedTable('');
       setCustomerPhone('');
-      setReferrerCode('');
       setIsRedeeming(false);
       toast({ title: 'Order Submitted!', description: 'Sent to the Barista.' });
     } catch (e: any) {
@@ -396,13 +392,8 @@ export function TimplaDashboard() {
                   </div>
                   
                   <div className="space-y-1 mt-2">
-                    <CustomerReferralInput 
-                      customerPhone={customerPhone}
-                      setCustomerPhone={setCustomerPhone}
-                      referrerCode={referrerCode}
-                      setReferrerCode={setReferrerCode}
-                      primaryColor={theme.primary}
-                    />
+                    <Label htmlFor="customer-phone" className="text-xs">Customer Phone (For Points)</Label>
+                    <Input id="customer-phone" placeholder="e.g. 09171234567" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className="h-9" />
                     {customerPhone && pointsBalance >= 100 && cartTotal >= 5000 && (
                       <div className="flex items-center space-x-2 mt-2 bg-emerald-50 p-2 rounded-lg border border-emerald-100">
                         <Switch 

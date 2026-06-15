@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { GCashQrModal } from '@/components/common/gcash-qr-modal';
 import { BarcodeScannerModal } from './barcode-scanner-modal';
-import { ThermalReceiptPreview } from './thermal-receipt-preview';
+import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { 
   Sheet, 
   SheetContent, 
@@ -200,35 +200,7 @@ function BentaDashboardContent() {
     }
   };
 
-  const handlePalistaCheckout = async () => {
-    if (!currentTenant || cart.length === 0 || !palistaName.trim()) return;
-    try {
-      setIsProcessing(true);
-      setError(null);
-      // First: process normal checkout (deducts stock, logs sale with paymentMethod='utang')
-      const saleId = await processCheckout(currentTenant.id, cart, finalTotalCentavos, 'utang');
-      // Then: charge that amount to the 5-6 Tracker
-      const { chargeRetailSaleToCredit } = await import('@/firebase/firestore/credit-actions');
-      await chargeRetailSaleToCredit(
-        currentTenant.id,
-        palistaName,
-        finalTotalCentavos,
-        `Palista mula sa tindahan: ${cart.map(i => i.name).join(', ')}`
-      );
-      setCompletedSale({ items: [...cart], total: finalTotalCentavos, paymentMethod: 'utang (Palista)', saleId });
-      setCart([]);
-      setPalistaName('');
-      setShowPalistaInput(false);
-      setShowMobileCart(false);
-      setShowReceipt(true);
-      setSuccessMsg(`Naitala sa 5-6 Tracker ni ${palistaName}! Stock deducted.`);
-      setTimeout(() => setSuccessMsg(null), 5000);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+  // Removed handlePalistaCheckout logic (Utang features deprecated)
 
   // Debounce search input to maintain responsive keystrokes
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
@@ -602,38 +574,8 @@ function BentaDashboardContent() {
                     </Button>
                   </div>
                   {/* Palista / Store Credit */}
-                  {currentTenant?.unlockedModules?.includes('5-6-tracker') && (
+                  {false && (
                     <div className="pt-1">
-                      {!showPalistaInput ? (
-                        <button
-                          onClick={() => setShowPalistaInput(true)}
-                          className="w-full h-9 rounded-xl border-2 border-dashed border-amber-300 text-amber-700 text-xs font-black bg-amber-50 hover:bg-amber-100 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                        >
-                          📋 Charge to Utang (5-6 Tracker)
-                        </button>
-                      ) : (
-                        <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                          <Input
-                            id="benta-palista-desktop"
-                            name="palistaName"
-                            placeholder="Customer name for Palista..."
-                            value={palistaName}
-                            onChange={e => setPalistaName(e.target.value)}
-                            className="h-9 bg-amber-50 border-amber-200 text-xs"
-                            autoFocus
-                          />
-                          <div className="grid grid-cols-2 gap-2">
-                            <Button onClick={() => { setShowPalistaInput(false); setPalistaName(''); }} variant="outline" className="h-9 text-xs rounded-xl">Cancel</Button>
-                            <Button
-                              onClick={handlePalistaCheckout}
-                              disabled={!palistaName.trim() || isProcessing || cart.length === 0}
-                              className="h-9 text-xs font-black rounded-xl bg-amber-500 hover:bg-amber-600 text-white"
-                            >
-                              {isProcessing ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Confirm Palista'}
-                            </Button>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
@@ -773,39 +715,8 @@ function BentaDashboardContent() {
               </Button>
             </div>
             {/* Mobile Palista */}
-            {currentTenant?.unlockedModules?.includes('5-6-tracker') && (
-              <>
-                {!showPalistaInput ? (
-                  <button
-                    onClick={() => setShowPalistaInput(true)}
-                    className="w-full h-10 rounded-xl border-2 border-dashed border-amber-300 text-amber-700 text-xs font-black bg-amber-50 flex items-center justify-center gap-1.5 cursor-pointer mt-1"
-                  >
-                    📋 Charge to Utang (5-6 Tracker)
-                  </button>
-                ) : (
-                  <div className="space-y-2 mt-1 animate-in fade-in duration-200">
-                    <Input
-                      id="benta-palista-mobile"
-                      name="palistaName"
-                      placeholder="Customer name for Palista..."
-                      value={palistaName}
-                      onChange={e => setPalistaName(e.target.value)}
-                      className="h-10 bg-amber-50 border-amber-200 text-xs"
-                      autoFocus
-                    />
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button onClick={() => { setShowPalistaInput(false); setPalistaName(''); }} variant="outline" className="h-9 text-xs rounded-xl">Cancel</Button>
-                      <Button
-                        onClick={handlePalistaCheckout}
-                        disabled={!palistaName.trim() || isProcessing}
-                        className="h-9 text-xs font-black rounded-xl bg-amber-500 hover:bg-amber-600 text-white"
-                      >
-                        {isProcessing ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Confirm Palista'}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </>
+            {false && (
+              <>              </>
             )}
           </div>
         </SheetContent>

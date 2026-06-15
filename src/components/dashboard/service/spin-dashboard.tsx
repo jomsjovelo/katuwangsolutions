@@ -6,7 +6,6 @@ import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/fi
 import { useFirestore } from '@/firebase/provider';
 import { completeServiceOrder } from '@/firebase/firestore/service-actions';
 import { awardPoints } from '@/firebase/firestore/loyalty-actions';
-import { CustomerReferralInput } from '@/components/common/customer-referral-input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -15,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useLaundry } from '@/hooks/use-laundry';
 import { useToast } from '@/hooks/use-toast';
+import { ServicePaymentModal } from '@/components/common/service-payment-modal';
 import { 
   Shirt, 
   Plus, 
@@ -70,10 +70,10 @@ export function SpinDashboard() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [referrerCode, setReferrerCode] = useState('');
   const [kilos, setKilos] = useState<number | ''>('');
   const [serviceType, setServiceType] = useState('Wash, Dry, Fold');
   const [priceOverride, setPriceOverride] = useState<number | ''>('');
+  const [selectedOrderForPayment, setSelectedOrderForPayment] = useState<any>(null);
 
   // Auto-calculate suggested price
   const suggestedPrice = typeof kilos === 'number' ? kilos * RATES[serviceType] : 0;
@@ -93,12 +93,10 @@ export function SpinDashboard() {
         status: 'Queued',
         amountDue: Math.round(finalPrice * 100), // convert to cents securely
         paymentStatus: 'Unpaid',
-        referrerCode: referrerCode || null,
         createdAt: serverTimestamp(),
       });
       setCustomerName('');
       setPhoneNumber('');
-      setReferrerCode('');
       setKilos('');
       setPriceOverride('');
       setShowAddForm(false);
@@ -110,7 +108,7 @@ export function SpinDashboard() {
     }
   };
 
-  const updateStatus = async (order: any, status: string, paymentStatus?: string, machineNumber?: string) => {
+  const updateStatus = async (order: any, status: string, paymentStatus?: string, machineNumber?: string, paymentMethod: string = 'cash') => {
     if (!currentTenant || !db) return;
     try {
       if (paymentStatus === 'Paid') {
@@ -121,7 +119,10 @@ export function SpinDashboard() {
           order.id,
           status,
           order.amountDue || 0,
-          `Laundry: ${order.customerName} (${order.kilos}kg)`
+          `Laundry: ${order.customerName} (${order.kilos}kg)`,
+          undefined,
+          {},
+          paymentMethod
         );
         
         // Loyalty Points
@@ -207,13 +208,14 @@ export function SpinDashboard() {
             </CardHeader>
             <CardContent className="p-4 space-y-3 pt-0">
               <div className="grid grid-cols-1 gap-2">
-                <CustomerReferralInput 
-                  customerPhone={phoneNumber}
-                  setCustomerPhone={setPhoneNumber}
-                  referrerCode={referrerCode}
-                  setReferrerCode={setReferrerCode}
-                  primaryColor={theme.primary}
-                />
+                <div className="space-y-1">
+                  <Label htmlFor="customer-name" className="text-xs">Customer Name</Label>
+                  <Input id="customer-name" name="customerName" placeholder="e.g. Maria Santos" value={customerName} onChange={e => setCustomerName(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="customer-phone" className="text-xs">Phone Number (For Points & SMS)</Label>
+                  <Input id="customer-phone" name="customerPhone" placeholder="e.g. 09171234567" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} />
+                </div>
               </div>
               <div className="flex gap-2">
                 <div className="flex-1 space-y-1">
@@ -327,7 +329,7 @@ export function SpinDashboard() {
                       <Button size="sm" variant="outline" className="flex-1 h-7 text-[10px] border-slate-200" onClick={() => handleCopySMS(order)}>
                         <MessageSquare className="h-3 w-3 mr-1 text-slate-500" /> SMS
                       </Button>
-                      <Button size="sm" className="flex-1 h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600" onClick={() => updateStatus(order, 'Claimed', 'Paid')}>
+                      <Button size="sm" className="flex-1 h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600" onClick={() => setSelectedOrderForPayment(order)}>
                         <CircleDollarSign className="h-3 w-3 mr-1" /> Pay & Claim
                       </Button>
                     </>
@@ -337,6 +339,18 @@ export function SpinDashboard() {
             </div>
 
           </div>
+        )}
+
+        {selectedOrderForPayment && (
+          <ServicePaymentModal
+            isOpen={!!selectedOrderForPayment}
+            onClose={() => setSelectedOrderForPayment(null)}
+            amountDue={selectedOrderForPayment.amountDue}
+            onConfirm={(method) => {
+              updateStatus(selectedOrderForPayment, 'Claimed', 'Paid', undefined, method);
+              setSelectedOrderForPayment(null);
+            }}
+          />
         )}
 
       </main>

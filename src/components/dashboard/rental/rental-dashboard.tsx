@@ -9,6 +9,9 @@ import { Truck, Package, CalendarDays, Plus, Loader2, CheckCircle2, AlertCircle,
 import { useRental } from '@/hooks/use-rental';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { collection, addDoc, serverTimestamp, doc, runTransaction, increment } from 'firebase/firestore';
+import { processRentalBooking, processRentalReturn } from '@/firebase/firestore/rental-actions';
+import { GCashQrModal } from '@/components/common/gcash-qr-modal';
+import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { useFirestore } from '@/firebase/provider';
 import { useTenant } from '@/app/lib/tenant-context';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
@@ -77,9 +80,21 @@ export function RentalDashboard() {
   const [bookingItemId, setBookingItemId] = useState('');
   const [bookingCustomer, setBookingCustomer] = useState('');
   const [bookingCost, setBookingCost] = useState('');
+  const [bookingPaymentTiming, setBookingPaymentTiming] = useState<'upfront'|'return'>('upfront');
+  const [bookingPaymentMethod, setBookingPaymentMethod] = useState<'cash'|'gcash'>('cash');
+  const [showGCashQr, setShowGCashQr] = useState(false);
+  const [showNewBookingModal, setShowNewBookingModal] = useState(false);
+  
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [completedSale, setCompletedSale] = useState<{
+    items: any[];
+    total: number;
+    paymentMethod: string;
+    saleId?: string;
+  } | null>(null);
 
-  const handleAddBooking = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddBooking = async (e?: React.FormEvent, paymentRef?: string) => {
+    if (e) e.preventDefault();
     if (!db || !currentTenant) return;
     setIsAddingBooking(true);
     try {
@@ -87,34 +102,31 @@ export function RentalDashboard() {
       if (!selectedItem) throw new Error("Item not found in inventory.");
       if (selectedItem.availableQuantity <= 0) throw new Error(`${selectedItem.name} is currently fully rented out.`);
 
-      await runTransaction(db, async (transaction) => {
-        const itemRef = doc(db, 'tenants', currentTenant.id, 'rental_inventory', bookingItemId);
-        const itemSnap = await transaction.get(itemRef);
-        if (!itemSnap.exists()) throw new Error('Item no longer exists.');
-        const currentAvail = itemSnap.data().availableQuantity || 0;
-        if (currentAvail <= 0) throw new Error('No available units for this item.');
+      const bookingId = await processRentalBooking(
+        currentTenant.id,
+        bookingItemId,
+        selectedItem.name,
+        bookingCustomer,
+        Number(bookingCost),
+        bookingPaymentTiming,
+        bookingPaymentTiming === 'upfront' ? bookingPaymentMethod : undefined,
+        paymentRef
+      );
 
-        const bookingRef = doc(collection(db, 'tenants', currentTenant.id, 'rental_bookings'));
-        transaction.set(bookingRef, {
-          itemId: bookingItemId,
-          itemName: selectedItem.name,
-          customerId: 'guest',
-          customerName: bookingCustomer,
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 86400000),
-          status: 'active',
-          totalCost: Number(bookingCost),
-          depositStatus: 'pending',
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-        transaction.update(itemRef, {
-          availableQuantity: increment(-1),
-          updatedAt: serverTimestamp(),
-        });
+      setCompletedSale({
+        items: [{
+          name: selectedItem.name,
+          quantity: 1,
+          price: Number(bookingCost) * 100
+        }],
+        total: Number(bookingCost) * 100,
+        paymentMethod: bookingPaymentTiming === 'upfront' ? bookingPaymentMethod : 'Unpaid (Pay on Return)',
+        saleId: bookingId
       });
 
       setBookingItemId(''); setBookingCustomer(''); setBookingCost('');
+      setShowNewBookingModal(false);
+      setShowReceipt(true);
       showSuccess(`Booking para kay ${bookingCustomer} naitala!`);
     } catch (error: any) {
       showError(error?.message || 'Failed to create booking. Please try again.');
@@ -128,12 +140,13 @@ export function RentalDashboard() {
     if (!db || !currentTenant) return;
     setReturningId(booking.id);
     try {
-      await runTransaction(db, async (transaction) => {
-        const bookingRef = doc(db, 'tenants', currentTenant.id, 'rental_bookings', booking.id);
-        const itemRef = doc(db, 'tenants', currentTenant.id, 'rental_inventory', booking.itemId);
-        transaction.update(bookingRef, { status: 'returned', returnedAt: serverTimestamp(), updatedAt: serverTimestamp() });
-        transaction.update(itemRef, { availableQuantity: increment(1), updatedAt: serverTimestamp() });
-      });
+      let method = undefined;
+      // If payment is pending, we assume cash for simple return without explicit UI right now unless we add a return modal
+      // For now, let's default to cash if unpaid when they click return. 
+      if (booking.paymentStatus === 'unpaid') {
+         method = 'cash'; // TODO: add a modal for return payment if needed, but for now default to cash
+      }
+      await processRentalReturn(currentTenant.id, booking, method);
       showSuccess(`${booking.itemName} na-return ni ${booking.customerName}!`);
     } catch (error: any) {
       showError(error?.message || 'Failed to return item.');
@@ -157,6 +170,21 @@ export function RentalDashboard() {
           <AlertCircle className="h-4 w-4 flex-shrink-0" />
           <span>{errorMsg}</span>
         </div>
+      )}
+      
+      {showGCashQr && currentTenant && (
+        <GCashQrModal
+        open={showGCashQr}
+        onClose={() => setShowGCashQr(false)}
+        totalAmount={Number(bookingCost) * 100}
+        tenantName={currentTenant?.name || "Katuwang Rental"}
+        paymentType="gcash"
+        onPaymentVerified={async (method, ref) => {
+          setShowGCashQr(false);
+          await handleAddBooking(undefined, ref);
+        }}
+        theme={theme}
+      />
       )}
       
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 animate-in slide-in-from-top-2">
@@ -202,7 +230,7 @@ export function RentalDashboard() {
                   <CardTitle className="text-sm font-bold uppercase tracking-widest text-slate-800">Current Rentals</CardTitle>
                   <CardDescription className="text-xs">Items currently rented out</CardDescription>
                 </div>
-                <Dialog>
+                <Dialog open={showNewBookingModal} onOpenChange={setShowNewBookingModal}>
                   <DialogTrigger asChild>
                     <Button size="sm" className="text-white rounded-lg h-9 border-none" style={{ backgroundColor: theme.primary }}>
                       <Plus className="h-4 w-4 mr-1" /> New Booking
@@ -212,7 +240,15 @@ export function RentalDashboard() {
                     <DialogHeader>
                       <DialogTitle>Create New Booking</DialogTitle>
                     </DialogHeader>
-                    <form onSubmit={handleAddBooking} className="space-y-4 mt-4">
+                    <form onSubmit={(e) => {
+                      e.preventDefault();
+                      if (bookingPaymentTiming === 'upfront' && bookingPaymentMethod === 'gcash') {
+                        setShowNewBookingModal(false);
+                        setShowGCashQr(true);
+                      } else {
+                        handleAddBooking();
+                      }
+                    }} className="space-y-4 mt-4">
                       <div>
                         <label className="text-xs font-bold text-slate-500 uppercase">Item to Rent</label>
                         <select 
@@ -235,7 +271,31 @@ export function RentalDashboard() {
                         <label className="text-xs font-bold text-slate-500 uppercase">Total Cost (₱)</label>
                         <Input id="booking-cost" name="bookingCost" required type="number" value={bookingCost} onChange={e => setBookingCost(e.target.value)} className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 mt-1" placeholder="5000" />
                       </div>
-                      <Button type="submit" disabled={isAddingBooking} className="w-full text-white border-none" style={{ backgroundColor: theme.primary }}>
+                      <div className="pt-2 border-t border-slate-100">
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Payment Timing</label>
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => setBookingPaymentTiming('upfront')} className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${bookingPaymentTiming === 'upfront' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white border-slate-200 text-slate-500'}`}>
+                            Pay Now
+                          </button>
+                          <button type="button" onClick={() => setBookingPaymentTiming('return')} className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${bookingPaymentTiming === 'return' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-500'}`}>
+                            Pay Later
+                          </button>
+                        </div>
+                      </div>
+                      {bookingPaymentTiming === 'upfront' && (
+                        <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                          <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Payment Method</label>
+                          <div className="flex gap-2">
+                            <button type="button" onClick={() => setBookingPaymentMethod('cash')} className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all flex items-center justify-center gap-1 ${bookingPaymentMethod === 'cash' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-500'}`}>
+                              Cash
+                            </button>
+                            <button type="button" onClick={() => setBookingPaymentMethod('gcash')} className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all flex items-center justify-center gap-1 ${bookingPaymentMethod === 'gcash' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-slate-200 text-slate-500'}`}>
+                              GCash
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      <Button type="submit" disabled={isAddingBooking} className="w-full text-white border-none mt-4" style={{ backgroundColor: theme.primary }}>
                         {isAddingBooking ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirm Booking'}
                       </Button>
                     </form>
@@ -256,18 +316,26 @@ export function RentalDashboard() {
                       <div key={booking.id} className="p-4 flex items-center justify-between hover:bg-slate-50">
                         <div>
                           <p className="font-bold text-slate-800 text-sm">{booking.itemName}</p>
-                          <p className="text-xs text-slate-500">{booking.customerName}</p>
+                          <p className="text-xs text-slate-500">{booking.customerName} • ₱{booking.totalCost} 
+                            <span className={`ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold ${booking.paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                              {booking.paymentStatus === 'paid' ? 'PAID' : 'UNPAID'}
+                            </span>
+                          </p>
                         </div>
                         <div className="flex items-center gap-3">
-                          <div className="text-right">
-                            <p className="font-bold text-sm" style={{ color: theme.primary }}>₱{booking.totalCost}</p>
-                            <Badge className="text-[9px] font-black uppercase border-none px-1.5 py-0.5" style={{ backgroundColor: `${theme.primary}20`, color: theme.primary }}>Active</Badge>
-                          </div>
                           <Button
                             size="sm"
                             variant="outline"
                             disabled={returningId === booking.id}
-                            onClick={() => handleReturnItem(booking)}
+                            onClick={() => {
+                              if (booking.paymentStatus === 'unpaid') {
+                                 if (window.confirm(`This booking is UNPAID (₱${booking.totalCost}). Collect payment now and return item?`)) {
+                                    handleReturnItem(booking);
+                                 }
+                              } else {
+                                 handleReturnItem(booking);
+                              }
+                            }}
                             className="h-8 rounded-lg px-3 text-[10px] font-black text-emerald-600 border-emerald-200 hover:bg-emerald-50 flex items-center gap-1"
                           >
                             {returningId === booking.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
@@ -386,6 +454,18 @@ export function RentalDashboard() {
         </Card>
       )}
 
+      <ThermalReceiptPreview
+        open={showReceipt}
+        onClose={() => setShowReceipt(false)}
+        storeName={currentTenant?.name || "Katuwang Rental"}
+        receiptType="RENTAL BOOKING CONFIRMATION"
+        items={completedSale?.items || []}
+        totalAmountPesos={(completedSale?.total || 0) / 100}
+        paymentMethod={completedSale?.paymentMethod || "cash"}
+        transactionId={completedSale?.saleId}
+        theme={theme}
+      />
+      
     </div>
   );
 }

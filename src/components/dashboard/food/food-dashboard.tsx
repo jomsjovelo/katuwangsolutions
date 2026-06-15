@@ -12,8 +12,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn } from '@/lib/utils';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
+import { GCashQrModal } from '@/components/common/gcash-qr-modal';
+import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { useMenu } from '@/hooks/use-menu';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -24,9 +25,11 @@ import {
   Plus, 
   Printer,
   Loader2,
-  AlertCircle,
   ShoppingCart,
-  Trash2
+  Trash2,
+  Receipt,
+  Coins,
+  AlertCircle
 } from "lucide-react";
 
 export function FoodDashboard() {
@@ -46,6 +49,15 @@ export function FoodDashboard() {
   // Cart State for POS
   const [cart, setCart] = useState<{ menuItemId: string; name: string; quantity: number; price: number; notes?: string }[]>([]);
   const [selectedTable, setSelectedTable] = useState('');
+  
+  const [showGCashQr, setShowGCashQr] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [completedSale, setCompletedSale] = useState<{
+    items: any[];
+    total: number;
+    paymentMethod: string;
+    saleId?: string;
+  } | null>(null);
 
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
@@ -125,7 +137,7 @@ export function FoodDashboard() {
 
   const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-  const handleCheckout = async () => {
+  const handleCheckout = async (paymentMethod: string = 'cash', gcashRef?: string) => {
     if (!currentTenant || cart.length === 0) return;
     try {
       setIsProcessing(true);
@@ -133,14 +145,26 @@ export function FoodDashboard() {
       
       const tableName = selectedTable.trim() || `Takeout ${new Date().getTime().toString().slice(-4)}`;
       
-      await addFoodOrder(
+      const orderId = await addFoodOrder(
         currentTenant.id, 
         tableName,
         cart,
-        cartTotal
+        0, // discount
+        undefined, // phone
+        undefined // referrer
       );
+      
+      // Complete sale info
+      setCompletedSale({
+        items: [...cart],
+        total: cartTotal,
+        paymentMethod,
+        saleId: orderId
+      });
+      
       setCart([]);
       setSelectedTable('');
+      setShowReceipt(true);
       toast({ title: 'Order Submitted!', description: 'Sent to the kitchen.' });
     } catch (e: any) {
       setError(e.message);
@@ -309,17 +333,52 @@ export function FoodDashboard() {
                       className="h-9 text-sm"
                     />
                   </div>
-                  <Button 
-                    className="w-full font-bold text-white shadow-md active:scale-95" 
-                    style={{ backgroundColor: theme.primary }}
-                    onClick={handleCheckout}
-                    disabled={isProcessing}
-                  >
-                    {isProcessing ? "Processing..." : "Checkout & Send to Kitchen"}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      className="h-12 flex-1 font-bold text-white shadow-md active:scale-95 border-none" 
+                      style={{ backgroundColor: theme.primary }}
+                      onClick={() => handleCheckout('cash')}
+                      disabled={isProcessing}
+                    >
+                      {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Coins className="h-4 w-4 mr-1" /> Cash</>}
+                    </Button>
+                    <Button 
+                      className="h-12 flex-1 font-bold text-white shadow-md active:scale-95 border-none" 
+                      style={{ backgroundColor: '#007aff' }}
+                      onClick={() => setShowGCashQr(true)}
+                      disabled={isProcessing}
+                    >
+                      {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Receipt className="h-4 w-4 mr-1" /> GCash</>}
+                    </Button>
+                  </div>
                 </div>
               </Card>
             )}
+
+            <GCashQrModal
+              open={showGCashQr}
+              onClose={() => setShowGCashQr(false)}
+              totalAmount={cartTotal}
+              tenantName={currentTenant?.name || "Katuwang Store"}
+              paymentType="gcash"
+              onPaymentVerified={async (paymentMethod, gcashRef) => {
+                setShowGCashQr(false);
+                await handleCheckout(paymentMethod, gcashRef);
+              }}
+              theme={theme}
+            />
+            
+            <ThermalReceiptPreview
+              open={showReceipt}
+              onClose={() => setShowReceipt(false)}
+              storeName={currentTenant?.name || "Katuwang Food"}
+              receiptType="KITCHEN ORDER SLIP / INVOICE"
+              items={completedSale?.items || []}
+              totalAmountPesos={(completedSale?.total || 0) / 100}
+              paymentMethod={completedSale?.paymentMethod || "cash"}
+              transactionId={completedSale?.saleId}
+              theme={theme}
+            />
           </TabsContent>
 
           {/* KITCHEN TAB (Existing KDS) */}

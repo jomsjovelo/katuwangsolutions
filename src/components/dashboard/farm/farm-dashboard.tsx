@@ -13,6 +13,8 @@ import { Label } from '@/components/ui/label';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useFarmHarvests } from '@/hooks/use-farm';
 import { useToast } from '@/hooks/use-toast';
+import { GCashQrModal } from '@/components/common/gcash-qr-modal';
+import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { 
   Tractor, 
   Plus, 
@@ -20,7 +22,9 @@ import {
   Warehouse,
   Truck,
   CheckCircle2,
-  CircleDollarSign
+  CircleDollarSign,
+  Receipt,
+  Coins
 } from "lucide-react";
 
 export function FarmDashboard() {
@@ -29,6 +33,16 @@ export function FarmDashboard() {
   const { toast } = useToast();
   
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showGCashQr, setShowGCashQr] = useState(false);
+  const [pendingPaymentHarvest, setPendingPaymentHarvest] = useState<any | null>(null);
+
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [completedSale, setCompletedSale] = useState<{
+    items: any[];
+    total: number;
+    paymentMethod: string;
+    saleId?: string;
+  } | null>(null);
 
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
@@ -85,7 +99,7 @@ export function FarmDashboard() {
     }
   };
 
-  const updateStatus = async (harvest: any, status: string, paymentStatus?: string) => {
+  const updateStatus = async (harvest: any, status: string, paymentStatus?: string, paymentMethod: string = 'cash') => {
     if (!currentTenant || !db) return;
     try {
       if (status === 'Dispatched' && paymentStatus === 'Paid') {
@@ -95,8 +109,19 @@ export function FarmDashboard() {
           harvest.id, 
           status, 
           harvest.expectedValue * 100, // stored in expectedValue as whole peso
-          `Agriculture: Sold ${harvest.quantity} ${harvest.unit} of ${harvest.cropType}`
+          `Agriculture: Sold ${harvest.quantity} ${harvest.unit} of ${harvest.cropType}`,
+          undefined,
+          {},
+          paymentMethod
         );
+        
+        setCompletedSale({
+          items: [{ name: `Harvest Sold: ${harvest.quantity} ${harvest.unit} ${harvest.cropType}`, quantity: 1, price: harvest.expectedValue * 100 }],
+          total: harvest.expectedValue * 100,
+          paymentMethod,
+          saleId: harvest.id
+        });
+        setShowReceipt(true);
       } else {
         const harvestRef = doc(db, 'tenants', currentTenant.id, 'farm_harvests', harvest.id);
         const updates: any = { status, updatedAt: serverTimestamp() };
@@ -251,9 +276,17 @@ export function FarmDashboard() {
               <div className="space-y-2">
                 {inBodegaHarvests.map(harvest => (
                   <HarvestCard key={harvest.id} harvest={harvest} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-indigo-500 hover:bg-indigo-600 text-white" onClick={() => updateStatus(harvest, 'Dispatched', 'Paid')}>
-                      <Truck className="h-3 w-3 mr-1" /> Sell / Dispatch
-                    </Button>
+                    <div className="flex gap-2 w-full">
+                      <Button size="sm" className="flex-1 h-7 text-[10px] font-bold text-white border-none" style={{ backgroundColor: theme.primary }} onClick={() => updateStatus(harvest, 'Dispatched', 'Paid', 'cash')}>
+                        <Coins className="h-3 w-3 mr-1" /> Cash
+                      </Button>
+                      <Button size="sm" className="flex-1 h-7 text-[10px] font-bold text-white border-none" style={{ backgroundColor: '#007aff' }} onClick={() => {
+                        setPendingPaymentHarvest(harvest);
+                        setShowGCashQr(true);
+                      }}>
+                        <Receipt className="h-3 w-3 mr-1" /> GCash
+                      </Button>
+                    </div>
                   } />
                 ))}
               </div>
@@ -281,6 +314,38 @@ export function FarmDashboard() {
         )}
 
       </main>
+
+      <GCashQrModal
+        open={showGCashQr}
+        onClose={() => {
+          setShowGCashQr(false);
+          setPendingPaymentHarvest(null);
+        }}
+        totalAmount={(pendingPaymentHarvest?.expectedValue || 0) * 100}
+        tenantName={currentTenant?.name || "Katuwang Farm"}
+        paymentType="gcash"
+        onPaymentVerified={async (paymentMethod, gcashRef) => {
+          setShowGCashQr(false);
+          if (pendingPaymentHarvest) {
+            await updateStatus(pendingPaymentHarvest, 'Dispatched', 'Paid', paymentMethod);
+            setPendingPaymentHarvest(null);
+          }
+        }}
+        theme={theme}
+      />
+      
+      <ThermalReceiptPreview
+        open={showReceipt}
+        onClose={() => setShowReceipt(false)}
+        storeName={currentTenant?.name || "Katuwang Farm"}
+        receiptType="HARVEST SALE RECEIPT"
+        items={completedSale?.items || []}
+        totalAmountPesos={(completedSale?.total || 0) / 100}
+        paymentMethod={completedSale?.paymentMethod || "cash"}
+        transactionId={completedSale?.saleId}
+        theme={theme}
+      />
+
     </div>
   );
 }

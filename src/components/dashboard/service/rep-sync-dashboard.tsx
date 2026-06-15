@@ -13,7 +13,6 @@ import { Label } from '@/components/ui/label';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useGymMemberships } from '@/hooks/use-gym';
 import { useToast } from '@/hooks/use-toast';
-import { CustomerReferralInput } from '@/components/common/customer-referral-input';
 import { 
   Dumbbell, 
   Plus, 
@@ -54,7 +53,6 @@ export function RepSyncDashboard() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [memberName, setMemberName] = useState('');
   const [memberPhone, setMemberPhone] = useState('');
-  const [referrerCode, setReferrerCode] = useState('');
   const [planType, setPlanType] = useState('Daily Drop-in');
   const [amountOverride, setAmountOverride] = useState<number | ''>('');
 
@@ -74,13 +72,11 @@ export function RepSyncDashboard() {
         planType,
         finalPriceCentavos,
         isDaily,
-        memberPhone || undefined,
-        referrerCode || undefined
+        memberPhone || undefined
       );
       
       setMemberName('');
       setMemberPhone('');
-      setReferrerCode('');
       setPlanType('Daily Drop-in');
       setAmountOverride('');
       setShowAddForm(false);
@@ -280,13 +276,6 @@ export function RepSyncDashboard() {
                 <Label className="text-xs">Custom Amount Paid (₱)</Label>
                 <Input type="number" placeholder={`Suggested: ₱${suggestedPrice}`} value={amountOverride} onChange={e => setAmountOverride(parseFloat(e.target.value) || '')} />
               </div>
-              <CustomerReferralInput 
-                customerPhone={memberPhone}
-                setCustomerPhone={setMemberPhone}
-                referrerCode={referrerCode}
-                setReferrerCode={setReferrerCode}
-                primaryColor={theme.primary}
-              />
               <Button 
                 className="w-full h-8 text-xs font-bold text-white" 
                 style={{ backgroundColor: theme.primary }}
