@@ -835,24 +835,34 @@ export function ProfileTab() {
                       <p className="text-[10px] text-slate-600 leading-relaxed italic">
                         "Gusto mo bang ma-automate ang negosyo mo?<br/>Gumamit ang Katuwang Solutions, sobrang dali na i-track ang daily sales, i-monitor ang revenue, at i-manage ang expenses at inventory mo!<br/><br/>Naka-PROMO sila ngayon for only ₱99! Upgrade your business today.<br/><br/>Mag register sa link:<br/>👉 https://katuwangsolutions.com/onboarding?ref={profile?.referralCode || (user?.uid ? user.uid.substring(0, 4).toUpperCase() : '')}"
                       </p>
-                      <div className="flex gap-2">
-                        <Button 
-                          onClick={() => {
-                            const caption = `Gusto mo bang ma-automate ang negosyo mo?\nGumamit ang Katuwang Solutions, sobrang dali na i-track ang daily sales, i-monitor ang revenue, at i-manage ang expenses at inventory mo!\n\nNaka-PROMO sila ngayon for only ₱99! Upgrade your business today.\n\nMag register sa link:\n👉 https://katuwangsolutions.com/onboarding?ref=${profile?.referralCode || (user?.uid ? user.uid.substring(0, 4).toUpperCase() : '')}`;
-                            navigator.clipboard.writeText(caption);
-                            alert('Caption & Link Copied!');
-                          }}
-                          className="flex-1 h-8 text-[10px] font-bold bg-slate-800 text-white rounded-lg hover:bg-slate-700"
-                        >
-                          Copy Caption
-                        </Button>
+                      <div className="flex flex-col gap-2">
+                        <div className="flex gap-2">
+                          <Button 
+                            onClick={() => {
+                              const caption = `Gusto mo bang ma-automate ang negosyo mo?\nGumamit ang Katuwang Solutions, sobrang dali na i-track ang daily sales, i-monitor ang revenue, at i-manage ang expenses at inventory mo!\n\nNaka-PROMO sila ngayon for only ₱99! Upgrade your business today.\n\nMag register sa link:\n👉 https://katuwangsolutions.com/onboarding?ref=${profile?.referralCode || (user?.uid ? user.uid.substring(0, 4).toUpperCase() : '')}`;
+                              navigator.clipboard.writeText(caption);
+                              alert('Caption & Link Copied!');
+                            }}
+                            className="flex-1 h-8 text-[10px] font-bold bg-slate-800 text-white rounded-lg hover:bg-slate-700"
+                          >
+                            Copy Caption
+                          </Button>
+                          <a 
+                            href={`https://www.facebook.com/sharer/sharer.php?u=https://katuwangsolutions.com/onboarding?ref=${profile?.referralCode || (user?.uid ? user.uid.substring(0, 4).toUpperCase() : '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center px-3 h-8 text-[10px] font-bold bg-[#1877F2] text-white rounded-lg hover:bg-[#166FE5]"
+                          >
+                            Share to FB
+                          </a>
+                        </div>
                         <a 
-                          href={`https://www.facebook.com/sharer/sharer.php?u=https://katuwangsolutions.com/onboarding?ref=${profile?.referralCode || (user?.uid ? user.uid.substring(0, 4).toUpperCase() : '')}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-center px-3 h-8 text-[10px] font-bold bg-[#1877F2] text-white rounded-lg hover:bg-[#166FE5]"
+                          href="/og-promo.jpg" 
+                          download="katuwang-promo.jpg" 
+                          className="flex items-center justify-center w-full h-8 text-[10px] font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
                         >
-                          Share to FB
+                          <Download className="w-3 h-3 mr-1.5" />
+                          Download Promo Image
                         </a>
                       </div>
                     </div>
