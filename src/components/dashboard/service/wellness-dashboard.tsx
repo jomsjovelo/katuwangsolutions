@@ -102,11 +102,6 @@ export function WellnessDashboard() {
     if (!currentTenant || !db || !clientName || !therapistName) return;
     setIsProcessing(true);
     try {
-      if (isRedeeming && customerPhone) {
-        const { redeemPoints } = await import('@/firebase/firestore/loyalty-actions');
-        await redeemPoints(currentTenant.id, customerPhone, 100);
-      }
-
       let aptTimestamp = null;
       if (isScheduled && appointmentDate && appointmentTime) {
         aptTimestamp = new Date(`${appointmentDate}T${appointmentTime}`);
@@ -125,6 +120,11 @@ export function WellnessDashboard() {
         appointmentDate: aptTimestamp,
         createdAt: serverTimestamp(),
       });
+
+      if (isRedeeming && customerPhone) {
+        const { redeemPoints } = await import('@/firebase/firestore/loyalty-actions');
+        await redeemPoints(currentTenant.id, customerPhone, 100);
+      }
       setClientName('');
       setTherapistName('');
       setServiceType('Massage');
@@ -399,9 +399,9 @@ export function WellnessDashboard() {
                         onChange={e => setRoomAssignments(prev => ({...prev, [appt.id as string]: e.target.value}))}
                       >
                         <option value="">Room</option>
-                        <option value="Room 1">Room 1</option>
-                        <option value="Room 2">Room 2</option>
-                        <option value="Room 3">Room 3</option>
+                        {Array.from({length: 10}).map((_, i) => (
+                          <option key={i} value={`Room ${i+1}`}>Room {i+1}</option>
+                        ))}
                         <option value="VIP Room">VIP</option>
                       </select>
                       <Button 

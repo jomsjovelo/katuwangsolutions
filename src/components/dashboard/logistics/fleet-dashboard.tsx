@@ -3,7 +3,7 @@
 import React, { useState, useRef } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { useCollection } from 'react-firebase-hooks/firestore';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { addTrip, updateTripStatus, updateTripExpenses } from '@/firebase/firestore/logistics-actions';
 import { chargeRetailSaleToCredit } from '@/firebase/firestore/credit-actions';
@@ -77,7 +77,7 @@ export function FleetDashboard() {
 
   const tripsQuery = React.useMemo(() => {
     return currentTenant 
-    ? query(collection(db, 'tenants', currentTenant.id, 'trips'), orderBy('createdAt', 'desc')) : null;
+    ? query(collection(db, 'tenants', currentTenant.id, 'trips'), orderBy('createdAt', 'desc'), limit(300)) : null;
   }, [currentTenant?.id, db]);
 
   const [tripsSnapshot, loading, tripsError] = useCollection(tripsQuery as any);

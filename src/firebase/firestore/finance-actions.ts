@@ -58,6 +58,21 @@ export async function addTransaction(tenantId: string, amountCentavos: number, t
       id: newTxRef.id,
       createdAt: serverTimestamp()
     });
+
+    // 6. Global Analytics Sync (If Income)
+    if (type === 'income') {
+      const salesRef = collection(db, 'tenants', tenantId, 'sales');
+      const newSaleRef = doc(salesRef);
+      transaction.set(newSaleRef, {
+        id: newSaleRef.id,
+        tenantId,
+        module: 'ledger-flow',
+        items: [{ name: description || category || 'Manual Income', quantity: 1, price: amountCentavos }],
+        totalAmount: amountCentavos,
+        paymentMethod: 'cash',
+        createdAt: serverTimestamp()
+      });
+    }
   });
 
   return true;

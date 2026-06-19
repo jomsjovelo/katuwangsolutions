@@ -77,6 +77,19 @@ export function BuildStackDashboard() {
           performedBy: 'admin',
           createdAt: serverTimestamp()
         });
+
+        // Add Global Analytics Sync (B2B Sale on Credit)
+        const salesRef = collection(db, 'tenants', currentTenant.id, 'sales');
+        const newSaleRef = doc(salesRef);
+        transaction.set(newSaleRef, {
+          id: newSaleRef.id,
+          tenantId: currentTenant.id,
+          module: 'build-stack',
+          items: [{ name: `${dispatchQty}x ${product.name} to ${project.name}`, quantity: dispatchQty, price: product.salePrice }],
+          totalAmount: totalCost,
+          paymentMethod: 'palista', // It's a credit sale
+          createdAt: serverTimestamp()
+        });
       });
 
       toast({

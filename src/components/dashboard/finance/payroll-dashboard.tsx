@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { addEmployee, recordPayout } from '@/firebase/firestore/finance-actions';
-import { doc, updateDoc, serverTimestamp, collection, query, orderBy } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, collection, query, orderBy, limit } from 'firebase/firestore';
 import { useCollection } from 'react-firebase-hooks/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,7 +37,7 @@ export function PayrollDashboard() {
   // --- Employee List ---
   const empQuery = React.useMemo(() => {
     return currentTenant 
-    ? query(collection(db, 'tenants', currentTenant.id, 'employees'), orderBy('createdAt', 'desc')) : null;
+    ? query(collection(db, 'tenants', currentTenant.id, 'employees'), orderBy('createdAt', 'desc'), limit(300)) : null;
   }, [currentTenant?.id, db]);
   const [empSnapshot, loading, empError] = useCollection(empQuery as any);
   const employees = empSnapshot?.docs.map((d: any) => ({ id: d.id, ...d.data() })) || [];

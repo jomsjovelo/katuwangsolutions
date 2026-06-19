@@ -79,6 +79,24 @@ export async function completeEvent(
         date: new Date(),
         createdAt: serverTimestamp()
       });
+
+      // SYNC TO GLOBAL ANALYTICS
+      const salesRef = collection(db, 'tenants', tenantId, 'sales');
+      const newSaleRef = doc(salesRef);
+      transaction.set(newSaleRef, {
+        id: newSaleRef.id,
+        tenantId,
+        items: [{
+          name: description,
+          quantity: 1,
+          price: finalAmount,
+        }],
+        total: finalAmount,
+        paymentMethod: 'cash',
+        customerName: eventData.clientName || 'Event Client',
+        date: new Date(),
+        createdAt: serverTimestamp()
+      });
     }
   });
 
@@ -153,6 +171,24 @@ export async function recordEventPayment(
       type: 'income',
       category: 'Events',
       description,
+      date: new Date(),
+      createdAt: serverTimestamp()
+    });
+
+    // SYNC TO GLOBAL ANALYTICS
+    const salesRef = collection(db, 'tenants', tenantId, 'sales');
+    const newSaleRef = doc(salesRef);
+    transaction.set(newSaleRef, {
+      id: newSaleRef.id,
+      tenantId,
+      items: [{
+        name: description,
+        quantity: 1,
+        price: paymentCentavos,
+      }],
+      total: paymentCentavos,
+      paymentMethod: 'cash',
+      customerName: eventData.clientName || 'Event Client',
       date: new Date(),
       createdAt: serverTimestamp()
     });

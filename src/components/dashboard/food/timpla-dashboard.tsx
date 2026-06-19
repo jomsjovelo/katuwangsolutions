@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { useCollection } from 'react-firebase-hooks/firestore';
-import { collection, query, orderBy, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, doc, setDoc, serverTimestamp, limit } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { addFoodOrder, updateFoodOrderStatus } from '@/firebase/firestore/food-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -18,6 +18,8 @@ import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useMenu } from '@/hooks/use-menu';
 import { useIngredients } from '@/hooks/use-ingredients';
 import { useToast } from '@/hooks/use-toast';
+import { GCashQrModal } from '@/components/common/gcash-qr-modal';
+import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { 
   Coffee, 
   ChefHat, 
@@ -71,6 +73,16 @@ export function TimplaDashboard() {
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [isFetchingPoints, setIsFetchingPoints] = useState(false);
 
+  // Hardware & Digital Payments
+  const [showGCashQr, setShowGCashQr] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [completedSale, setCompletedSale] = useState<{
+    items: any[];
+    total: number;
+    paymentMethod: string;
+    saleId?: string;
+  } | null>(null);
+
   React.useEffect(() => {
     const fetchPoints = async () => {
       const cleanPhone = customerPhone.replace(/[^0-9+]/g, '');
@@ -98,7 +110,7 @@ export function TimplaDashboard() {
   const ordersQuery = React.useMemo(() => {
     return currentTenant && db
     ? query(collection(db, 'tenants', currentTenant.id, 'food_orders'),
-        orderBy('createdAt', 'desc')) : null;
+        orderBy('createdAt', 'desc'), limit(300)) : null;
   }, [currentTenant?.id, db]);
 
   const [ordersSnapshot, ordersLoading, ordersError] = useCollection(ordersQuery as any);
@@ -224,7 +236,7 @@ export function TimplaDashboard() {
   const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
   // POS Checkout
-  const handleCheckout = async () => {
+  const handleCheckout = async (paymentMethod: string = 'cash', gcashRef?: string) => {
     if (!currentTenant || cart.length === 0) return;
     try {
       setIsProcessing(true);
@@ -235,14 +247,28 @@ export function TimplaDashboard() {
       }
       
       const tableName = selectedTable.trim() || `Takeout ${new Date().getTime().toString().slice(-4)}`;
+      const discount = isRedeeming ? 5000 : 0;
+      const saleTotal = cartTotal - discount;
       
-      await addFoodOrder(
+      const orderId = await addFoodOrder(
         currentTenant.id, 
         tableName,
         cart,
-        isRedeeming ? 5000 : 0,
-        customerPhone || undefined
+        discount,
+        customerPhone || undefined,
+        undefined, // referrerCode
+        paymentMethod,
+        gcashRef
       );
+
+      setCompletedSale({
+        items: cart,
+        total: saleTotal,
+        paymentMethod,
+        saleId: orderId
+      });
+      setShowReceipt(true);
+
       setCart([]);
       setSelectedTable('');
       setCustomerPhone('');
@@ -416,14 +442,23 @@ export function TimplaDashboard() {
                     </div>
                   )}
 
-                  <Button 
-                    className="w-full font-bold text-white shadow-md active:scale-95" 
-                    style={{ backgroundColor: theme.primary }}
-                    onClick={handleCheckout}
-                    disabled={isProcessing}
-                  >
-                    {isProcessing ? "Processing..." : "Checkout & Print Ticket"}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      className="flex-1 font-bold text-white shadow-md active:scale-95" 
+                      style={{ backgroundColor: theme.primary }}
+                      onClick={() => handleCheckout('cash')}
+                      disabled={isProcessing}
+                    >
+                      {isProcessing ? "Processing..." : "Cash"}
+                    </Button>
+                    <Button 
+                      className="flex-1 font-bold text-white shadow-md active:scale-95 bg-blue-500 hover:bg-blue-600" 
+                      onClick={() => setShowGCashQr(true)}
+                      disabled={isProcessing}
+                    >
+                      GCash
+                    </Button>
+                  </div>
                 </div>
               </Card>
             )}
@@ -667,6 +702,31 @@ export function TimplaDashboard() {
 
           </TabsContent>
         </Tabs>
+
+        <GCashQrModal
+          open={showGCashQr}
+          onClose={() => setShowGCashQr(false)}
+          totalAmount={cartTotal - (isRedeeming ? 5000 : 0)}
+          tenantName={currentTenant?.name || "Cafe"}
+          paymentType="gcash"
+          onPaymentVerified={async (paymentMethod, gcashRef) => {
+            setShowGCashQr(false);
+            await handleCheckout(paymentMethod, gcashRef);
+          }}
+          theme={theme}
+        />
+        
+        <ThermalReceiptPreview
+          open={showReceipt}
+          onClose={() => setShowReceipt(false)}
+          storeName={currentTenant?.name || "Cafe"}
+          receiptType="ORDER TICKET"
+          items={completedSale?.items || []}
+          totalAmountPesos={(completedSale?.total || 0) / 100}
+          paymentMethod={completedSale?.paymentMethod || "cash"}
+          transactionId={completedSale?.saleId}
+          theme={theme}
+        />
 
       </main>
     </div>

@@ -299,10 +299,9 @@ export function TrimTrackDashboard() {
                         onChange={e => setChairAssignments(prev => ({...prev, [appt.id as string]: e.target.value}))}
                       >
                         <option value="">Chair</option>
-                        <option value="Chair 1">Chair 1</option>
-                        <option value="Chair 2">Chair 2</option>
-                        <option value="Chair 3">Chair 3</option>
-                        <option value="Chair 4">Chair 4</option>
+                        {Array.from({length: 10}).map((_, i) => (
+                          <option key={i} value={`Chair ${i+1}`}>Chair {i+1}</option>
+                        ))}
                       </select>
                       <Button 
                         size="sm" 

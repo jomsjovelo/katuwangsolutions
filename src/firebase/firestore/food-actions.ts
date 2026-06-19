@@ -5,7 +5,7 @@ import { runTransactionResilient } from './resilient-transaction';
 
 export const getKatuwangDb = () => initializeFirebase().db;
 
-export async function addFoodOrder(tenantId: string, tableNumber: string, items: any[], discountCentavos: number = 0, customerPhone?: string, referrerCode?: string) {
+export async function addFoodOrder(tenantId: string, tableNumber: string, items: any[], discountCentavos: number = 0, customerPhone?: string, referrerCode?: string, paymentMethod: string = 'cash', gcashRef?: string) {
   const db = getKatuwangDb();
   let orderId = '';
   
@@ -38,6 +38,13 @@ export async function addFoodOrder(tenantId: string, tableNumber: string, items:
 
     const finalAmount = Math.max(0, secureTotalAmount - discountCentavos);
 
+    // Read Phase for Ledger
+    let masterAccountSnap: any = null;
+    const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+    if (finalAmount > 0) {
+      masterAccountSnap = await transaction.get(masterAccountRef);
+    }
+
     // Validate using Zod schema
     const validated = FoodOrderSchema.parse({
       tenantId,
@@ -58,8 +65,57 @@ export async function addFoodOrder(tenantId: string, tableNumber: string, items:
     transaction.set(newOrderRef, {
       ...validated,
       id: newOrderRef.id,
+      paymentMethod,
       createdAt: serverTimestamp(),
     });
+
+    // Write Phase for Ledger & Analytics
+    if (finalAmount > 0 && masterAccountSnap) {
+      if (!masterAccountSnap.exists()) {
+        transaction.set(masterAccountRef, {
+          id: 'master-cash',
+          tenantId,
+          name: 'Main Cash Register',
+          type: 'asset',
+          balance: finalAmount,
+          isActive: true,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        transaction.update(masterAccountRef, {
+          balance: increment(finalAmount),
+          updatedAt: serverTimestamp()
+        });
+      }
+
+      const transactionsRef = collection(db, 'tenants', tenantId, 'transactions');
+      const newTxRef = doc(transactionsRef);
+      transaction.set(newTxRef, {
+        id: newTxRef.id,
+        tenantId,
+        accountId: 'master-cash',
+        amount: finalAmount,
+        type: 'income',
+        description: `Food Order: ${tableNumber || 'Takeout'} (${paymentMethod})`,
+        date: new Date(),
+        createdAt: serverTimestamp()
+      });
+
+      const salesRef = collection(db, 'tenants', tenantId, 'sales');
+      const newSaleRef = doc(salesRef);
+      const saleRecord: Record<string, unknown> = {
+        id: newSaleRef.id,
+        tenantId,
+        module: 'food',
+        items: validatedItems,
+        totalAmount: finalAmount,
+        paymentMethod: paymentMethod,
+        createdAt: serverTimestamp()
+      };
+      if (gcashRef) saleRecord.gcashRef = gcashRef;
+      transaction.set(newSaleRef, saleRecord);
+    }
   });
 
   return orderId;
@@ -93,18 +149,6 @@ export async function updateFoodOrderStatus(tenantId: string, orderId: string, n
       }
     }
 
-    // Read Phase: Master Account Ledger
-    let masterAccountSnap: any = null;
-    const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
-    const shouldRecordIncome = (newStatus === 'paid' || newStatus === 'served') && amountCentavos !== undefined && amountCentavos > 0;
-    
-    if (shouldRecordIncome) {
-      if (isNaN(amountCentavos!)) {
-        throw new Error("Invalid payment amount for ledger recording.");
-      }
-      masterAccountSnap = await transaction.get(masterAccountRef);
-    }
-
     // --- WRITE PHASE ---
     const updateData: any = { 
       status: newStatus,
@@ -127,42 +171,6 @@ export async function updateFoodOrderStatus(tenantId: string, orderId: string, n
           }
         }
       }
-    }
-
-    // ERP INTEGRATION: If the food is PAID or SERVED, automatically deposit the money into the Master Cash Ledger!
-    if (shouldRecordIncome && masterAccountSnap) {
-      if (!masterAccountSnap.exists()) {
-        transaction.set(masterAccountRef, {
-          id: 'master-cash',
-          tenantId,
-          name: 'Main Cash Register',
-          type: 'asset',
-          balance: amountCentavos, // Initialize with this amount
-          isActive: true,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-      } else {
-        // Add the income to the balance safely using increment
-        transaction.update(masterAccountRef, {
-          balance: increment(amountCentavos!),
-          updatedAt: serverTimestamp()
-        });
-      }
-
-      // Record the transaction receipt
-      const transactionsRef = collection(db, 'tenants', tenantId, 'transactions');
-      const newTxRef = doc(transactionsRef);
-      transaction.set(newTxRef, {
-        id: newTxRef.id,
-        tenantId,
-        accountId: 'master-cash',
-        amount: amountCentavos,
-        type: 'income',
-        description: `Food Order: ${tableNumber || 'Takeout'}`,
-        date: new Date(),
-        createdAt: serverTimestamp()
-      });
     }
   });
 

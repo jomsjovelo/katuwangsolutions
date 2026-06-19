@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 // FIX S2-3: Static ES imports replace dynamic require() calls inside useEffect
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { useTenant } from '@/app/lib/tenant-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -88,7 +88,7 @@ export function FiveSixDashboard() {
     const { db } = initializeFirebase();
 
     const borrowersRef = collection(db, 'tenants', currentTenant.id, 'borrowers');
-    const q = query(borrowersRef, orderBy('createdAt', 'desc'));
+    const q = query(borrowersRef, orderBy('createdAt', 'desc'), limit(300));
 
     const unsubscribe = onSnapshot(q, (snapshot: any) => {
       const roster: Borrower[] = [];

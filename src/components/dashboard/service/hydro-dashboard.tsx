@@ -13,6 +13,8 @@ import { Label } from '@/components/ui/label';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useWaterDeliveries } from '@/hooks/use-water';
 import { useToast } from '@/hooks/use-toast';
+import { GCashQrModal } from '@/components/common/gcash-qr-modal';
+import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { 
   Droplet, 
   Plus, 
@@ -64,6 +66,15 @@ export function HydroDashboard() {
   const [settleOrderId, setSettleOrderId] = useState<string | null>(null);
   const [roundReturned, setRoundReturned] = useState<number | ''>('');
   const [slimReturned, setSlimReturned] = useState<number | ''>('');
+
+  const [showGCashQr, setShowGCashQr] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [completedSale, setCompletedSale] = useState<{
+    items: any[];
+    total: number;
+    paymentMethod: string;
+    saleId?: string;
+  } | null>(null);
 
   // Auto-calculate suggested price
   const roundCount = typeof roundQty === 'number' ? roundQty : 0;
@@ -151,15 +162,28 @@ export function HydroDashboard() {
           },
           paymentMethod
         );
+        
+        setCompletedSale({
+          items: [
+            ...(orderToSettle.roundOrdered > 0 ? [{ name: 'Round Gallon', quantity: orderToSettle.roundOrdered, price: PRICES.round * 100 }] : []),
+            ...(orderToSettle.slimOrdered > 0 ? [{ name: 'Slim Gallon', quantity: orderToSettle.slimOrdered, price: PRICES.slim * 100 }] : []),
+          ],
+          total: orderToSettle.amountDue,
+          paymentMethod,
+          saleId: settleOrderId
+        });
+
         toast({ title: 'Delivery Updated', description: `Order moved to Delivered.` });
+        setSettleOrderId(null);
+        setRoundReturned('');
+        setSlimReturned('');
+        setShowReceipt(true);
       }
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setIsProcessing(false);
     }
-    setSettleOrderId(null);
-    setRoundReturned('');
-    setSlimReturned('');
-    setIsProcessing(false);
   };
 
   const OrderCard = ({ order, actions }: { order: any, actions: React.ReactNode }) => (
@@ -308,7 +332,7 @@ export function HydroDashboard() {
                   <Button className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-bold" onClick={() => handleSettleAndDeliver('cash')} disabled={isProcessing}>
                     Paid via Cash
                   </Button>
-                  <Button className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold" onClick={() => handleSettleAndDeliver('gcash')} disabled={isProcessing}>
+                  <Button className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold" onClick={() => setShowGCashQr(true)} disabled={isProcessing}>
                     Paid via GCash
                   </Button>
                 </div>
@@ -375,11 +399,37 @@ export function HydroDashboard() {
                 ))}
               </div>
             </div>
-
           </div>
         )}
 
       </main>
+
+      {/* Hardware Tools */}
+      <GCashQrModal
+        open={showGCashQr}
+        onClose={() => setShowGCashQr(false)}
+        totalAmount={settleOrderId ? (outForDeliveryOrders.find(o => o.id === settleOrderId)?.amountDue || 0) : 0}
+        tenantName={currentTenant?.name || "Water Station"}
+        paymentType="gcash"
+        onPaymentVerified={async (paymentMethod, gcashRef) => {
+          setShowGCashQr(false);
+          await handleSettleAndDeliver(paymentMethod);
+        }}
+        theme={theme}
+      />
+      
+      <ThermalReceiptPreview
+        open={showReceipt}
+        onClose={() => setShowReceipt(false)}
+        storeName={currentTenant?.name || "Water Station"}
+        receiptType="DELIVERY RECEIPT"
+        items={completedSale?.items || []}
+        totalAmountPesos={(completedSale?.total || 0) / 100}
+        paymentMethod={completedSale?.paymentMethod || "cash"}
+        transactionId={completedSale?.saleId}
+        theme={theme}
+      />
+
     </div>
   );
 }

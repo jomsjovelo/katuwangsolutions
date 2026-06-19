@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { useTenant } from '@/app/lib/tenant-context';
 import { Product, ProductSchema } from '@/lib/schemas/inventory';
@@ -16,7 +16,8 @@ export function useInventory() {
     return currentTenant && db
       ? query(
           collection(db, 'tenants', currentTenant.id, 'products').withConverter(createConverter(ProductSchema)),
-          orderBy('name', 'asc')
+          orderBy('name', 'asc'),
+          limit(300)
         )
       : null;
   }, [currentTenant?.id, db]);

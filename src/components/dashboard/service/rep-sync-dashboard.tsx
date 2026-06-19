@@ -55,6 +55,8 @@ export function RepSyncDashboard() {
   const [memberPhone, setMemberPhone] = useState('');
   const [planType, setPlanType] = useState('Daily Drop-in');
   const [amountOverride, setAmountOverride] = useState<number | ''>('');
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [gcashRef, setGcashRef] = useState('');
 
   const suggestedPrice = PLAN_PRICES[planType] || 0;
   const finalPrice = typeof amountOverride === 'number' ? amountOverride : suggestedPrice;
@@ -72,13 +74,18 @@ export function RepSyncDashboard() {
         planType,
         finalPriceCentavos,
         isDaily,
-        memberPhone || undefined
+        memberPhone || undefined,
+        undefined, // referrerCode
+        paymentMethod,
+        gcashRef
       );
       
       setMemberName('');
       setMemberPhone('');
       setPlanType('Daily Drop-in');
       setAmountOverride('');
+      setPaymentMethod('cash');
+      setGcashRef('');
       setShowAddForm(false);
       toast({ title: 'Success!', description: `${memberName} has been registered and checked in.` });
     } catch (e: any) {
@@ -148,7 +155,7 @@ export function RepSyncDashboard() {
     setShowScanner(false);
   };
 
-  const handleRenew = async (member: any, plan: string) => {
+  const handleRenew = async (member: any, plan: string, payMethod: string = 'cash', refNo?: string) => {
     if (!currentTenant || !db) return;
     try {
       const finalPriceCentavos = Math.round((PLAN_PRICES[plan] || 1000) * 100);
@@ -158,12 +165,58 @@ export function RepSyncDashboard() {
         member.id,
         member.memberName,
         plan,
-        finalPriceCentavos
+        finalPriceCentavos,
+        payMethod,
+        refNo
       );
       toast({ title: 'Renewed', description: `Membership renewed to ${plan}.` });
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     }
+  };
+
+  const RenewalActions = ({ member }: { member: any }) => {
+    const [plan, setPlan] = useState('1-Month Plan');
+    const [payMethod, setPayMethod] = useState('cash');
+    const [ref, setRef] = useState('');
+    const [open, setOpen] = useState(false);
+
+    if (!open) {
+      return (
+        <Button size="sm" className="w-full h-7 text-[10px] bg-rose-500 hover:bg-rose-600 text-white" onClick={() => setOpen(true)}>
+          <RefreshCw className="h-3 w-3 mr-1" /> Renew Membership
+        </Button>
+      );
+    }
+
+    return (
+      <div className="w-full space-y-2 bg-slate-50 p-2 rounded-md border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
+        <select className="w-full border-slate-200 rounded-md border p-1 text-[10px] h-6 bg-white" value={plan} onChange={(e) => setPlan(e.target.value)}>
+          {Object.keys(PLAN_PRICES).map(type => (
+            <option key={type} value={type}>{type} (₱{PLAN_PRICES[type]})</option>
+          ))}
+        </select>
+        <div className="flex gap-1">
+          <select className="flex-1 border-slate-200 rounded-md border p-1 text-[10px] h-6 bg-white" value={payMethod} onChange={(e) => setPayMethod(e.target.value)}>
+            <option value="cash">Cash</option>
+            <option value="gcash">GCash</option>
+            <option value="maya">Maya</option>
+          </select>
+          {payMethod !== 'cash' && (
+            <Input className="flex-1 h-6 text-[10px] px-1 bg-white" placeholder="Ref No." value={ref} onChange={(e) => setRef(e.target.value)} />
+          )}
+        </div>
+        <div className="flex gap-1">
+          <Button size="sm" variant="outline" className="flex-1 h-6 text-[10px] bg-white" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button size="sm" className="flex-1 h-6 text-[10px] bg-rose-500 hover:bg-rose-600 text-white" onClick={() => {
+            handleRenew(member, plan, payMethod, ref);
+            setOpen(false);
+          }}>
+            Pay ₱{PLAN_PRICES[plan]}
+          </Button>
+        </div>
+      </div>
+    );
   };
 
   const MemberCard = ({ member, actions }: { member: any, actions: React.ReactNode }) => {
@@ -276,6 +329,26 @@ export function RepSyncDashboard() {
                 <Label className="text-xs">Custom Amount Paid (₱)</Label>
                 <Input type="number" placeholder={`Suggested: ₱${suggestedPrice}`} value={amountOverride} onChange={e => setAmountOverride(parseFloat(e.target.value) || '')} />
               </div>
+              <div className="flex gap-2">
+                <div className="flex-1 space-y-1">
+                  <Label className="text-xs">Payment Method</Label>
+                  <select 
+                    className="w-full border-slate-200 rounded-md border p-2 text-sm h-9"
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                  >
+                    <option value="cash">Cash</option>
+                    <option value="gcash">GCash</option>
+                    <option value="maya">Maya</option>
+                  </select>
+                </div>
+                {paymentMethod !== 'cash' && (
+                  <div className="flex-1 space-y-1">
+                    <Label className="text-xs">Ref No.</Label>
+                    <Input placeholder="Optional reference" value={gcashRef} onChange={e => setGcashRef(e.target.value)} />
+                  </div>
+                )}
+              </div>
               <Button 
                 className="w-full h-8 text-xs font-bold text-white" 
                 style={{ backgroundColor: theme.primary }}
@@ -338,11 +411,7 @@ export function RepSyncDashboard() {
               </div>
               <div className="space-y-2">
                 {expiredMembers.map(member => (
-                  <MemberCard key={member.id} member={member} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-rose-500 hover:bg-rose-600 text-white" onClick={() => handleRenew(member, '1-Month Plan')}>
-                      <RefreshCw className="h-3 w-3 mr-1" /> Renew 1-Month (₱1000)
-                    </Button>
-                  } />
+                  <MemberCard key={member.id} member={member} actions={<RenewalActions member={member} />} />
                 ))}
               </div>
             </div>

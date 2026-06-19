@@ -254,6 +254,18 @@ export async function recordPayment(
         date: new Date(),
         createdAt: serverTimestamp()
       });
+
+      const salesRef = collection(db, 'tenants', tenantId, 'sales');
+      const newSaleRef = doc(salesRef);
+      transaction.set(newSaleRef, {
+        id: newSaleRef.id,
+        tenantId,
+        module: '5-6-tracker',
+        items: [{ name: `Loan Payment from ${data.name}`, quantity: 1, price: paymentCentavos }],
+        totalAmount: paymentCentavos,
+        paymentMethod: 'cash',
+        createdAt: serverTimestamp()
+      });
     });
     return true;
   } catch (e: any) {

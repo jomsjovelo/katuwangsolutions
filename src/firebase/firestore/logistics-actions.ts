@@ -85,12 +85,11 @@ export async function updateTripStatus(tenantId: string, tripId: string, newStat
     
     transaction.update(tripRef, updatePayload);
 
-    // ERP INTEGRATION: If the trip is completed, deposit the delivery fee into the Ledger (if cash)
+    // ERP INTEGRATION: If the trip is completed, deposit the delivery fee into the Ledger
     // AND deduct the trip expenses (Gas/Toll)
     if (newStatus === 'completed' && masterAccountRef && masterAccountSnap) {
-      // If payment was Palista, the fee was already charged to credit, so cash impact is only expenses
-      const cashEarned = paymentMethod === 'cash' ? deliveryFee : 0;
-      const netImpact = cashEarned - tripExpenses;
+      const revenue = deliveryFee;
+      const netImpact = revenue - tripExpenses;
 
       if (!masterAccountSnap.exists()) {
         transaction.set(masterAccountRef, {
@@ -114,17 +113,29 @@ export async function updateTripStatus(tenantId: string, tripId: string, newStat
       const transactionsRef = collection(db, 'tenants', tenantId, 'transactions');
 
       // Record the Income
-      if (cashEarned > 0) {
+      if (revenue > 0) {
         const newTxRef = doc(transactionsRef);
         transaction.set(newTxRef, {
           id: newTxRef.id,
           tenantId,
           accountId: 'master-cash',
-          amount: cashEarned,
+          amount: revenue,
           type: 'income',
           category: 'Sales',
-          description: `Delivery Fee to: ${tripData.destination || 'Client'}`,
+          description: `Delivery Fee to: ${tripData.destination || 'Client'} (${paymentMethod})`,
           date: new Date(),
+          createdAt: serverTimestamp()
+        });
+
+        const salesRef = collection(db, 'tenants', tenantId, 'sales');
+        const newSaleRef = doc(salesRef);
+        transaction.set(newSaleRef, {
+          id: newSaleRef.id,
+          tenantId,
+          module: 'logistics',
+          items: [{ name: `Delivery: ${tripData.origin} to ${tripData.destination}`, quantity: 1, price: revenue }],
+          totalAmount: revenue,
+          paymentMethod: paymentMethod,
           createdAt: serverTimestamp()
         });
       }

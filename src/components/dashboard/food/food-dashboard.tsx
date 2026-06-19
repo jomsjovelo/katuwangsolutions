@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { useCollection } from 'react-firebase-hooks/firestore';
-import { collection, query, orderBy, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, doc, setDoc, serverTimestamp, limit } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { addFoodOrder, updateFoodOrderStatus } from '@/firebase/firestore/food-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -65,7 +65,7 @@ export function FoodDashboard() {
   const ordersQuery = React.useMemo(() => {
     return currentTenant && db
     ? query(collection(db, 'tenants', currentTenant.id, 'food_orders'),
-        orderBy('createdAt', 'desc')) : null;
+        orderBy('createdAt', 'desc'), limit(300)) : null;
   }, [currentTenant?.id, db]);
 
   const [ordersSnapshot, ordersLoading, ordersError] = useCollection(ordersQuery as any);
@@ -151,7 +151,9 @@ export function FoodDashboard() {
         cart,
         0, // discount
         undefined, // phone
-        undefined // referrer
+        undefined, // referrer
+        paymentMethod,
+        gcashRef
       );
       
       // Complete sale info

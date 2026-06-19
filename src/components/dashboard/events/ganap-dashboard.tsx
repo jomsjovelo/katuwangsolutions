@@ -576,7 +576,7 @@ export function GanapDashboard() {
             </CardHeader>
             <CardContent className="p-3 pt-0">
               <p className="text-xl font-black text-slate-800">
-                ₱{(upcomingEvents.reduce((acc, ev) => acc + (ev.contractPrice || 0), 0) / 100).toLocaleString()}
+                ₱{((upcomingEvents.reduce((acc, ev) => acc + (ev.contractPrice || 0), 0) + ongoingEvents.reduce((acc, ev) => acc + (ev.contractPrice || 0), 0)) / 100).toLocaleString()}
               </p>
             </CardContent>
           </Card>

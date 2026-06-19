@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, limit } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { useTenant } from '@/app/lib/tenant-context';
 
@@ -15,7 +15,8 @@ export function useFarmHarvests() {
 
     const q = query(
       collection(db, 'tenants', currentTenant.id, 'farm_harvests'),
-      orderBy('createdAt', 'desc')
+      orderBy('createdAt', 'desc'),
+      limit(300)
     );
 
     const unsubscribe = onSnapshot(q, 

@@ -248,7 +248,9 @@ export async function registerGymMember(
   amountCentavos: number,
   isDaily: boolean,
   memberPhone?: string,
-  referrerCode?: string
+  referrerCode?: string,
+  paymentMethod: string = 'cash',
+  gcashRef?: string
 ) {
   if (amountCentavos < 0 || isNaN(amountCentavos)) {
     throw new Error('Invalid payment amount.');
@@ -326,10 +328,27 @@ export async function registerGymMember(
         amount: amountCentavos,
         type: 'income',
         category: 'Gym',
-        description: `Gym Registration: ${memberName} (${planType})`,
+        description: `Gym Registration: ${memberName} (${planType}) (${paymentMethod})`,
         date: new Date(),
         createdAt: serverTimestamp()
       });
+
+      // Write to unified sales subcollection
+      const salesRef = collection(db, 'tenants', tenantId, 'sales');
+      const newSaleRef = doc(salesRef);
+      
+      const saleRecord: Record<string, unknown> = {
+        id: newSaleRef.id,
+        tenantId,
+        module: 'service',
+        items: [{ productId: memberRef.id, name: `Gym Registration: ${planType}`, price: amountCentavos, quantity: 1 }],
+        totalAmount: amountCentavos,
+        paymentMethod: paymentMethod,
+        createdAt: serverTimestamp()
+      };
+      if (gcashRef) saleRecord.gcashRef = gcashRef;
+      
+      transaction.set(newSaleRef, saleRecord);
     }
   });
 
@@ -351,7 +370,9 @@ export async function renewGymMember(
   memberId: string,
   memberName: string,
   planType: string, 
-  amountCentavos: number
+  amountCentavos: number,
+  paymentMethod: string = 'cash',
+  gcashRef?: string
 ) {
   if (amountCentavos < 0 || isNaN(amountCentavos)) {
     throw new Error('Invalid payment amount.');
@@ -418,10 +439,27 @@ export async function renewGymMember(
         amount: amountCentavos,
         type: 'income',
         category: 'Gym',
-        description: `Gym Renewal: ${memberName} (${planType})`,
+        description: `Gym Renewal: ${memberName} (${planType}) (${paymentMethod})`,
         date: new Date(),
         createdAt: serverTimestamp()
       });
+
+      // Write to unified sales subcollection
+      const salesRef = collection(db, 'tenants', tenantId, 'sales');
+      const newSaleRef = doc(salesRef);
+      
+      const saleRecord: Record<string, unknown> = {
+        id: newSaleRef.id,
+        tenantId,
+        module: 'service',
+        items: [{ productId: memberId, name: `Gym Renewal: ${planType}`, price: amountCentavos, quantity: 1 }],
+        totalAmount: amountCentavos,
+        paymentMethod: paymentMethod,
+        createdAt: serverTimestamp()
+      };
+      if (gcashRef) saleRecord.gcashRef = gcashRef;
+      
+      transaction.set(newSaleRef, saleRecord);
     }
   });
 

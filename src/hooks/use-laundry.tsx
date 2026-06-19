@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { useTenant } from '@/app/lib/tenant-context';
 import { LaundryOrderModel, LaundryOrderSchema } from '@/lib/schemas/laundry';
@@ -16,7 +16,8 @@ export function useLaundry() {
     return currentTenant && db
     ? query(
         collection(db, 'tenants', currentTenant.id, 'laundry_orders').withConverter(createConverter(LaundryOrderSchema)),
-        orderBy('createdAt', 'desc')
+        orderBy('createdAt', 'desc'),
+        limit(300)
       )
     : null;
   }, [currentTenant?.id, db]);

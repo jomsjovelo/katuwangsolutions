@@ -338,6 +338,24 @@ export function SpinDashboard() {
               </div>
             </div>
 
+            {/* Claimed Column */}
+            <div className="flex-1 min-w-[300px]">
+              <div className="flex items-center gap-2 mb-3 px-1">
+                <CheckCircle2 className="h-4 w-4 text-slate-500" />
+                <h4 className="font-bold text-sm text-slate-700">Claimed Today</h4>
+                <Badge variant="secondary" className="bg-white ml-auto">{claimedOrders.length}</Badge>
+              </div>
+              <div className="space-y-2 opacity-75">
+                {claimedOrders.map(order => (
+                  <OrderCard key={order.id} order={order} actions={
+                    <Button disabled size="sm" variant="outline" className="w-full h-7 text-[10px] font-bold text-emerald-600 border-emerald-200 bg-emerald-50">
+                      Completed
+                    </Button>
+                  } />
+                ))}
+              </div>
+            </div>
+
           </div>
         )}
 
