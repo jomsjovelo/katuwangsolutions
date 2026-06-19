@@ -22,10 +22,10 @@ export const metadata: Metadata = {
     siteName: 'Katuwang Solutions',
     images: [
       {
-        url: 'https://katuwangsolutions.com/opengraph-image.jpg',
-        width: 1200,
-        height: 630,
-        alt: 'Katuwang Solutions Preview Image',
+        url: 'https://katuwangsolutions.com/og-promo.jpg',
+        width: 1080,
+        height: 1080,
+        alt: 'Katuwang Solutions Promo Image',
       },
     ],
     locale: 'fil_PH',
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Katuwang Solutions | Ang Katuwang mo sa Negosyo',
     description: 'Sales, inventory, at utang tracking para sa mga tindahan, palengke, at services. Mura. Mabilis. Maaasahan.',
-    images: ['https://katuwangsolutions.com/opengraph-image.jpg'],
+    images: ['https://katuwangsolutions.com/og-promo.jpg'],
   },
   appleWebApp: {
     capable: true,

@@ -741,7 +741,7 @@ export function ProfileTab() {
               Kumita ng ₱1,000 pataas linggo-linggo!
             </h3>
             <p className="text-emerald-50 text-xs font-medium max-w-sm leading-relaxed opacity-90">
-              I-share lang ang iyong Katuwang Referral Link sa mga kaibigang may negosyo. Kikita ka ng ₱10.00 <strong className="text-white bg-emerald-800/40 px-1 py-0.5 rounded">TUWING mag-rerenew</strong> sila ng subscription! Pwede mo itong i-withdraw via GCash.
+              I-share lang ang iyong Katuwang Referral Link sa mga kaibigang may negosyo. Kikita ka ng ₱10.00 sa bawat referral, at kikita ka ULIT ng ₱10.00 <strong className="text-white bg-emerald-800/40 px-1 py-0.5 rounded">TUWING mag-rerenew</strong> sila ng subscription! Tunay na passive income na pwede mong i-withdraw via GCash.
             </p>
           </div>
 
@@ -833,12 +833,12 @@ export function ProfileTab() {
                     <p className="text-[9px] text-slate-500 leading-tight">Copy this viral caption and post it to Facebook! It already includes your link and the ₱99 Promo.</p>
                     <div className="bg-white rounded-lg border border-slate-200 p-2.5 shadow-sm space-y-2">
                       <p className="text-[10px] text-slate-600 leading-relaxed italic">
-                        "Gusto mo bang ma-automate ang negosyo mo? Gamit ang Katuwang Solutions, sobrang dali na i-track ang daily sales, i-monitor ang revenue, at i-manage ang expenses at inventory mo! Naka-PROMO sila ngayon for only ₱99! Upgrade your business today. Mag register sa link:<br/><br/>👉 https://katuwangsolutions.com/onboarding?ref={profile?.referralCode || (user?.uid ? user.uid.substring(0, 4).toUpperCase() : '')}"
+                        "Gusto mo bang ma-automate ang negosyo mo?<br/>Gumamit ang Katuwang Solutions, sobrang dali na i-track ang daily sales, i-monitor ang revenue, at i-manage ang expenses at inventory mo!<br/><br/>Naka-PROMO sila ngayon for only ₱99! Upgrade your business today.<br/><br/>Mag register sa link:<br/>👉 https://katuwangsolutions.com/onboarding?ref={profile?.referralCode || (user?.uid ? user.uid.substring(0, 4).toUpperCase() : '')}"
                       </p>
                       <div className="flex gap-2">
                         <Button 
                           onClick={() => {
-                            const caption = `Gusto mo bang ma-automate ang negosyo mo? Gamit ang Katuwang Solutions, sobrang dali na i-track ang daily sales, i-monitor ang revenue, at i-manage ang expenses at inventory mo! Naka-PROMO sila ngayon for only ₱99! Upgrade your business today. Mag register sa link:\n\n👉 https://katuwangsolutions.com/onboarding?ref=${profile?.referralCode || (user?.uid ? user.uid.substring(0, 4).toUpperCase() : '')}`;
+                            const caption = `Gusto mo bang ma-automate ang negosyo mo?\nGumamit ang Katuwang Solutions, sobrang dali na i-track ang daily sales, i-monitor ang revenue, at i-manage ang expenses at inventory mo!\n\nNaka-PROMO sila ngayon for only ₱99! Upgrade your business today.\n\nMag register sa link:\n👉 https://katuwangsolutions.com/onboarding?ref=${profile?.referralCode || (user?.uid ? user.uid.substring(0, 4).toUpperCase() : '')}`;
                             navigator.clipboard.writeText(caption);
                             alert('Caption & Link Copied!');
                           }}
