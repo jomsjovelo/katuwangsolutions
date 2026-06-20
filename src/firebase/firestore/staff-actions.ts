@@ -325,3 +325,46 @@ export async function removeStaffMember(tenantId: string, staffUid: string) {
   return true;
 }
 
+
+
+/**
+ * Regenerates the business code for a tenant.
+ */
+export async function regenerateBusinessCode(tenantId: string, currentCode: string) {
+  const { db } = initializeFirebase();
+  const { doc, getDoc } = await import('firebase/firestore');
+
+  // Generate a new unique 7-character code
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let isUnique = false;
+  let codeToUse = '';
+  
+  let attempts = 0;
+  while (!isUnique && attempts < 10) {
+    codeToUse = Array.from({ length: 7 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
+    const bSnap = await getDoc(doc(db, 'business_codes', codeToUse));
+    const rSnap = await getDoc(doc(db, 'referral_codes', codeToUse));
+    if (!bSnap.exists() && !rSnap.exists()) isUnique = true;
+    attempts++;
+  }
+
+  if (!isUnique) throw new Error('Could not generate a unique code. Please try again.');
+
+  await runTransactionResilient(db, async (transaction) => {
+    const newCodeRef = doc(db, 'business_codes', codeToUse);
+    const oldCodeRef = doc(db, 'business_codes', currentCode);
+    const tenantRef = doc(db, 'tenants', tenantId);
+
+    // Create the new code document
+    transaction.set(newCodeRef, { tenantId: tenantId });
+    
+    // Update the tenant
+    transaction.update(tenantRef, { businessCode: codeToUse });
+
+    // Delete the old code document
+    transaction.delete(oldCodeRef);
+  });
+
+  return codeToUse;
+}
+
