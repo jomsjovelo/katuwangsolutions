@@ -95,7 +95,8 @@ export async function recordLoan(
   dailyDuePesos: number,
   termDays?: number,
   paymentSchedule: 'daily' | 'weekly' | 'monthly' | 'custom' = 'daily',
-  paymentIntervalDays?: number
+  paymentIntervalDays?: number,
+  loanDate?: Date
 ) {
   if (isNaN(loanAmountPesos) || loanAmountPesos <= 0) throw new Error("Ang halaga ng pautang ay dapat valid at higit sa zero.");
   if (isNaN(interestPesos) || interestPesos < 0) throw new Error("Ang interes ay hindi maaring negatibo o invalid.");
@@ -142,20 +143,22 @@ export async function recordLoan(
       // Append transaction sub-collection entry
       const newTxDocRef = doc(transactionsRef);
       
+      const txTimestamp = loanDate ? Timestamp.fromDate(loanDate) : serverTimestamp();
+
       const loanData: any = {
         type: 'loan',
         amount: loanAmountCentavos,
         interest: Math.round(interestPesos * 100),
-        timestamp: serverTimestamp(),
+        timestamp: txTimestamp,
         paymentSchedule,
         paymentIntervalDays: paymentIntervalDays || null
       };
       
       if (termDays && termDays > 0) {
         loanData.termDays = termDays;
-        loanData.startDate = serverTimestamp();
+        loanData.startDate = txTimestamp;
         // Calculate approximate end date based on term days
-        const endDate = new Date();
+        const endDate = loanDate ? new Date(loanDate) : new Date();
         endDate.setDate(endDate.getDate() + termDays);
         loanData.endDate = Timestamp.fromDate(endDate);
       }

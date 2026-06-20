@@ -100,6 +100,8 @@ export function FiveSixDashboard() {
   const [loanIntervalDays, setLoanIntervalDays] = useState('3');
   const [loanDailyDue, setLoanDailyDue] = useState('100');
   const [loanTermDays, setLoanTermDays] = useState('24'); // Default 24 days
+  const [isPastLoan, setIsPastLoan] = useState(false);
+  const [loanDateStr, setLoanDateStr] = useState(new Date().toISOString().split('T')[0]);
 
   const [payAmount, setPayAmount] = useState('500');
   const [newArea, setNewArea] = useState('');
@@ -245,8 +247,11 @@ export function FiveSixDashboard() {
       // Reset
       setNewName('');
       setNewPhone('');
-      setNewArea('');
-      setActiveDrawer('none');
+      setLoanInterest('400');
+      setInterestMode('20');
+      setLoanSchedule('daily');
+      setIsPastLoan(false);
+      setLoanDateStr(new Date().toISOString().split('T')[0]);
     } catch (e) {
       const err = e as Error & { code?: string };
       setErrorMsg(err.message || "Failed to add borrower.");
@@ -274,6 +279,7 @@ export function FiveSixDashboard() {
       }
 
       const intervalParsed = loanSchedule === 'custom' && loanIntervalDays ? parseInt(loanIntervalDays) : undefined;
+      const parsedDate = isPastLoan && loanDateStr ? new Date(`${loanDateStr}T12:00:00`) : undefined;
 
       await recordLoan(
         currentTenant.id,
@@ -283,7 +289,8 @@ export function FiveSixDashboard() {
         dailyDueParsed,
         termParsed,
         loanSchedule,
-        intervalParsed
+        intervalParsed,
+        parsedDate
       );
 
       try { playSuccessBeep(); } catch (err) { /* ignore autoplay blocks */ }
@@ -823,7 +830,11 @@ export function FiveSixDashboard() {
               <Button 
                 variant="ghost" 
                 size="icon" 
-                onClick={() => setActiveDrawer('none')} 
+                onClick={() => {
+                  setActiveDrawer('none');
+                  setIsPastLoan(false);
+                  setLoanDateStr(new Date().toISOString().split('T')[0]);
+                }} 
                 className="h-8 w-8 rounded-full hover:bg-slate-200/60 cursor-pointer"
               >
                 <X className="h-4 w-4 text-slate-400" />
@@ -981,6 +992,35 @@ export function FiveSixDashboard() {
                         Custom Amount
                       </Button>
                     </div>
+                  </div>
+
+                  <div className="space-y-2 pb-2 border-b border-slate-100">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Utang noong nakaraang araw?</label>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          className="sr-only peer"
+                          checked={isPastLoan}
+                          onChange={() => setIsPastLoan(!isPastLoan)}
+                        />
+                        <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                      </label>
+                    </div>
+                    {isPastLoan && (
+                      <div className="space-y-2 animate-in slide-in-from-top-2 mt-2">
+                        <Input
+                          type="date"
+                          value={loanDateStr}
+                          onChange={(e) => setLoanDateStr(e.target.value)}
+                          className="w-full bg-amber-50 border border-amber-200 text-amber-900 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-amber-400"
+                        />
+                        <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-amber-100 text-[9px] font-black text-amber-700">
+                          <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+                          <span>Backdated entry — maisasama ito sa kasaysayan ng transaksyon.</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
