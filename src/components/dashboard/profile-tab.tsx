@@ -78,6 +78,7 @@ export function ProfileTab() {
   const [profile, setProfile] = useState<any>(null);
   const [activeStaff, setActiveStaff] = useState<any[]>([]);
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
+  const [pendingStaffApprovals, setPendingStaffApprovals] = useState<any[]>([]);
   
   const [inviteEmail, setInviteEmail] = useState('');
   const [isInviting, setIsInviting] = useState(false);
@@ -87,7 +88,7 @@ export function ProfileTab() {
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [isSponsorOpen, setIsSponsorOpen] = useState(false);
   const [sponsorStaffName, setSponsorStaffName] = useState('');
-  const [isRegenerating, setIsRegenerating] = useState(false);
+
   
   // New referral state
   const [withdrawOpen, setWithdrawOpen] = useState(false);
@@ -168,6 +169,27 @@ export function ProfileTab() {
 
     return () => unsubscribe();
   }, [currentTenant, profile?.role]);
+
+  // 2.5 Fetch Pending Staff Approvals
+  useEffect(() => {
+    if (!user || profile?.role !== 'owner') return;
+
+    const pendingQuery = query(
+      collection(db, 'users'),
+      where('enterpriseOwnerUid', '==', user.uid),
+      where('approvalStatus', '==', 'pending')
+    );
+
+    const unsubscribe = onSnapshot(pendingQuery, (snapshot) => {
+      const pendingList = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      setPendingStaffApprovals(pendingList);
+    }, (err) => {
+      console.warn('ProfileTab: Pending staff list unavailable:', err.message);
+      setPendingStaffApprovals([]);
+    });
+
+    return () => unsubscribe();
+  }, [user, profile?.role, db]);
 
   // 3. Fetch Pending Invites List
   // Only owners can see invites — non-owners skip this subscription
@@ -427,21 +449,42 @@ export function ProfileTab() {
     }
   };
 
-  const handleRegenerateCode = async () => {
-    if (!currentTenant || !currentTenant.businessCode) return;
-    if (!confirm("Are you sure you want to regenerate the business code? The old code will no longer work for new staff invites.")) return;
-    
-    setIsRegenerating(true);
+  const [staffToApprove, setStaffToApprove] = useState<any>(null);
+  const [approveLoading, setApproveLoading] = useState(false);
+
+  const executeApprove = async (staffUid: string, tenantId: string, moduleType: string) => {
+    setApproveLoading(true);
     try {
-      const newCode = await regenerateBusinessCode(currentTenant.id, currentTenant.businessCode);
-      setCurrentTenant({ ...currentTenant, businessCode: newCode });
+      const { approveStaff } = await import('@/firebase/firestore/staff-actions');
+      await approveStaff(staffUid, tenantId, moduleType);
+      setStaffToApprove(null);
     } catch (e: any) {
-      alert(e.message || "Failed to regenerate code.");
+      alert(e.message);
     } finally {
-      setIsRegenerating(false);
+      setApproveLoading(false);
     }
   };
 
+  const handleApproveStaff = async (staff: any) => {
+    if (allTenants.length === 1) {
+      if (confirm(`Approve ${staff.fullName} for ${allTenants[0].name}?`)) {
+        await executeApprove(staff.uid, allTenants[0].id, allTenants[0].moduleType || 'rental');
+      }
+    } else {
+      setStaffToApprove(staff);
+    }
+  };
+
+  const handleRejectStaff = async (staff: any) => {
+    if (confirm(`Are you sure you want to reject ${staff.fullName}? They will not be able to join.`)) {
+      try {
+        const { rejectStaff } = await import('@/firebase/firestore/staff-actions');
+        await rejectStaff(staff.uid);
+      } catch (e: any) {
+        alert(e.message);
+      }
+    }
+  };
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-full relative">
       {showOrganizer && <ActivityOrganizer onClose={() => setShowOrganizer(false)} />}
@@ -653,27 +696,8 @@ export function ProfileTab() {
                       <div className="text-4xl font-black text-slate-800 tracking-[0.25em]">
                         {currentTenant?.businessCode || '----'}
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={handleRegenerateCode}
-                        disabled={isRegenerating || !currentTenant?.businessCode}
-                        className="h-8 w-8 text-slate-400 hover:text-primary"
-                        title="Regenerate Code"
-                      >
-                        {isRegenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                      </Button>
                     </div>
                   </div>
-                  {currentTenant?.businessCode && (
-                    <div className="bg-slate-50 rounded-xl border border-slate-100 p-2 flex items-center justify-center shrink-0">
-                      <img 
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${currentTenant.businessCode}`} 
-                        alt="QR Code"
-                        className="w-20 h-20 rounded-lg"
-                      />
-                    </div>
-                  )}
                 </div>
 
               </CardContent>
@@ -759,6 +783,54 @@ export function ProfileTab() {
                         <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none font-bold uppercase tracking-wider text-[8px] px-2 py-0.5 rounded-full">
                           Pending
                         </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Pending Staff Approvals List */}
+            {pendingStaffApprovals.length > 0 && (
+              <Card className="bg-white border-blue-200 shadow-sm rounded-[24px] overflow-hidden">
+                <CardHeader className="p-4 pb-3 bg-blue-50/50">
+                  <CardTitle className="text-xs font-black uppercase tracking-widest text-blue-600 flex items-center gap-2">
+                    <UserPlus className="h-4 w-4" /> Pending Approvals
+                  </CardTitle>
+                  <CardDescription className="text-[10px] text-blue-500 font-medium mt-1">
+                    Mga staff na gumamit ng iyong code at naghihintay ng approval.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 space-y-3">
+                  <div className="divide-y divide-slate-100">
+                    {pendingStaffApprovals.map((staff, idx) => (
+                      <div key={staff.uid || idx} className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 gap-3 first:pt-0 last:pb-0">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center font-black text-xs text-blue-600 uppercase">
+                            {staff.fullName ? staff.fullName[0] : 'S'}
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                              {staff.fullName || 'Unknown Staff'}
+                            </p>
+                            <p className="text-[10px] text-slate-400">{staff.email}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 self-end sm:self-auto">
+                          <Button
+                            onClick={() => handleApproveStaff(staff)}
+                            className="h-8 text-[10px] font-bold uppercase tracking-widest bg-blue-600 text-white hover:bg-blue-700 shadow-sm rounded-lg"
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            onClick={() => handleRejectStaff(staff)}
+                            variant="outline"
+                            className="h-8 text-[10px] font-bold uppercase tracking-widest text-red-600 border-red-200 hover:bg-red-50 rounded-lg"
+                          >
+                            Reject
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -955,6 +1027,40 @@ export function ProfileTab() {
 
       </main>
       
+      <Dialog open={!!staffToApprove} onOpenChange={(open) => !open && setStaffToApprove(null)}>
+        <DialogContent className="sm:max-w-md rounded-[24px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-slate-800">Saan I-aassign?</DialogTitle>
+            <DialogDescription className="text-slate-500 font-medium mt-1">
+              Pumili ng branch o module kung saan magiging staff si <strong className="text-slate-700">{staffToApprove?.fullName}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-2 max-h-[300px] overflow-y-auto">
+            {allTenants.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => executeApprove(staffToApprove.uid, t.id, t.moduleType || 'rental')}
+                disabled={approveLoading}
+                className="w-full flex flex-col items-start p-4 bg-slate-50 border border-slate-100 rounded-xl hover:bg-slate-100 hover:border-slate-300 transition-colors disabled:opacity-50 text-left"
+              >
+                <span className="font-bold text-slate-800">{t.name}</span>
+                <span className="text-[10px] uppercase font-black tracking-widest text-slate-400 mt-1">
+                  {t.moduleType || 'Rental'}
+                </span>
+              </button>
+            ))}
+          </div>
+          <Button 
+            onClick={() => setStaffToApprove(null)} 
+            disabled={approveLoading}
+            variant="outline"
+            className="w-full h-12 rounded-xl font-bold bg-white text-slate-600 border-slate-200"
+          >
+            Cancel
+          </Button>
+        </DialogContent>
+      </Dialog>
+
       <HelpGuideDrawer isOpen={isSupportOpen} onClose={() => setIsSupportOpen(false)} showFloatingButton={false} />
       <SponsorDialog open={isSponsorOpen} onOpenChange={setIsSponsorOpen} staffName={sponsorStaffName} />
     </div>

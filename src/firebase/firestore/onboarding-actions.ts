@@ -86,6 +86,7 @@ export async function registerNewTenant(onboardingData: any) {
         const tenantId = tenantRef.id;
 
         transaction.set(codeRef, {
+          ownerUid: uid,
           tenantId: tenantId,
           businessName: businessInfo.businessName,
           ownerEmail: accountInfo.email,

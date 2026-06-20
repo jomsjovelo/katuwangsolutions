@@ -154,6 +154,12 @@ export function HelpGuideDrawer({
             
             <div className="space-y-3">
               <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
+                <p className="text-xs font-bold text-slate-800 mb-1">Paano ko mapasasali ang aking Staff?</p>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Ibigay ang inyong 7-character <strong className="font-bold text-slate-800">Business Code</strong> sa inyong staff (makikita sa Profile Tab). Pagkatapos nilang mag-register gamit ang code na ito, kailangan mo silang i-<strong className="font-bold text-slate-800">Approve</strong> sa iyong Profile Tab bago sila makapasok sa system para masiguro ang seguridad ng inyong tindahan.
+                </p>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
                 <p className="text-xs font-bold text-slate-800 mb-1">Bakit hindi pa nag-a-activate ang account ko?</p>
                 <p className="text-[11px] text-slate-600 leading-relaxed">
                   Ang bawat account ay dumadaan sa manual verification para iwas-spam. Karaniwang tumatagal ito ng 1–3 business days. Makakatanggap ka ng email kapag active na!

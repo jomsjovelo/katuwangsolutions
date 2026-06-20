@@ -345,6 +345,36 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // 2.5 Pending Staff Approval View
+  if (userProfile?.approvalStatus === 'pending' && !isPublicRoute && !isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-8 text-center">
+        <div className="p-6 bg-white rounded-[24px] shadow-2xl border border-blue-100 flex flex-col items-center w-full max-w-sm">
+          <div className="p-4 bg-blue-50 rounded-full mb-4">
+            <Loader2 className="h-12 w-12 text-blue-500 animate-spin" />
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Waiting for Approval</h1>
+          <p className="text-sm font-medium text-slate-600 mb-6 max-w-sm mx-auto leading-relaxed">
+            Your staff account has been created successfully. Please ask your Store Owner to approve your account from their dashboard.
+          </p>
+          <div className="w-full space-y-3">
+            <button 
+              onClick={() => {
+                const auth = getAuth(app);
+                signOut(auth).then(() => {
+                  router.push('/');
+                });
+              }}
+              className="w-full bg-slate-100 text-slate-600 h-12 rounded-xl font-bold active:scale-[0.98] transition-transform hover:bg-slate-200"
+            >
+              Sign Out & Return
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // 3. Kill-Switch (Lockout) View
   if (activeTenant?.subscriptionStatus === 'suspended' && !isPublicRoute && !isAdmin) {
     return (

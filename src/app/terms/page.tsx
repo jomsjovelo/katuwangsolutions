@@ -87,9 +87,9 @@ export default function TermsPage() {
           <section className="space-y-4">
             <h2 className="text-xl font-bold text-slate-900">6. Staff Accounts & Management Liability</h2>
             <p className="text-slate-600 leading-relaxed">
-              <strong>Owner Responsibility:</strong> The business owner (Tenant Admin) is strictly responsible for all actions taken by authorized Staff accounts. Katuwang Solutions is not liable for any accidental data deletion, unauthorized discounts, theft, or misconduct perpetrated by your staff members using the app.
+              <strong>Owner Responsibility:</strong> The business owner (Store Owner) is strictly responsible for all actions taken by authorized Staff accounts. Katuwang Solutions is not liable for any accidental data deletion, unauthorized discounts, theft, or misconduct perpetrated by your staff members using the app.
               <br /><br />
-              <strong>Staff Access Control:</strong> Owners can generate and regenerate Business Codes to manage staff onboarding. Once a code is regenerated, the old code instantly becomes invalid for new staff joining, ensuring secure access control.
+              <strong>Enterprise Business Code & Approval:</strong> Katuwang Solutions uses a "One Code Per Owner" architecture. A single Business Code represents the owner's entire enterprise. When staff register using this code, they are placed in a "Pending" status and cannot access any business data. The Store Owner must manually Approve the staff member from their dashboard and assign them to a specific store/module before they can gain access.
             </p>
           </section>
 

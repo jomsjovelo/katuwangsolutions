@@ -48,8 +48,39 @@ export async function registerStaff(
     throw new Error('Invalid Business Code. Please check the code provided by your Store Owner.');
   }
 
-  const tenantIdFromCode = codeSnap.data().tenantId;
-  const moduleType = codeSnap.data().moduleType || 'rental';
+  let ownerUid = codeSnap.data().ownerUid;
+  const fallbackTenantId = codeSnap.data().tenantId;
+
+  if (!ownerUid && fallbackTenantId) {
+    const fallbackSnap = await getDoc(doc(db, 'tenants', fallbackTenantId));
+    if (fallbackSnap.exists()) {
+      ownerUid = fallbackSnap.data().ownerUid;
+    }
+  }
+
+  if (!ownerUid) {
+    throw new Error('Invalid Business Code. Could not determine store owner.');
+  }
+
+  // Find all tenants for this owner
+  const { getDocs, query, collection, where } = await import('firebase/firestore');
+  const tenantsQuery = query(collection(db, 'tenants'), where('ownerUid', '==', ownerUid));
+  const tenantsSnap = await getDocs(tenantsQuery);
+  const ownerTenants = tenantsSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
+
+  if (ownerTenants.length === 0) {
+    throw new Error('Store Owner has no active stores.');
+  }
+
+  let assignedTenantId = '';
+  let assignedModuleType = '';
+  let assignedRole = 'pending_staff';
+
+  if (ownerTenants.length === 1) {
+    assignedTenantId = ownerTenants[0].id;
+    assignedModuleType = ownerTenants[0].moduleType || 'rental';
+    assignedRole = 'staff';
+  }
 
   try {
     // 2. Create the user in Auth
@@ -62,14 +93,7 @@ export async function registerStaff(
     try {
       await runTransactionResilient(db, async (transaction) => {
         const userRef = doc(db, 'users', uid);
-        const tenantRef = doc(db, 'tenants', tenantIdFromCode);
         
-        // Double check tenant exists
-        const tenantSnap = await transaction.get(tenantRef);
-        if (!tenantSnap.exists()) {
-          throw new Error('Store no longer exists.');
-        }
-
         // Create User Profile
         transaction.set(userRef, {
           uid: uid,
@@ -79,18 +103,26 @@ export async function registerStaff(
           birthday: birthday || '',
           gender: gender || 'Prefer not to say',
           address: address || '',
-          role: 'staff',
-          tenantId: tenantIdFromCode,
-          moduleType: moduleType,
+          role: assignedRole,
+          tenantId: assignedTenantId,
+          moduleType: assignedModuleType,
+          approvalStatus: 'pending',
+          enterpriseOwnerUid: ownerUid,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
 
-        // Add to tenant's staffUids
-        transaction.update(tenantRef, {
-          staffUids: arrayUnion(uid),
-          updatedAt: serverTimestamp(),
-        });
+        if (assignedTenantId) {
+          const tenantRef = doc(db, 'tenants', assignedTenantId);
+          const tenantSnap = await transaction.get(tenantRef);
+          if (tenantSnap.exists()) {
+            // Add to tenant's staffUids
+            transaction.update(tenantRef, {
+              staffUids: arrayUnion(uid),
+              updatedAt: serverTimestamp(),
+            });
+          }
+        }
       });
 
       return { success: true, user: userCredential.user };
@@ -366,5 +398,56 @@ export async function regenerateBusinessCode(tenantId: string, currentCode: stri
   });
 
   return codeToUse;
+}
+
+/**
+ * Approves a pending staff member and assigns them to a specific tenant/module.
+ */
+export async function approveStaff(staffUid: string, tenantId: string, moduleType: string) {
+  const { db } = initializeFirebase();
+  const { doc, serverTimestamp, arrayUnion } = await import('firebase/firestore');
+
+  await runTransactionResilient(db, async (transaction) => {
+    const userRef = doc(db, 'users', staffUid);
+    const tenantRef = doc(db, 'tenants', tenantId);
+
+    // Add to tenant
+    transaction.update(tenantRef, {
+      staffUids: arrayUnion(staffUid),
+      updatedAt: serverTimestamp()
+    });
+
+    // Update user profile
+    transaction.update(userRef, {
+      role: 'staff',
+      approvalStatus: 'approved',
+      tenantId: tenantId,
+      moduleType: moduleType,
+      updatedAt: serverTimestamp()
+    });
+  });
+
+  return true;
+}
+
+/**
+ * Rejects a pending staff member.
+ */
+export async function rejectStaff(staffUid: string) {
+  const { db } = initializeFirebase();
+  const { doc, serverTimestamp } = await import('firebase/firestore');
+
+  await runTransactionResilient(db, async (transaction) => {
+    const userRef = doc(db, 'users', staffUid);
+    
+    // Set to rejected, effectively locking them out
+    transaction.update(userRef, {
+      approvalStatus: 'rejected',
+      role: 'guest',
+      updatedAt: serverTimestamp()
+    });
+  });
+
+  return true;
 }
 
