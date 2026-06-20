@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Store, Users, ArrowRight, Loader2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 interface ModeSelectionStepProps {
   onSelectStartBusiness: () => void;
@@ -10,16 +10,33 @@ interface ModeSelectionStepProps {
 
 export function ModeSelectionStep({ onSelectStartBusiness }: ModeSelectionStepProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // Try to get code from URL or fallback to localStorage
+  const urlCode = searchParams.get('code') || searchParams.get('ref') || '';
+  const savedCode = typeof window !== 'undefined' ? localStorage.getItem('katuwang_ref') : null;
+  const initialCode = (urlCode || savedCode || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 7).toUpperCase();
+
   const [showJoinForm, setShowJoinForm] = useState(false);
-  const [businessCode, setBusinessCode] = useState('');
+  const [businessCode, setBusinessCode] = useState(initialCode);
   const [isJoining, setIsJoining] = useState(false);
 
-  const handleJoin = (e: React.FormEvent) => {
+  const handleJoinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (businessCode.length !== 7) return;
     setIsJoining(true);
     // Redirect to login modal with the business code pre-filled
     router.push(`/?code=${businessCode.toUpperCase()}`);
+  };
+
+  const handleJoinTeamClick = () => {
+    // Magic Link Bypass: If we already have a valid code, instantly redirect!
+    if (initialCode.length === 7) {
+      setIsJoining(true);
+      router.push(`/?code=${initialCode}`);
+    } else {
+      setShowJoinForm(true);
+    }
   };
 
   if (showJoinForm) {
@@ -36,7 +53,7 @@ export function ModeSelectionStep({ onSelectStartBusiness }: ModeSelectionStepPr
           I-type ang 7-character Business Code na binigay ng inyong Store Owner.
         </p>
 
-        <form onSubmit={handleJoin} className="w-full space-y-6">
+        <form onSubmit={handleJoinSubmit} className="w-full space-y-6">
           <Input
             value={businessCode}
             onChange={(e) => setBusinessCode(e.target.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 7).toUpperCase())}
@@ -100,9 +117,15 @@ export function ModeSelectionStep({ onSelectStartBusiness }: ModeSelectionStepPr
       </button>
 
       <button
-        onClick={() => setShowJoinForm(true)}
-        className="w-full bg-white p-6 rounded-[24px] border-2 border-slate-100 hover:border-teal-500 shadow-sm hover:shadow-md transition-all active:scale-95 group text-left relative overflow-hidden"
+        onClick={handleJoinTeamClick}
+        disabled={isJoining}
+        className="w-full bg-white p-6 rounded-[24px] border-2 border-slate-100 hover:border-teal-500 shadow-sm hover:shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:scale-100 group text-left relative overflow-hidden"
       >
+        {isJoining && (
+          <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex items-center justify-center">
+             <Loader2 className="h-6 w-6 text-teal-500 animate-spin" />
+          </div>
+        )}
         <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
           <Users className="w-24 h-24" />
         </div>
