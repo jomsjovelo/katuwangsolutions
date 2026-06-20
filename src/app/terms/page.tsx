@@ -68,6 +68,8 @@ export default function TermsPage() {
               <strong>Local Data Storage:</strong> Katuwang Solutions features an offline mode where certain transactions (such as Benta/Sales) are stored locally on your device's browser cache when an internet connection is unavailable.
               <br /><br />
               <strong>Device Failure Liability:</strong> This local data is only backed up to our cloud servers once a stable internet connection is restored. If your device is lost, stolen, damaged, or if its browser cache is cleared <em>before</em> the local data successfully syncs to the cloud, that data is permanently lost. Katuwang Solutions is not liable for any unsynced data loss.
+              <br /><br />
+              <strong>Warning Mechanism:</strong> To help prevent accidental data loss, the app will warn you before you close or refresh the page if there are pending unsynced transactions.
             </p>
           </section>
 
@@ -86,6 +88,8 @@ export default function TermsPage() {
             <h2 className="text-xl font-bold text-slate-900">6. Staff Accounts & Management Liability</h2>
             <p className="text-slate-600 leading-relaxed">
               <strong>Owner Responsibility:</strong> The business owner (Tenant Admin) is strictly responsible for all actions taken by authorized Staff accounts. Katuwang Solutions is not liable for any accidental data deletion, unauthorized discounts, theft, or misconduct perpetrated by your staff members using the app.
+              <br /><br />
+              <strong>Staff Access Control:</strong> Owners can generate and regenerate Business Codes to manage staff onboarding. Once a code is regenerated, the old code instantly becomes invalid for new staff joining, ensuring secure access control.
             </p>
           </section>
 
@@ -133,6 +137,43 @@ export default function TermsPage() {
               We reserve the right to modify these terms at any time. We will notify users of any significant changes via email or an in-app announcement. Continued use of the service after such changes constitutes acceptance of the new terms.
             </p>
           </section>
+
+          <section className="space-y-4">
+            <h2 className="text-xl font-bold text-slate-900">12. Privacy & Data Collection</h2>
+            <p className="text-slate-600 leading-relaxed">
+              We collect necessary information such as your email, business name, and transaction records to provide our services. Your data is securely stored using Firebase/Google infrastructure. We respect your privacy and align with the principles of the Data Privacy Act of 2012 (Republic Act No. 10173) of the Philippines. We do not and will never sell your personal or business data to third parties.
+            </p>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="text-xl font-bold text-slate-900">13. Acceptable Use Policy</h2>
+            <p className="text-slate-600 leading-relaxed">
+              You agree not to use the Service for any unlawful purpose or in any way that interrupts, damages, or impairs the service. Prohibited activities include, but are not limited to: creating fake business accounts, spamming, abusing the referral system, using the app for illegal activities, and impersonating Katuwang Solutions staff. Violation of this policy may result in immediate account termination and forfeiture of any balances or referral earnings.
+            </p>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="text-xl font-bold text-slate-900">14. Intellectual Property</h2>
+            <p className="text-slate-600 leading-relaxed">
+              All rights, title, and interest in and to the Katuwang Solutions app, including but not limited to its UI, content, module names, logos, and brand assets, are and will remain the exclusive property of Katuwang Solutions. We grant you a limited, non-exclusive, non-transferable, and revocable license to use our software for your business operations in accordance with these Terms.
+            </p>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="text-xl font-bold text-slate-900">15. Service Availability & Maintenance</h2>
+            <p className="text-slate-600 leading-relaxed">
+              We strive to maintain a 99%+ uptime for our services, leveraging Firebase/Google infrastructure SLAs. However, we do not guarantee uninterrupted access and may occasionally schedule maintenance windows. We are not liable for any business losses, loss of revenue, or other damages that may occur during any periods of downtime or service interruption.
+            </p>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="text-xl font-bold text-slate-900">16. Contact & Support</h2>
+            <p className="text-slate-600 leading-relaxed">
+              For official support, please email us at <a href="mailto:support@katuwangsolutions.com" className="text-blue-600 hover:underline">support@katuwangsolutions.com</a>. We aim to respond within 1–3 business days. For urgent concerns, you may also reach out via our official Facebook Page.
+              <br /><br />
+              These Terms and Conditions shall be governed by and construed in accordance with the laws of the Republic of the Philippines.
+            </p>
+          </section>
         </div>
       </main>
 
@@ -144,6 +185,10 @@ export default function TermsPage() {
           </div>
           <p className="text-slate-500 text-[9px] font-bold uppercase tracking-[0.35em] leading-loose">
             <span translate="no" className="notranslate">Katuwang Solutions</span><br />
+            <a href="mailto:support@katuwangsolutions.com" className="text-slate-500 hover:text-slate-300 transition-colors normal-case tracking-normal">
+              support@katuwangsolutions.com
+            </a>
+            <br />
             &copy; {new Date().getFullYear()} All Rights Reserved.
           </p>
         </div>

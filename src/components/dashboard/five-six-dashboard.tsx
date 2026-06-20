@@ -29,7 +29,10 @@ import {
   AlertTriangle,
   Zap,
   Search,
-  History
+  History,
+  Filter,
+  CheckCheck,
+  MapPin
 } from "lucide-react";
 import { 
   addBorrower, 
@@ -77,8 +80,11 @@ export function FiveSixDashboard() {
   const [loanPrincipal, setLoanPrincipal] = useState('2000');
   const [loanInterest, setLoanInterest] = useState('400'); // 5-6 default interest (20%)
   const [loanDailyDue, setLoanDailyDue] = useState('100');
+  const [loanTermDays, setLoanTermDays] = useState('24'); // Default 24 days
 
   const [payAmount, setPayAmount] = useState('500');
+  const [newArea, setNewArea] = useState('');
+  const [collectTodayMode, setCollectTodayMode] = useState(false);
 
   // Real-time Firestore binding
   useEffect(() => {
@@ -114,10 +120,17 @@ export function FiveSixDashboard() {
   // Use Math.min to prevent inflated daily expected collections
   const totalCollectiblesTodayPesos = activeDebtors.reduce((acc, curr) => acc + Math.min(curr.outstanding || 0, curr.dailyDue || 0), 0) / 100;
 
-  // Filter borrowers by search query
-  const filteredBorrowers = borrowers.filter(b => 
-    b.name.toLowerCase().includes(searchQuery.toLowerCase())
+  // Filter borrowers by search query and mode
+  let filteredBorrowers = borrowers.filter(b => 
+    b.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    (b.area && b.area.toLowerCase().includes(searchQuery.toLowerCase()))
   );
+
+  if (collectTodayMode) {
+    filteredBorrowers = filteredBorrowers.filter(b => b.status === 'active');
+    // Sort by daily due descending for easier high-value collection first
+    filteredBorrowers.sort((a, b) => b.dailyDue - a.dailyDue);
+  }
 
   // Add Borrower Submit
   const handleAddBorrower = async (e: React.FormEvent) => {
@@ -144,7 +157,8 @@ export function FiveSixDashboard() {
         newName,
         phoneClean,
         limitParsed,
-        dailyDueParsed
+        dailyDueParsed,
+        newArea
       );
 
       playSuccessBeep();
@@ -154,6 +168,7 @@ export function FiveSixDashboard() {
       // Reset
       setNewName('');
       setNewPhone('');
+      setNewArea('');
       setActiveDrawer('none');
     } catch (e) {
       const err = e as Error & { code?: string };
@@ -175,6 +190,7 @@ export function FiveSixDashboard() {
       const principalParsed = parseFloat(loanPrincipal);
       const interestParsed = parseFloat(loanInterest);
       const dailyDueParsed = parseFloat(loanDailyDue);
+      const termParsed = loanTermDays ? parseInt(loanTermDays) : undefined;
 
       if (isNaN(principalParsed) || principalParsed <= 0 || isNaN(interestParsed) || interestParsed < 0 || isNaN(dailyDueParsed) || dailyDueParsed <= 0) {
         throw new Error("Paki-check ang mga halaga. Siguraduhing valid ang mga inilagay na numero.");
@@ -185,7 +201,8 @@ export function FiveSixDashboard() {
         selectedBorrower.id,
         principalParsed,
         interestParsed,
-        dailyDueParsed
+        dailyDueParsed,
+        termParsed
       );
 
       playSuccessBeep();
@@ -227,6 +244,27 @@ export function FiveSixDashboard() {
     } catch (e) {
       const err = e as Error & { code?: string };
       setErrorMsg(err.message || "Failed to record payment transaction.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleQuickCollect = async (borrower: Borrower) => {
+    if (!currentTenant) return;
+    try {
+      setIsSubmitting(true);
+      setErrorMsg(null);
+      const amount = (borrower.dailyDue || 0) / 100;
+      if (amount <= 0) throw new Error("Arawang singil ay 0.");
+      
+      await recordPayment(currentTenant.id, borrower.id, amount);
+      
+      playPaymentSound();
+      setSuccessMsg(`1-Tap Bayad na ₱${amount} kay ${borrower.name}!`);
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (e) {
+      const err = e as Error & { code?: string };
+      setErrorMsg(err.message || "Failed to process 1-Tap payment.");
     } finally {
       setIsSubmitting(false);
     }
@@ -291,9 +329,15 @@ export function FiveSixDashboard() {
       
       {/* Toast Alerts */}
       {successMsg && (
-        <div className="fixed top-4 inset-x-4 z-50 bg-slate-900/95 text-white py-3 px-4 rounded-2xl border border-slate-700/50 text-xs font-bold flex items-center gap-2 shadow-2xl animate-in slide-in-from-top-4 duration-200">
+        <div className="fixed top-4 inset-x-4 z-[100] bg-slate-900/95 text-white py-3 px-4 rounded-2xl border border-slate-700/50 text-xs font-bold flex items-center gap-2 shadow-2xl animate-in slide-in-from-top-4 duration-200">
           <CheckCircle2 className="h-4.5 w-4.5 text-emerald-500 flex-shrink-0 animate-bounce" />
           <span className="truncate">{successMsg}</span>
+        </div>
+      )}
+      {errorMsg && (
+        <div className="fixed top-4 inset-x-4 z-[100] bg-red-50 text-red-700 py-3 px-4 rounded-2xl border border-red-200 text-xs font-bold flex items-center gap-2 shadow-2xl animate-in slide-in-from-top-4 duration-200">
+          <AlertCircle className="h-4.5 w-4.5 text-red-500 flex-shrink-0" />
+          <span className="truncate">{errorMsg}</span>
         </div>
       )}
 
@@ -356,57 +400,28 @@ export function FiveSixDashboard() {
           </Card>
         </div>
 
-        {/* Ledger Action Triggers */}
-        <div className="grid grid-cols-2 gap-3">
-          <Button 
-            onClick={() => {
-              if (borrowers.length === 0) {
-                setErrorMsg("Mangyaring mag-add muna ng borrower bago mag-pautang.");
-                setTimeout(() => setErrorMsg(null), 3000);
-                return;
-              }
-              setSelectedBorrower(borrowers[0]);
-              setActiveDrawer('record_loan');
-            }}
-            className="h-14 rounded-2xl text-white font-black flex items-center justify-center gap-2 text-xs border-none cursor-pointer"
-            style={{ 
-              backgroundColor: theme.primary, 
-              boxShadow: `0 8px 16px -4px ${theme.primary}30` 
-            }}
-          >
-            <Banknote className="h-4.5 w-4.5" /> Bagong Pautang
-          </Button>
-          
-          <Button 
-            onClick={() => {
-              if (activeDebtors.length === 0) {
-                setErrorMsg("Walang aktibong pautang na sisingilin.");
-                setTimeout(() => setErrorMsg(null), 3000);
-                return;
-              }
-              setSelectedBorrower(activeDebtors[0]);
-              setActiveDrawer('record_payment');
-            }}
-            className="h-14 rounded-2xl text-white font-black flex items-center justify-center gap-2 text-xs border-none cursor-pointer"
-            style={{ 
-              backgroundColor: theme.secondary, 
-              boxShadow: `0 8px 16px -4px ${theme.secondary}30` 
-            }}
-          >
-            <Wallet className="h-4.5 w-4.5" /> Tanggap na Bayad
-          </Button>
-        </div>
 
         {/* Main Borrowers Roster Section */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-headline font-black text-slate-800">Listahan ng mga Pautang</h3>
-            <Button 
-              onClick={() => setActiveDrawer('add_borrower')}
-              className="text-xs font-bold flex items-center gap-1 cursor-pointer bg-slate-200/80 hover:bg-slate-200 text-slate-600 rounded-xl px-3 py-1.5 h-auto border-none"
-            >
-              <UserPlus className="h-4 w-4" /> Add Debtor
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button 
+                onClick={() => setCollectTodayMode(!collectTodayMode)}
+                className={cn(
+                  "text-[10px] font-bold flex items-center gap-1 cursor-pointer rounded-xl px-2.5 py-1.5 h-auto border-none transition-colors",
+                  collectTodayMode ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                )}
+              >
+                <Filter className="h-3.5 w-3.5" /> {collectTodayMode ? "All Borrowers" : "Collect Today"}
+              </Button>
+              <Button 
+                onClick={() => setActiveDrawer('add_borrower')}
+                className="text-xs font-bold flex items-center gap-1 cursor-pointer bg-slate-200/80 hover:bg-slate-200 text-slate-600 rounded-xl px-3 py-1.5 h-auto border-none"
+              >
+                <UserPlus className="h-4 w-4" /> Add Debtor
+              </Button>
+            </div>
           </div>
           
           <div className="relative">
@@ -441,6 +456,19 @@ export function FiveSixDashboard() {
                 const limitPesos = (borrower.limit || 0) / 100;
                 const dailyDuePesos = (borrower.dailyDue || 0) / 100;
                 const isPaid = borrower.status === 'fully_paid';
+                
+                let isAutoOverdue = false;
+                if (!isPaid) {
+                  const today = new Date();
+                  today.setHours(0,0,0,0);
+                  const compareDate = borrower.lastPaymentDate ? borrower.lastPaymentDate.toDate() : (borrower.createdAt?.toDate() || today);
+                  compareDate.setHours(0,0,0,0);
+                  
+                  const diffDays = Math.floor((today.getTime() - compareDate.getTime()) / (1000 * 60 * 60 * 24));
+                  if (diffDays >= 1) {
+                    isAutoOverdue = true;
+                  }
+                }
 
                 return (
                   <div 
@@ -472,10 +500,21 @@ export function FiveSixDashboard() {
                             ) : (
                               <Badge className="text-[7px] font-black uppercase bg-red-50 text-red-700 border-none px-1.5 py-0.5 rounded-md">May Utang</Badge>
                             )}
+                            {isAutoOverdue && (
+                              <Badge className="text-[7px] font-black uppercase bg-amber-100 text-amber-700 border-none px-1.5 py-0.5 rounded-md flex items-center gap-0.5"><AlertCircle className="h-2 w-2" /> Overdue</Badge>
+                            )}
                           </div>
-                          <div className="flex items-center gap-1 text-[9px] text-slate-400 font-bold mt-0.5">
-                            <Phone className="h-3 w-3 text-slate-300" />
-                            <span>{borrower.phone}</span>
+                          <div className="flex flex-col gap-0.5 mt-0.5">
+                            <div className="flex items-center gap-1 text-[9px] text-slate-400 font-bold">
+                              <Phone className="h-3 w-3 text-slate-300" />
+                              <span>{borrower.phone}</span>
+                            </div>
+                            {borrower.area && (
+                              <div className="flex items-center gap-1 text-[9px] text-slate-400 font-bold">
+                                <MapPin className="h-3 w-3 text-slate-300" />
+                                <span>{borrower.area}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -503,58 +542,85 @@ export function FiveSixDashboard() {
                     )}
 
                     {/* Action controls row */}
-                    {!isPaid && (
-                      <div className="pl-1 pt-3 border-t border-slate-50 flex items-center justify-between gap-2.5">
+                    <div className="pl-1 pt-3 border-t border-slate-50 flex flex-col gap-2.5">
+                      {!isPaid && (
                         <div className="text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1.5">
                           <Coins className="h-3.5 w-3.5 text-slate-300" />
                           Target Ngayong Araw: <span className="font-extrabold text-slate-700">₱{dailyDuePesos}</span>
                         </div>
-                        
-                        <div className="flex gap-1.5">
-                          <Button 
-                             variant="outline"
-                             onClick={() => handleApplyPenalty(borrower)}
-                             disabled={isSubmitting}
-                             className="h-8 rounded-lg px-2 text-[9px] font-black text-red-500 hover:text-red-700 flex items-center gap-1 border-red-200 cursor-pointer"
-                           >
-                             <Zap className="h-3 w-3" />
-                             Penalty
-                           </Button>
-                          <Button 
-                            variant="outline"
-                            onClick={() => openLedger(borrower)}
-                            className="h-8 rounded-lg px-2 text-[9px] font-black text-slate-500 hover:text-slate-700 flex items-center gap-1 border-slate-200 cursor-pointer"
-                          >
-                            <History className="h-3.5 w-3.5 text-slate-400" />
-                            History
-                          </Button>
-                          
-                          <Button 
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedBorrower(borrower);
-                              setActiveDrawer('sms_alert');
-                            }}
-                            className="h-8 rounded-lg w-8 p-0 flex items-center justify-center border-slate-200 cursor-pointer"
-                          >
-                            <MessageSquare className="h-3.5 w-3.5 text-slate-400" />
-                          </Button>
-                          
+                      )}
+                      
+                      <div className="flex flex-wrap gap-1.5">
+                        {isPaid && (
                           <Button 
                             onClick={() => {
                               setSelectedBorrower(borrower);
-                              setPayAmount(dailyDuePesos.toString());
-                              setActiveDrawer('record_payment');
+                              setActiveDrawer('record_loan');
                             }}
                             className="h-8 rounded-lg px-3 text-[9px] font-black text-white flex items-center gap-1 border-none cursor-pointer"
-                            style={{ backgroundColor: theme.secondary }}
+                            style={{ backgroundColor: theme.primary }}
                           >
-                            <Wallet className="h-3.5 w-3.5" />
-                            Singilin
+                            <Banknote className="h-3.5 w-3.5" />
+                            Pautangin Ulit
                           </Button>
-                        </div>
+                        )}
+
+                        {!isPaid && (
+                          <>
+                            <Button 
+                              variant="outline"
+                              onClick={() => handleApplyPenalty(borrower)}
+                              disabled={isSubmitting}
+                              className="h-8 rounded-lg px-2 text-[9px] font-black text-red-500 hover:text-red-700 flex items-center gap-1 border-red-200 cursor-pointer"
+                            >
+                              <Zap className="h-3 w-3" />
+                              Penalty
+                            </Button>
+                            <Button 
+                              variant="outline"
+                              onClick={() => handleQuickCollect(borrower)}
+                              disabled={isSubmitting}
+                              className="h-8 rounded-lg px-2 text-[9px] font-black text-slate-500 hover:text-slate-700 flex items-center gap-1 border-slate-200 cursor-pointer"
+                            >
+                              <CheckCheck className="h-3 w-3 text-emerald-500" />
+                              1-Tap
+                            </Button>
+                            <Button 
+                              onClick={() => {
+                                setSelectedBorrower(borrower);
+                                setPayAmount(dailyDuePesos.toString());
+                                setActiveDrawer('record_payment');
+                              }}
+                              className="h-8 rounded-lg px-3 text-[9px] font-black text-white flex items-center gap-1 border-none cursor-pointer"
+                              style={{ backgroundColor: theme.secondary }}
+                            >
+                              <Wallet className="h-3.5 w-3.5" />
+                              Singilin
+                            </Button>
+                          </>
+                        )}
+
+                        <Button 
+                          variant="outline"
+                          onClick={() => openLedger(borrower)}
+                          className="h-8 rounded-lg px-2 text-[9px] font-black text-slate-500 hover:text-slate-700 flex items-center gap-1 border-slate-200 cursor-pointer"
+                        >
+                          <History className="h-3.5 w-3.5 text-slate-400" />
+                          History
+                        </Button>
+                        
+                        <Button 
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedBorrower(borrower);
+                            setActiveDrawer('sms_alert');
+                          }}
+                          className="h-8 rounded-lg w-8 p-0 flex items-center justify-center border-slate-200 cursor-pointer"
+                        >
+                          <MessageSquare className="h-3.5 w-3.5 text-slate-400" />
+                        </Button>
                       </div>
-                    )}
+                    </div>
                   </div>
                 );
               })}
@@ -599,20 +665,12 @@ export function FiveSixDashboard() {
               </Button>
             </div>
 
-            {/* Error notifications */}
-            {errorMsg && (
-              <div className="bg-red-50 text-red-700 p-3 text-[10px] font-bold flex items-center gap-1.5 border-b border-red-100 flex-shrink-0 animate-in shake">
-                <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
-                <span>{errorMsg}</span>
-              </div>
-            )}
-
             {/* Drawer Content */}
             <div className="p-6 overflow-y-auto flex-1 pb-safe">
               
               {/* 1. Add Borrower Form */}
               {activeDrawer === 'add_borrower' && (
-                <form onSubmit={handleAddBorrower} className="space-y-4">
+                <form id="add-borrower-form" onSubmit={handleAddBorrower} className="space-y-4">
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Pangalan ng Borrower</label>
                     <Input 
@@ -627,18 +685,32 @@ export function FiveSixDashboard() {
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Cellphone Number</label>
-                    <Input 
-                      id="add-borrower-phone"
-                      name="newPhone"
-                      type="text" 
-                      required
-                      placeholder="Hal. 09123456789"
-                      value={newPhone}
-                      onChange={(e) => setNewPhone(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800 placeholder:text-slate-400"
-                    />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Cellphone Number</label>
+                      <Input 
+                        id="add-borrower-phone"
+                        name="newPhone"
+                        type="text" 
+                        required
+                        placeholder="Hal. 09123456789"
+                        value={newPhone}
+                        onChange={(e) => setNewPhone(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800 placeholder:text-slate-400"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Area / Route (Lugar)</label>
+                      <Input 
+                        id="add-borrower-area"
+                        name="newArea"
+                        type="text" 
+                        placeholder="Hal. Brgy. Sta Cruz"
+                        value={newArea}
+                        onChange={(e) => setNewArea(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800 placeholder:text-slate-400"
+                      />
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -667,21 +739,12 @@ export function FiveSixDashboard() {
                       />
                     </div>
                   </div>
-
-                  <Button 
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full h-11 text-white font-bold rounded-xl flex items-center justify-center text-xs border-none mt-2 cursor-pointer"
-                    style={{ backgroundColor: theme.primary }}
-                  >
-                    {isSubmitting ? <Loader2 className="h-4.5 w-4.5 animate-spin" /> : "I-save ang Borrower"}
-                  </Button>
                 </form>
               )}
 
               {/* 2. Record Loan Form */}
               {activeDrawer === 'record_loan' && (
-                <form onSubmit={handleRecordLoan} className="space-y-4">
+                <form id="record-loan-form" onSubmit={handleRecordLoan} className="space-y-4">
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Piliin ang Borrower</label>
                     <select 
@@ -730,33 +793,38 @@ export function FiveSixDashboard() {
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Arawang Singil (₱)</label>
-                    <Input 
-                      id="loan-daily-due"
-                      name="loanDailyDue"
-                      type="number" 
-                      required
-                      value={loanDailyDue}
-                      onChange={(e) => setLoanDailyDue(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800"
-                    />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Arawang Singil (₱)</label>
+                      <Input 
+                        id="loan-daily-due"
+                        name="loanDailyDue"
+                        type="number" 
+                        required
+                        value={loanDailyDue}
+                        onChange={(e) => setLoanDailyDue(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Termino (Days)</label>
+                      <Input 
+                        id="loan-term-days"
+                        name="loanTermDays"
+                        type="number" 
+                        placeholder="Optional"
+                        value={loanTermDays}
+                        onChange={(e) => setLoanTermDays(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800"
+                      />
+                    </div>
                   </div>
-
-                  <Button 
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full h-11 text-white font-bold rounded-xl flex items-center justify-center text-xs border-none mt-2 cursor-pointer"
-                    style={{ backgroundColor: theme.primary }}
-                  >
-                    {isSubmitting ? <Loader2 className="h-4.5 w-4.5 animate-spin" /> : "I-disburse ang Pautang"}
-                  </Button>
                 </form>
               )}
 
               {/* 3. Receive Payment Form */}
               {activeDrawer === 'record_payment' && selectedBorrower && (
-                <form onSubmit={handleRecordPayment} className="space-y-4">
+                <form id="record-payment-form" onSubmit={handleRecordPayment} className="space-y-4">
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 font-bold">Magbabayad</label>
                     <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex justify-between items-center text-xs">
@@ -777,15 +845,6 @@ export function FiveSixDashboard() {
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800"
                     />
                   </div>
-
-                  <Button 
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full h-11 text-white font-bold rounded-xl flex items-center justify-center text-xs border-none mt-2 cursor-pointer"
-                    style={{ backgroundColor: theme.secondary }}
-                  >
-                    {isSubmitting ? <Loader2 className="h-4.5 w-4.5 animate-spin" /> : "I-rehistro ang Bayad"}
-                  </Button>
                 </form>
               )}
 
@@ -872,6 +931,45 @@ export function FiveSixDashboard() {
               )}
 
             </div>
+
+            {/* Sticky Footer for Forms */}
+            {(activeDrawer === 'add_borrower' || activeDrawer === 'record_loan' || activeDrawer === 'record_payment') && (
+              <div className="p-4 pt-3 border-t border-slate-100 bg-white pb-safe shrink-0">
+                {activeDrawer === 'add_borrower' && (
+                  <Button 
+                    type="submit"
+                    form="add-borrower-form"
+                    disabled={isSubmitting}
+                    className="w-full h-12 text-white font-black rounded-2xl flex items-center justify-center text-xs border-none cursor-pointer"
+                    style={{ backgroundColor: theme.primary }}
+                  >
+                    {isSubmitting ? <Loader2 className="h-4.5 w-4.5 animate-spin" /> : "I-save ang Borrower"}
+                  </Button>
+                )}
+                {activeDrawer === 'record_loan' && (
+                  <Button 
+                    type="submit"
+                    form="record-loan-form"
+                    disabled={isSubmitting}
+                    className="w-full h-12 text-white font-black rounded-2xl flex items-center justify-center text-xs border-none cursor-pointer"
+                    style={{ backgroundColor: theme.primary }}
+                  >
+                    {isSubmitting ? <Loader2 className="h-4.5 w-4.5 animate-spin" /> : "I-disburse ang Pautang"}
+                  </Button>
+                )}
+                {activeDrawer === 'record_payment' && (
+                  <Button 
+                    type="submit"
+                    form="record-payment-form"
+                    disabled={isSubmitting}
+                    className="w-full h-12 text-white font-black rounded-2xl flex items-center justify-center text-xs border-none cursor-pointer"
+                    style={{ backgroundColor: theme.secondary }}
+                  >
+                    {isSubmitting ? <Loader2 className="h-4.5 w-4.5 animate-spin" /> : "I-rehistro ang Bayad"}
+                  </Button>
+                )}
+              </div>
+            )}
 
           </div>
         </div>

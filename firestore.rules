@@ -172,7 +172,12 @@ service cloud.firestore {
       allow read, write: if isMasterAdmin();
     }
 
-    // 16. True Default Deny
+    // 16. Mail Collection (Firebase Trigger Email)
+    match /mail/{mailId} {
+      allow create: if isMasterAdmin();
+    }
+
+    // 17. True Default Deny
     match /{document=**} {
       allow read, write: if false;
     }

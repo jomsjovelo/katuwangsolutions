@@ -1,22 +1,14 @@
 'use client';
 
 import React from 'react';
-import { Home, ShoppingCart, Package, BarChart2, User, Banknote } from 'lucide-react';
+import { Home, ShoppingCart, Package, BarChart2, User, Banknote, Wallet } from 'lucide-react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { getModuleTheme } from '@/lib/theme-utils';
 import { useHaptic } from '@/hooks/use-haptic';
 import { useInventory } from '@/hooks/use-inventory';
 
-const tabs = [
-  { id: 'home',    label: 'Home',    Icon: Home },
-  { id: 'benta',   label: 'Sale',   Icon: ShoppingCart },
-  { id: 'stock',   label: 'Stock',   Icon: Package },
-  { id: 'ulat',    label: 'Report',    Icon: BarChart2 },
-  { id: 'kita',    label: 'Kita Ko', Icon: Banknote },
-  { id: 'profile', label: 'Profile', Icon: User },
-] as const;
+type TabId = 'home' | 'benta' | 'stock' | 'ulat' | 'kita' | 'profile';
 
-type TabId = typeof tabs[number]['id'];
 
 interface BottomNavProps {
   activeTab?: TabId;
@@ -32,6 +24,17 @@ export function BottomNav({ activeTab = 'home', onTabChange }: BottomNavProps) {
   const { lowStockItems, outOfStockItems } = useInventory();
   const hasOutStock = outOfStockItems?.length > 0;
   const hasLowStock = lowStockItems?.length > 0;
+
+  const isLending = currentTenant?.moduleType === '5-6-tracker';
+  
+  const tabs = [
+    { id: 'home',    label: 'Home',    Icon: Home },
+    { id: 'benta',   label: isLending ? 'Ledger' : 'Sale',   Icon: isLending ? Wallet : ShoppingCart },
+    ...(isLending ? [] : [{ id: 'stock',   label: 'Stock',   Icon: Package }]),
+    { id: 'ulat',    label: 'Report',    Icon: BarChart2 },
+    { id: 'kita',    label: 'Kita Ko', Icon: Banknote },
+    { id: 'profile', label: 'Profile', Icon: User },
+  ] as const;
 
   return (
     <nav

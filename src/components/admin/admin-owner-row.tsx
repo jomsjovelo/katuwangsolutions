@@ -19,7 +19,7 @@ interface AdminOwnerRowProps {
   group: OwnerGroup;
   updatingPricingFor: string | null;
   onUpdatePricing: (tenantId: string, tier: PricingTier) => void;
-  onUpdateStatus: (tenant: AdminTenant, status: SubscriptionStatus) => void;
+  onUpdateStatus: (tenant: AdminTenant, status: SubscriptionStatus) => Promise<void>;
   onShowDetails: (tenant: AdminTenant) => void;
   onPurge: (tenant: AdminTenant) => void;
 }
@@ -33,6 +33,7 @@ export function AdminOwnerRow({
   onPurge
 }: AdminOwnerRowProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [updatingStatusFor, setUpdatingStatusFor] = useState<string | null>(null);
 
   const activeCount = group.tenants.filter(t => t.subscriptionStatus === 'active').length;
   const pendingCount = group.tenants.filter(t => t.subscriptionStatus === 'pending').length;
@@ -153,12 +154,25 @@ export function AdminOwnerRow({
                         {/* Status */}
                         <div className="flex items-center justify-between md:justify-start">
                           <span className="md:hidden text-[10px] font-bold text-slate-400 uppercase tracking-wider w-24">Status:</span>
-                          <div className="flex items-center gap-3 flex-1 justify-end md:justify-start">
-                            <Switch 
-                              checked={tenant.subscriptionStatus === 'active'}
-                              onCheckedChange={(checked) => onUpdateStatus(tenant, checked ? 'active' : 'suspended')}
-                              className="data-[state=checked]:bg-emerald-500"
-                            />
+                          <div className="flex items-center gap-3 flex-1 justify-end md:justify-start relative">
+                            {updatingStatusFor === tenant.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                            ) : (
+                              <Switch 
+                                checked={tenant.subscriptionStatus === 'active'}
+                                onCheckedChange={async (checked) => {
+                                  setUpdatingStatusFor(tenant.id);
+                                  try {
+                                    await onUpdateStatus(tenant, checked ? 'active' : 'suspended');
+                                  } catch (e: any) {
+                                    alert('Failed to update status: ' + e.message);
+                                  } finally {
+                                    setUpdatingStatusFor(null);
+                                  }
+                                }}
+                                className="data-[state=checked]:bg-emerald-500"
+                              />
+                            )}
                             <span className={cn(
                               "text-xs font-bold uppercase tracking-wider w-16 text-right md:text-left",
                               tenant.subscriptionStatus === 'active' ? "text-emerald-600" :

@@ -63,14 +63,14 @@ export const MODULE_GUIDES: Record<string, GuideContent> = {
   '5-6-tracker': {
     tagline: 'Pamahalaan ang 5-6 at pautang na may kumpiyansa.',
     steps: [
-      'Tingnan ang "Daily Collectibles" sa itaas para malaman kung sino ang mga dapat maningil ngayon.',
-      'Pindutin ang borrower sa listahan para mabilis na itala ang kanilang bayad.',
-      'Gamitin ang dilaw na buton sa gilid para mag-release ng bagong utang at borrower.'
+      'I-on ang "Collect Today" filter para mabilis makita kung sino ang mga may utang na dapat singilin ngayon at sino ang mga "Overdue".',
+      'Pindutin ang "1-Tap" button sa pangalan ng borrower para mabilis na i-record ang kanilang arawang hulog nang walang kahirap-hirap.',
+      'Magdagdag ng Borrower gamit ang "Add Debtor" at ilagay ang kanilang Area/Route, saka i-record ang bagong pautang (with term at interest).'
     ],
     example: {
       scenario: 'Nangutang si Mang Juan ng ₱5,000 payable in 1 month (5-6).',
-      action: 'Mag-add ng Loan kay "Mang Juan", ilagay ang ₱5,000, at piliin ang 30 days term.',
-      result: 'Araw-araw lilitaw sa "Daily Collectibles" si Mang Juan para singilin ng eksaktong hulog.'
+      action: 'Mag-add ng Loan kay "Mang Juan", ilagay ang ₱5,000 (Principal), 20% interest at 30 days term.',
+      result: 'Lilitaw si Mang Juan araw-araw sa "Collect Today". Pindutin lang ang "1-Tap" button para ma-record agad ang kanyang araw-araw na bayad.'
     }
   },
   'ledger-flow': {

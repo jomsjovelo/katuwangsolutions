@@ -130,6 +130,10 @@ export function HelpGuideDrawer({
               </div>
             )}
             {/* Offline Mode & Syncing */}
+            <div className="flex items-center gap-2 mb-4 mt-8 border-b border-slate-100 pb-2">
+              <span className="text-xl">⚙️</span>
+              <h3 className="font-black text-slate-800 tracking-tight">System & Offline</h3>
+            </div>
             <div className="bg-indigo-50 border border-indigo-200 p-5 rounded-2xl flex items-start gap-3">
                <div className="bg-indigo-100 p-2.5 rounded-xl shrink-0 mt-0.5">
                  <WifiOff className="h-5 w-5 text-indigo-600" />
@@ -142,14 +146,86 @@ export function HelpGuideDrawer({
                </div>
             </div>
             
-            <div className="bg-blue-50 border border-blue-100 p-5 rounded-2xl flex items-start gap-3">
-               <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
-               <div>
-                 <p className="text-[10px] font-bold text-blue-800 uppercase tracking-widest mb-0.5">Need more help?</p>
-                 <p className="text-xs text-blue-700 font-medium leading-relaxed">
-                   I-message ang aming Facebook Page (Katuwang Solutions) para sa direktang tulong mula sa aming team.
-                 </p>
-               </div>
+            {/* FAQ Section */}
+            <div className="flex items-center gap-2 mb-4 mt-8 border-b border-slate-100 pb-2">
+              <span className="text-xl">📋</span>
+              <h3 className="font-black text-slate-800 tracking-tight">Frequently Asked Questions</h3>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
+                <p className="text-xs font-bold text-slate-800 mb-1">Bakit hindi pa nag-a-activate ang account ko?</p>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Ang bawat account ay dumadaan sa manual verification para iwas-spam. Karaniwang tumatagal ito ng 1–3 business days. Makakatanggap ka ng email kapag active na!
+                </p>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
+                <p className="text-xs font-bold text-slate-800 mb-1">Nakalimutan ko ang password ko, paano mag-reset?</p>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Sa login screen, i-click ang "Nakalimutan ang password?". Ipadadala namin ang reset link sa iyong email address.
+                </p>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
+                <p className="text-xs font-bold text-slate-800 mb-1">Bakit may "Offline" indicator sa taas?</p>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Ibig sabihin nito ay walang internet connection ang iyong device. Naka-save ang benta mo sa phone, pero kailangan mong mag-connect ulit sa internet para ma-sync ito sa system.
+                </p>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
+                <p className="text-xs font-bold text-slate-800 mb-1">Pwede bang mag-transfer ng account sa ibang phone?</p>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Oo! Walang kailangang i-transfer. Mag-log in lang gamit ang inyong email at password sa kahit anong device (phone, tablet, o computer).
+                </p>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
+                <p className="text-xs font-bold text-slate-800 mb-1">Saan ko makikita ang aking mga benta noong nakaraang buwan?</p>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Pumunta sa "Ulat" o Reports tab. Doon mo makikita ang graph at listahan ng benta para sa iba't ibang buwan o linggo.
+                </p>
+              </div>
+            </div>
+
+            {/* Contact Support */}
+            <div className="flex items-center gap-2 mb-4 mt-8 border-b border-slate-100 pb-2">
+              <span className="text-xl">📞</span>
+              <h3 className="font-black text-slate-800 tracking-tight">Contact Us</h3>
+            </div>
+            
+            <div className="bg-blue-50 border border-blue-200 p-5 rounded-2xl space-y-4">
+              <div className="flex items-start gap-3">
+                <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-[10px] font-bold text-blue-800 uppercase tracking-widest mb-0.5">Kailangan pa ng tulong?</p>
+                  <p className="text-xs text-blue-700 font-medium leading-relaxed">
+                    Nandito kami para tumulong! Mag-message sa amin gamit ang sumusunod:
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex flex-col gap-2">
+                <a href="mailto:support@katuwangsolutions.com" className="flex items-center gap-3 bg-white p-3 rounded-xl border border-blue-100 hover:border-blue-300 transition-colors">
+                  <div className="bg-blue-100 p-2 rounded-lg">
+                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider">Official Email</p>
+                    <p className="text-sm font-semibold text-blue-900">support@katuwangsolutions.com</p>
+                  </div>
+                </a>
+                
+                <a href="https://facebook.com/katuwangsolutions" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 bg-white p-3 rounded-xl border border-blue-100 hover:border-blue-300 transition-colors">
+                  <div className="bg-blue-100 p-2 rounded-lg">
+                    <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider">Facebook Page</p>
+                    <p className="text-sm font-semibold text-blue-900">Katuwang Solutions</p>
+                  </div>
+                </a>
+              </div>
+              <p className="text-[10px] text-blue-600/80 italic text-center pt-2">
+                We aim to respond within 1–3 business days.
+              </p>
             </div>
 
             {/* PWA Install Banner */}
@@ -181,6 +257,10 @@ export function HelpGuideDrawer({
             )}
 
             {/* Referral Mechanics */}
+            <div className="flex items-center gap-2 mb-4 mt-8 border-b border-slate-100 pb-2">
+              <span className="text-xl">🎁</span>
+              <h3 className="font-black text-slate-800 tracking-tight">Referral Program</h3>
+            </div>
             <div className="bg-amber-50 border border-amber-200 p-5 rounded-2xl space-y-5">
                <div className="flex items-center gap-3 border-b border-amber-200/50 pb-4">
                  <div className="bg-amber-100 p-2.5 rounded-xl">

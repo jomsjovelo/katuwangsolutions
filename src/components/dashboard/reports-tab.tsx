@@ -63,12 +63,50 @@ function RetailMetrics({ selectedDate }: { selectedDate: Date | { start: Date, e
 }
 
 // Specialized Lending Metrics for 5-6-tracker
-function LendingMetrics({ expenseTxs, incomeTxs }: { expenseTxs: any[], incomeTxs: any[] }) {
+function LendingMetrics({ expenseTxs, incomeTxs, borrowers }: { expenseTxs: any[], incomeTxs: any[], borrowers: any[] }) {
   const loansReleased = expenseTxs.filter(t => t.category === 'Lending').reduce((acc, t) => acc + (t.totalPesos || 0), 0);
   const collections = incomeTxs.filter(t => t.category === 'Lending').reduce((acc, t) => acc + (t.totalPesos || 0), 0);
 
+  // Calculate efficiency
+  const activeDebtors = borrowers.filter(b => b.status === 'active');
+  let targetCollection = activeDebtors.reduce((acc, b) => acc + (b.dailyDue || 0), 0) / 100;
+  // If target drops below collections because some debtors fully paid today, ensure target is at least the amount collected
+  targetCollection = Math.max(targetCollection, collections);
+  
+  const efficiency = targetCollection > 0 ? Math.min((collections / targetCollection) * 100, 100) : 0;
+
+  const topDelinquents = borrowers
+    .filter(b => b.status === 'active' && (b.missedDays || 0) > 0)
+    .sort((a, b) => (b.missedDays || 0) - (a.missedDays || 0))
+    .slice(0, 3);
+
+  const goodPayers = borrowers
+    .filter(b => b.status === 'active' && (b.missedDays || 0) === 0)
+    .sort((a, b) => (b.outstanding || 0) - (a.outstanding || 0))
+    .slice(0, 3);
+
   return (
     <>
+      <Card className="col-span-2 shadow-none border border-slate-200/60 rounded-[28px] overflow-hidden bg-white">
+        <CardHeader className="p-4 pb-0">
+          <div className="flex items-center justify-between">
+            <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Collection Efficiency</span>
+            <span className={cn("text-xs font-black", efficiency >= 80 ? "text-emerald-500" : "text-amber-500")}>
+              {efficiency.toFixed(1)}%
+            </span>
+          </div>
+          <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2 overflow-hidden">
+            <div 
+              className={cn("h-1.5 rounded-full transition-all", efficiency >= 80 ? "bg-emerald-500" : "bg-amber-500")} 
+              style={{ width: `${efficiency}%` }} 
+            />
+          </div>
+        </CardHeader>
+        <CardContent className="p-4 pt-1.5 text-[8px] font-bold text-slate-400 uppercase border-t border-slate-50 bg-slate-50/40 mt-3 flex justify-between items-center">
+          <span>Collected: ₱{collections.toLocaleString()} / Target: ₱{targetCollection.toLocaleString()}</span>
+        </CardContent>
+      </Card>
+
       <Card className="shadow-none border border-slate-200/60 rounded-[28px] overflow-hidden bg-white">
         <CardHeader className="p-4 pb-0">
           <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Total Disbursed</span>
@@ -92,6 +130,42 @@ function LendingMetrics({ expenseTxs, incomeTxs }: { expenseTxs: any[], incomeTx
           <span>Principal + Interest</span>
         </CardContent>
       </Card>
+
+      {(topDelinquents.length > 0 || goodPayers.length > 0) && (
+        <div className="col-span-2 grid grid-cols-2 gap-3">
+          {topDelinquents.length > 0 && (
+            <Card className="shadow-none border border-slate-200/60 rounded-[28px] overflow-hidden bg-white">
+              <CardHeader className="p-3 pb-0">
+                <span className="text-[8px] font-black uppercase tracking-widest text-red-500">Top Delinquent</span>
+              </CardHeader>
+              <CardContent className="p-3 pt-2">
+                {topDelinquents.map(b => (
+                  <div key={b.id} className="flex justify-between items-center mb-1 last:mb-0">
+                    <span className="text-[10px] font-bold text-slate-700 truncate">{b.name}</span>
+                    <span className="text-[9px] font-black text-red-500">{b.missedDays} missed</span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {goodPayers.length > 0 && (
+            <Card className="shadow-none border border-slate-200/60 rounded-[28px] overflow-hidden bg-white">
+              <CardHeader className="p-3 pb-0">
+                <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500">Top Payers</span>
+              </CardHeader>
+              <CardContent className="p-3 pt-2">
+                {goodPayers.map(b => (
+                  <div key={b.id} className="flex justify-between items-center mb-1 last:mb-0">
+                    <span className="text-[10px] font-bold text-slate-700 truncate">{b.name}</span>
+                    <span className="text-[9px] font-black text-emerald-500">Good</span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
     </>
   );
 }
@@ -139,6 +213,7 @@ export function ReportsTab() {
 
   const [dateRangeStr, setDateRangeStr] = useState<string>('today');
   const [mounted, setMounted] = useState(false);
+  const [borrowers, setBorrowers] = useState<any[]>([]);
 
   useEffect(() => {
     setMounted(true);
@@ -245,6 +320,12 @@ export function ReportsTab() {
       setTopReferrers(refs);
       setLoadingReferrers(false);
     }).catch(() => setLoadingReferrers(false));
+
+    if (currentTenant.moduleType === '5-6-tracker') {
+      getDocs(collection(db, 'tenants', currentTenant.id, 'borrowers')).then(snap => {
+        setBorrowers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      });
+    }
   }, [currentTenant]);
 
   // Aggregate unified metrics
@@ -506,7 +587,7 @@ export function ReportsTab() {
                       verticalAlign="bottom" 
                       align="center"
                       iconType="circle"
-                      wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }}
+                      wrapperStyle={{ fontSize: '12px', fontWeight: 'bold', paddingTop: '15px' }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -517,7 +598,7 @@ export function ReportsTab() {
         {/* Dynamic Module-Specific Metrics Row */}
         <div className="grid grid-cols-2 gap-3">
           {isRetail && <RetailMetrics selectedDate={{ start: rangeStart, end: rangeEnd }} />}
-          {isLending && <LendingMetrics expenseTxs={expenseTxs} incomeTxs={incomeTxs} />}
+          {isLending && <LendingMetrics expenseTxs={expenseTxs} incomeTxs={incomeTxs} borrowers={borrowers} />}
           {isService && <ServiceMetrics incomeTxs={incomeTxs} />}
           
           {totalExpensesPesos > 0 && (

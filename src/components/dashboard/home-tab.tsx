@@ -7,6 +7,8 @@ import { useSales } from '@/hooks/use-sales';
 import { useInventory } from '@/hooks/use-inventory';
 import { usePWAInstall } from '@/hooks/use-pwa-install';
 import { getModuleTheme } from '@/lib/theme-utils';
+import { collection, onSnapshot, query, where, orderBy, Timestamp } from 'firebase/firestore';
+import { initializeFirebase } from '@/firebase';
 import { cn } from '@/lib/utils';
 import { 
   TrendingUp, 
@@ -48,6 +50,43 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
   const [selectedDate] = useState<Date>(new Date());
   const { sales = [], dailyTotalPesos, loading: salesLoading } = useSales(selectedDate);
   const { products, lowStockItems, outOfStockItems, loading: inventoryLoading } = useInventory();
+
+  // 5-6 Tracker custom state for transactions
+  const [creditTransactions, setCreditTransactions] = useState<any[]>([]);
+  const [creditTransactionsLoading, setCreditTransactionsLoading] = useState(false);
+
+  useEffect(() => {
+    if (currentTenant?.moduleType !== '5-6-tracker') return;
+    
+    setCreditTransactionsLoading(true);
+    const { db } = initializeFirebase();
+    const start = new Date();
+    start.setHours(0,0,0,0);
+    const end = new Date();
+    end.setHours(23,59,59,999);
+
+    const q = query(
+      collection(db, 'tenants', currentTenant.id, 'transactions'),
+      where('timestamp', '>=', Timestamp.fromDate(start)),
+      where('timestamp', '<=', Timestamp.fromDate(end)),
+      orderBy('timestamp', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const txs: any[] = [];
+      snapshot.forEach(doc => txs.push({ id: doc.id, ...doc.data() }));
+      setCreditTransactions(txs);
+      setCreditTransactionsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [currentTenant]);
+
+  const displayDailyTotalPesos = currentTenant?.moduleType === '5-6-tracker' 
+    ? creditTransactions.filter(tx => tx.type === 'payment').reduce((acc, curr) => acc + curr.amount, 0) / 100
+    : dailyTotalPesos;
+
+  const displayLoading = currentTenant?.moduleType === '5-6-tracker' ? creditTransactionsLoading : salesLoading;
 
   // Dynamic greeting based on time of day
   const getGreeting = () => {
@@ -212,6 +251,30 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
     displayActivity = [...realSales, ...stockAlerts].slice(0, 5);
   }
 
+  // Override displayActivity for 5-6-tracker if not demo
+  if (!isDemo && currentTenant?.moduleType === '5-6-tracker') {
+    displayActivity = creditTransactions.slice(0, 5).map((tx, i) => {
+      let timeLabel = 'Just now';
+      if (tx.timestamp && tx.timestamp.toDate) {
+        const diffMins = Math.floor((Date.now() - tx.timestamp.toDate().getTime()) / 60000);
+        if (diffMins === 0) timeLabel = 'Just now';
+        else if (diffMins < 60) timeLabel = `${diffMins} mins ago`;
+        else timeLabel = `${Math.floor(diffMins / 60)} hours ago`;
+      }
+      const isPayment = tx.type === 'payment';
+      return {
+        id: tx.id || `tx-${i}`,
+        type: isPayment ? 'sale' : 'stock',
+        title: isPayment ? `Payment Received` : `Loan Disbursed`,
+        amount: tx.amount ? tx.amount / 100 : 0,
+        time: timeLabel,
+        icon: isPayment ? Banknote : FileText,
+        color: isPayment ? 'text-emerald-500' : 'text-blue-500',
+        bg: isPayment ? 'bg-emerald-50' : 'bg-blue-50'
+      };
+    });
+  }
+
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-screen pb-24 lg:pb-6">
       <main className="p-4 space-y-6 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -260,46 +323,70 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
                 <span className="text-[10px] font-black uppercase text-slate-400">Today</span>
               </div>
               <div>
-                <p className="text-xs font-bold text-slate-500 mb-1">Today's Revenue</p>
+                <p className="text-xs font-bold text-slate-500 mb-1">
+                  {currentTenant?.moduleType === '5-6-tracker' ? "Inikolekta Ngayon" : "Today's Revenue"}
+                </p>
                 <h3 className="text-2xl font-black tracking-tighter text-slate-900">
-                  {salesLoading ? "..." : `₱${dailyTotalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`}
+                  {displayLoading ? "..." : `₱${displayDailyTotalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`}
                 </h3>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="rounded-[24px] border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-            <CardContent className="p-5 flex flex-col justify-between h-full space-y-4">
-              <div className="flex items-center justify-between">
-                <div className={cn("p-2 rounded-xl", theme.secondaryBg, theme.secondaryText)}>
-                  <Package className="h-5 w-5" />
+          {currentTenant?.moduleType === '5-6-tracker' ? (
+            <Card className="rounded-[24px] border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+              <CardContent className="p-5 flex flex-col justify-between h-full space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className={cn("p-2 rounded-xl", theme.secondaryBg, theme.secondaryText)}>
+                    <Users className="h-5 w-5" />
+                  </div>
+                  <span className="text-[10px] font-black uppercase text-slate-400">Borrowers</span>
                 </div>
-                <span className="text-[10px] font-black uppercase text-slate-400">Items</span>
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 mb-1">Active Products</p>
-                <div className="flex items-end gap-2">
-                  <h3 className="text-2xl font-black tracking-tighter text-slate-900">
-                    {inventoryLoading ? "..." : products?.length || 0}
-                  </h3>
-                  {(outOfStockItems?.length > 0 || lowStockItems?.length > 0) && (
-                    <span className="text-xs font-bold text-amber-500 mb-1">
-                      ({outOfStockItems?.length + lowStockItems?.length} low)
-                    </span>
-                  )}
+                <div>
+                  <p className="text-xs font-bold text-slate-500 mb-1">Credit Ledger</p>
+                  <div className="flex items-end gap-2">
+                    <h3 className="text-xl font-black tracking-tighter text-slate-900 mt-1">
+                      Pautang
+                    </h3>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="rounded-[24px] border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+              <CardContent className="p-5 flex flex-col justify-between h-full space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className={cn("p-2 rounded-xl", theme.secondaryBg, theme.secondaryText)}>
+                    <Package className="h-5 w-5" />
+                  </div>
+                  <span className="text-[10px] font-black uppercase text-slate-400">Items</span>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-500 mb-1">Active Products</p>
+                  <div className="flex items-end gap-2">
+                    <h3 className="text-2xl font-black tracking-tighter text-slate-900">
+                      {inventoryLoading ? "..." : products?.length || 0}
+                    </h3>
+                    {(outOfStockItems?.length > 0 || lowStockItems?.length > 0) && (
+                      <span className="text-xs font-bold text-amber-500 mb-1">
+                        ({outOfStockItems?.length + lowStockItems?.length} low)
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </section>
 
 
 
         {/* Phase 3: Restock Watchlist (Low Stock Widget) */}
-        <section>
-          <div className="flex items-center justify-between mb-3 px-1">
-            <h3 className="text-[11px] font-black uppercase tracking-widest text-slate-400">Restock Watchlist</h3>
-          </div>
+        {currentTenant?.moduleType !== '5-6-tracker' && (
+          <section>
+            <div className="flex items-center justify-between mb-3 px-1">
+              <h3 className="text-[11px] font-black uppercase tracking-widest text-slate-400">Restock Watchlist</h3>
+            </div>
           
           <Card className="rounded-[24px] border-slate-100 shadow-sm overflow-hidden">
             <div className="divide-y divide-slate-100">
@@ -352,13 +439,14 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
             </div>
           </Card>
         </section>
+        )}
 
         {/* Quick Actions */}
         <section>
           <div className="flex items-center justify-between mb-3 px-1">
             <h3 className="text-[11px] font-black uppercase tracking-widest text-slate-400">Quick Actions</h3>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className={cn("grid gap-3", currentTenant?.moduleType === '5-6-tracker' ? "grid-cols-1" : "grid-cols-2")}>
             <Button 
               onClick={() => setTab?.('benta')}
               className={cn(
@@ -366,14 +454,16 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
                 theme.primaryBg, "text-white hover:opacity-90 border-none"
               )}
             >
-              <ShoppingCart className="h-4 w-4" /> New Sale
+              {currentTenant?.moduleType === '5-6-tracker' ? <><Banknote className="h-4 w-4" /> Buksan ang Ledger</> : <><ShoppingCart className="h-4 w-4" /> New Sale</>}
             </Button>
-            <Button 
-              onClick={() => setTab?.('stock')}
-              className="h-14 rounded-2xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold shadow-sm active:scale-95 transition-transform flex items-center justify-center gap-2"
-            >
-              <Plus className="h-4 w-4" /> Add Product
-            </Button>
+            {currentTenant?.moduleType !== '5-6-tracker' && (
+              <Button 
+                onClick={() => setTab?.('stock')}
+                className="h-14 rounded-2xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold shadow-sm active:scale-95 transition-transform flex items-center justify-center gap-2"
+              >
+                <Plus className="h-4 w-4" /> Add Product
+              </Button>
+            )}
           </div>
         </section>
 

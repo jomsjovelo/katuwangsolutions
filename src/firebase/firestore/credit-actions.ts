@@ -20,22 +20,27 @@ export interface Borrower {
   id: string;
   name: string;
   phone: string;
+  area?: string;       // Route or Area
   limit: number;       // in centavos
   outstanding: number; // in centavos
   dailyDue: number;    // in centavos
   status: 'active' | 'fully_paid';
   missedDays?: number; // tracked missed payment days
   totalPenalty?: number; // accumulated penalty centavos
+  lastPaymentDate?: Timestamp; // for auto-overdue detection
   createdAt: Timestamp;
 }
 
 export interface CreditTransaction {
   id: string;
-  type: 'loan' | 'payment' | 'penalty';
+  type: 'loan' | 'payment' | 'penalty' | 'restructure';
   amount: number;      // in centavos
   interest: number;    // in centavos
   note?: string;
   source?: string;
+  startDate?: Timestamp; // For loans
+  endDate?: Timestamp;   // For loans
+  termDays?: number;     // For loans
   timestamp: Timestamp;
 }
 
@@ -47,7 +52,8 @@ export async function addBorrower(
   name: string,
   phone: string,
   limitPesos: number,
-  dailyDuePesos: number
+  dailyDuePesos: number,
+  area?: string
 ) {
   if (isNaN(limitPesos) || limitPesos <= 0) throw new Error("Ang credit limit ay dapat valid at higit sa zero.");
   if (isNaN(dailyDuePesos) || dailyDuePesos <= 0) throw new Error("Ang arawang singil ay dapat valid at higit sa zero.");
@@ -57,6 +63,7 @@ export async function addBorrower(
     const newDoc = await addDoc(borrowersRef, {
       name,
       phone: phone.trim(),
+      area: area?.trim() || '',
       limit: Math.round(limitPesos * 100),
       outstanding: 0,
       dailyDue: Math.round(dailyDuePesos * 100),
@@ -80,7 +87,8 @@ export async function recordLoan(
   borrowerId: string,
   loanAmountPesos: number,
   interestPesos: number,
-  dailyDuePesos: number
+  dailyDuePesos: number,
+  termDays?: number
 ) {
   if (isNaN(loanAmountPesos) || loanAmountPesos <= 0) throw new Error("Ang halaga ng pautang ay dapat valid at higit sa zero.");
   if (isNaN(interestPesos) || interestPesos < 0) throw new Error("Ang interes ay hindi maaring negatibo o invalid.");
@@ -124,12 +132,24 @@ export async function recordLoan(
 
       // Append transaction sub-collection entry
       const newTxDocRef = doc(transactionsRef);
-      transaction.set(newTxDocRef, {
+      
+      const loanData: any = {
         type: 'loan',
         amount: loanAmountCentavos,
         interest: Math.round(interestPesos * 100),
         timestamp: serverTimestamp()
-      });
+      };
+      
+      if (termDays && termDays > 0) {
+        loanData.termDays = termDays;
+        loanData.startDate = serverTimestamp();
+        // Calculate approximate end date based on term days
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() + termDays);
+        loanData.endDate = Timestamp.fromDate(endDate);
+      }
+      
+      transaction.set(newTxDocRef, loanData);
 
       // ERP INTEGRATION: Deduct loan amount from master-cash (cash given to borrower)
       if (!masterAccountSnap.exists()) {
@@ -211,6 +231,7 @@ export async function recordPayment(
         outstanding: newOutstanding,
         status: newStatus,
         missedDays: 0, // Payment clears missed days streak
+        lastPaymentDate: serverTimestamp(), // For auto-overdue detection
         updatedAt: serverTimestamp()
       });
 
