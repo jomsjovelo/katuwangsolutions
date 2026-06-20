@@ -324,7 +324,7 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
               </div>
               <div>
                 <p className="text-xs font-bold text-slate-500 mb-1">
-                  {currentTenant?.moduleType === '5-6-tracker' ? "Inikolekta Ngayon" : "Today's Revenue"}
+                  {currentTenant?.moduleType === '5-6-tracker' ? "Today's Collection" : "Today's Revenue"}
                 </p>
                 <h3 className="text-2xl font-black tracking-tighter text-slate-900">
                   {displayLoading ? "..." : `₱${displayDailyTotalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`}
