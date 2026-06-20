@@ -56,11 +56,16 @@ type StaffRegisterFormValues = z.infer<typeof staffRegisterSchema>;
 export function StaffRegisterDialog({ children }: { children?: React.ReactNode }) {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const hasCodeParam = searchParams.has('code');
-  const initialCode = searchParams.get('code') || '';
   
-  // We ONLY open this dialog if the URL has ?code= (even if empty)
-  const [open, setOpen] = useState(hasCodeParam);
+  // Extract code from either ?code= or ?ref=
+  const urlCode = searchParams.get('code') || searchParams.get('ref') || '';
+  const hasUrlCodeParam = searchParams.has('code') || searchParams.has('ref');
+  
+  // Save the code in state so it survives URL clears
+  const [persistedCode, setPersistedCode] = useState(urlCode);
+  
+  // We ONLY open this dialog automatically if the URL has ?code= or ?ref= (even if empty value)
+  const [open, setOpen] = useState(hasUrlCodeParam);
   const [authError, setAuthError] = useState<string | null>(null);
 
   const form = useForm<StaffRegisterFormValues>({
@@ -68,7 +73,7 @@ export function StaffRegisterDialog({ children }: { children?: React.ReactNode }
     defaultValues: {
       email: '',
       password: '',
-      businessCode: initialCode || '',
+      businessCode: persistedCode || '',
       fullName: '',
       birthday: '',
       gender: 'Prefer not to say',
@@ -77,17 +82,18 @@ export function StaffRegisterDialog({ children }: { children?: React.ReactNode }
   });
 
   useEffect(() => {
-    if (hasCodeParam) {
+    if (hasUrlCodeParam) {
+      if (urlCode) {
+        setPersistedCode(urlCode);
+        form.setValue('businessCode', urlCode);
+      }
       setOpen(true);
-      if (initialCode) {
-        form.setValue('businessCode', initialCode);
-      }
+      
       // Immediately clear the code from the URL to prevent phantom links on refresh
-      if (typeof window !== 'undefined') {
-        window.history.replaceState({}, '', '/');
-      }
+      // using router.replace to properly sync with Next.js state
+      router.replace('/', { scroll: false });
     }
-  }, [hasCodeParam, initialCode, form]);
+  }, [hasUrlCodeParam, urlCode, form, router]);
 
   const onSubmit = async (data: StaffRegisterFormValues) => {
     try {
@@ -266,7 +272,7 @@ export function StaffRegisterDialog({ children }: { children?: React.ReactNode }
               control={form.control}
               name="businessCode"
               render={({ field }) => (
-                <FormItem className={initialCode ? "hidden" : ""}>
+                <FormItem className={persistedCode ? "hidden" : ""}>
                   <FormLabel className="text-xs font-bold uppercase tracking-widest text-slate-400">Business Code</FormLabel>
                   <FormControl>
                     <Input 
@@ -277,7 +283,7 @@ export function StaffRegisterDialog({ children }: { children?: React.ReactNode }
                       onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                     />
                   </FormControl>
-                  {!initialCode && (
+                  {!persistedCode && (
                      <p className="text-[10px] text-slate-500 font-medium leading-tight">Hingin ang 7-character code sa inyong Store Owner.</p>
                   )}
                   <FormMessage className="text-xs font-bold" />
