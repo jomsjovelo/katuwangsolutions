@@ -49,7 +49,7 @@ export function BottomNav({ activeTab = 'home', onTabChange }: BottomNavProps) {
               key={id}
               onClick={() => {
                 haptic(10);
-                onTabChange?.(id);
+                onTabChange?.(id as TabId);
               }}
               className="flex-1 flex flex-col items-center justify-center gap-0.5 relative active:scale-95 transition-transform duration-100"
             >
