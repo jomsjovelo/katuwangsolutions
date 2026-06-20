@@ -160,3 +160,98 @@ export async function updateTripStatus(tenantId: string, tripId: string, newStat
 
   return true;
 }
+
+export async function deleteTrip(
+  tenantId: string,
+  tripId: string,
+  userId: string,
+  userName: string
+): Promise<void> {
+  const db = getKatuwangDb();
+
+  await runTransactionResilient(db, async (transaction) => {
+    // 1. Read Phase
+    const tripRef = doc(db, 'tenants', tenantId, 'trips', tripId);
+    const tripSnap = await transaction.get(tripRef);
+
+    if (!tripSnap.exists()) {
+      throw new Error("Trip does not exist.");
+    }
+
+    const tripData = tripSnap.data();
+
+    const deliveryFee = tripData.deliveryFee || 0;
+    const tripExpenses = tripData.tripExpenses || 0;
+
+    const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+    let masterAccountSnap = null;
+
+    if (tripData.status === 'completed' && (deliveryFee > 0 || tripExpenses > 0)) {
+      masterAccountSnap = await transaction.get(masterAccountRef);
+    }
+
+    // 2. Write Phase
+    // Revert Cash
+    if (tripData.status === 'completed' && masterAccountSnap && masterAccountSnap.exists()) {
+      const netImpact = deliveryFee - tripExpenses;
+      
+      transaction.update(masterAccountRef, {
+        balance: increment(-netImpact),
+        updatedAt: serverTimestamp()
+      });
+
+      const transactionsRef = collection(db, 'tenants', tenantId, 'transactions');
+
+      if (deliveryFee > 0) {
+        const newTxRef = doc(transactionsRef);
+        transaction.set(newTxRef, {
+          id: newTxRef.id,
+          tenantId,
+          accountId: 'master-cash',
+          amount: -deliveryFee,
+          type: 'expense',
+          category: 'Refund',
+          description: `Void Delivery Fee to: ${tripData.destination || 'Client'}`,
+          date: new Date(),
+          createdAt: serverTimestamp()
+        });
+      }
+
+      if (tripExpenses > 0) {
+        const expenseTxRef = doc(transactionsRef);
+        transaction.set(expenseTxRef, {
+          id: expenseTxRef.id,
+          tenantId,
+          accountId: 'master-cash',
+          amount: -tripExpenses, // It was deducted, now we refund the deduction
+          type: 'income',
+          category: 'Refund',
+          description: `Void Gas/Toll Expense for Trip: ${tripData.destination || 'Client'}`,
+          date: new Date(),
+          createdAt: serverTimestamp()
+        });
+      }
+    }
+
+    // Delete the trip
+    transaction.delete(tripRef);
+
+    // Audit Log
+    const { logAuditEvent } = await import('@/firebase/firestore/audit-actions');
+    await logAuditEvent(tenantId, {
+      action: 'delete',
+      module: 'logistics',
+      targetId: tripId,
+      targetName: `Trip: ${tripData.origin} to ${tripData.destination}`,
+      performedBy: userId,
+      performedByName: userName,
+      details: {
+        driver: tripData.driverName,
+        status: tripData.status,
+        deliveryFee,
+        tripExpenses,
+        reason: 'User deleted/voided trip via Dashboard'
+      }
+    });
+  });
+}

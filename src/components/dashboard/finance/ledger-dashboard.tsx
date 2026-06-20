@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
-import { addTransaction } from '@/firebase/firestore/finance-actions';
+import { addTransaction, deleteTransaction } from '@/firebase/firestore/finance-actions';
+import { useUser } from '@/firebase/auth/use-user';
 import { useCollection, useDocument } from 'react-firebase-hooks/firestore';
 import { collection, query, orderBy, limit, doc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
@@ -23,7 +24,8 @@ import {
   TrendingUp,
   TrendingDown,
   Download,
-  AlertTriangle
+  AlertTriangle,
+  Trash2
 } from "lucide-react";
 
 const INCOME_CATEGORIES = ['Sales', 'Service', 'Collection', 'Other Income'];
@@ -44,6 +46,9 @@ export function LedgerDashboard() {
   const { currentTenant } = useTenant();
   const db = useFirestore();
   const { toast } = useToast();
+  
+  const { user } = useUser();
+  const isOwner = currentTenant?.ownerId === user?.uid || currentTenant?.role === 'owner';
 
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
@@ -126,6 +131,17 @@ export function LedgerDashboard() {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async (txId: string) => {
+    if (!currentTenant || !user) return;
+    if (!window.confirm("Sigurado ka bang gusto mong i-delete o i-void ang transaction na ito? Ibabalik nito ang Master Cash balance.")) return;
+    try {
+      await deleteTransaction(currentTenant.id, txId, user.uid, user.displayName || user.email || 'Unknown User');
+      toast({ title: 'Transaction Deleted', description: 'Transaction has been successfully reversed.' });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
     }
   };
 
@@ -419,10 +435,15 @@ export function LedgerDashboard() {
                   </div>
                 </div>
                 <div className={cn(
-                  "text-sm font-black font-headline shrink-0",
+                  "text-sm font-black font-headline shrink-0 flex items-center gap-2",
                   t.type === 'income' ? 'text-emerald-600' : 'text-red-500'
                 )}>
-                  {t.type === 'income' ? '+' : '-'}₱{(t.amount / 100).toLocaleString('en-PH')}
+                  <span>{t.type === 'income' ? '+' : '-'}₱{(t.amount / 100).toLocaleString('en-PH')}</span>
+                  {isOwner && (
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-full shrink-0" onClick={() => handleDelete(t.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}

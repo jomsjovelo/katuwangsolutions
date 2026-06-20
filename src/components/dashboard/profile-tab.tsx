@@ -58,7 +58,8 @@ import {
   Link as LinkIcon,
   CheckCircle2,
   Copy,
-  RefreshCw
+  RefreshCw,
+  Activity
 } from 'lucide-react';
 import { EscPosBluetoothDriver } from '@/lib/hardware/print-driver';
 import { HelpGuideDrawer } from '@/components/shell/help-guide-drawer';
@@ -95,6 +96,9 @@ export function ProfileTab() {
   // QR Upload state
   const [isUploadingQr, setIsUploadingQr] = useState(false);
   const [qrUploadError, setQrUploadError] = useState<string | null>(null);
+
+  // Audit log state
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
 
   const theme = getModuleTheme(currentTenant?.moduleType);
   const isOwner = profile?.role === 'owner';
@@ -183,6 +187,34 @@ export function ProfileTab() {
 
     return () => unsubscribe();
   }, [currentTenant, profile?.role]);
+
+  // 4. Fetch Audit Logs
+  // Only owners can see audit logs — non-owners skip this subscription
+  useEffect(() => {
+    if (!currentTenant || !profile || profile.role !== 'owner') return;
+
+    const fetchLogs = async () => {
+      const { query, collection, orderBy, limit, onSnapshot } = await import('firebase/firestore');
+      const auditQuery = query(
+        collection(db, 'tenants', currentTenant.id, 'audit_log'),
+        orderBy('createdAt', 'desc'),
+        limit(20)
+      );
+
+      const unsubscribe = onSnapshot(auditQuery, (snapshot) => {
+        const logs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        setAuditLogs(logs);
+      }, (err) => {
+        console.warn('ProfileTab: Audit log unavailable:', err.message);
+        setAuditLogs([]);
+      });
+      return unsubscribe;
+    };
+
+    let unsub: (() => void) | undefined;
+    fetchLogs().then(u => { unsub = u; });
+    return () => { if (unsub) unsub(); };
+  }, [currentTenant, profile?.role, db]);
 
   // Patch for Demo Account (or any missing code)
   useEffect(() => {
@@ -729,7 +761,57 @@ export function ProfileTab() {
               </Card>
             )}
             
+            {/* Activity Log (Owner Only) */}
+            <Card className="bg-white border-slate-200 shadow-sm rounded-[24px]">
+              <CardHeader className="p-4 pb-2 border-b border-slate-50 flex flex-row items-center justify-between">
+                <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                  <Activity className="h-4 w-4" /> Activity Log
+                </CardTitle>
+                <Badge className="bg-slate-100 text-slate-500 hover:bg-slate-100 border-none font-bold uppercase tracking-wider text-[8px] px-2 py-0.5 rounded-full">
+                  Last 20
+                </Badge>
+              </CardHeader>
+              <CardContent className="p-0">
+                {auditLogs.length === 0 ? (
+                  <div className="text-center py-6">
+                    <p className="text-[10px] font-bold text-slate-400">Walang recent activities.</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {auditLogs.map((log) => {
+                      const date = log.createdAt?.toDate ? log.createdAt.toDate() : new Date();
+                      
+                      let icon = <Activity className="h-3.5 w-3.5 text-slate-400" />;
+                      if (log.type === 'delete_transaction' || log.type === 'void_sale') {
+                        icon = <Trash2 className="h-3.5 w-3.5 text-red-500" />;
+                      } else if (log.type === 'edit_transaction') {
+                        icon = <RefreshCw className="h-3.5 w-3.5 text-blue-500" />;
+                      } else if (log.type === 'add_staff' || log.type === 'remove_staff') {
+                        icon = <Users className="h-3.5 w-3.5 text-amber-500" />;
+                      }
 
+                      return (
+                        <div key={log.id} className="p-4 flex gap-3 hover:bg-slate-50 transition-colors">
+                          <div className="mt-0.5 flex-shrink-0">
+                            {icon}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-slate-700 leading-tight">
+                              {log.description}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1 text-[9px] font-semibold text-slate-400">
+                              <span className="truncate">{log.userName || 'Unknown'}</span>
+                              <span>&bull;</span>
+                              <span>{date.toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
           </section>
         )}

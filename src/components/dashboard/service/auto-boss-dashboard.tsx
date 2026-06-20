@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
-import { completeServiceOrder } from '@/firebase/firestore/service-actions';
+import { completeServiceOrder, deleteServiceOrder } from '@/firebase/firestore/service-actions';
+import { useUser } from '@/firebase/auth/use-user';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -28,7 +29,8 @@ import {
   AlignJustify,
   CalendarDays,
   Clock,
-  ArrowRight
+  ArrowRight,
+  Trash2
 } from "lucide-react";
 
 const VEHICLE_BASE_PRICE: Record<string, number> = {
@@ -68,6 +70,9 @@ export function AutoBossDashboard() {
 
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
+  
+  const { user } = useUser();
+  const isOwner = currentTenant?.ownerId === user?.uid || currentTenant?.role === 'owner';
 
   // Carwash State
   const { scheduledOrders, queuedOrders, washingOrders, dryingOrders, readyOrders, loading, error: carwashError } = useCarwashOrders();
@@ -245,6 +250,17 @@ export function AutoBossDashboard() {
     }
   };
 
+  const handleDeleteOrder = async (orderId: string) => {
+    if (!currentTenant || !user) return;
+    if (!window.confirm("Sigurado ka bang gusto mong i-delete o i-void ang order na ito? Ibabalik nito ang bayad kung applicable.")) return;
+    try {
+      await deleteServiceOrder(currentTenant.id, 'carwash_orders', orderId, user.uid, user.displayName || user.email || 'Unknown User');
+      toast({ title: 'Order Deleted', description: 'Order has been successfully reversed.' });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
+  };
+
   const OrderCard = ({ order, actions }: { order: any, actions: React.ReactNode }) => {
     const hasPriorDamage = order.inspectionNotes && order.inspectionNotes.length > 0;
     
@@ -261,6 +277,11 @@ export function AutoBossDashboard() {
                 <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[8px] font-black uppercase px-1.5 py-0">
                   ⚠️ Prior Damage
                 </Badge>
+              )}
+              {isOwner && (
+                <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0 ml-1" onClick={() => handleDeleteOrder(order.id)}>
+                  <Trash2 className="h-3 w-3" />
+                </Button>
               )}
             </div>
             <p className="text-xs text-slate-500 font-medium">{order.vehicleType} • {order.servicePackage}</p>

@@ -5,11 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Truck, Package, CalendarDays, Plus, Loader2, CheckCircle2, AlertCircle, RotateCcw } from "lucide-react";
+import { Truck, Package, CalendarDays, Plus, Loader2, CheckCircle2, AlertCircle, RotateCcw, Trash2 } from "lucide-react";
 import { useRental } from '@/hooks/use-rental';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { collection, addDoc, serverTimestamp, doc, runTransaction, increment } from 'firebase/firestore';
-import { processRentalBooking, processRentalReturn } from '@/firebase/firestore/rental-actions';
+import { processRentalBooking, processRentalReturn, deleteRentalBooking } from '@/firebase/firestore/rental-actions';
+import { useUser } from '@/firebase/auth/use-user';
 import { GCashQrModal } from '@/components/common/gcash-qr-modal';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { useFirestore } from '@/firebase/provider';
@@ -23,6 +24,9 @@ export function RentalDashboard() {
   const { currentTenant } = useTenant();
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
+
+  const { user } = useUser();
+  const isOwner = currentTenant?.ownerId === user?.uid || currentTenant?.role === 'owner';
 
   React.useEffect(() => {
     if (inventoryError) {
@@ -155,6 +159,17 @@ export function RentalDashboard() {
       showError(error?.message || 'Failed to return item.');
     } finally {
       setReturningId(null);
+    }
+  };
+
+  const handleDeleteBooking = async (booking: any) => {
+    if (!currentTenant || !user) return;
+    if (!window.confirm("Sigurado ka bang gusto mong i-delete o i-void ang rental na ito? Ibabalik nito ang item sa inventory at ang bayad (kung meron).")) return;
+    try {
+      await deleteRentalBooking(currentTenant.id, booking.id, user.uid, user.displayName || user.email || 'Unknown User');
+      showSuccess('Rental Booking has been successfully reversed.');
+    } catch (e: any) {
+      showError(e.message);
     }
   };
 
@@ -318,7 +333,14 @@ export function RentalDashboard() {
                     {activeBookings.map(booking => (
                       <div key={booking.id} className="p-4 flex items-center justify-between hover:bg-slate-50">
                         <div>
-                          <p className="font-bold text-slate-800 text-sm">{booking.itemName}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-slate-800 text-sm">{booking.itemName}</p>
+                            {isOwner && (
+                              <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0" onClick={() => handleDeleteBooking(booking)}>
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
                           <p className="text-xs text-slate-500">{booking.customerName} • ₱{booking.totalCost} 
                             <span className={`ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold ${booking.paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
                               {booking.paymentStatus === 'paid' ? 'PAID' : 'UNPAID'}

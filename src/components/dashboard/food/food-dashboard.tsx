@@ -5,7 +5,8 @@ import { useTenant } from '@/app/lib/tenant-context';
 import { useCollection } from 'react-firebase-hooks/firestore';
 import { collection, query, orderBy, doc, setDoc, serverTimestamp, limit } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
-import { addFoodOrder, updateFoodOrderStatus } from '@/firebase/firestore/food-actions';
+import { addFoodOrder, updateFoodOrderStatus, deleteFoodOrder } from '@/firebase/firestore/food-actions';
+import { useUser } from '@/firebase/auth/use-user';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -38,7 +39,11 @@ export function FoodDashboard() {
   const { toast } = useToast();
   
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isVoiding, setIsVoiding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const { user } = useUser();
+  const isOwner = currentTenant?.ownerId === user?.uid || currentTenant?.role === 'owner'; // Use profile rule if needed, fallback to owner check
 
   // Menu State
   const { menuItems, availableItems, loading: menuLoading, error: menuError } = useMenu();
@@ -173,6 +178,27 @@ export function FoodDashboard() {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleDeleteOrder = async (orderId: string) => {
+    if (!currentTenant || !user) return;
+    if (!window.confirm("Sigurado ka bang gusto mong i-delete/void ang order na ito?")) return;
+    try {
+      setIsVoiding(true);
+      setError(null);
+      await deleteFoodOrder(currentTenant.id, orderId, user.uid, user.displayName || user.email || 'Unknown User');
+      
+      if (completedSale?.saleId === orderId) {
+        setShowReceipt(false);
+        setCompletedSale(null);
+      }
+      toast({ title: 'Order Deleted', description: 'Order was successfully deleted.' });
+    } catch (e: any) {
+      setError(e.message);
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setIsVoiding(false);
     }
   };
 
@@ -380,6 +406,8 @@ export function FoodDashboard() {
               paymentMethod={completedSale?.paymentMethod || "cash"}
               transactionId={completedSale?.saleId}
               theme={theme}
+              onVoidSale={completedSale?.saleId ? () => handleDeleteOrder(completedSale.saleId!) : undefined}
+              isVoiding={isVoiding}
             />
           </TabsContent>
 
@@ -412,7 +440,12 @@ export function FoodDashboard() {
                       </Badge>
                       <span className="font-bold text-sm text-slate-800">#{order.orderNumber}</span>
                     </div>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase">{order.tableNumber}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">{order.tableNumber}</span>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 rounded-full" onClick={() => handleDeleteOrder(order.id)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
                   <div className="p-3 space-y-2">
                     <ul className="space-y-1">
@@ -447,7 +480,14 @@ export function FoodDashboard() {
                       <Badge className="font-black text-[10px] bg-slate-500 text-white hover:bg-slate-500">PREPARING</Badge>
                       <span className="font-bold text-sm text-slate-800">#{order.orderNumber}</span>
                     </div>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase">{order.tableNumber}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">{order.tableNumber}</span>
+                      {isOwner && (
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 rounded-full" onClick={() => handleDeleteOrder(order.id)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   <div className="p-3 space-y-2">
                     <ul className="space-y-1">

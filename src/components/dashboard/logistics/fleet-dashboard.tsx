@@ -5,7 +5,8 @@ import { useTenant } from '@/app/lib/tenant-context';
 import { useCollection } from 'react-firebase-hooks/firestore';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
-import { addTrip, updateTripStatus, updateTripExpenses } from '@/firebase/firestore/logistics-actions';
+import { addTrip, updateTripStatus, updateTripExpenses, deleteTrip } from '@/firebase/firestore/logistics-actions';
+import { useUser } from '@/firebase/auth/use-user';
 import { chargeRetailSaleToCredit } from '@/firebase/firestore/credit-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +34,8 @@ import {
   ChevronUp,
   Tractor,
   Receipt,
-  Coins
+  Coins,
+  Trash2
 } from "lucide-react";
 
 export function FleetDashboard() {
@@ -74,6 +76,9 @@ export function FleetDashboard() {
 
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
+
+  const { user } = useUser();
+  const isOwner = currentTenant?.ownerId === user?.uid || currentTenant?.role === 'owner';
 
   const tripsQuery = React.useMemo(() => {
     return currentTenant 
@@ -128,6 +133,20 @@ export function FleetDashboard() {
         setShowSignatureModal(null);
         toast({ title: 'Trip Completed', description: 'Fee, expenses, and ePOD saved.' });
       }
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDeleteTrip = async (tripId: string) => {
+    if (!currentTenant || !user) return;
+    if (!window.confirm("Sigurado ka bang gusto mong i-delete o i-void ang trip na ito? Ire-revert nito ang lahat ng expenses at delivery fee kung completed na.")) return;
+    try {
+      setIsProcessing(true);
+      await deleteTrip(currentTenant.id, tripId, user.uid, user.displayName || user.email || 'Unknown User');
+      toast({ title: 'Trip Deleted', description: 'Trip and associated financials reversed.' });
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     } finally {
@@ -353,12 +372,19 @@ export function FleetDashboard() {
               >
                 {/* Trip Header */}
                 <div className="px-3 py-2 border-b bg-slate-50 flex items-center justify-between">
-                  <Badge 
-                    className="font-black text-[9px] text-white"
-                    style={{ backgroundColor: trip.status === 'planned' ? '#64748b' : theme.primary }}
-                  >
-                    {trip.status.replace('_', ' ').toUpperCase()}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge 
+                      className="font-black text-[9px] text-white"
+                      style={{ backgroundColor: trip.status === 'planned' ? '#64748b' : theme.primary }}
+                    >
+                      {trip.status.replace('_', ' ').toUpperCase()}
+                    </Badge>
+                    {isOwner && (
+                      <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full" onClick={() => handleDeleteTrip(trip.id)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
                   <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
                     <Banknote className="h-3 w-3" />
                     ₱{((trip.deliveryFee || 0) / 100).toLocaleString()} Fee
@@ -494,7 +520,14 @@ export function FleetDashboard() {
                 {completedTrips.map((trip: any) => (
                   <div key={trip.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm opacity-80">
                     <div className="px-3 py-2 border-b bg-slate-50 flex justify-between items-center">
-                      <Badge className="font-black text-[9px] bg-slate-500 text-white">COMPLETED</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge className="font-black text-[9px] bg-slate-500 text-white">COMPLETED</Badge>
+                        {isOwner && (
+                          <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full" onClick={(e) => { e.stopPropagation(); handleDeleteTrip(trip.id); }}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
                       <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
                         <Banknote className="h-3 w-3" /> ₱{((trip.deliveryFee || 0) / 100).toLocaleString()}
                       </span>

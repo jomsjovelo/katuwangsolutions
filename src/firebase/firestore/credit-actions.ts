@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import { initializeFirebase } from '../index';
 import { runTransactionResilient } from './resilient-transaction';
+import { logAuditEvent } from './audit-actions';
 
 const db = initializeFirebase().db;
 
@@ -429,3 +430,115 @@ export async function getBorrowerLedger(tenantId: string, borrowerId: string): P
   
   return ledger;
 }
+
+/**
+ * Edit an existing credit transaction
+ */
+export async function editCreditTransaction(
+  tenantId: string,
+  borrowerId: string,
+  txId: string,
+  updates: Partial<CreditTransaction>,
+  userId: string,
+  userName: string
+) {
+  const txRef = doc(db, 'tenants', tenantId, 'borrowers', borrowerId, 'transactions', txId);
+  const borrowerRef = doc(db, 'tenants', tenantId, 'borrowers', borrowerId);
+  
+  await runTransactionResilient(db, async (transaction) => {
+    const txSnap = await transaction.get(txRef);
+    if (!txSnap.exists()) throw new Error("Transaction not found.");
+    
+    const currentData = txSnap.data() as CreditTransaction;
+    const updateData: any = { ...updates, updatedAt: serverTimestamp() };
+    
+    // Only allow editing note, amount, interest for now. Reversing/recalculating is complex for amounts, 
+    // but if it's just 'note' we can just update it.
+    // If they changed the amount, we need to adjust the outstanding balance.
+    if (updates.amount !== undefined && updates.amount !== currentData.amount) {
+      const bSnap = await transaction.get(borrowerRef);
+      if (!bSnap.exists()) throw new Error("Borrower not found.");
+      
+      const bData = bSnap.data();
+      const difference = updates.amount - currentData.amount;
+      
+      let newOutstanding = bData.outstanding || 0;
+      if (currentData.type === 'loan' || currentData.type === 'penalty') {
+        newOutstanding += difference;
+      } else if (currentData.type === 'payment') {
+        // if payment amount increased, outstanding decreases
+        newOutstanding -= difference;
+      }
+      
+      newOutstanding = Math.max(0, newOutstanding);
+      transaction.update(borrowerRef, {
+        outstanding: newOutstanding,
+        status: newOutstanding === 0 ? 'fully_paid' : 'active',
+        updatedAt: serverTimestamp()
+      });
+    }
+
+    transaction.update(txRef, updateData);
+    
+    // Log audit event but don't do it in the transaction
+    logAuditEvent(tenantId, userId, userName, {
+      type: 'edit_transaction',
+      description: `Edited ${currentData.type} transaction for borrower ${borrowerId}`,
+      meta: { txId, updates }
+    });
+  });
+  return true;
+}
+
+/**
+ * Delete a credit transaction and reverse its effects
+ */
+export async function deleteCreditTransaction(
+  tenantId: string,
+  borrowerId: string,
+  txId: string,
+  userId: string,
+  userName: string
+) {
+  const txRef = doc(db, 'tenants', tenantId, 'borrowers', borrowerId, 'transactions', txId);
+  const borrowerRef = doc(db, 'tenants', tenantId, 'borrowers', borrowerId);
+  
+  await runTransactionResilient(db, async (transaction) => {
+    const txSnap = await transaction.get(txRef);
+    if (!txSnap.exists()) throw new Error("Transaction not found.");
+    
+    const txData = txSnap.data() as CreditTransaction;
+    
+    const bSnap = await transaction.get(borrowerRef);
+    if (!bSnap.exists()) throw new Error("Borrower not found.");
+    
+    const bData = bSnap.data();
+    let currentOutstanding = bData.outstanding || 0;
+    
+    // Reverse the transaction
+    if (txData.type === 'loan' || txData.type === 'penalty') {
+      currentOutstanding -= txData.amount;
+    } else if (txData.type === 'payment') {
+      currentOutstanding += txData.amount;
+    }
+    
+    currentOutstanding = Math.max(0, currentOutstanding);
+    
+    transaction.update(borrowerRef, {
+      outstanding: currentOutstanding,
+      status: currentOutstanding === 0 ? 'fully_paid' : 'active',
+      updatedAt: serverTimestamp()
+    });
+    
+    transaction.delete(txRef);
+    
+    // Log audit event
+    logAuditEvent(tenantId, userId, userName, {
+      type: 'delete_transaction',
+      description: `Deleted ${txData.type} transaction of ${(txData.amount / 100).toFixed(2)} pesos for borrower ${bData.name}`,
+      meta: { txId, amount: txData.amount, txType: txData.type, borrowerId, borrowerName: bData.name }
+    });
+  });
+  return true;
+}
+

@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
-import { completeServiceOrder } from '@/firebase/firestore/service-actions';
+import { completeServiceOrder, deleteServiceOrder } from '@/firebase/firestore/service-actions';
+import { useUser } from '@/firebase/auth/use-user';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -24,7 +25,8 @@ import {
   CheckCircle2,
   CircleDollarSign,
   Receipt,
-  Coins
+  Coins,
+  Trash2
 } from "lucide-react";
 
 export function FarmDashboard() {
@@ -46,6 +48,9 @@ export function FarmDashboard() {
 
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
+
+  const { user } = useUser();
+  const isOwner = currentTenant?.ownerId === user?.uid || currentTenant?.role === 'owner';
 
   // Farm State
   const { harvests, loading, error } = useFarmHarvests();
@@ -134,24 +139,45 @@ export function FarmDashboard() {
     }
   };
 
+  const handleDeleteHarvest = async (harvestId: string) => {
+    if (!currentTenant || !user) return;
+    if (!window.confirm("Sigurado ka bang gusto mong i-delete o i-void ang harvest record na ito? Ire-revert nito ang transaction sa master-cash kung sold na.")) return;
+    try {
+      setIsProcessing(true);
+      await deleteServiceOrder(currentTenant.id, 'farm_harvests', harvestId, user.uid, user.displayName || user.email || 'Unknown User');
+      toast({ title: 'Harvest Deleted', description: 'Record and associated financials reversed.' });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const HarvestCard = ({ harvest, actions }: { harvest: any, actions: React.ReactNode }) => (
     <Card className="shadow-sm border-slate-200 mb-3 hover:shadow-md transition-shadow">
       <CardContent className="p-3">
         <div className="flex justify-between items-start mb-3">
-          <div>
-            <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-              {harvest.cropType}
-            </h4>
-            <div className="flex items-center gap-2 mt-1.5">
-              <Badge variant="secondary" className="text-[10px] bg-amber-50 text-amber-600 border-amber-100">
-                {harvest.quantity} {harvest.unit}
-              </Badge>
-              {harvest.fieldLocation && (
-                <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
-                  Location: {harvest.fieldLocation}
-                </span>
-              )}
+          <div className="flex gap-2">
+            <div>
+              <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                {harvest.cropType}
+              </h4>
+              <div className="flex items-center gap-2 mt-1.5">
+                <Badge variant="secondary" className="text-[10px] bg-amber-50 text-amber-600 border-amber-100">
+                  {harvest.quantity} {harvest.unit}
+                </Badge>
+                {harvest.fieldLocation && (
+                  <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
+                    Location: {harvest.fieldLocation}
+                  </span>
+                )}
+              </div>
             </div>
+            {isOwner && (
+              <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0" onClick={() => handleDeleteHarvest(harvest.id)}>
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            )}
           </div>
           <div className="text-right">
             <Badge variant="outline" className={harvest.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}>

@@ -219,3 +219,83 @@ export async function processRentalReturn(
     }
   });
 }
+
+export async function deleteRentalBooking(
+  tenantId: string,
+  bookingId: string,
+  userId: string,
+  userName: string
+): Promise<void> {
+  const db = getKatuwangDb();
+  await runTransactionResilient(db, async (transaction) => {
+    // 1. Read Phase
+    const bookingRef = doc(db, 'tenants', tenantId, 'rental_bookings', bookingId);
+    const bookingSnap = await transaction.get(bookingRef);
+
+    if (!bookingSnap.exists()) {
+      throw new Error("Booking does not exist.");
+    }
+    const booking = bookingSnap.data();
+
+    let masterAccountSnap = null;
+    const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+
+    if (booking.paymentStatus === 'paid' && booking.totalCost > 0) {
+      masterAccountSnap = await transaction.get(masterAccountRef);
+    }
+
+    // 2. Inventory Adjustment
+    if (booking.status === 'active') {
+      const itemRef = doc(db, 'tenants', tenantId, 'rental_inventory', booking.itemId);
+      transaction.update(itemRef, {
+        availableQuantity: increment(1),
+        updatedAt: serverTimestamp()
+      });
+    }
+
+    // 3. Cash Reversal
+    if (booking.paymentStatus === 'paid' && booking.totalCost > 0) {
+      const centavoAmount = booking.totalCost * 100;
+      if (masterAccountSnap && masterAccountSnap.exists()) {
+        transaction.update(masterAccountRef, {
+          balance: increment(-centavoAmount),
+          updatedAt: serverTimestamp()
+        });
+
+        const transactionsRef = collection(db, 'tenants', tenantId, 'transactions');
+        const newTxRef = doc(transactionsRef);
+        transaction.set(newTxRef, {
+          id: newTxRef.id,
+          tenantId,
+          accountId: 'master-cash',
+          amount: -centavoAmount,
+          type: 'expense',
+          category: 'Refund',
+          description: `Void Rental Booking (${booking.itemName})`,
+          date: new Date(),
+          createdAt: serverTimestamp()
+        });
+      }
+    }
+
+    // 4. Delete the booking
+    transaction.delete(bookingRef);
+
+    // 5. Audit Log
+    const { logAuditEvent } = await import('@/firebase/firestore/audit-actions');
+    await logAuditEvent(tenantId, {
+      action: 'delete',
+      module: 'rental',
+      targetId: bookingId,
+      targetName: `Booking for ${booking.customerName} - ${booking.itemName}`,
+      performedBy: userId,
+      performedByName: userName,
+      details: {
+        totalCost: booking.totalCost,
+        status: booking.status,
+        paymentStatus: booking.paymentStatus,
+        reason: 'User deleted/voided rental booking via Dashboard'
+      }
+    });
+  });
+}

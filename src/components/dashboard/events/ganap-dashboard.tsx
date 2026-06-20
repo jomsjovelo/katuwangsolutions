@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
-import { completeEvent, payEventVendor, addGuestToEvent, toggleGuestCheckIn, recordEventPayment } from '@/firebase/firestore/events-actions';
+import { completeEvent, payEventVendor, addGuestToEvent, toggleGuestCheckIn, recordEventPayment, deleteEvent } from '@/firebase/firestore/events-actions';
+import { useUser } from '@/firebase/auth/use-user';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -33,7 +34,8 @@ import {
   QrCode,
   ClipboardList,
   Link as LinkIcon,
-  Wallet
+  Wallet,
+  Trash2
 } from "lucide-react";
 import { EventModel } from '@/lib/schemas/events';
 
@@ -43,6 +45,9 @@ export function GanapDashboard() {
   const { toast } = useToast();
   
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { user } = useUser();
+  const isOwner = currentTenant?.ownerId === user?.uid || currentTenant?.role === 'owner';
 
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
@@ -141,6 +146,22 @@ export function GanapDashboard() {
       toast({ title: 'Status Updated', description: `Event moved to ${status}.` });
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteEvent = async () => {
+    if (!currentTenant || !user || !selectedEvent?.id) return;
+    if (!window.confirm("Sigurado ka bang gusto mong i-delete ang event na ito? Babalik ang ibinayad sa Master Cash kung mayroon man.")) return;
+    try {
+      setIsDeleting(true);
+      await deleteEvent(currentTenant.id, selectedEvent.id, user.uid, user.displayName || user.email || 'Unknown User');
+      toast({ title: 'Event Deleted', description: 'The event has been successfully voided.' });
+      setSelectedEvent(null);
+      setGuests([]);
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -296,10 +317,17 @@ export function GanapDashboard() {
                   <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {selectedEvent.venue}</span>
                 </div>
               </div>
-              <Badge className={
-                selectedEvent.status === 'Upcoming' ? 'bg-amber-100 text-amber-700' :
-                selectedEvent.status === 'Ongoing' ? 'bg-cyan-100 text-cyan-700' : 'bg-emerald-100 text-emerald-700'
-              }>{selectedEvent.status}</Badge>
+              <div className="flex gap-2 items-center">
+                <Badge className={
+                  selectedEvent.status === 'Upcoming' ? 'bg-amber-100 text-amber-700' :
+                  selectedEvent.status === 'Ongoing' ? 'bg-cyan-100 text-cyan-700' : 'bg-emerald-100 text-emerald-700'
+                }>{selectedEvent.status}</Badge>
+                {isOwner && (
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 rounded-full bg-red-50" onClick={handleDeleteEvent} disabled={isDeleting}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </CardHeader>
 
             <CardContent className="p-4 space-y-6">

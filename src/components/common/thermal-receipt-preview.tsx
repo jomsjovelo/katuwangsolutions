@@ -39,6 +39,8 @@ interface ThermalReceiptPreviewProps {
   pointsEarned?: number;
   transactionId?: string;
   paymentMethod?: string;
+  onVoidSale?: () => void;
+  isVoiding?: boolean;
 }
 
 export function ThermalReceiptPreview({
@@ -51,7 +53,9 @@ export function ThermalReceiptPreview({
   theme,
   pointsEarned,
   paymentMethod = 'cash',
-  receiptType = "KATUWANG POS RESIBO"
+  receiptType = "KATUWANG POS RESIBO",
+  onVoidSale,
+  isVoiding = false
 }: ThermalReceiptPreviewProps) {
   const [isPrintingBt, setIsPrintingBt] = useState(false);
   const [btError, setBtError] = useState<string | null>(null);
@@ -326,6 +330,18 @@ export function ThermalReceiptPreview({
               <Share2 className="h-4 w-4" />
               Share Receipt
             </Button>
+            
+            {/* Void Sale (Optional) */}
+            {onVoidSale && (
+              <Button 
+                onClick={onVoidSale}
+                disabled={isVoiding}
+                className="h-11 text-red-600 bg-red-50 hover:bg-red-100 font-black rounded-xl flex items-center justify-center gap-1.5 text-xs cursor-pointer"
+              >
+                {isVoiding ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                Void Sale
+              </Button>
+            )}
 
           </div>
 

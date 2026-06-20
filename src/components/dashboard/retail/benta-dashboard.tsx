@@ -8,7 +8,7 @@ import { useTenant } from '@/app/lib/tenant-context';
 import { useInventory } from '@/hooks/use-inventory';
 import { useSyncStatus } from '@/hooks/use-sync-status';
 import { useCart } from '@/hooks/use-cart';
-import { processCheckout, addProduct, CartItem } from '@/firebase/firestore/retail-actions';
+import { processCheckout, addProduct, deleteSale, CartItem } from '@/firebase/firestore/retail-actions';
 import { Card, CardContent } from "@/components/ui/card";
 import { useUser } from '@/firebase/auth/use-user';
 import { Badge } from "@/components/ui/badge";
@@ -85,6 +85,7 @@ function BentaDashboardContent() {
     return () => unsubscribe();
   }, [user]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isVoiding, setIsVoiding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   
@@ -197,6 +198,30 @@ function BentaDashboardContent() {
       setError(e.message);
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleVoidSale = async () => {
+    if (!currentTenant || !completedSale?.saleId || !user) return;
+    if (!window.confirm("Sigurado ka bang gusto mong i-void ang sale na ito? Ang stock ng items ay babalik sa inventory.")) return;
+    
+    try {
+      setIsVoiding(true);
+      await deleteSale(
+        currentTenant.id, 
+        completedSale.saleId, 
+        user.uid,
+        user.displayName || user.email || 'Unknown User'
+      );
+      
+      setShowReceipt(false);
+      setCompletedSale(null);
+      setSuccessMsg("Tagumpay na na-void ang sale. Bumalik ang stock sa inventory.");
+      setTimeout(() => setSuccessMsg(null), 4000);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setIsVoiding(false);
     }
   };
 
@@ -898,6 +923,8 @@ function BentaDashboardContent() {
         totalAmountPesos={(completedSale?.total || 0) / 100}
         paymentMethod={completedSale?.paymentMethod || "cash"}
         transactionId={completedSale?.saleId || 'PENDING'}
+        onVoidSale={profile?.role !== 'staff' && completedSale?.saleId ? handleVoidSale : undefined}
+        isVoiding={isVoiding}
         theme={theme}
         pointsEarned={completedSale?.pointsEarned}
       />

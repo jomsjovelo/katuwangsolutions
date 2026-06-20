@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
-import { addEmployee, recordPayout } from '@/firebase/firestore/finance-actions';
+import { addEmployee, recordPayout, deleteEmployee } from '@/firebase/firestore/finance-actions';
+import { useUser } from '@/firebase/auth/use-user';
 import { doc, updateDoc, serverTimestamp, collection, query, orderBy, limit } from 'firebase/firestore';
 import { useCollection } from 'react-firebase-hooks/firestore';
 import { useFirestore } from '@/firebase/provider';
@@ -23,7 +24,8 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
-  Wallet
+  Wallet,
+  Trash2
 } from "lucide-react";
 
 export function PayrollDashboard() {
@@ -33,6 +35,9 @@ export function PayrollDashboard() {
   
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
+  
+  const { user } = useUser();
+  const isOwner = currentTenant?.ownerId === user?.uid || currentTenant?.role === 'owner';
 
   // --- Employee List ---
   const empQuery = React.useMemo(() => {
@@ -190,6 +195,21 @@ export function PayrollDashboard() {
               <Badge variant="secondary" className="text-[10px] bg-blue-50 text-blue-600 border-blue-100">
                 {days}d logged
               </Badge>
+            )}
+            {isOwner && (
+              <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:text-red-500 rounded-full" onClick={async (e) => {
+                e.stopPropagation();
+                if (!currentTenant || !user) return;
+                if (!window.confirm("Sigurado ka bang gusto mong i-delete ang empleyadong ito?")) return;
+                try {
+                  await deleteEmployee(currentTenant.id, emp.id, user.uid, user.displayName || user.email || 'Unknown User');
+                  toast({ title: 'Employee Deleted', description: 'Employee has been removed from the roster.' });
+                } catch (err: any) {
+                  toast({ title: 'Error', description: err.message, variant: 'destructive' });
+                }
+              }}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
             )}
             {isExpanded ? (
               <ChevronUp className="h-4 w-4 text-slate-400" />

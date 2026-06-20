@@ -2,6 +2,7 @@ import { getFirestore, doc, collection, serverTimestamp, setDoc, increment } fro
 import { initializeFirebase } from '../index';
 import { ProductSchema } from '@/lib/schemas/inventory';
 import { runTransactionResilient } from './resilient-transaction';
+import { logAuditEvent } from './audit-actions';
 
 // Always explicitly use the 'katuwang' database
 export const getKatuwangDb = () => initializeFirebase().db;
@@ -166,3 +167,125 @@ export async function processCheckout(
 
   return saleDocId; // Return the real Firestore document ID
 }
+
+/**
+ * Void/Delete a retail sale and restore stock
+ */
+export async function deleteSale(
+  tenantId: string,
+  saleId: string,
+  userId: string,
+  userName: string
+) {
+  const db = getKatuwangDb();
+  const saleRef = doc(db, 'tenants', tenantId, 'sales', saleId);
+  
+  await runTransactionResilient(db, async (transaction) => {
+    // 1. Read the sale
+    const saleSnap = await transaction.get(saleRef);
+    if (!saleSnap.exists()) throw new Error("Sale not found.");
+    
+    const saleData = saleSnap.data();
+    const items = saleData.items || [];
+    const totalAmount = saleData.totalAmount || 0;
+    
+    // 2. Read products to restore stock
+    const productDocs: Record<string, { ref: ReturnType<typeof doc>; currentStock: number }> = {};
+    for (const item of items) {
+      if (item.productId && !item.productId.startsWith('misc-')) {
+        const productRef = doc(db, 'tenants', tenantId, 'products', item.productId);
+        const productSnap = await transaction.get(productRef);
+        if (productSnap.exists()) {
+          productDocs[item.productId] = {
+            ref: productRef,
+            currentStock: productSnap.data().currentStock || 0
+          };
+        }
+      }
+    }
+    
+    // 3. Update stock
+    for (const item of items) {
+      if (item.productId && !item.productId.startsWith('misc-') && productDocs[item.productId]) {
+        transaction.update(productDocs[item.productId].ref, {
+          currentStock: productDocs[item.productId].currentStock + item.quantity,
+          updatedAt: serverTimestamp()
+        });
+      }
+    }
+    
+    // 4. Delete the sale record
+    transaction.delete(saleRef);
+    
+    // Log the void
+    logAuditEvent(tenantId, userId, userName, {
+      type: 'void_sale',
+      description: `Voided sale ${saleId} (₱${(totalAmount / 100).toFixed(2)}) and restored stock.`,
+      meta: { saleId, totalAmount, itemsCount: items.length }
+    });
+  });
+  
+  return true;
+}
+
+/**
+ * Void/Delete a build-stack dispatch
+ */
+export async function deleteDispatch(
+  tenantId: string,
+  txId: string,
+  userId: string,
+  userName: string
+) {
+  const db = getKatuwangDb();
+  const txRef = doc(db, 'tenants', tenantId, 'inventory_transactions', txId);
+  
+  await runTransactionResilient(db, async (transaction) => {
+    const txSnap = await transaction.get(txRef);
+    if (!txSnap.exists()) throw new Error("Transaction not found.");
+    
+    const txData = txSnap.data();
+    if (txData.type !== 'dispatch' || !txData.productId || !txData.projectId) {
+      throw new Error("Invalid dispatch transaction.");
+    }
+    
+    const qty = Math.abs(txData.quantity || 0);
+    
+    const productRef = doc(db, 'tenants', tenantId, 'products', txData.productId);
+    const productSnap = await transaction.get(productRef);
+    const salePrice = productSnap.exists() ? productSnap.data().salePrice || 0 : 0;
+    const totalCost = Math.round(salePrice * qty);
+    
+    const projectRef = doc(db, 'tenants', tenantId, 'projects', txData.projectId);
+    
+    // Reverse product stock
+    if (productSnap.exists()) {
+      transaction.update(productRef, {
+        currentStock: increment(qty),
+        updatedAt: serverTimestamp()
+      });
+    }
+    
+    // Reverse project total cost
+    const projectSnap = await transaction.get(projectRef);
+    if (projectSnap.exists()) {
+      transaction.update(projectRef, {
+        totalMaterialCost: increment(-totalCost),
+        updatedAt: serverTimestamp()
+      });
+    }
+    
+    // Delete the transaction
+    transaction.delete(txRef);
+    
+    // Log the void
+    logAuditEvent(tenantId, userId, userName, {
+      type: 'void_sale',
+      description: `Voided dispatch ${txId} and restored ${qty} items to stock.`,
+      meta: { txId, qty }
+    });
+  });
+  
+  return true;
+}
+

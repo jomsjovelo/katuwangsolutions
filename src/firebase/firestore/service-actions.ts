@@ -465,3 +465,46 @@ export async function renewGymMember(
 
   return true;
 }
+
+export async function deleteServiceOrder(
+  tenantId: string, 
+  collectionName: string, 
+  orderId: string, 
+  userId: string,
+  userName: string
+) {
+  const db = getKatuwangDb();
+  
+  await runTransactionResilient(db, async (transaction) => {
+    const orderRef = doc(db, 'tenants', tenantId, collectionName, orderId);
+    const orderSnap = await transaction.get(orderRef);
+    if (!orderSnap.exists()) throw new Error("Order not found");
+    
+    const data = orderSnap.data();
+    // Some collections use amountDue, some use totalAmount, some use amount
+    const paidAmount = data.amountDue || data.totalAmount || data.amount || 0;
+    
+    // Reverse Master Cash
+    if (paidAmount > 0 && (data.paymentStatus === 'Paid' || data.status === 'completed' || data.status === 'Active' || data.status === 'Drop-in')) {
+      const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+      const masterAccountSnap = await transaction.get(masterAccountRef);
+      if (masterAccountSnap.exists()) {
+        transaction.update(masterAccountRef, {
+          balance: increment(-paidAmount),
+          updatedAt: serverTimestamp()
+        });
+      }
+    }
+    
+    transaction.delete(orderRef);
+    
+    const { logAuditEvent } = await import('./audit-actions');
+    logAuditEvent(tenantId, userId, userName, {
+      type: 'void_transaction',
+      description: `Voided order in ${collectionName}: ${data.customerName || data.memberName || 'Customer'} (₱${(paidAmount / 100).toFixed(2)})`,
+      meta: { orderId, amountRefunded: paidAmount, collectionName }
+    });
+  });
+  
+  return true;
+}

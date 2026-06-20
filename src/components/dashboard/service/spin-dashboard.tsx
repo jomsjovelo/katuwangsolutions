@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
-import { completeServiceOrder } from '@/firebase/firestore/service-actions';
+import { completeServiceOrder, deleteServiceOrder } from '@/firebase/firestore/service-actions';
+import { useUser } from '@/firebase/auth/use-user';
 import { awardPoints } from '@/firebase/firestore/loyalty-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +25,8 @@ import {
   CircleDollarSign,
   Droplets,
   MessageSquare,
-  Clock
+  Clock,
+  Trash2
 } from "lucide-react";
 
 const RATES: Record<string, number> = {
@@ -54,6 +56,9 @@ export function SpinDashboard() {
 
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
+
+  const { user } = useUser();
+  const isOwner = currentTenant?.ownerId === user?.uid || currentTenant?.role === 'owner';
 
   // Laundry State
   const { queuedOrders, washingOrders, readyOrders, claimedOrders, loading, error: laundryError } = useLaundry();
@@ -149,13 +154,25 @@ export function SpinDashboard() {
     toast({ title: 'SMS Copied', description: 'Message ready to paste.' });
   };
 
+  const handleDeleteOrder = async (orderId: string) => {
+    if (!currentTenant || !user) return;
+    if (!window.confirm("Sigurado ka bang gusto mong i-delete o i-void ang order na ito? Ibabalik nito ang bayad kung applicable.")) return;
+    try {
+      await deleteServiceOrder(currentTenant.id, 'laundry_orders', orderId, user.uid, user.displayName || user.email || 'Unknown User');
+      toast({ title: 'Order Deleted', description: 'Order has been successfully reversed.' });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
+  };
+
   const OrderCard = ({ order, actions }: { order: any, actions: React.ReactNode }) => (
     <Card className="shadow-sm border-slate-200 mb-3">
       <CardContent className="p-3">
         <div className="flex justify-between items-start mb-2">
-          <div>
-            <h4 className="font-bold text-slate-800 text-sm">{order.customerName}</h4>
-            <div className="text-xs text-slate-500 flex items-center mt-0.5">
+          <div className="flex gap-2">
+            <div>
+              <h4 className="font-bold text-slate-800 text-sm">{order.customerName}</h4>
+              <div className="text-xs text-slate-500 flex items-center mt-0.5">
               {order.kilos} kg • {order.serviceType}
               {order.status === 'Washing' && order.washStartTime && <WashTimer startTime={order.washStartTime} />}
               {order.machineNumber && (
@@ -164,6 +181,12 @@ export function SpinDashboard() {
                 </Badge>
               )}
             </div>
+            </div>
+            {isOwner && (
+              <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0" onClick={() => handleDeleteOrder(order.id)}>
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            )}
           </div>
           <div className="text-right">
             <Badge variant="outline" className={order.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}>

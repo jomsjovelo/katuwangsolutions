@@ -4,7 +4,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
-import { registerGymMember, renewGymMember } from '@/firebase/firestore/service-actions';
+import { registerGymMember, renewGymMember, deleteServiceOrder } from '@/firebase/firestore/service-actions';
+import { useUser } from '@/firebase/auth/use-user';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -21,9 +22,9 @@ import {
   Clock,
   LogOut,
   RefreshCw,
-  QrCode,
   X,
-  ScanLine
+  ScanLine,
+  Trash2
 } from "lucide-react";
 
 const PLAN_PRICES: Record<string, number> = {
@@ -45,6 +46,9 @@ export function RepSyncDashboard() {
 
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
+  
+  const { user } = useUser();
+  const isOwner = currentTenant?.ownerId === user?.uid || currentTenant?.role === 'owner';
 
   // Gym State
   const { members, activeMembers, expiredMembers, recentCheckIns, loading } = useGymMemberships();
@@ -104,6 +108,17 @@ export function RepSyncDashboard() {
         updatedAt: serverTimestamp() 
       });
       toast({ title: 'Checked In ✅', description: `${memberName || 'Member'} has been logged for today.` });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteMember = async (memberId: string) => {
+    if (!currentTenant || !user) return;
+    if (!window.confirm("Sigurado ka bang gusto mong i-delete o i-void ang member na ito? Ibabalik nito ang bayad kung applicable.")) return;
+    try {
+      await deleteServiceOrder(currentTenant.id, 'gym_memberships', memberId, user.uid, user.displayName || user.email || 'Unknown User');
+      toast({ title: 'Member Deleted', description: 'Member has been successfully reversed.' });
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     }
@@ -241,9 +256,16 @@ export function RepSyncDashboard() {
                 )}
               </div>
             </div>
-            <button onClick={() => setShowQr(!showQr)} className="h-7 w-7 rounded-lg bg-slate-100 flex items-center justify-center cursor-pointer border-none" title="Show QR Code">
-              <QrCode className="h-4 w-4 text-slate-500" />
-            </button>
+            <div className="flex gap-1">
+              {isOwner && (
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-lg shrink-0" onClick={() => handleDeleteMember(member.id)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+              <button onClick={() => setShowQr(!showQr)} className="h-7 w-7 rounded-lg bg-slate-100 flex items-center justify-center cursor-pointer border-none" title="Show QR Code">
+                <QrCode className="h-4 w-4 text-slate-500" />
+              </button>
+            </div>
           </div>
           {showQr && (
             <div className="flex justify-center py-2 animate-in fade-in duration-200">

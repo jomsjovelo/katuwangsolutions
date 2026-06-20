@@ -99,6 +99,31 @@ export async function addEmployee(tenantId: string, employeeData: any) {
   return newEmpRef.id;
 }
 
+export async function deleteEmployee(tenantId: string, employeeId: string, userId: string, userName: string) {
+  const db = getKatuwangDb();
+  
+  const empRef = doc(db, 'tenants', tenantId, 'employees', employeeId);
+  const { getDoc } = await import('firebase/firestore');
+  const empSnap = await getDoc(empRef);
+  if (!empSnap.exists()) throw new Error("Employee not found.");
+  
+  const empData = empSnap.data();
+  
+  await updateDoc(empRef, {
+    isActive: false,
+    updatedAt: serverTimestamp(),
+  });
+  
+  const { logAuditEvent } = await import('./audit-actions');
+  logAuditEvent(tenantId, userId, userName, {
+    type: 'delete_record',
+    description: `Deleted employee: ${empData.name}`,
+    meta: { employeeId, employeeName: empData.name }
+  });
+  
+  return true;
+}
+
 export async function updateEmployeeDays(tenantId: string, employeeId: string, daysWorked: number, valeDeduction: number) {
   if (daysWorked < 0 || isNaN(daysWorked) || valeDeduction < 0 || isNaN(valeDeduction)) {
     throw new Error("Invalid input values for days worked or vale.");
@@ -206,4 +231,47 @@ export async function recordPayout(
   });
 
   return payoutId;
+}
+
+export async function deleteTransaction(
+  tenantId: string,
+  transactionId: string,
+  userId: string,
+  userName: string
+) {
+  const db = getKatuwangDb();
+  
+  await runTransactionResilient(db, async (transaction) => {
+    const txRef = doc(db, 'tenants', tenantId, 'transactions', transactionId);
+    const txSnap = await transaction.get(txRef);
+    if (!txSnap.exists()) throw new Error("Transaction not found.");
+    
+    const txData = txSnap.data();
+    const amount = txData.amount || 0;
+    const type = txData.type; // 'income' or 'expense'
+    
+    // Reverse Master Cash
+    if (amount > 0) {
+      const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+      const masterAccountSnap = await transaction.get(masterAccountRef);
+      if (masterAccountSnap.exists()) {
+        const adjustment = type === 'income' ? -amount : amount; // reverse what was done
+        transaction.update(masterAccountRef, {
+          balance: increment(adjustment),
+          updatedAt: serverTimestamp()
+        });
+      }
+    }
+    
+    transaction.delete(txRef);
+    
+    const { logAuditEvent } = await import('./audit-actions');
+    logAuditEvent(tenantId, userId, userName, {
+      type: 'void_transaction',
+      description: `Voided ${type} transaction: ${txData.description || txData.category} (₱${(amount / 100).toFixed(2)})`,
+      meta: { transactionId, amount, type }
+    });
+  });
+  
+  return true;
 }

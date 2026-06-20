@@ -176,3 +176,53 @@ export async function updateFoodOrderStatus(tenantId: string, orderId: string, n
 
   return true;
 }
+
+export async function deleteFoodOrder(
+  tenantId: string,
+  orderId: string,
+  userId: string,
+  userName: string
+) {
+  const db = getKatuwangDb();
+  
+  await runTransactionResilient(db, async (transaction) => {
+    const orderRef = doc(db, 'tenants', tenantId, 'food_orders', orderId);
+    const orderSnap = await transaction.get(orderRef);
+    if (!orderSnap.exists()) throw new Error("Order not found.");
+    
+    const orderData = orderSnap.data();
+    
+    // Reverse ingredients if served
+    if (orderData.status === 'served' && orderData.items && Array.isArray(orderData.items)) {
+      for (const item of orderData.items) {
+        const menuRef = doc(db, 'tenants', tenantId, 'menu_items', item.menuItemId);
+        const menuSnap = await transaction.get(menuRef);
+        if (menuSnap.exists()) {
+          const menuData = menuSnap.data();
+          if (menuData.recipe && Array.isArray(menuData.recipe)) {
+            for (const req of menuData.recipe) {
+              const ingRef = doc(db, 'tenants', tenantId, 'ingredients', req.ingredientId);
+              const deductAmount = req.amount * item.quantity;
+              transaction.update(ingRef, {
+                currentStock: increment(deductAmount),
+                updatedAt: serverTimestamp()
+              });
+            }
+          }
+        }
+      }
+    }
+    
+    transaction.delete(orderRef);
+    
+    // Log the void
+    const { logAuditEvent } = await import('./audit-actions');
+    logAuditEvent(tenantId, userId, userName, {
+      type: 'void_sale',
+      description: `Voided/Deleted food order #${orderData.orderNumber || orderId}.`,
+      meta: { orderId }
+    });
+  });
+
+  return true;
+}

@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
-import { completeServiceOrder } from '@/firebase/firestore/service-actions';
+import { completeServiceOrder, deleteServiceOrder } from '@/firebase/firestore/service-actions';
+import { useUser } from '@/firebase/auth/use-user';
 import { awardPoints } from '@/firebase/firestore/loyalty-actions';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +24,8 @@ import {
   CheckCircle2,
   CircleDollarSign,
   Trophy,
-  Megaphone
+  Megaphone,
+  Trash2
 } from "lucide-react";
 
 const SERVICE_PRICES: Record<string, number> = {
@@ -43,6 +45,9 @@ export function TrimTrackDashboard() {
 
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
+
+  const { user } = useUser();
+  const isOwner = currentTenant?.ownerId === user?.uid || currentTenant?.role === 'owner';
 
   // Salon State
   const { waitingAppointments, inChairAppointments, doneAppointments, loading, error: salonError } = useSalonAppointments();
@@ -135,6 +140,17 @@ export function TrimTrackDashboard() {
     }
   };
 
+  const handleDeleteAppointment = async (apptId: string) => {
+    if (!currentTenant || !user) return;
+    if (!window.confirm("Sigurado ka bang gusto mong i-delete o i-void ang appointment na ito? Ibabalik nito ang bayad kung applicable.")) return;
+    try {
+      await deleteServiceOrder(currentTenant.id, 'salon_appointments', apptId, user.uid, user.displayName || user.email || 'Unknown User');
+      toast({ title: 'Appointment Deleted', description: 'Appointment has been successfully reversed.' });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
+  };
+
   const leaderboard = React.useMemo(() => {
     const stats: Record<string, { count: number, total: number }> = {};
     doneAppointments.forEach((appt: any) => {
@@ -150,8 +166,9 @@ export function TrimTrackDashboard() {
     <Card className="shadow-sm border-slate-200 mb-3 hover:shadow-md transition-shadow">
       <CardContent className="p-3">
         <div className="flex justify-between items-start mb-3">
-          <div>
-            <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+          <div className="flex gap-2">
+            <div>
+              <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
               <span className="bg-slate-800 text-white text-[10px] px-1.5 py-0.5 rounded font-black">#{appointment.queueNumber || '?'}</span>
               {appointment.customerName}
             </h4>
@@ -168,6 +185,12 @@ export function TrimTrackDashboard() {
                 </Badge>
               )}
             </div>
+            </div>
+            {isOwner && (
+              <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0" onClick={() => handleDeleteAppointment(appointment.id)}>
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            )}
           </div>
           <div className="text-right">
             <Badge variant="outline" className={appointment.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}>

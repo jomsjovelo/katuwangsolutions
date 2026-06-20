@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
-import { completeServiceOrder } from '@/firebase/firestore/service-actions';
+import { completeServiceOrder, deleteServiceOrder } from '@/firebase/firestore/service-actions';
+import { useUser } from '@/firebase/auth/use-user';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -25,7 +26,8 @@ import {
   MapPin,
   User,
   ArrowRight,
-  Navigation
+  Navigation,
+  Trash2
 } from "lucide-react";
 
 const PRICES = {
@@ -42,6 +44,9 @@ export function HydroDashboard() {
 
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
+  
+  const { user } = useUser();
+  const isOwner = currentTenant?.ownerId === user?.uid || currentTenant?.role === 'owner';
 
   // Deliveries State
   const { pendingOrders, outForDeliveryOrders, deliveredOrders, loading, error: waterError } = useWaterDeliveries();
@@ -142,6 +147,17 @@ export function HydroDashboard() {
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${encoded}`, '_blank');
   };
 
+  const handleDeleteOrder = async (orderId: string) => {
+    if (!currentTenant || !user) return;
+    if (!window.confirm("Sigurado ka bang gusto mong i-delete o i-void ang order na ito? Ibabalik nito ang bayad kung applicable.")) return;
+    try {
+      await deleteServiceOrder(currentTenant.id, 'water_deliveries', orderId, user.uid, user.displayName || user.email || 'Unknown User');
+      toast({ title: 'Order Deleted', description: 'Order has been successfully reversed.' });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
+  };
+
   const handleSettleAndDeliver = async (paymentMethod: string = 'cash') => {
     if (!settleOrderId || !currentTenant || !db) return;
     setIsProcessing(true);
@@ -191,7 +207,14 @@ export function HydroDashboard() {
       <CardContent className="p-3">
         <div className="flex justify-between items-start mb-2">
           <div>
-            <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1"><User className="h-3 w-3"/> {order.customerName}</h4>
+            <div className="flex items-center gap-2">
+              <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1"><User className="h-3 w-3"/> {order.customerName}</h4>
+              {isOwner && (
+                <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0" onClick={() => handleDeleteOrder(order.id)}>
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
             <p className="text-xs text-slate-500 flex items-center gap-1 mt-1"><MapPin className="h-3 w-3 text-red-400"/> {order.address}</p>
           </div>
           <div className="text-right">

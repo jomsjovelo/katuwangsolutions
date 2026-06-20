@@ -32,7 +32,10 @@ import {
   History,
   Filter,
   CheckCheck,
-  MapPin
+  MapPin,
+  Trash2,
+  Edit3,
+  Save
 } from "lucide-react";
 import { 
   addBorrower, 
@@ -40,9 +43,12 @@ import {
   recordPayment,
   applyMissedDayPenalty,
   getBorrowerLedger,
+  deleteCreditTransaction,
+  editCreditTransaction,
   Borrower,
   CreditTransaction
 } from '@/firebase/firestore/credit-actions';
+import { useUser } from '@/firebase/auth/use-user';
 import { playSuccessBeep } from '@/components/common/gcash-qr-modal';
 
 import { playCashRegisterSwoosh } from '@/lib/hardware/audio-synthesizer';
@@ -65,6 +71,10 @@ export function FiveSixDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [ledgerHistory, setLedgerHistory] = useState<CreditTransaction[]>([]);
   const [loadingLedger, setLoadingLedger] = useState(false);
+  const [editingTx, setEditingTx] = useState<CreditTransaction | null>(null);
+  const [editNote, setEditNote] = useState('');
+  
+  const { user } = useUser();
 
   // Notification overlays
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -85,6 +95,61 @@ export function FiveSixDashboard() {
   const [payAmount, setPayAmount] = useState('500');
   const [newArea, setNewArea] = useState('');
   const [collectTodayMode, setCollectTodayMode] = useState(false);
+
+  const handleDeleteTx = async (tx: CreditTransaction) => {
+    if (!currentTenant || !selectedBorrower || !user) return;
+    if (!window.confirm("Kumpirmahin: Sigurado ka bang gusto mong burahin ang transaksyong ito? Maibabalik ang dating balanse ng utang.")) return;
+    
+    try {
+      setIsSubmitting(true);
+      await deleteCreditTransaction(
+        currentTenant.id, 
+        selectedBorrower.id, 
+        tx.id,
+        user.uid,
+        user.displayName || user.email || 'Unknown User'
+      );
+      setSuccessMsg('Nabura ang transaksyon at naibalik ang balanse.');
+      
+      // Refresh ledger
+      const updatedLedger = await getBorrowerLedger(currentTenant.id, selectedBorrower.id);
+      setLedgerHistory(updatedLedger);
+      
+      // Re-fetch borrower data to update UI (will happen automatically via listener, but just in case)
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || 'Hindi mabura ang transaksyon.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditSubmit = async (txId: string) => {
+    if (!currentTenant || !selectedBorrower || !user || !editingTx) return;
+    try {
+      setIsSubmitting(true);
+      await editCreditTransaction(
+        currentTenant.id,
+        selectedBorrower.id,
+        txId,
+        { note: editNote },
+        user.uid,
+        user.displayName || user.email || 'Unknown User'
+      );
+      setSuccessMsg('Na-update ang detalye ng transaksyon.');
+      setEditingTx(null);
+      setEditNote('');
+      
+      // Refresh ledger
+      const updatedLedger = await getBorrowerLedger(currentTenant.id, selectedBorrower.id);
+      setLedgerHistory(updatedLedger);
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || 'Hindi ma-update ang transaksyon.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   // Real-time Firestore binding
   useEffect(() => {
@@ -903,25 +968,80 @@ export function FiveSixDashboard() {
                         const isPenalty = tx.type === 'penalty';
                         
                         return (
-                          <div key={tx.id} className="flex justify-between items-center p-3 rounded-xl border border-slate-100 bg-white text-xs">
-                            <div className="flex flex-col">
-                              <span className={cn(
-                                "font-black uppercase text-[10px] tracking-wider",
-                                isPayment ? "text-emerald-600" : isPenalty ? "text-red-500" : "text-blue-600"
-                              )}>
-                                {isPayment ? "Bayad" : isPenalty ? "Penalty" : "Pautang"}
-                              </span>
-                              <span className="text-slate-400 font-medium text-[9px] mt-0.5">
-                                {tx.timestamp?.toDate().toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                              {tx.note && <span className="text-slate-500 text-[10px] mt-1">{tx.note}</span>}
-                            </div>
-                            <div className={cn(
-                              "font-headline font-black text-sm",
-                              isPayment ? "text-emerald-600" : "text-slate-700"
-                            )}>
-                              {isPayment ? "-" : "+"}₱{amountPesos}
-                            </div>
+                          <div key={tx.id} className="flex flex-col p-3 rounded-xl border border-slate-100 bg-white text-xs gap-2">
+                            {editingTx?.id === tx.id ? (
+                              <div className="flex flex-col gap-2">
+                                <Input 
+                                  value={editNote} 
+                                  onChange={(e) => setEditNote(e.target.value)} 
+                                  placeholder="Magdagdag o mag-edit ng note"
+                                  className="h-8 text-xs bg-slate-50 border-slate-200"
+                                />
+                                <div className="flex justify-end gap-2">
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost" 
+                                    onClick={() => setEditingTx(null)}
+                                    className="h-7 text-[10px] px-2 text-slate-500"
+                                  >
+                                    Cancel
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    onClick={() => handleEditSubmit(tx.id)}
+                                    disabled={isSubmitting}
+                                    className="h-7 text-[10px] px-2 bg-blue-600 hover:bg-blue-700 text-white"
+                                  >
+                                    <Save className="w-3 h-3 mr-1" /> Save
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="flex justify-between items-center">
+                                  <div className="flex flex-col">
+                                    <span className={cn(
+                                      "font-black uppercase text-[10px] tracking-wider",
+                                      isPayment ? "text-emerald-600" : isPenalty ? "text-red-500" : "text-blue-600"
+                                    )}>
+                                      {isPayment ? "Bayad" : isPenalty ? "Penalty" : "Pautang"}
+                                    </span>
+                                    <span className="text-slate-400 font-medium text-[9px] mt-0.5">
+                                      {tx.timestamp?.toDate().toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                    {tx.note && <span className="text-slate-500 text-[10px] mt-1">{tx.note}</span>}
+                                  </div>
+                                  <div className={cn(
+                                    "font-headline font-black text-sm",
+                                    isPayment ? "text-emerald-600" : "text-slate-700"
+                                  )}>
+                                    {isPayment ? "-" : "+"}₱{amountPesos}
+                                  </div>
+                                </div>
+                                <div className="flex justify-end gap-1 mt-1 border-t border-slate-50 pt-2">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 w-6 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+                                    onClick={() => {
+                                      setEditingTx(tx);
+                                      setEditNote(tx.note || '');
+                                    }}
+                                  >
+                                    <Edit3 className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 w-6 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                    onClick={() => handleDeleteTx(tx)}
+                                    disabled={isSubmitting}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              </>
+                            )}
                           </div>
                         );
                       })}

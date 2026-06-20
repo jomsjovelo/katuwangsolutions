@@ -324,3 +324,44 @@ export async function toggleGuestCheckIn(
     updatedAt: serverTimestamp(),
   });
 }
+
+export async function deleteEvent(
+  tenantId: string,
+  eventId: string,
+  userId: string,
+  userName: string
+) {
+  const db = getKatuwangDb();
+  
+  await runTransactionResilient(db, async (transaction) => {
+    const eventRef = doc(db, 'tenants', tenantId, 'events', eventId);
+    const eventSnap = await transaction.get(eventRef);
+    if (!eventSnap.exists()) throw new Error("Event not found.");
+    
+    const eventData = eventSnap.data() as EventModel;
+    const amountPaid = eventData.amountPaid || 0;
+    
+    // Reverse the payments made (from Master Cash)
+    if (amountPaid > 0) {
+      const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+      const masterAccountSnap = await transaction.get(masterAccountRef);
+      if (masterAccountSnap.exists()) {
+        transaction.update(masterAccountRef, {
+          balance: increment(-amountPaid),
+          updatedAt: serverTimestamp()
+        });
+      }
+    }
+    
+    transaction.delete(eventRef);
+    
+    const { logAuditEvent } = await import('./audit-actions');
+    logAuditEvent(tenantId, userId, userName, {
+      type: 'void_transaction',
+      description: `Deleted Event "${eventData.title}" and refunded ₱${(amountPaid / 100).toFixed(2)}.`,
+      meta: { eventId, amountRefunded: amountPaid }
+    });
+  });
+  
+  return true;
+}

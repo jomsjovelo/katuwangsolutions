@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
-import { completeServiceOrder } from '@/firebase/firestore/service-actions';
+import { completeServiceOrder, deleteServiceOrder } from '@/firebase/firestore/service-actions';
+import { useUser } from '@/firebase/auth/use-user';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -27,7 +28,8 @@ import {
   CircleDollarSign,
   CalendarDays,
   Clock,
-  ArrowRight
+  ArrowRight,
+  Trash2
 } from "lucide-react";
 
 const SERVICE_PRICES: Record<string, number> = {
@@ -46,6 +48,9 @@ export function WellnessDashboard() {
 
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
+
+  const { user } = useUser();
+  const isOwner = currentTenant?.ownerId === user?.uid || currentTenant?.role === 'owner';
 
   // Spa State
   const { scheduledAppointments, waitingAppointments, inSessionAppointments, restingAppointments, doneAppointments, loading } = useSpaAppointments();
@@ -185,15 +190,27 @@ export function WellnessDashboard() {
     }
   };
 
+  const handleDeleteAppointment = async (apptId: string) => {
+    if (!currentTenant || !user) return;
+    if (!window.confirm("Sigurado ka bang gusto mong i-delete o i-void ang appointment na ito? Ibabalik nito ang bayad kung applicable.")) return;
+    try {
+      await deleteServiceOrder(currentTenant.id, 'spa_appointments', apptId, user.uid, user.displayName || user.email || 'Unknown User');
+      toast({ title: 'Appointment Deleted', description: 'Appointment has been successfully reversed.' });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
+  };
+
   const AppointmentCard = ({ appointment, actions }: { appointment: any, actions: React.ReactNode }) => (
     <Card className="shadow-sm border-slate-200 mb-3 hover:shadow-md transition-shadow">
       <CardContent className="p-3">
         <div className="flex justify-between items-start mb-3">
-          <div>
-            <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-              <UserCircle2 className="h-4 w-4 text-purple-400" />
-              {appointment.clientName}
-            </h4>
+          <div className="flex gap-2">
+            <div>
+              <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                <UserCircle2 className="h-4 w-4 text-purple-400" />
+                {appointment.clientName}
+              </h4>
             <div className="flex items-center gap-2 mt-1.5">
               <Badge variant="secondary" className="text-[10px] bg-purple-50 text-purple-600 border-purple-100">
                 {appointment.serviceType}
@@ -207,6 +224,12 @@ export function WellnessDashboard() {
                 </Badge>
               )}
             </div>
+            </div>
+            {isOwner && (
+              <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0" onClick={() => handleDeleteAppointment(appointment.id)}>
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            )}
           </div>
           <div className="text-right">
             <Badge variant="outline" className={appointment.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}>

@@ -6,7 +6,9 @@ import { useCollection } from 'react-firebase-hooks/firestore';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { addJob, updateJobStatus } from '@/firebase/firestore/service-actions';
+import { deleteServiceOrder } from '@/firebase/firestore/service-actions';
 import { awardPoints } from '@/firebase/firestore/loyalty-actions';
+import { useUser } from '@/firebase/auth/use-user';
 import { JobStatus } from '@/lib/schemas/services';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +30,8 @@ import {
   AlertCircle,
   MessageSquare,
   Receipt,
-  Coins
+  Coins,
+  Trash2
 } from "lucide-react";
 
 export function ServiceDashboard() {
@@ -44,6 +47,9 @@ export function ServiceDashboard() {
   
   // Immersive dynamic status bar viewport tracking for PWA Android/iOS notch
   useDynamicThemeColor(theme);
+  
+  const { user } = useUser();
+  const isOwner = currentTenant?.ownerId === user?.uid || currentTenant?.role === 'owner';
 
   // Live stream of jobs
   const jobsQuery = React.useMemo(() => {
@@ -143,6 +149,17 @@ export function ServiceDashboard() {
     }
   };
 
+  const handleDeleteJob = async (jobId: string) => {
+    if (!currentTenant || !user) return;
+    if (!window.confirm("Sigurado ka bang gusto mong i-delete o i-void ang order na ito? Ibabalik nito ang bayad kung applicable.")) return;
+    try {
+      await deleteServiceOrder(currentTenant.id, 'jobs', jobId, user.uid, user.displayName || user.email || 'Unknown User');
+      toast({ title: 'Order Deleted', description: 'Order has been successfully reversed.' });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
+  };
+
   const handleCopySMS = (job: any) => {
     const text = `Hi ${job.customerName}, your service (${job.serviceId}) is now COMPLETE and ready! - ${currentTenant?.name}`;
     navigator.clipboard.writeText(text);
@@ -172,9 +189,16 @@ export function ServiceDashboard() {
         </div>
       )}
       <div className="flex justify-between items-start">
-        <div>
-          <div className="font-bold text-sm text-slate-900">{job.customerName}</div>
-          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{job.serviceId}</div>
+        <div className="flex gap-2">
+          <div>
+            <div className="font-bold text-sm text-slate-900">{job.customerName}</div>
+            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{job.serviceId}</div>
+          </div>
+          {isOwner && (
+            <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0" onClick={() => handleDeleteJob(job.id)}>
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          )}
         </div>
         <div className="text-right">
           <Badge 
