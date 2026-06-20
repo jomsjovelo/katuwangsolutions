@@ -119,7 +119,7 @@ export async function deleteEmployee(tenantId: string, employeeId: string, userI
     type: 'delete_record',
     description: `Deleted employee: ${empData.name}`,
     meta: { employeeId, employeeName: empData.name }
-  });
+  } as any);
   
   return true;
 }
@@ -270,7 +270,7 @@ export async function deleteTransaction(
       type: 'void_transaction',
       description: `Voided ${type} transaction: ${txData.description || txData.category} (₱${(amount / 100).toFixed(2)})`,
       meta: { transactionId, amount, type }
-    });
+    } as any);
   });
   
   return true;
