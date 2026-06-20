@@ -43,7 +43,7 @@ export function TimplaDashboard() {
   const [error, setError] = useState<string | null>(null);
   
   const { user } = useUser();
-  const isOwner = currentTenant?.ownerId === user?.uid || currentTenant?.role === 'owner';
+  const isOwner = currentTenant?.ownerUid === user?.uid || currentTenant?.role === 'owner';
 
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);

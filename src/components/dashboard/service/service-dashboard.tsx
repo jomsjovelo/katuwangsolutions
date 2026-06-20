@@ -49,7 +49,7 @@ export function ServiceDashboard() {
   useDynamicThemeColor(theme);
   
   const { user } = useUser();
-  const isOwner = currentTenant?.ownerId === user?.uid || currentTenant?.role === 'owner';
+  const isOwner = currentTenant?.ownerUid === user?.uid || currentTenant?.role === 'owner';
 
   // Live stream of jobs
   const jobsQuery = React.useMemo(() => {

@@ -46,7 +46,7 @@ export function HydroDashboard() {
   useDynamicThemeColor(theme);
   
   const { user } = useUser();
-  const isOwner = currentTenant?.ownerId === user?.uid || currentTenant?.role === 'owner';
+  const isOwner = currentTenant?.ownerUid === user?.uid || currentTenant?.role === 'owner';
 
   // Deliveries State
   const { pendingOrders, outForDeliveryOrders, deliveredOrders, loading, error: waterError } = useWaterDeliveries();

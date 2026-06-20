@@ -48,7 +48,7 @@ export function LedgerDashboard() {
   const { toast } = useToast();
   
   const { user } = useUser();
-  const isOwner = currentTenant?.ownerId === user?.uid || currentTenant?.role === 'owner';
+  const isOwner = currentTenant?.ownerUid === user?.uid || currentTenant?.role === 'owner';
 
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);

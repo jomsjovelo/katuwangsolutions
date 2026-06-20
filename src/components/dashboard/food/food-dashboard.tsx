@@ -43,7 +43,7 @@ export function FoodDashboard() {
   const [error, setError] = useState<string | null>(null);
   
   const { user } = useUser();
-  const isOwner = currentTenant?.ownerId === user?.uid || currentTenant?.role === 'owner'; // Use profile rule if needed, fallback to owner check
+  const isOwner = currentTenant?.ownerUid === user?.uid || currentTenant?.role === 'owner'; // Use profile rule if needed, fallback to owner check
 
   // Menu State
   const { menuItems, availableItems, loading: menuLoading, error: menuError } = useMenu();

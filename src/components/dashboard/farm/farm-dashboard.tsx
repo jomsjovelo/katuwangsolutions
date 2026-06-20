@@ -50,7 +50,7 @@ export function FarmDashboard() {
   useDynamicThemeColor(theme);
 
   const { user } = useUser();
-  const isOwner = currentTenant?.ownerId === user?.uid || currentTenant?.role === 'owner';
+  const isOwner = currentTenant?.ownerUid === user?.uid || currentTenant?.role === 'owner';
 
   // Farm State
   const { harvests, loading, error } = useFarmHarvests();
