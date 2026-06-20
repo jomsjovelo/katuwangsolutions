@@ -96,6 +96,8 @@ export function FiveSixDashboard() {
   const [loanPrincipal, setLoanPrincipal] = useState('2000');
   const [loanInterest, setLoanInterest] = useState('400'); // 5-6 default interest (20%)
   const [interestMode, setInterestMode] = useState<'20' | '10' | 'custom'>('20');
+  const [loanSchedule, setLoanSchedule] = useState<'daily' | 'weekly' | 'monthly' | 'custom'>('daily');
+  const [loanIntervalDays, setLoanIntervalDays] = useState('3');
   const [loanDailyDue, setLoanDailyDue] = useState('100');
   const [loanTermDays, setLoanTermDays] = useState('24'); // Default 24 days
 
@@ -271,13 +273,17 @@ export function FiveSixDashboard() {
         throw new Error("Paki-check ang mga halaga. Siguraduhing valid ang mga inilagay na numero.");
       }
 
+      const intervalParsed = loanSchedule === 'custom' && loanIntervalDays ? parseInt(loanIntervalDays) : undefined;
+
       await recordLoan(
         currentTenant.id,
         selectedBorrower.id,
         principalParsed,
         interestParsed,
         dailyDueParsed,
-        termParsed
+        termParsed,
+        loanSchedule,
+        intervalParsed
       );
 
       try { playSuccessBeep(); } catch (err) { /* ignore autoplay blocks */ }
@@ -697,7 +703,10 @@ export function FiveSixDashboard() {
                       {!isPaid && (
                         <div className="text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1.5">
                           <Coins className="h-3.5 w-3.5 text-slate-300" />
-                          Target Ngayong Araw: <span className="font-extrabold text-slate-700">₱{dailyDuePesos}</span>
+                          {borrower.paymentSchedule === 'weekly' ? 'Lingguhang Target' :
+                           borrower.paymentSchedule === 'monthly' ? 'Buwanang Target' :
+                           borrower.paymentSchedule === 'custom' ? `Target bawat ${borrower.paymentIntervalDays} araw` : 
+                           'Target Ngayong Araw'}: <span className="font-extrabold text-slate-700">₱{dailyDuePesos}</span>
                         </div>
                       )}
                       
@@ -822,7 +831,7 @@ export function FiveSixDashboard() {
             </div>
 
             {/* Drawer Content */}
-            <div className="p-6 overflow-y-auto flex-1 pb-safe">
+            <div className="p-6 overflow-y-auto flex-1 pb-24">
               
               {/* 1. Add Borrower Form */}
               {activeDrawer === 'add_borrower' && (
@@ -1017,9 +1026,79 @@ export function FiveSixDashboard() {
                     </div>
                   </div>
 
+                  <div className="space-y-2 pb-2">
+                    <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Iskedyul ng Bayad</label>
+                    <div className="flex bg-slate-100/50 p-1 rounded-xl">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setLoanSchedule('daily')}
+                        className={cn(
+                          "flex-1 h-8 rounded-lg text-xs font-bold transition-all border-none cursor-pointer",
+                          loanSchedule === 'daily' ? "bg-white shadow-sm text-slate-800" : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                        )}
+                      >
+                        Araw-araw
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setLoanSchedule('weekly')}
+                        className={cn(
+                          "flex-1 h-8 rounded-lg text-xs font-bold transition-all border-none cursor-pointer",
+                          loanSchedule === 'weekly' ? "bg-white shadow-sm text-slate-800" : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                        )}
+                      >
+                        Lingguhan
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setLoanSchedule('monthly')}
+                        className={cn(
+                          "flex-1 h-8 rounded-lg text-xs font-bold transition-all border-none cursor-pointer",
+                          loanSchedule === 'monthly' ? "bg-white shadow-sm text-slate-800" : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                        )}
+                      >
+                        Buwanan
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setLoanSchedule('custom')}
+                        className={cn(
+                          "flex-1 h-8 rounded-lg text-[10px] font-bold transition-all border-none cursor-pointer",
+                          loanSchedule === 'custom' ? "bg-white shadow-sm text-slate-800" : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                        )}
+                      >
+                        Custom
+                      </Button>
+                    </div>
+                  </div>
+
+                  {loanSchedule === 'custom' && (
+                    <div className="space-y-1.5 pb-2">
+                      <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Ilang araw bago maningil?</label>
+                      <Input 
+                        id="loan-interval-days"
+                        name="loanIntervalDays"
+                        type="number" 
+                        required
+                        value={loanIntervalDays}
+                        onChange={(e) => setLoanIntervalDays(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800"
+                      />
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Arawang Singil (₱)</label>
+                      <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">
+                        {loanSchedule === 'daily' && "Arawang Singil (₱)"}
+                        {loanSchedule === 'weekly' && "Bayad bawat Linggo (₱)"}
+                        {loanSchedule === 'monthly' && "Bayad bawat Buwan (₱)"}
+                        {loanSchedule === 'custom' && "Halagang Sisingilin (₱)"}
+                      </label>
                       <Input 
                         id="loan-daily-due"
                         name="loanDailyDue"

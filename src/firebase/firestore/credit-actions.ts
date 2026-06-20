@@ -29,6 +29,8 @@ export interface Borrower {
   missedDays?: number; // tracked missed payment days
   totalPenalty?: number; // accumulated penalty centavos
   lastPaymentDate?: Timestamp; // for auto-overdue detection
+  paymentSchedule?: 'daily' | 'weekly' | 'monthly' | 'custom';
+  paymentIntervalDays?: number | null;
   createdAt: Timestamp;
 }
 
@@ -42,6 +44,8 @@ export interface CreditTransaction {
   startDate?: Timestamp; // For loans
   endDate?: Timestamp;   // For loans
   termDays?: number;     // For loans
+  paymentSchedule?: 'daily' | 'weekly' | 'monthly' | 'custom';
+  paymentIntervalDays?: number | null;
   timestamp: Timestamp;
 }
 
@@ -89,7 +93,9 @@ export async function recordLoan(
   loanAmountPesos: number,
   interestPesos: number,
   dailyDuePesos: number,
-  termDays?: number
+  termDays?: number,
+  paymentSchedule: 'daily' | 'weekly' | 'monthly' | 'custom' = 'daily',
+  paymentIntervalDays?: number
 ) {
   if (isNaN(loanAmountPesos) || loanAmountPesos <= 0) throw new Error("Ang halaga ng pautang ay dapat valid at higit sa zero.");
   if (isNaN(interestPesos) || interestPesos < 0) throw new Error("Ang interes ay hindi maaring negatibo o invalid.");
@@ -128,6 +134,8 @@ export async function recordLoan(
         dailyDue: Math.round(dailyDuePesos * 100),
         status: 'active',
         missedDays: 0, // Reset missed days on new loan
+        paymentSchedule,
+        paymentIntervalDays: paymentIntervalDays || null,
         updatedAt: serverTimestamp()
       });
 
@@ -138,7 +146,9 @@ export async function recordLoan(
         type: 'loan',
         amount: loanAmountCentavos,
         interest: Math.round(interestPesos * 100),
-        timestamp: serverTimestamp()
+        timestamp: serverTimestamp(),
+        paymentSchedule,
+        paymentIntervalDays: paymentIntervalDays || null
       };
       
       if (termDays && termDays > 0) {
