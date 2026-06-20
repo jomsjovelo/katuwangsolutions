@@ -49,10 +49,16 @@ service cloud.firestore {
       // Allow users to create their own tenant document
       allow create: if isAuthenticated() && request.auth.uid == request.resource.data.ownerUid;
       
-      // Only the owner or Master Admin can update, but only SuperAdmin can delete
+      // Only the owner or Master Admin can update.
+      // LOCK: businessCode is immutable after creation — cannot be changed via client.
       allow update: if isAuthenticated() && (
         request.auth.uid == resource.data.ownerUid || 
         isMasterAdmin()
+      ) && (
+        // Block businessCode changes by non-admins once it is set
+        isMasterAdmin() ||
+        !('businessCode' in resource.data) ||
+        request.resource.data.businessCode == resource.data.businessCode
       );
       allow delete: if isAuthenticated() && (
         request.auth.uid == resource.data.ownerUid || 
@@ -83,7 +89,15 @@ service cloud.firestore {
 
     // 5. Users Collection (Staff profiles and owner profiles)
     match /users/{userId} {
-      allow write: if isAuthenticated() && (request.auth.uid == userId || isMasterAdmin());
+      // LOCK: businessCode is immutable after it is set — only MasterAdmin can override.
+      allow write: if isAuthenticated() && (
+        request.auth.uid == userId || isMasterAdmin()
+      ) && (
+        isMasterAdmin() ||
+        !('businessCode' in resource.data) ||
+        !('businessCode' in request.resource.data) ||
+        request.resource.data.businessCode == resource.data.businessCode
+      );
       
       allow get: if isAuthenticated() && (
         isMasterAdmin() ||

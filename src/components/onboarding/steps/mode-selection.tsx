@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Store, Users, ArrowRight, Loader2 } from 'lucide-react';
@@ -11,29 +13,42 @@ interface ModeSelectionStepProps {
 export function ModeSelectionStep({ onSelectStartBusiness }: ModeSelectionStepProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
-  // Try to get code from URL or fallback to localStorage
-  const urlCode = searchParams.get('code') || searchParams.get('ref') || '';
-  const savedCode = typeof window !== 'undefined' ? localStorage.getItem('katuwang_ref') : null;
-  const initialCode = (urlCode || savedCode || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 7).toUpperCase();
 
+  // Derive the code from URL params first (server-safe)
+  const urlCode = (searchParams.get('code') || searchParams.get('ref') || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 7).toUpperCase();
+
+  // Use state to hold the initial code so we can hydrate from localStorage after mount
+  const [initialCode, setInitialCode] = useState(urlCode);
   const [showJoinForm, setShowJoinForm] = useState(false);
-  const [businessCode, setBusinessCode] = useState(initialCode);
+  const [businessCode, setBusinessCode] = useState(urlCode);
   const [isJoining, setIsJoining] = useState(false);
+
+  // After mount, check localStorage as a fallback (only runs client-side)
+  useEffect(() => {
+    if (!initialCode) {
+      const saved = localStorage.getItem('katuwang_ref') || '';
+      const cleaned = saved.replace(/[^a-zA-Z0-9]/g, '').slice(0, 7).toUpperCase();
+      if (cleaned.length === 7) {
+        setInitialCode(cleaned);
+        setBusinessCode(cleaned);
+      }
+    }
+  }, [initialCode]);
 
   const handleJoinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (businessCode.length !== 7) return;
     setIsJoining(true);
-    // Redirect to login modal with the business code pre-filled
     router.push(`/?code=${businessCode.toUpperCase()}`);
   };
 
   const handleJoinTeamClick = () => {
-    // Magic Link Bypass: If we already have a valid code, instantly redirect!
-    if (initialCode.length === 7) {
+    // Get the latest code from state (includes localStorage hydration)
+    const latestCode = initialCode || businessCode;
+    if (latestCode.length === 7) {
+      // Magic Link Bypass: valid code found — skip manual input, redirect instantly
       setIsJoining(true);
-      router.push(`/?code=${initialCode}`);
+      router.push(`/?code=${latestCode}`);
     } else {
       setShowJoinForm(true);
     }
@@ -45,7 +60,7 @@ export function ModeSelectionStep({ onSelectStartBusiness }: ModeSelectionStepPr
         <div className="h-16 w-16 bg-primary/10 text-primary rounded-[20px] flex items-center justify-center mb-6 shadow-sm border border-primary/20">
           <Users className="h-8 w-8" />
         </div>
-        
+
         <h2 className="text-3xl font-black font-headline uppercase tracking-tight text-slate-800 mb-2">
           Sali sa Team
         </h2>
@@ -61,9 +76,9 @@ export function ModeSelectionStep({ onSelectStartBusiness }: ModeSelectionStepPr
             className="h-20 text-center text-4xl font-black tracking-[0.5em] uppercase rounded-2xl bg-white border-2 border-slate-200 focus-visible:border-primary focus-visible:ring-primary shadow-sm"
             autoFocus
           />
-          
+
           <div className="space-y-3">
-            <Button 
+            <Button
               type="submit"
               disabled={businessCode.length !== 7 || isJoining}
               className="w-full h-14 rounded-xl font-bold uppercase tracking-widest text-sm shadow-lg hover:shadow-xl transition-all joy-glow active:scale-95 flex items-center justify-center gap-2"
@@ -71,7 +86,7 @@ export function ModeSelectionStep({ onSelectStartBusiness }: ModeSelectionStepPr
               {isJoining ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Mag-patuloy'}
               {!isJoining && <ArrowRight className="h-5 w-5" />}
             </Button>
-            
+
             <Button
               type="button"
               variant="ghost"
@@ -123,7 +138,7 @@ export function ModeSelectionStep({ onSelectStartBusiness }: ModeSelectionStepPr
       >
         {isJoining && (
           <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex items-center justify-center">
-             <Loader2 className="h-6 w-6 text-teal-500 animate-spin" />
+            <Loader2 className="h-6 w-6 text-teal-500 animate-spin" />
           </div>
         )}
         <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">

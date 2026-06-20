@@ -56,15 +56,15 @@ type StaffRegisterFormValues = z.infer<typeof staffRegisterSchema>;
 export function StaffRegisterDialog({ children }: { children?: React.ReactNode }) {
   const searchParams = useSearchParams();
   const router = useRouter();
-  
-  // Extract code from either ?code= or ?ref=
-  const urlCode = searchParams.get('code') || searchParams.get('ref') || '';
+
+  // Extract code from either ?code= or ?ref= URL params
+  const urlCode = (searchParams.get('code') || searchParams.get('ref') || '').toUpperCase();
   const hasUrlCodeParam = searchParams.has('code') || searchParams.has('ref');
-  
-  // Save the code in state so it survives URL clears
+
+  // persistedCode starts from URL, then hydrates from localStorage after mount
   const [persistedCode, setPersistedCode] = useState(urlCode);
-  
-  // We ONLY open this dialog automatically if the URL has ?code= or ?ref= (even if empty value)
+
+  // Only auto-open if the URL has a code/ref param
   const [open, setOpen] = useState(hasUrlCodeParam);
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -73,7 +73,7 @@ export function StaffRegisterDialog({ children }: { children?: React.ReactNode }
     defaultValues: {
       email: '',
       password: '',
-      businessCode: persistedCode || '',
+      businessCode: urlCode || '',
       fullName: '',
       birthday: '',
       gender: 'Prefer not to say',
@@ -83,17 +83,26 @@ export function StaffRegisterDialog({ children }: { children?: React.ReactNode }
 
   useEffect(() => {
     if (hasUrlCodeParam) {
-      if (urlCode) {
-        setPersistedCode(urlCode);
-        form.setValue('businessCode', urlCode);
+      // Grab the best available code
+      const codeToUse = urlCode || (localStorage.getItem('katuwang_ref') || '').toUpperCase();
+      if (codeToUse) {
+        setPersistedCode(codeToUse);
+        form.setValue('businessCode', codeToUse);
       }
       setOpen(true);
-      
+
       // Immediately clear the code from the URL to prevent phantom links on refresh
-      // using router.replace to properly sync with Next.js state
       router.replace('/', { scroll: false });
+    } else {
+      // Even without URL param, check localStorage (e.g. user navigated manually after clicking link)
+      const saved = (localStorage.getItem('katuwang_ref') || '').toUpperCase();
+      if (saved && saved.length === 7 && open) {
+        setPersistedCode(saved);
+        form.setValue('businessCode', saved);
+      }
     }
-  }, [hasUrlCodeParam, urlCode, form, router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasUrlCodeParam, urlCode]);
 
   const onSubmit = async (data: StaffRegisterFormValues) => {
     try {

@@ -61,7 +61,8 @@ import {
   Copy,
   RefreshCw,
   Activity,
-  ArrowRight
+  ArrowRight,
+  Lock
 } from 'lucide-react';
 import { EscPosBluetoothDriver } from '@/lib/hardware/print-driver';
 import { HelpGuideDrawer } from '@/components/shell/help-guide-drawer';
@@ -696,6 +697,10 @@ export function ProfileTab() {
                       <div className="text-4xl font-black text-slate-800 tracking-[0.25em]">
                         {currentTenant?.businessCode || '----'}
                       </div>
+                    </div>
+                    <div className="flex items-center gap-1 mt-2">
+                      <Lock className="h-3 w-3 text-slate-400" />
+                      <span className="text-[10px] text-slate-400 font-medium">Code is locked — contact support to change</span>
                     </div>
                   </div>
                 </div>
