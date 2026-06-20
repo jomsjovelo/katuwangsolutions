@@ -7,7 +7,7 @@ import * as z from 'zod';
 import { FirebaseError } from 'firebase/app';
 import { Loader2, LogIn } from 'lucide-react';
 import { BrandLogo } from '@/components/ui/brand-logo';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 import {
   Dialog,
@@ -40,6 +40,9 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export function LoginDialog({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const existingCode = searchParams?.get('ref') || searchParams?.get('code') || '';
+  
   const [open, setOpen] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   
@@ -291,7 +294,7 @@ export function LoginDialog({ children }: { children: React.ReactNode }) {
               setOpen(false);
               // Small delay to allow dialog animation to complete before changing route
               setTimeout(() => {
-                router.push('/?code=');
+                router.push(`/?code=${existingCode}`);
               }, 150);
             }}
           >

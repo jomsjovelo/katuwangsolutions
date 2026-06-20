@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { X, ChevronRight, CheckCircle2 } from 'lucide-react';
 import {
   ShoppingCart, Leaf, Hammer,
@@ -64,6 +64,9 @@ interface RegisterSheetProps {
 
 export function RegisterSheet({ open, onClose, initialAppId = '' }: RegisterSheetProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const existingCode = searchParams?.get('ref') || searchParams?.get('code') || '';
+  
   const [selectedId, setSelectedId] = useState(initialAppId);
   const [step, setStep] = useState<'role' | 'app'>('role');
   const [role, setRole] = useState<'owner' | 'staff' | null>(null);
@@ -83,8 +86,9 @@ export function RegisterSheet({ open, onClose, initialAppId = '' }: RegisterShee
         setStep('app');
       } else if (role === 'staff') {
         onClose();
-        // Just focus the login button or tell them to click login
-        alert('I-click ang "Login" sa itaas at ilagay ang iyong Email, Password, at Business Code.');
+        setTimeout(() => {
+          router.push(`/?code=${existingCode}`);
+        }, 150);
       }
     } else {
       if (!selectedId) return;

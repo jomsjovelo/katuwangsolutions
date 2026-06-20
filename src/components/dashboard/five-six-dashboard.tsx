@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { 
   addBorrower, 
+  editBorrower,
   recordLoan, 
   recordPayment,
   applyMissedDayPenalty,
@@ -67,7 +68,7 @@ export function FiveSixDashboard() {
   // Firestore real-time state listeners
   const [borrowers, setBorrowers] = useState<Borrower[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeDrawer, setActiveDrawer] = useState<'none' | 'add_borrower' | 'record_loan' | 'record_payment' | 'sms_alert' | 'view_ledger' | 'add_capital'>('none');
+  const [activeDrawer, setActiveDrawer] = useState<'none' | 'add_borrower' | 'record_loan' | 'record_payment' | 'sms_alert' | 'view_ledger' | 'add_capital' | 'edit_borrower'>('none');
   const [selectedBorrower, setSelectedBorrower] = useState<Borrower | null>(null);
 
   // Credit Stats
@@ -79,6 +80,11 @@ export function FiveSixDashboard() {
   const [loadingLedger, setLoadingLedger] = useState(false);
   const [editingTx, setEditingTx] = useState<CreditTransaction | null>(null);
   const [editNote, setEditNote] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editArea, setEditArea] = useState('');
+  const [editLimit, setEditLimit] = useState('');
+  const [editDailyDue, setEditDailyDue] = useState('');
   
   const { user } = useUser();
 
@@ -159,6 +165,32 @@ export function FiveSixDashboard() {
     } catch (err: any) {
       console.error(err);
       setErrorMsg(err.message || 'Hindi ma-update ang transaksyon.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditBorrowerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentTenant || !selectedBorrower) return;
+    if (!editName || !editPhone) {
+      setErrorMsg("Kailangan ang pangalan at mobile number.");
+      return;
+    }
+    try {
+      setIsSubmitting(true);
+      setErrorMsg(null);
+      await editBorrower(currentTenant.id, selectedBorrower.id, {
+        name: editName,
+        phone: editPhone,
+        area: editArea,
+        limitPesos: parseFloat(editLimit),
+        dailyDuePesos: parseFloat(editDailyDue)
+      });
+      setSuccessMsg(`Na-update ang detalye ni ${editName}.`);
+      setActiveDrawer('none');
+    } catch (e: any) {
+      setErrorMsg(e.message || "Hindi ma-update ang borrower.");
     } finally {
       setIsSubmitting(false);
     }
@@ -803,6 +835,24 @@ export function FiveSixDashboard() {
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedBorrower(borrower);
+                            setEditName(borrower.name);
+                            setEditPhone(borrower.phone);
+                            setEditArea(borrower.area || '');
+                            setEditLimit((borrower.limit / 100).toString());
+                            setEditDailyDue((borrower.dailyDue / 100).toString());
+                            setActiveDrawer('edit_borrower');
+                          }}
+                          className="h-8 rounded-lg px-2 text-[9px] font-black text-slate-500 hover:text-slate-700 flex items-center gap-1 border-slate-200 cursor-pointer"
+                        >
+                          <Edit3 className="h-3.5 w-3.5 text-slate-400" />
+                          Edit
+                        </Button>
+
+                        <Button 
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedBorrower(borrower);
                             setActiveDrawer('sms_alert');
                           }}
                           className="h-8 rounded-lg w-8 p-0 flex items-center justify-center border-slate-200 cursor-pointer"
@@ -837,6 +887,7 @@ export function FiveSixDashboard() {
                   {activeDrawer === 'sms_alert' && <MessageSquare className="h-4.5 w-4.5" />}
                   {activeDrawer === 'view_ledger' && <History className="h-4.5 w-4.5" />}
                   {activeDrawer === 'add_capital' && <Banknote className="h-4.5 w-4.5" />}
+                  {activeDrawer === 'edit_borrower' && <Edit3 className="h-4.5 w-4.5" />}
                 </div>
                 <h4 className="font-headline font-black text-xs uppercase tracking-widest text-slate-800">
                   {activeDrawer === 'add_borrower' && "Setup Credit Borrower"}
@@ -845,6 +896,7 @@ export function FiveSixDashboard() {
                   {activeDrawer === 'sms_alert' && "SMS Billing Assistant"}
                   {activeDrawer === 'view_ledger' && "Transaction Ledger"}
                   {activeDrawer === 'add_capital' && "Magdagdag ng Puhunan"}
+                  {activeDrawer === 'edit_borrower' && "I-edit ang Detalye"}
                 </h4>
               </div>
               <Button 
@@ -1542,6 +1594,72 @@ export function FiveSixDashboard() {
                         <Loader2 className="h-4 w-4 animate-spin mx-auto" />
                       ) : (
                         "Idagdag sa Puhunan"
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              )}
+
+              {/* 7. Edit Borrower Form */}
+              {activeDrawer === 'edit_borrower' && selectedBorrower && (
+                <form id="edit-borrower-form" onSubmit={handleEditBorrowerSubmit} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Pangalan</label>
+                    <Input 
+                      required
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Mobile Number</label>
+                    <Input 
+                      required
+                      value={editPhone}
+                      onChange={(e) => setEditPhone(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Lugar / Area</label>
+                    <Input 
+                      value={editArea}
+                      onChange={(e) => setEditArea(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Credit Limit (₱)</label>
+                    <Input 
+                      type="number"
+                      required
+                      value={editLimit}
+                      onChange={(e) => setEditLimit(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Arawang Singil Target (₱)</label>
+                    <Input 
+                      type="number"
+                      required
+                      value={editDailyDue}
+                      onChange={(e) => setEditDailyDue(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800"
+                    />
+                  </div>
+                  <div className="pt-2">
+                    <Button 
+                      type="submit" 
+                      disabled={isSubmitting}
+                      className="w-full h-12 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-sm transition-colors shadow-lg"
+                      style={{ backgroundColor: theme.primary }}
+                    >
+                      {isSubmitting ? (
+                        <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                      ) : (
+                        "I-save ang Pagbabago"
                       )}
                     </Button>
                   </div>

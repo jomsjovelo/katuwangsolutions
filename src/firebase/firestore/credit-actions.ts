@@ -9,7 +9,8 @@ import {
   query,
   where,
   getDocs,
-  orderBy
+  orderBy,
+  updateDoc
 } from 'firebase/firestore';
 import { initializeFirebase } from '../index';
 import { runTransactionResilient } from './resilient-transaction';
@@ -80,6 +81,37 @@ export async function addBorrower(
     return newDoc.id;
   } catch (e: any) {
     console.error("Failed to add borrower doc", e);
+    throw e;
+  }
+}
+
+/**
+ * Edit an existing borrower profile
+ */
+export async function editBorrower(
+  tenantId: string,
+  borrowerId: string,
+  updates: Partial<{ name: string; phone: string; area: string; limitPesos: number; dailyDuePesos: number }>
+) {
+  try {
+    const borrowerRef = doc(db, 'tenants', tenantId, 'borrowers', borrowerId);
+    
+    const payload: any = {};
+    if (updates.name !== undefined) payload.name = updates.name.trim();
+    if (updates.phone !== undefined) payload.phone = updates.phone.trim();
+    if (updates.area !== undefined) payload.area = updates.area.trim();
+    if (updates.limitPesos !== undefined) {
+      if (isNaN(updates.limitPesos) || updates.limitPesos <= 0) throw new Error("Ang credit limit ay dapat valid at higit sa zero.");
+      payload.limit = Math.round(updates.limitPesos * 100);
+    }
+    if (updates.dailyDuePesos !== undefined) {
+      if (isNaN(updates.dailyDuePesos) || updates.dailyDuePesos <= 0) throw new Error("Ang arawang singil ay dapat valid at higit sa zero.");
+      payload.dailyDue = Math.round(updates.dailyDuePesos * 100);
+    }
+
+    await updateDoc(borrowerRef, payload);
+  } catch (e: any) {
+    console.error("Failed to edit borrower", e);
     throw e;
   }
 }
