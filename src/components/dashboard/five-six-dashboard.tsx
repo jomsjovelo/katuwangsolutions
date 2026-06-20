@@ -93,14 +93,13 @@ export function FiveSixDashboard() {
   const [newLimit, setNewLimit] = useState('5000');
   const [newDailyDue, setNewDailyDue] = useState('100');
 
-  const [loanPrincipal, setLoanPrincipal] = useState('2000');
-  const [loanInterest, setLoanInterest] = useState('400'); // 5-6 default interest (20%)
+  const [loanPrincipal, setLoanPrincipal] = useState('');
+  const [loanInterest, setLoanInterest] = useState(''); // 5-6 default interest (20%)
   const [interestMode, setInterestMode] = useState<'20' | '10' | 'custom'>('20');
   const [loanSchedule, setLoanSchedule] = useState<'daily' | 'weekly' | 'monthly' | 'custom'>('daily');
   const [loanIntervalDays, setLoanIntervalDays] = useState('3');
   const [loanDailyDue, setLoanDailyDue] = useState('100');
   const [loanTermDays, setLoanTermDays] = useState('24'); // Default 24 days
-  const [isPastLoan, setIsPastLoan] = useState(false);
   const [loanDateStr, setLoanDateStr] = useState(new Date().toISOString().split('T')[0]);
 
   const [payAmount, setPayAmount] = useState('500');
@@ -231,7 +230,7 @@ export function FiveSixDashboard() {
         throw new Error("Paki-check ang limit at target. Dapat ito ay valid na numero.");
       }
 
-      await addBorrower(
+      const newBorrowerId = await addBorrower(
         currentTenant.id,
         newName,
         phoneClean,
@@ -240,6 +239,30 @@ export function FiveSixDashboard() {
         newArea
       );
 
+      const principalParsed = parseFloat(loanPrincipal);
+      if (!isNaN(principalParsed) && principalParsed > 0) {
+        const interestParsed = parseFloat(loanInterest);
+        const termParsed = parseFloat(loanTermDays);
+        
+        if (isNaN(interestParsed) || interestParsed < 0) throw new Error("Invalid interest.");
+        
+        const intervalParsed = loanSchedule === 'custom' && loanIntervalDays ? parseInt(loanIntervalDays) : undefined;
+        const isToday = loanDateStr === new Date().toISOString().split('T')[0];
+        const parsedDate = (!isToday && loanDateStr) ? new Date(`${loanDateStr}T12:00:00`) : undefined;
+
+        await recordLoan(
+          currentTenant.id,
+          newBorrowerId,
+          principalParsed,
+          interestParsed,
+          dailyDueParsed, // Use the daily target they just set
+          termParsed,
+          loanSchedule,
+          intervalParsed,
+          parsedDate
+        );
+      }
+
       try { playSuccessBeep(); } catch (err) { /* ignore autoplay blocks */ }
       setSuccessMsg("Bagong borrower naidagdag sa database!");
       setTimeout(() => setSuccessMsg(null), 3000);
@@ -247,10 +270,10 @@ export function FiveSixDashboard() {
       // Reset
       setNewName('');
       setNewPhone('');
-      setLoanInterest('400');
+      setLoanPrincipal('');
+      setLoanInterest('');
       setInterestMode('20');
       setLoanSchedule('daily');
-      setIsPastLoan(false);
       setLoanDateStr(new Date().toISOString().split('T')[0]);
     } catch (e) {
       const err = e as Error & { code?: string };
@@ -279,7 +302,8 @@ export function FiveSixDashboard() {
       }
 
       const intervalParsed = loanSchedule === 'custom' && loanIntervalDays ? parseInt(loanIntervalDays) : undefined;
-      const parsedDate = isPastLoan && loanDateStr ? new Date(`${loanDateStr}T12:00:00`) : undefined;
+      const isToday = loanDateStr === new Date().toISOString().split('T')[0];
+      const parsedDate = (!isToday && loanDateStr) ? new Date(`${loanDateStr}T12:00:00`) : undefined;
 
       await recordLoan(
         currentTenant.id,
@@ -832,7 +856,6 @@ export function FiveSixDashboard() {
                 size="icon" 
                 onClick={() => {
                   setActiveDrawer('none');
-                  setIsPastLoan(false);
                   setLoanDateStr(new Date().toISOString().split('T')[0]);
                 }} 
                 className="h-8 w-8 rounded-full hover:bg-slate-200/60 cursor-pointer"
@@ -915,6 +938,188 @@ export function FiveSixDashboard() {
                       />
                     </div>
                   </div>
+
+                  <div className="space-y-4 pb-2 mt-4 border-t border-slate-100 pt-4">
+                    {/* Date Picker Section */}
+                    <div className="space-y-1.5 pb-2 border-b border-slate-100">
+                      <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Petsa ng Utang</label>
+                      <Input
+                        type="date"
+                        value={loanDateStr}
+                        onChange={(e) => setLoanDateStr(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300"
+                      />
+                    </div>
+
+                        {/* Principal & Interest */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Halaga ng Pautang (₱)</label>
+                            <Input 
+                              id="initial-loan-principal"
+                              name="initialLoanPrincipal"
+                              type="number" 
+                              value={loanPrincipal}
+                              onChange={(e) => {
+                                setLoanPrincipal(e.target.value);
+                                const amt = parseFloat(e.target.value) || 0;
+                                if (interestMode === '20') {
+                                  setLoanInterest((amt * 0.2).toFixed(0));
+                                } else if (interestMode === '10') {
+                                  setLoanInterest((amt * 0.1).toFixed(0));
+                                }
+                              }}
+                              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Patubong Interes (₱)</label>
+                            <Input 
+                              id="initial-loan-interest"
+                              name="initialLoanInterest"
+                              type="number" 
+                              readOnly={interestMode !== 'custom'}
+                              value={loanInterest}
+                              onChange={(e) => {
+                                if (interestMode === 'custom') {
+                                  setLoanInterest(e.target.value);
+                                }
+                              }}
+                              className={cn(
+                                "w-full border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800 transition-colors",
+                                interestMode !== 'custom' ? "bg-slate-100 text-slate-500" : "bg-slate-50"
+                              )}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Interest Mode Buttons */}
+                        <div className="space-y-2 pb-2">
+                          <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Piliin ang Interes</label>
+                          <div className="flex bg-slate-100/50 p-1 rounded-xl">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => {
+                                setInterestMode('20');
+                                const amt = parseFloat(loanPrincipal) || 0;
+                                setLoanInterest((amt * 0.2).toFixed(0));
+                              }}
+                              className={cn(
+                                "flex-1 h-8 rounded-lg text-xs font-bold transition-all border-none cursor-pointer",
+                                interestMode === '20' ? "bg-white shadow-sm text-slate-800" : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                              )}
+                            >
+                              20% (Standard)
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => {
+                                setInterestMode('10');
+                                const amt = parseFloat(loanPrincipal) || 0;
+                                setLoanInterest((amt * 0.1).toFixed(0));
+                              }}
+                              className={cn(
+                                "flex-1 h-8 rounded-lg text-xs font-bold transition-all border-none cursor-pointer",
+                                interestMode === '10' ? "bg-white shadow-sm text-slate-800" : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                              )}
+                            >
+                              10%
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => setInterestMode('custom')}
+                              className={cn(
+                                "flex-1 h-8 rounded-lg text-xs font-bold transition-all border-none cursor-pointer",
+                                interestMode === 'custom' ? "bg-white shadow-sm text-slate-800" : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                              )}
+                            >
+                              Custom
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Schedule & Terms */}
+                        <div className="space-y-2 pb-2">
+                          <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Iskedyul ng Bayad</label>
+                          <div className="flex bg-slate-100/50 p-1 rounded-xl">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => setLoanSchedule('daily')}
+                              className={cn(
+                                "flex-1 h-8 rounded-lg text-xs font-bold transition-all border-none cursor-pointer",
+                                loanSchedule === 'daily' ? "bg-white shadow-sm text-slate-800" : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                              )}
+                            >
+                              Araw-araw
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => setLoanSchedule('weekly')}
+                              className={cn(
+                                "flex-1 h-8 rounded-lg text-xs font-bold transition-all border-none cursor-pointer",
+                                loanSchedule === 'weekly' ? "bg-white shadow-sm text-slate-800" : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                              )}
+                            >
+                              Lingguhan
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => setLoanSchedule('monthly')}
+                              className={cn(
+                                "flex-1 h-8 rounded-lg text-xs font-bold transition-all border-none cursor-pointer",
+                                loanSchedule === 'monthly' ? "bg-white shadow-sm text-slate-800" : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                              )}
+                            >
+                              Buwanan
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => setLoanSchedule('custom')}
+                              className={cn(
+                                "flex-1 h-8 rounded-lg text-[10px] font-bold transition-all border-none cursor-pointer",
+                                loanSchedule === 'custom' ? "bg-white shadow-sm text-slate-800" : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                              )}
+                            >
+                              Custom
+                            </Button>
+                          </div>
+                        </div>
+
+                        {loanSchedule === 'custom' && (
+                          <div className="space-y-1.5 pb-2">
+                            <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Ilang araw bago maningil?</label>
+                            <Input 
+                              id="initial-loan-interval-days"
+                              name="loanIntervalDays"
+                              type="number" 
+                              placeholder="Hal. 3 (Tuwing ikatlong araw)"
+                              value={loanIntervalDays}
+                              onChange={(e) => setLoanIntervalDays(e.target.value)}
+                              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800"
+                            />
+                          </div>
+                        )}
+
+                        <div className="space-y-1.5">
+                          <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Termino (Days)</label>
+                          <Input 
+                            id="initial-loan-term"
+                            name="loanTermDays"
+                            type="number" 
+                            value={loanTermDays}
+                            onChange={(e) => setLoanTermDays(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800"
+                          />
+                        </div>
+                  </div>
+
                   <div className="pt-4 pb-2">
                     <Button 
                       type="submit"
@@ -994,33 +1199,14 @@ export function FiveSixDashboard() {
                     </div>
                   </div>
 
-                  <div className="space-y-2 pb-2 border-b border-slate-100">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Utang noong nakaraang araw?</label>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input 
-                          type="checkbox" 
-                          className="sr-only peer"
-                          checked={isPastLoan}
-                          onChange={() => setIsPastLoan(!isPastLoan)}
-                        />
-                        <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
-                      </label>
-                    </div>
-                    {isPastLoan && (
-                      <div className="space-y-2 animate-in slide-in-from-top-2 mt-2">
-                        <Input
-                          type="date"
-                          value={loanDateStr}
-                          onChange={(e) => setLoanDateStr(e.target.value)}
-                          className="w-full bg-amber-50 border border-amber-200 text-amber-900 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-amber-400"
-                        />
-                        <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-amber-100 text-[9px] font-black text-amber-700">
-                          <AlertTriangle className="h-3 w-3 flex-shrink-0" />
-                          <span>Backdated entry — maisasama ito sa kasaysayan ng transaksyon.</span>
-                        </div>
-                      </div>
-                    )}
+                  <div className="space-y-1.5 pb-2 border-b border-slate-100">
+                    <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Petsa ng Utang</label>
+                    <Input
+                      type="date"
+                      value={loanDateStr}
+                      onChange={(e) => setLoanDateStr(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300"
+                    />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
