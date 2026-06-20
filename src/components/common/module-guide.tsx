@@ -138,6 +138,20 @@ export const MODULE_GUIDES: Record<string, GuideContent> = {
       result: 'Lilitaw ang event sa calendar reminder mo at maa-update ang ledger dahil sa downpayment.'
     }
   },
+  'five-six-tracker': {
+    tagline: 'Pamahalaan ang pautang, interes, at pang-araw-araw na koleksyon.',
+    steps: [
+      'Pindutin ang "Add Debtor" para i-set up ang bagong umutang, credit limit, at daily target.',
+      'I-click ang "Pautangin Ulit" sa debtor card para i-release ang loan amount at autocompute ang 20% interes.',
+      'Araw-araw, pindutin ang "Singilin" o "1-Tap" para direktang ilista ang bayad.',
+      'Gumamit ng "Penalty" button para magdagdag ng interes sa mga na-late magbayad.'
+    ],
+    example: {
+      scenario: 'Umutang si Maria ng ₱5,000.',
+      action: 'I-click ang "Pautangin Ulit", ilagay ang 5000 bilang principal. Automatic lalabas ang 1000 na interes (Total: 6000).',
+      result: 'Mag-uupdate ang kanyang balanse sa ₱6,000 at magkakaroon ng daily target amount na dapat niyang bayaran araw-araw.'
+    }
+  },
   'biyahe-sync': {
     tagline: 'I-track ang truck, biyahe, at delivery fee, real-time.',
     steps: [

@@ -226,7 +226,7 @@ export function FiveSixDashboard() {
         newArea
       );
 
-      playSuccessBeep();
+      try { playSuccessBeep(); } catch (err) { /* ignore autoplay blocks */ }
       setSuccessMsg("Bagong borrower naidagdag sa database!");
       setTimeout(() => setSuccessMsg(null), 3000);
       
@@ -270,7 +270,7 @@ export function FiveSixDashboard() {
         termParsed
       );
 
-      playSuccessBeep();
+      try { playSuccessBeep(); } catch (err) { /* ignore autoplay blocks */ }
       setSuccessMsg(`Pautang naitala para kay ${selectedBorrower.name}!`);
       setTimeout(() => setSuccessMsg(null), 3000);
       setActiveDrawer('none');
@@ -302,7 +302,7 @@ export function FiveSixDashboard() {
         payParsed
       );
 
-      playPaymentSound();
+      try { playPaymentSound(); } catch (err) { /* ignore autoplay blocks */ }
       setSuccessMsg(`Bayad na ₱${payAmount} natanggap mula kay ${selectedBorrower.name}!`);
       setTimeout(() => setSuccessMsg(null), 3000);
       setActiveDrawer('none');
@@ -324,7 +324,7 @@ export function FiveSixDashboard() {
       
       await recordPayment(currentTenant.id, borrower.id, amount);
       
-      playPaymentSound();
+      try { playPaymentSound(); } catch (err) { /* ignore autoplay blocks */ }
       setSuccessMsg(`1-Tap Bayad na ₱${amount} kay ${borrower.name}!`);
       setTimeout(() => setSuccessMsg(null), 3000);
     } catch (e) {
@@ -342,7 +342,7 @@ export function FiveSixDashboard() {
       setIsSubmitting(true);
       setErrorMsg(null);
       await applyMissedDayPenalty(currentTenant.id, borrower.id);
-      playPaymentSound();
+      try { playPaymentSound(); } catch (err) { /* ignore autoplay blocks */ }
       setSuccessMsg(`Penalty nailapat kay ${borrower.name}! (+5% ng daily due)`);
       setTimeout(() => setSuccessMsg(null), 3000);
     } catch (e) {
@@ -618,7 +618,8 @@ export function FiveSixDashboard() {
                       <div className="flex flex-wrap gap-1.5">
                         {isPaid && (
                           <Button 
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setSelectedBorrower(borrower);
                               setActiveDrawer('record_loan');
                             }}
@@ -634,7 +635,7 @@ export function FiveSixDashboard() {
                           <>
                             <Button 
                               variant="outline"
-                              onClick={() => handleApplyPenalty(borrower)}
+                              onClick={(e) => { e.stopPropagation(); handleApplyPenalty(borrower); }}
                               disabled={isSubmitting}
                               className="h-8 rounded-lg px-2 text-[9px] font-black text-red-500 hover:text-red-700 flex items-center gap-1 border-red-200 cursor-pointer"
                             >
@@ -643,7 +644,7 @@ export function FiveSixDashboard() {
                             </Button>
                             <Button 
                               variant="outline"
-                              onClick={() => handleQuickCollect(borrower)}
+                              onClick={(e) => { e.stopPropagation(); handleQuickCollect(borrower); }}
                               disabled={isSubmitting}
                               className="h-8 rounded-lg px-2 text-[9px] font-black text-slate-500 hover:text-slate-700 flex items-center gap-1 border-slate-200 cursor-pointer"
                             >
@@ -651,7 +652,8 @@ export function FiveSixDashboard() {
                               1-Tap
                             </Button>
                             <Button 
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setSelectedBorrower(borrower);
                                 setPayAmount(dailyDuePesos.toString());
                                 setActiveDrawer('record_payment');
@@ -667,7 +669,7 @@ export function FiveSixDashboard() {
 
                         <Button 
                           variant="outline"
-                          onClick={() => openLedger(borrower)}
+                          onClick={(e) => { e.stopPropagation(); openLedger(borrower); }}
                           className="h-8 rounded-lg px-2 text-[9px] font-black text-slate-500 hover:text-slate-700 flex items-center gap-1 border-slate-200 cursor-pointer"
                         >
                           <History className="h-3.5 w-3.5 text-slate-400" />
@@ -676,7 +678,8 @@ export function FiveSixDashboard() {
                         
                         <Button 
                           variant="outline"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setSelectedBorrower(borrower);
                             setActiveDrawer('sms_alert');
                           }}
@@ -804,6 +807,16 @@ export function FiveSixDashboard() {
                       />
                     </div>
                   </div>
+                  <div className="pt-4 pb-2">
+                    <Button 
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full h-12 text-white font-black rounded-2xl flex items-center justify-center text-xs border-none cursor-pointer"
+                      style={{ backgroundColor: theme.primary }}
+                    >
+                      {isSubmitting ? <Loader2 className="h-4.5 w-4.5 animate-spin" /> : "I-save ang Borrower"}
+                    </Button>
+                  </div>
                 </form>
               )}
 
@@ -884,6 +897,16 @@ export function FiveSixDashboard() {
                       />
                     </div>
                   </div>
+                  <div className="pt-4 pb-2">
+                    <Button 
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full h-12 text-white font-black rounded-2xl flex items-center justify-center text-xs border-none cursor-pointer"
+                      style={{ backgroundColor: theme.primary }}
+                    >
+                      {isSubmitting ? <Loader2 className="h-4.5 w-4.5 animate-spin" /> : "I-disburse ang Pautang"}
+                    </Button>
+                  </div>
                 </form>
               )}
 
@@ -909,6 +932,16 @@ export function FiveSixDashboard() {
                       onChange={(e) => setPayAmount(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800"
                     />
+                  </div>
+                  <div className="pt-4 pb-2">
+                    <Button 
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full h-12 text-white font-black rounded-2xl flex items-center justify-center text-xs border-none cursor-pointer"
+                      style={{ backgroundColor: theme.secondary }}
+                    >
+                      {isSubmitting ? <Loader2 className="h-4.5 w-4.5 animate-spin" /> : "I-rehistro ang Bayad"}
+                    </Button>
                   </div>
                 </form>
               )}
@@ -1051,45 +1084,6 @@ export function FiveSixDashboard() {
               )}
 
             </div>
-
-            {/* Sticky Footer for Forms */}
-            {(activeDrawer === 'add_borrower' || activeDrawer === 'record_loan' || activeDrawer === 'record_payment') && (
-              <div className="p-4 pt-3 border-t border-slate-100 bg-white pb-safe shrink-0">
-                {activeDrawer === 'add_borrower' && (
-                  <Button 
-                    type="submit"
-                    form="add-borrower-form"
-                    disabled={isSubmitting}
-                    className="w-full h-12 text-white font-black rounded-2xl flex items-center justify-center text-xs border-none cursor-pointer"
-                    style={{ backgroundColor: theme.primary }}
-                  >
-                    {isSubmitting ? <Loader2 className="h-4.5 w-4.5 animate-spin" /> : "I-save ang Borrower"}
-                  </Button>
-                )}
-                {activeDrawer === 'record_loan' && (
-                  <Button 
-                    type="submit"
-                    form="record-loan-form"
-                    disabled={isSubmitting}
-                    className="w-full h-12 text-white font-black rounded-2xl flex items-center justify-center text-xs border-none cursor-pointer"
-                    style={{ backgroundColor: theme.primary }}
-                  >
-                    {isSubmitting ? <Loader2 className="h-4.5 w-4.5 animate-spin" /> : "I-disburse ang Pautang"}
-                  </Button>
-                )}
-                {activeDrawer === 'record_payment' && (
-                  <Button 
-                    type="submit"
-                    form="record-payment-form"
-                    disabled={isSubmitting}
-                    className="w-full h-12 text-white font-black rounded-2xl flex items-center justify-center text-xs border-none cursor-pointer"
-                    style={{ backgroundColor: theme.secondary }}
-                  >
-                    {isSubmitting ? <Loader2 className="h-4.5 w-4.5 animate-spin" /> : "I-rehistro ang Bayad"}
-                  </Button>
-                )}
-              </div>
-            )}
 
           </div>
         </div>
