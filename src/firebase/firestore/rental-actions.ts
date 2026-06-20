@@ -283,18 +283,15 @@ export async function deleteRentalBooking(
 
     // 5. Audit Log
     const { logAuditEvent } = await import('@/firebase/firestore/audit-actions');
-    await logAuditEvent(tenantId, {
-      action: 'delete',
-      module: 'rental',
-      targetId: bookingId,
-      targetName: `Booking for ${booking.customerName} - ${booking.itemName}`,
-      performedBy: userId,
-      performedByName: userName,
-      details: {
+    await logAuditEvent(tenantId, userId, userName, {
+      type: 'void_transaction',
+      description: `Voided Rental Booking: ${booking.customerName} - ${booking.itemName}`,
+      meta: {
+        module: 'rental',
+        targetId: bookingId,
         totalCost: booking.totalCost,
         status: booking.status,
-        paymentStatus: booking.paymentStatus,
-        reason: 'User deleted/voided rental booking via Dashboard'
+        reason: 'User deleted/voided booking via Dashboard'
       }
     });
   });

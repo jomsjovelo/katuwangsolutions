@@ -238,19 +238,16 @@ export async function deleteTrip(
 
     // Audit Log
     const { logAuditEvent } = await import('@/firebase/firestore/audit-actions');
-    await logAuditEvent(tenantId, {
-      action: 'delete',
-      module: 'logistics',
-      targetId: tripId,
-      targetName: `Trip: ${tripData.origin} to ${tripData.destination}`,
-      performedBy: userId,
-      performedByName: userName,
-      details: {
+    await logAuditEvent(tenantId, userId, userName, {
+      type: 'void_sale', // Reusing void_sale for now
+      description: `Voided Trip: ${tripData.origin} to ${tripData.destination}`,
+      meta: {
+        module: 'logistics',
+        targetId: tripId,
         driver: tripData.driverName,
         status: tripData.status,
         deliveryFee,
-        tripExpenses,
-        reason: 'User deleted/voided trip via Dashboard'
+        tripExpenses
       }
     });
   });

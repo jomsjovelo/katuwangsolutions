@@ -7,7 +7,9 @@ export type AuditEventType =
   | 'add_staff' 
   | 'remove_staff' 
   | 'module_changed'
-  | 'void_sale';
+  | 'void_sale'
+  | 'delete_record'
+  | 'void_transaction';
 
 export interface AuditEventPayload {
   type: AuditEventType;
