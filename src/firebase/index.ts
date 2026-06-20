@@ -1,7 +1,7 @@
 'use client';
 
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { getFirestore, Firestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
+import { getFirestore, Firestore, initializeFirestore, memoryLocalCache } from 'firebase/firestore';
 import { getAuth, Auth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { firebaseConfig } from './config';
 
@@ -13,9 +13,9 @@ export function initializeFirebase() {
   if (getApps().length === 0) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
-    // Initialize Firestore with Multi-Tab Offline Persistence
+    // Initialize Firestore with Memory Cache to avoid IndexedDB corruption errors during development
     db = initializeFirestore(app, {
-      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+      localCache: memoryLocalCache()
     });
     
     // We wrap browser APIs in a try/catch or typeof window check to prevent SSR crashes

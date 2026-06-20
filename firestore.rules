@@ -44,7 +44,8 @@ service cloud.firestore {
     match /tenants/{tenantId} {
       // Allow any authenticated user to fetch basic tenant metadata (needed for AuthGuard verification)
       // Strict data isolation is enforced on the subcollections.
-      allow read: if isAuthenticated();
+      allow get: if isAuthenticated();
+      allow list: if isMasterAdmin();
       
       // Allow users to create their own tenant document
       allow create: if isAuthenticated() && request.auth.uid == request.resource.data.ownerUid;
@@ -93,7 +94,8 @@ service cloud.firestore {
       allow create: if isAuthenticated() && request.auth.uid == userId;
       
       allow update: if isAuthenticated() && (
-        request.auth.uid == userId || isMasterAdmin()
+        request.auth.uid == userId || isMasterAdmin() ||
+        request.auth.uid == resource.data.enterpriseOwnerUid
       ) && (
         isMasterAdmin() ||
         !('businessCode' in resource.data) ||
@@ -106,16 +108,20 @@ service cloud.firestore {
       allow get: if isAuthenticated() && (
         isMasterAdmin() ||
         request.auth.uid == userId ||
-        (resource != null && 'tenantId' in resource.data && resource.data.tenantId != null && hasTenantAccess(resource.data.tenantId))
+        (resource != null && 'tenantId' in resource.data && resource.data.tenantId != null && resource.data.tenantId != '' && hasTenantAccess(resource.data.tenantId)) ||
+        (resource != null && 'enterpriseOwnerUid' in resource.data && request.auth.uid == resource.data.enterpriseOwnerUid)
       );
       
       // Allow tenant owners/staff to list users belonging to their own tenant
       // (needed for the staff management list in ProfileTab)
       allow list: if isMasterAdmin() || (
         isAuthenticated() &&
-        resource != null &&
-        'tenantId' in resource.data &&
-        hasTenantAccess(resource.data.tenantId)
+        (
+          // Store Owners can list all staff they own
+          resource.data.enterpriseOwnerUid == request.auth.uid ||
+          // Existing staff can list their co-workers in the same store
+          resource.data.tenantId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId
+        )
       );
     }
 

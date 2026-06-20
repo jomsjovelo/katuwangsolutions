@@ -28,3 +28,40 @@ export async function generateUniqueReferralCode(db: Firestore): Promise<string>
 
   return referralCode;
 }
+
+/**
+ * Universally processes a referral payout of exactly 10 points.
+ * Call this inside a transaction, passing the transaction object.
+ */
+export async function processUniversalReferral(
+  db: Firestore, 
+  transaction: any, 
+  referredByCode: string, 
+  referredEntityId: string, 
+  referredEntityType: 'store' | 'staff',
+  rewardAmount: number = 10
+) {
+  const { collection, query, where, getDocs, doc, serverTimestamp, increment } = await import('firebase/firestore');
+
+  const usersRef = collection(db, 'users');
+  const q = query(usersRef, where('referralCode', '==', referredByCode));
+  const querySnapshot = await getDocs(q);
+
+  if (!querySnapshot.empty) {
+    const referrerDoc = querySnapshot.docs[0];
+    const historyRef = doc(collection(db, 'users', referrerDoc.id, 'referral_history'));
+    
+    transaction.update(referrerDoc.ref, {
+      referralEarnings: increment(rewardAmount),
+      availableBalance: increment(rewardAmount),
+      updatedAt: serverTimestamp()
+    });
+    
+    transaction.set(historyRef, {
+      amount: rewardAmount,
+      referredEntityId: referredEntityId,
+      entityType: referredEntityType,
+      timestamp: serverTimestamp()
+    });
+  }
+}

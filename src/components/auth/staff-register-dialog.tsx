@@ -35,6 +35,7 @@ import { registerStaff } from '@/firebase/firestore/staff-actions';
 const staffRegisterSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
+  confirmPassword: z.string().min(1, 'Please confirm your password'),
   businessCode: z.string().min(7, 'Business code must be exactly 7 characters').max(7, 'Business code must be exactly 7 characters'),
   fullName: z.string().min(2, 'Kailangan ang buong pangalan mo'),
   birthday: z.string().min(1, 'Kailangan ang birthday mo').refine(val => {
@@ -49,6 +50,9 @@ const staffRegisterSchema = z.object({
   }, { message: 'Kailangan ay 18 years old pataas upang makapag-register.' }),
   gender: z.enum(['Lalaki', 'Babae', 'Iba pa', 'Prefer not to say']),
   address: z.string().min(5, 'Kailangan ng kumpletong address'),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Hindi magkapareho ang passwords.",
+  path: ["confirmPassword"],
 });
 
 type StaffRegisterFormValues = z.infer<typeof staffRegisterSchema>;
@@ -73,6 +77,7 @@ export function StaffRegisterDialog({ children }: { children?: React.ReactNode }
     defaultValues: {
       email: '',
       password: '',
+      confirmPassword: '',
       businessCode: urlCode || '',
       fullName: '',
       birthday: '',
@@ -107,6 +112,7 @@ export function StaffRegisterDialog({ children }: { children?: React.ReactNode }
   const onSubmit = async (data: StaffRegisterFormValues) => {
     try {
       setAuthError(null);
+      const katuwangRef = (localStorage.getItem('katuwang_ref') || '').toUpperCase();
       await registerStaff(
         data.email, 
         data.password, 
@@ -114,7 +120,8 @@ export function StaffRegisterDialog({ children }: { children?: React.ReactNode }
         data.fullName,
         data.birthday,
         data.gender,
-        data.address
+        data.address,
+        katuwangRef.length === 7 ? katuwangRef : undefined
       );
       
       // Force a hard navigation to dashboard to guarantee AuthGuard sees the clean persisted auth state
@@ -263,6 +270,25 @@ export function StaffRegisterDialog({ children }: { children?: React.ReactNode }
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-xs font-bold uppercase tracking-widest text-slate-400">Password</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="password" 
+                      placeholder="••••••••" 
+                      autoComplete="new-password"
+                      className="h-12 rounded-xl border-slate-200 bg-slate-50 focus-visible:ring-primary focus-visible:ring-offset-2" 
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage className="text-xs font-bold" />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="confirmPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs font-bold uppercase tracking-widest text-slate-400">I-type Ulit ang Password</FormLabel>
                   <FormControl>
                     <Input 
                       type="password" 

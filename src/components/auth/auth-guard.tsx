@@ -84,8 +84,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         getDoc(adminRef).then((snap) => {
           const isUserAdmin = snap.exists();
           setIsAdmin(isUserAdmin);
-          // Routing will be handled by the next effect trigger since isAdmin changed
-          setChecking(false);
+          // Only drop checking if admin. For normal users, wait for userProfile/tenant fetch.
+          if (isUserAdmin) {
+            setChecking(false);
+          }
         }).catch((err) => {
           console.error('Admin check error:', err);
           setIsAdmin(false);
@@ -116,7 +118,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         const isAuthorizedForPersisted = persistedTenant && 
           (persistedTenant.ownerUid === user.uid || (persistedTenant.staffUids || []).includes(user.uid));
 
-        if (persistedTenant && isAuthorizedForPersisted) {
+        if (userData.approvalStatus === 'pending_owner' || userData.approvalStatus === 'pending_admin' || userData.approvalStatus === 'pending') {
+          // If staff is pending, we don't need to fetch tenant. Drop checking immediately.
+          setChecking(false);
+          setLoading(false);
+        } else if (persistedTenant && isAuthorizedForPersisted) {
           setTenantId(persistedTenant.id);
         } else if (userData.tenantId) {
           setTenantId(userData.tenantId);
@@ -259,9 +265,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   // 2. Pending Activation View
   const isOwnerPending = activeTenant?.subscriptionStatus === 'pending';
-  const isStaffPending = userProfile?.role === 'staff' && userProfile?.subscriptionStatus === 'pending';
+  const isStaffPendingOwner = (userProfile?.role === 'guest' || userProfile?.role === 'pending_staff' || userProfile?.role === 'staff') && userProfile?.approvalStatus === 'pending_owner';
+  const isStaffPendingAdmin = (userProfile?.role === 'guest' || userProfile?.role === 'pending_staff' || userProfile?.role === 'staff') && userProfile?.approvalStatus === 'pending_admin';
 
-  if ((isOwnerPending || isStaffPending) && !isPublicRoute && !isAdmin) {
+  if ((isOwnerPending || isStaffPendingOwner || isStaffPendingAdmin) && !isPublicRoute && !isAdmin) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-8 text-center">
         <div className="p-6 bg-white rounded-[24px] shadow-2xl border border-amber-100 flex flex-col items-center w-full max-w-sm">
@@ -270,8 +277,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           </div>
           <h1 className="text-2xl font-bold text-slate-900 mb-2">Pending Verification</h1>
           <p className="text-sm font-medium text-slate-600 mb-6 max-w-sm mx-auto leading-relaxed">
-            {isStaffPending ? (
-              <>Your account for <strong>{activeTenant?.name}</strong> is waiting for verification. Pay ₱99 below, OR wait for your Store Owner to pay for your access.</>
+            {isStaffPendingOwner ? (
+              <>Your account is waiting for <strong>Store Owner</strong> approval.</>
+            ) : isStaffPendingAdmin ? (
+              <>Your account is waiting for <strong>System Admin</strong> activation.</>
             ) : (
               <>Your business <strong>{activeTenant?.name}</strong> is waiting for payment verification.</>
             )}

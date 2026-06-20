@@ -29,104 +29,107 @@ export async function loginUser(email: string, password: string) {
  * Validates the code, creates the auth account, and securely links the profile to the tenant.
  */
 export async function registerStaff(
-  email: string, 
-  password: string, 
+  email: string,
+  password: string,
   businessCode: string,
   fullName?: string,
   birthday?: string,
   gender?: string,
-  address?: string
+  address?: string,
+  referredBy?: string
 ) {
-  const { auth, db } = initializeFirebase();
-
-  // 1. Validate business code
-  const upperBusinessCode = businessCode.toUpperCase();
-  const codeRef = doc(db, 'business_codes', upperBusinessCode);
-  const codeSnap = await getDoc(codeRef);
-  
-  if (!codeSnap.exists()) {
-    throw new Error('Invalid Business Code. Please check the code provided by your Store Owner.');
-  }
-
-  let ownerUid = codeSnap.data().ownerUid;
-  const fallbackTenantId = codeSnap.data().tenantId;
-
-  if (!ownerUid && fallbackTenantId) {
-    const fallbackSnap = await getDoc(doc(db, 'tenants', fallbackTenantId));
-    if (fallbackSnap.exists()) {
-      ownerUid = fallbackSnap.data().ownerUid;
-    }
-  }
-
-  if (!ownerUid) {
-    throw new Error('Invalid Business Code. Could not determine store owner.');
-  }
-
-  // Find all tenants for this owner
-  const { getDocs, query, collection, where } = await import('firebase/firestore');
-  const tenantsQuery = query(collection(db, 'tenants'), where('ownerUid', '==', ownerUid));
-  const tenantsSnap = await getDocs(tenantsQuery);
-  const ownerTenants = tenantsSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
-
-  if (ownerTenants.length === 0) {
-    throw new Error('Store Owner has no active stores.');
-  }
-
-  let assignedTenantId = '';
-  let assignedModuleType = '';
-  let assignedRole = 'pending_staff';
-
-  if (ownerTenants.length === 1) {
-    assignedTenantId = ownerTenants[0].id;
-    assignedModuleType = ownerTenants[0].moduleType || 'rental';
-    assignedRole = 'staff';
-  }
+  const { db } = initializeFirebase();
 
   try {
-    // 2. Create the user in Auth
-    const { createUserWithEmailAndPassword } = await import('firebase/auth');
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const uid = userCredential.user.uid;
-    const nameFromEmail = email.split('@')[0];
+    // 1. Verify Business Code first before Auth
+    const codeSnap = await getDoc(doc(db, 'business_codes', businessCode.toUpperCase()));
+    if (!codeSnap.exists()) {
+      throw new Error('Invalid Business Code. Please check and try again.');
+    }
 
-    // 3. Atomic Database Setup
+    let ownerUid = codeSnap.data().ownerUid;
+    const fallbackTenantId = codeSnap.data().tenantId;
+
     try {
-      await runTransactionResilient(db, async (transaction) => {
-        const userRef = doc(db, 'users', uid);
-        
-        // Create User Profile
-        transaction.set(userRef, {
-          uid: uid,
-          fullName: fullName || nameFromEmail,
-          email: email,
-          personalPhone: '',
-          birthday: birthday || '',
-          gender: gender || 'Prefer not to say',
-          address: address || '',
-          role: assignedRole,
-          tenantId: assignedTenantId,
-          moduleType: assignedModuleType,
-          approvalStatus: 'pending',
-          enterpriseOwnerUid: ownerUid,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
+      // 2. Create the user in Auth FIRST so we have permission to read tenants
+      const { createUserWithEmailAndPassword } = await import('firebase/auth');
+      const { auth } = initializeFirebase();
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const uid = userCredential.user.uid;
+
+      if (!ownerUid && fallbackTenantId) {
+        const fallbackSnap = await getDoc(doc(db, 'tenants', fallbackTenantId));
+        if (fallbackSnap.exists()) {
+          ownerUid = fallbackSnap.data().ownerUid;
+        }
+      }
+
+      if (!ownerUid) {
+        await userCredential.user.delete().catch(console.error);
+        throw new Error('Invalid Business Code. Could not determine store owner.');
+      }
+
+      let assignedTenantId = fallbackTenantId || '';
+      let assignedModuleType = 'rental';
+      let assignedRole = 'pending_staff';
+
+      if (assignedTenantId) {
+        const tenantSnap = await getDoc(doc(db, 'tenants', assignedTenantId));
+        if (tenantSnap.exists()) {
+          assignedModuleType = tenantSnap.data().moduleType || 'rental';
+        }
+      }
+
+      // Generate unique referral code for this staff member
+      const referralCode = await generateUniqueReferralCode(db);
+
+      // 3. Atomic Database Setup
+      try {
+        await runTransactionResilient(db, async (transaction) => {
+          const userRef = doc(db, 'users', uid);
+          const refCodeDoc = doc(collection(db, 'referral_codes'), referralCode);
+          
+          // Claim the referral code
+          transaction.set(refCodeDoc, { uid: uid });
+
+          // Create User Profile
+          transaction.set(userRef, {
+            uid: uid,
+            fullName: fullName || email.split('@')[0],
+            email: email,
+            personalPhone: '',
+            birthday: birthday || '',
+            gender: gender || 'Prefer not to say',
+            address: address || '',
+            role: assignedRole,
+            tenantId: assignedTenantId,
+            moduleType: assignedModuleType,
+            approvalStatus: 'pending_owner',
+            enterpriseOwnerUid: ownerUid,
+            referralCode: referralCode,
+            referralEarnings: 0,
+            referredBy: referredBy || null,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
         });
 
-      });
-
-      return { success: true, user: userCredential.user };
-    } catch (transactionError: any) {
-      // Rollback Auth user if DB setup fails
-      await userCredential.user.delete().catch(console.error);
-      throw transactionError;
+        return { success: true, user: userCredential.user };
+      } catch (transactionError: any) {
+        // Rollback Auth user if DB setup fails
+        await userCredential.user.delete().catch(console.error);
+        throw transactionError;
+      }
+    } catch (e) {
+      const error = e as Error & { code?: string };
+      if (error.code === 'auth/email-already-in-use') {
+        throw new Error('An account with this email already exists. Please log in directly.');
+      }
+      console.error('Staff registration failed:', error);
+      throw new Error(error.message || 'Registration failed. Please try again.');
     }
   } catch (e) {
-      const error = e as Error & { code?: string };
-    if (error.code === 'auth/email-already-in-use') {
-      throw new Error('An account with this email already exists. Please log in directly.');
-    }
-    console.error('Staff registration failed:', error);
-    throw new Error(error.message || 'Registration failed. Please try again.');
+    throw e;
   }
 }
 /**
@@ -398,18 +401,9 @@ export async function approveStaff(staffUid: string, tenantId: string, moduleTyp
 
   await runTransactionResilient(db, async (transaction) => {
     const userRef = doc(db, 'users', staffUid);
-    const tenantRef = doc(db, 'tenants', tenantId);
-
-    // Add to tenant
-    transaction.update(tenantRef, {
-      staffUids: arrayUnion(staffUid),
-      updatedAt: serverTimestamp()
-    });
-
     // Update user profile
     transaction.update(userRef, {
-      role: 'staff',
-      approvalStatus: 'approved',
+      approvalStatus: 'pending_admin',
       tenantId: tenantId,
       moduleType: moduleType,
       updatedAt: serverTimestamp()
@@ -428,6 +422,12 @@ export async function rejectStaff(staffUid: string) {
 
   await runTransactionResilient(db, async (transaction) => {
     const userRef = doc(db, 'users', staffUid);
+    const snap = await transaction.get(userRef);
+    
+    if (!snap.exists()) {
+      console.warn(`Attempted to reject staff ${staffUid} but record does not exist.`);
+      return;
+    }
     
     // Set to rejected, effectively locking them out
     transaction.update(userRef, {

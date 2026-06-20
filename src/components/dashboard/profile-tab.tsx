@@ -25,6 +25,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { BrandLogo } from '@/components/ui/brand-logo';
+import Image from 'next/image';
 import { Badge } from "@/components/ui/badge";
 import { useTenantStore } from '@/store/use-tenant-store';
 import { WithdrawReferralSheet } from '@/components/common/withdraw-referral-sheet';
@@ -151,25 +153,25 @@ export function ProfileTab() {
   // 2. Fetch Active Staff List (role == staff & tenantId == tenantId)
   // Only owners can manage staff — non-owners skip this subscription
   useEffect(() => {
-    if (!currentTenant || !profile || profile.role !== 'owner') return;
+    if (!user || !currentTenant || !profile || profile.role !== 'owner') return;
 
     const staffQuery = query(
       collection(db, 'users'),
       where('tenantId', '==', currentTenant.id),
-      where('role', '==', 'staff')
+      where('role', '==', 'staff'),
+      where('enterpriseOwnerUid', '==', user.uid)
     );
 
     const unsubscribe = onSnapshot(staffQuery, (snapshot) => {
       const staffList = snapshot.docs.map(d => d.data());
       setActiveStaff(staffList);
     }, (err) => {
-      // Rule not yet deployed or user not an owner — fail silently
       console.warn('ProfileTab: Staff list unavailable:', err.message);
       setActiveStaff([]);
     });
 
     return () => unsubscribe();
-  }, [currentTenant, profile?.role]);
+  }, [currentTenant, profile?.role, user, db]);
 
   useEffect(() => {
     if (!user || !currentTenant || profile?.role !== 'owner') return;
@@ -177,7 +179,8 @@ export function ProfileTab() {
     const pendingQuery = query(
       collection(db, 'users'),
       where('tenantId', '==', currentTenant.id),
-      where('approvalStatus', '==', 'pending')
+      where('approvalStatus', '==', 'pending_owner'),
+      where('enterpriseOwnerUid', '==', user.uid)
     );
 
     const unsubscribe = onSnapshot(pendingQuery, (snapshot) => {
@@ -449,6 +452,8 @@ export function ProfileTab() {
     }
   };
 
+  const [showStaffPaymentModal, setShowStaffPaymentModal] = useState(false);
+  const [staffToPayFor, setStaffToPayFor] = useState<any>(null);
   const [staffToApprove, setStaffToApprove] = useState<any>(null);
   const [approveLoading, setApproveLoading] = useState(false);
 
@@ -457,7 +462,9 @@ export function ProfileTab() {
     try {
       const { approveStaff } = await import('@/firebase/firestore/staff-actions');
       await approveStaff(staffUid, tenantId, moduleType);
-      setStaffToApprove(null);
+      setShowStaffPaymentModal(false);
+      setStaffToPayFor(null);
+      alert('Success! Staff is now waiting for Admin verification of your GCash receipt.');
     } catch (e: any) {
       alert(e.message);
     } finally {
@@ -467,9 +474,8 @@ export function ProfileTab() {
 
   const handleApproveStaff = async (staff: any) => {
     if (allTenants.length === 1) {
-      if (confirm(`Approve ${staff.fullName} for ${allTenants[0].name}?`)) {
-        await executeApprove(staff.uid, allTenants[0].id, allTenants[0].moduleType || 'rental');
-      }
+      setStaffToPayFor({ staff, tenantId: allTenants[0].id, moduleType: allTenants[0].moduleType || 'rental' });
+      setShowStaffPaymentModal(true);
     } else {
       setStaffToApprove(staff);
     }
@@ -795,17 +801,22 @@ export function ProfileTab() {
             )}
 
             {/* Pending Staff Approvals List */}
-            {pendingStaffApprovals.length > 0 && (
-              <Card className="bg-white border-blue-200 shadow-sm rounded-[24px] overflow-hidden">
-                <CardHeader className="p-4 pb-3 bg-blue-50/50">
-                  <CardTitle className="text-xs font-black uppercase tracking-widest text-blue-600 flex items-center gap-2">
-                    <UserPlus className="h-4 w-4" /> Pending Approvals
-                  </CardTitle>
-                  <CardDescription className="text-[10px] text-blue-500 font-medium mt-1">
-                    Mga staff na gumamit ng iyong code at naghihintay ng approval.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-4 space-y-3">
+            <Card className="bg-white border-blue-200 shadow-sm rounded-[24px] overflow-hidden">
+              <CardHeader className="p-4 pb-3 bg-blue-50/50">
+                <CardTitle className="text-xs font-black uppercase tracking-widest text-blue-600 flex items-center gap-2">
+                  <UserPlus className="h-4 w-4" /> Pending Approvals
+                </CardTitle>
+                <CardDescription className="text-[10px] text-blue-500 font-medium mt-1">
+                  Mga staff na gumamit ng iyong code at naghihintay ng approval.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 space-y-3">
+                {pendingStaffApprovals.length === 0 ? (
+                  <div className="text-center py-6 text-slate-400 text-xs border border-dashed border-blue-100 rounded-2xl">
+                    <UserPlus className="h-7 w-7 mx-auto opacity-20 mb-1" />
+                    Walang pending na staff approval.
+                  </div>
+                ) : (
                   <div className="divide-y divide-slate-100">
                     {pendingStaffApprovals.map((staff, idx) => (
                       <div key={staff.uid || idx} className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 gap-3 first:pt-0 last:pb-0">
@@ -838,9 +849,9 @@ export function ProfileTab() {
                       </div>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                )}
+              </CardContent>
+            </Card>
             
             {/* Activity Log (Owner Only) */}
             <Card className="bg-white border-slate-200 shadow-sm rounded-[24px]">
@@ -897,6 +908,74 @@ export function ProfileTab() {
               </CardContent>
             </Card>
 
+        {/* Staff Payment Wall Dialog */}
+        <Dialog open={showStaffPaymentModal} onOpenChange={setShowStaffPaymentModal}>
+          <DialogContent className="sm:max-w-md rounded-[24px]">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-black text-slate-800">Complete Staff Payment</DialogTitle>
+              <DialogDescription className="text-slate-500 font-medium">
+                Send <strong>₱99.00</strong> via GCash or Maya to activate this staff account.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 flex justify-between items-center">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Amount Due</p>
+                  <p className="text-3xl font-black text-primary">₱99.00</p>
+                  <p className="text-[10px] text-slate-500 font-medium mt-0.5">per month</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Staff</p>
+                  <p className="text-sm font-bold text-slate-900">{staffToPayFor?.staff?.fullName || 'Unknown'}</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">How to Activate</p>
+                <div className="space-y-3">
+                  <div className="flex gap-3 items-start">
+                    <div className="h-6 w-6 rounded-full bg-primary text-white text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">1</div>
+                    <p className="text-sm text-slate-700 font-medium leading-snug">Send ₱99.00 to our GCash via the Messenger link below.</p>
+                  </div>
+                  <div className="flex gap-3 items-start">
+                    <div className="h-6 w-6 rounded-full bg-primary text-white text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">2</div>
+                    <p className="text-sm text-slate-700 font-medium leading-snug">Take a screenshot of your payment confirmation.</p>
+                  </div>
+                  <div className="flex gap-3 items-start">
+                    <div className="h-6 w-6 rounded-full bg-primary text-white text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">3</div>
+                    <p className="text-sm text-slate-700 font-medium leading-snug">Send the screenshot to our Facebook Page and click "I've sent my payment" below.</p>
+                  </div>
+                </div>
+              </div>
+              <a
+                href="https://m.me/KatuwangSolutions"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full h-12 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-md"
+                style={{ background: '#0099FF' }}
+              >
+                Open Messenger
+              </a>
+              <Button
+                onClick={() => staffToPayFor && executeApprove(staffToPayFor.staff.uid, staffToPayFor.tenantId, staffToPayFor.moduleType)}
+                disabled={approveLoading}
+                className="w-full h-12 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold"
+              >
+                {approveLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "I've sent my payment →"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <WithdrawReferralSheet 
+          open={withdrawOpen} 
+          onOpenChange={setWithdrawOpen} 
+          availableBalance={profile?.availableBalance || 0}
+          uid={user?.uid || ''}
+          userFullName={profile?.fullName || ''}
+          userEmail={user?.email || ''}
+          tenantName={currentTenant?.name || ''}
+          role={profile?.role || 'staff'}
+        />
           </section>
         )}
 
@@ -1043,8 +1122,11 @@ export function ProfileTab() {
             {allTenants.map((t) => (
               <button
                 key={t.id}
-                onClick={() => executeApprove(staffToApprove.uid, t.id, t.moduleType || 'rental')}
-                disabled={approveLoading}
+                onClick={() => {
+                  setStaffToPayFor({ staff: staffToApprove, tenantId: t.id, moduleType: t.moduleType || 'rental' });
+                  setStaffToApprove(null);
+                  setShowStaffPaymentModal(true);
+                }}
                 className="w-full flex flex-col items-start p-4 bg-slate-50 border border-slate-100 rounded-xl hover:bg-slate-100 hover:border-slate-300 transition-colors disabled:opacity-50 text-left"
               >
                 <span className="font-bold text-slate-800">{t.name}</span>
@@ -1061,6 +1143,46 @@ export function ProfileTab() {
             className="w-full h-12 rounded-xl font-bold bg-white text-slate-600 border-slate-200"
           >
             Cancel
+          </Button>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showStaffPaymentModal} onOpenChange={setShowStaffPaymentModal}>
+        <DialogContent className="sm:max-w-md rounded-[24px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-slate-800">Activate Staff Account</DialogTitle>
+            <DialogDescription className="text-slate-500 font-medium mt-1">
+              Please pay <strong>₱99.00</strong> to activate <strong className="text-slate-700">{staffToPayFor?.staff?.fullName}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 flex flex-col items-center space-y-4">
+            <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 text-sm text-amber-900 w-full font-medium">
+              1. Scan the QR code below or send to GCash/Maya.<br/>
+              2. Keep a screenshot of your receipt.<br/>
+              3. Click the button below to notify our Admin.<br/>
+              4. We will verify your payment and activate the staff.
+            </div>
+            <div className="relative w-48 h-48 bg-slate-50 rounded-xl overflow-hidden border border-slate-200">
+              <Image 
+                src="/images/gcash-qr.jpg" 
+                alt="Katuwang Solutions QR Code" 
+                fill 
+                className="object-contain"
+                unoptimized
+              />
+            </div>
+            <p className="text-xs text-slate-500 font-bold">Manual Mobile No: 09951665423</p>
+          </div>
+          <Button 
+            onClick={() => {
+              if (staffToPayFor) {
+                executeApprove(staffToPayFor.staff.uid, staffToPayFor.tenantId, staffToPayFor.moduleType);
+              }
+            }} 
+            disabled={approveLoading}
+            className="w-full h-12 rounded-xl font-bold bg-[#0099FF] text-white hover:bg-[#0099FF]/90"
+          >
+            {approveLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "I've sent my payment \u2192"}
           </Button>
         </DialogContent>
       </Dialog>

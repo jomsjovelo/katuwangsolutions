@@ -21,6 +21,8 @@ import { AdminTickets } from '@/components/admin/admin-tickets';
 import { AdminPnL } from '@/components/admin/admin-pnl';
 import { AdminWithdrawals } from '@/components/admin/admin-withdrawals';
 import { AdminOwnerRow, OwnerGroup } from '@/components/admin/admin-owner-row';
+import { AdminStaffApprovals } from '@/components/admin/admin-staff-approvals';
+import { AdminStaffDirectory } from '@/components/admin/admin-staff-directory';
 import { cn } from "@/lib/utils";
 import { 
   Table, 
@@ -64,7 +66,8 @@ import {
   Wallet,
   ChevronLeft,
   ChevronRight,
-  Database
+  Database,
+  UserCheck
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
@@ -84,7 +87,7 @@ export default function AdminKillSwitch() {
   
   const [search, setSearch] = useState("");
   const [showPendingOnly, setShowPendingOnly] = useState(false);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "directory" | "pnl" | "announcements" | "billing" | "activity" | "support" | "admins" | "settings" | "withdrawals">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "directory" | "staff_directory" | "pnl" | "announcements" | "billing" | "activity" | "support" | "admins" | "settings" | "withdrawals" | "staff">("dashboard");
   const [selectedTenant, setSelectedTenant] = useState<any | null>(null);
   const [mounted, setMounted] = useState(false);
   const [systemConfig, setSystemConfig] = useState<SystemConfig>({ promoPrice: 99, standardPrice: 199, enterprisePrice: 499 });
@@ -260,12 +263,14 @@ export default function AdminKillSwitch() {
   const NAV_TABS = [
     { key: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { key: 'directory', label: 'Tenant Directory', icon: Database },
+    { key: 'staff_directory', label: 'Staff Directory', icon: Users },
+    { key: 'staff', label: 'Staff Approvals', icon: UserCheck },
     { key: 'pnl', label: 'P&L', icon: TrendingUp },
     { key: 'announcements', label: 'Announcements', icon: Megaphone },
     { key: 'billing', label: 'Billing Logs', icon: Receipt },
     { key: 'support', label: 'Support', icon: LifeBuoy },
     { key: 'withdrawals', label: 'Withdrawals', icon: Wallet },
-    { key: 'admins', label: 'Manage Admins', icon: Users },
+    { key: 'admins', label: 'Manage Admins', icon: ShieldAlert },
     { key: 'settings', label: 'System Config', icon: Settings },
   ] as const;
 
@@ -317,6 +322,13 @@ export default function AdminKillSwitch() {
           </Button>
         ))}
       </div>
+
+      {/* ── STAFF DIRECTORY TAB ────────────────────────────────────────────── */}
+      {activeTab === 'staff_directory' && (
+        <div className="mb-6">
+          <AdminStaffDirectory />
+        </div>
+      )}
 
       {/* ── DASHBOARD TAB ──────────────────────────────────────────────────── */}
       {activeTab === 'dashboard' && (
@@ -504,7 +516,7 @@ export default function AdminKillSwitch() {
       {/* ── P&L TAB ──────────────────────────────────────────────────────── */}
       {activeTab === 'pnl' && <AdminPnL />}
 
-      {/* ── OTHER TABS ───────────────────────────────────────────────────── */}
+      {activeTab === 'staff' && <AdminStaffApprovals />}
       {activeTab === 'announcements' && <AdminAnnouncements />}
       {activeTab === 'billing' && <AdminBillingLogs />}
       {activeTab === 'support' && <AdminTickets />}
