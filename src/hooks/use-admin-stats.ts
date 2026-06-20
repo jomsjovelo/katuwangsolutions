@@ -14,7 +14,7 @@ export interface SystemStats {
   focCount: number;
 }
 
-export function useAdminStats() {
+export function useAdminStats(enabled: boolean = true) {
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +67,8 @@ export function useAdminStats() {
         focCount
       });
       setError(null);
-    } catch (err: any) {
+    } catch (e) {
+      const err = e as Error & { code?: string };
       console.error('Failed to load system stats:', err);
       setError(err.message);
     } finally {
@@ -76,8 +77,10 @@ export function useAdminStats() {
   }, []);
 
   useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+    if (enabled) {
+      fetchStats();
+    }
+  }, [fetchStats, enabled]);
 
   return { stats, loading, error, refreshStats: fetchStats };
 }

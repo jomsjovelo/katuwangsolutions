@@ -104,7 +104,8 @@ export function StaffRegisterDialog({ children }: { children?: React.ReactNode }
       
       // Force a hard navigation to dashboard to guarantee AuthGuard sees the clean persisted auth state
       window.location.href = '/dashboard';
-    } catch (error: any) {
+    } catch (e) {
+      const error = e as Error & { code?: string };
       if (error instanceof FirebaseError) {
         setAuthError(error.message);
       } else {

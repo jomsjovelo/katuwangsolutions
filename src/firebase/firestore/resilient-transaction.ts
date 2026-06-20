@@ -100,7 +100,8 @@ export async function runTransactionResilient(
 
   try {
     return await runTransaction(db, updateFunction);
-  } catch (error: any) {
+  } catch (e) {
+      const error = e as Error & { code?: string };
     const offlineCodes = ['unavailable', 'failed-precondition', 'offline', 'network-error'];
     const isOfflineErr = offlineCodes.some(
       (code: string) => error.code === code || error.message?.toLowerCase().includes(code)

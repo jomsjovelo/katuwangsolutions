@@ -67,7 +67,8 @@ export async function adjustStock(
     });
 
     return { success: true, newStock: updatedStock };
-  } catch (error: any) {
+  } catch (e) {
+      const error = e as Error & { code?: string };
     console.error('Inventory transaction failed:', error);
     throw new Error(error.message || 'Inventory update failed');
   }
@@ -206,7 +207,8 @@ export async function logInventoryAudit(
     });
 
     return { success: true, ...result };
-  } catch (error: any) {
+  } catch (e) {
+      const error = e as Error & { code?: string };
     console.error('Inventory audit failed:', error);
     throw new Error(error.message || 'Inventory audit failed');
   }

@@ -68,7 +68,8 @@ export function RentalDashboard() {
       });
       setItemName(''); setItemCategory(''); setItemRate(''); setItemQty('');
       showSuccess(`${itemName} naidagdag sa inventory!`);
-    } catch (error: any) {
+    } catch (e) {
+      const error = e as Error & { code?: string };
       showError(error?.message || 'Failed to add item. Please try again.');
     } finally {
       setIsAddingItem(false);
@@ -128,7 +129,8 @@ export function RentalDashboard() {
       setShowNewBookingModal(false);
       setShowReceipt(true);
       showSuccess(`Booking para kay ${bookingCustomer} naitala!`);
-    } catch (error: any) {
+    } catch (e) {
+      const error = e as Error & { code?: string };
       showError(error?.message || 'Failed to create booking. Please try again.');
     } finally {
       setIsAddingBooking(false);
@@ -148,7 +150,8 @@ export function RentalDashboard() {
       }
       await processRentalReturn(currentTenant.id, booking, method);
       showSuccess(`${booking.itemName} na-return ni ${booking.customerName}!`);
-    } catch (error: any) {
+    } catch (e) {
+      const error = e as Error & { code?: string };
       showError(error?.message || 'Failed to return item.');
     } finally {
       setReturningId(null);

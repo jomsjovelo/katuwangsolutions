@@ -99,7 +99,8 @@ export function BuildStackDashboard() {
 
       setDispatchQty('');
       setSelectedProductId('');
-    } catch (err: any) {
+    } catch (e) {
+      const err = e as Error & { code?: string };
       toast({
         title: "Error Dispatching",
         description: err.message || "An unknown error occurred.",

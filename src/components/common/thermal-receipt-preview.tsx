@@ -84,7 +84,8 @@ export function ThermalReceiptPreview({
         setBtSuccess(true);
         setTimeout(() => setBtSuccess(false), 3000);
       }
-    } catch (err: any) {
+    } catch (e) {
+      const err = e as Error & { code?: string };
       console.error(err);
       setBtError(err.message || "Failed to connect to Bluetooth printer.");
     } finally {

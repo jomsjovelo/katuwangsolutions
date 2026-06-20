@@ -62,7 +62,8 @@ export function AdminTenantDetails({ tenant, isOpen, onClose, updateNextBillingD
         const { auth } = initializeFirebase();
         await sendPasswordResetEmail(auth, tenant.ownerEmail);
         alert(`Password reset email sent successfully to ${tenant.ownerEmail}`);
-      } catch (error: any) {
+      } catch (e) {
+      const error = e as Error & { code?: string };
         console.error("Failed to send reset email:", error);
         alert(`Failed to send email: ${error.message}`);
       } finally {

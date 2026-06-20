@@ -8,7 +8,7 @@ export interface AdminTenant extends Tenant {
   ownerEmail?: string;
 }
 
-export function useAdminTenants() {
+export function useAdminTenants(enabled: boolean = true) {
   const [tenants, setTenants] = useState<AdminTenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +54,8 @@ export function useAdminTenants() {
         setLastVisible(currentLastVisible);
       }
       setError(null);
-    } catch (err: any) {
+    } catch (e) {
+      const err = e as Error & { code?: string };
       console.error('Error fetching admin tenants:', err);
       setError(err.message);
     } finally {
@@ -94,7 +95,8 @@ export function useAdminTenants() {
       // Reset pagination for search results
       setLastVisible(null);
       setPageStack([]);
-    } catch (err: any) {
+    } catch (e) {
+      const err = e as Error & { code?: string };
       console.error(err);
       setError(err.message);
     } finally {
@@ -103,8 +105,10 @@ export function useAdminTenants() {
   };
 
   useEffect(() => {
-    fetchTenants('initial');
-  }, []);
+    if (enabled) {
+      fetchTenants('initial');
+    }
+  }, [enabled]);
 
   const updateTenantStatus = async (tenant: AdminTenant, status: SubscriptionStatus) => {
     try {
@@ -128,6 +132,26 @@ export function useAdminTenants() {
           type: 'activation',
           timestamp: serverTimestamp()
         });
+
+        // Queue Activation Email via Firebase Trigger Email extension
+        if (tenant.ownerEmail) {
+          const mailRef = doc(collection(db, 'mail'));
+          batch.set(mailRef, {
+            to: tenant.ownerEmail,
+            message: {
+              subject: "Ang iyong Katuwang Account ay ACTIVE na! 🎉",
+              html: `
+                <h2>Kumusta ${tenant.name},</h2>
+                <p>Magandang balita! Ang iyong Katuwang account ay approved at active na.</p>
+                <p>Maaari mo nang magamit ang lahat ng features ng system.</p>
+                <br/>
+                <a href="https://katuwang.com/dashboard" style="display:inline-block;padding:10px 20px;background:#0ea5e9;color:white;text-decoration:none;border-radius:8px;font-weight:bold;">Pumunta sa Dashboard</a>
+                <br/><br/>
+                <p>Salamat sa pagtitiwala sa Katuwang!</p>
+              `
+            }
+          });
+        }
 
         // Process referral credit
         const anyTenant = tenant as any;
@@ -480,6 +504,7 @@ export function useAdminTenants() {
     searchTenants, 
     hasPrevPage: pageStack.length > 0,
     hasNextPage: !!lastVisible,
+    pendingCount: tenants.filter(t => t.subscriptionStatus === 'pending').length,
     updateTenantStatus, 
     updateTenantPricing, 
     toggleTenantModule, 

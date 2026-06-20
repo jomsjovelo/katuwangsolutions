@@ -203,7 +203,8 @@ export class EscPosBluetoothDriver {
           offset += chunkLimit;
           // Brief sleep gap to prevent BLE hardware buffer overflows
           await new Promise(resolve => setTimeout(resolve, 15));
-        } catch (error: any) {
+        } catch (e) {
+      const error = e as Error & { code?: string };
           if (chunkLimit === 512) {
             console.warn("MTU limit hit. Falling back to safe 20-byte chunks.");
             chunkLimit = 20; // fallback MTU

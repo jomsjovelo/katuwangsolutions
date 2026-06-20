@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Logo } from '@/components/ui/logo';
 import { ChevronLeft } from 'lucide-react';
@@ -57,6 +57,30 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
 
   const update = (patch: Partial<typeof data>) => setData((d) => ({ ...d, ...patch }));
 
+  useEffect(() => {
+    const saved = localStorage.getItem('katuwang_onboarding_draft');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.step && parsed.data) {
+          if (['payment', 'pending', 'success'].includes(parsed.step)) return;
+          setStep(parsed.step);
+          setData((d) => ({ ...d, ...parsed.data }));
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (['payment', 'pending', 'success'].includes(step)) {
+      localStorage.removeItem('katuwang_onboarding_draft');
+    } else {
+      localStorage.setItem('katuwang_onboarding_draft', JSON.stringify({ step, data }));
+    }
+  }, [step, data]);
+
   const next = async () => {
     setError(null);
     const all: Step[] = ['mode', 'apps', 'business', 'account', 'payment', 'pending', 'success'];
@@ -69,7 +93,8 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
         const referredBy = typeof window !== 'undefined' ? localStorage.getItem('katuwang_ref') : null;
         await registerNewTenant({ ...data, referredBy });
         setStep('payment');
-      } catch (err: any) {
+      } catch (e) {
+      const err = e as Error & { code?: string };
         setError(err.message || 'Failed to create account. Please try again.');
         return;
       } finally {

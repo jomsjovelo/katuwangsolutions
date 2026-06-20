@@ -79,10 +79,11 @@ interface SystemConfig {
 
 export default function AdminKillSwitch() {
   const { user, loading: authLoading } = useUser();
-  const { tenants, loading, error, fetchTenants, searchTenants, hasNextPage, hasPrevPage, updateTenantStatus, updateTenantPricing, updateNextBillingDate, processTenantRenewal, toggleTenantModule, annihilateTenant } = useAdminTenants();
-  const { stats, loading: statsLoading } = useAdminStats();
+  const { tenants, loading, error, fetchTenants, searchTenants, hasNextPage, hasPrevPage, updateTenantStatus, updateTenantPricing, updateNextBillingDate, processTenantRenewal, toggleTenantModule, annihilateTenant, pendingCount } = useAdminTenants(!!user);
+  const { stats, loading: statsLoading } = useAdminStats(!!user);
   
   const [search, setSearch] = useState("");
+  const [showPendingOnly, setShowPendingOnly] = useState(false);
   const [activeTab, setActiveTab] = useState<"dashboard" | "directory" | "pnl" | "announcements" | "billing" | "activity" | "support" | "admins" | "settings" | "withdrawals">("dashboard");
   const [selectedTenant, setSelectedTenant] = useState<any | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -104,7 +105,9 @@ export default function AdminKillSwitch() {
 
   const groupedTenants = React.useMemo(() => {
     const groups: Record<string, OwnerGroup> = {};
-    tenants.forEach(t => {
+    const filteredTenants = showPendingOnly ? tenants.filter(t => t.subscriptionStatus === 'pending') : tenants;
+    
+    filteredTenants.forEach(t => {
       const groupId = t.ownerEmail || t.ownerUid || t.id;
       if (!groups[groupId]) {
         groups[groupId] = {
@@ -117,7 +120,7 @@ export default function AdminKillSwitch() {
       groups[groupId].tenants.push(t);
     });
     return Object.values(groups);
-  }, [tenants]);
+  }, [tenants, showPendingOnly]);
 
   const router = useRouter();
 
@@ -200,7 +203,8 @@ export default function AdminKillSwitch() {
             try {
               await loginUser(adminEmail, adminPassword);
               // Router will automatically refresh since AuthGuard handles routing logic
-            } catch (error: any) {
+            } catch (e) {
+      const error = e as Error & { code?: string };
               if (error instanceof FirebaseError && error.code === 'auth/invalid-credential') {
                 setAdminAuthError('Invalid system credentials.');
               } else {
@@ -446,6 +450,22 @@ export default function AdminKillSwitch() {
                 </div>
               </div>
               
+              <div className="flex items-center gap-4 mb-6">
+                <Switch 
+                  checked={showPendingOnly} 
+                  onCheckedChange={setShowPendingOnly} 
+                  id="pending-filter"
+                />
+                <label htmlFor="pending-filter" className="text-sm font-bold text-slate-700 cursor-pointer flex items-center gap-2">
+                  Show Pending Only
+                  {pendingCount > 0 && (
+                    <Badge variant="destructive" className="ml-1 px-1.5 py-0 rounded-full text-[10px]">
+                      {pendingCount}
+                    </Badge>
+                  )}
+                </label>
+              </div>
+
               <div className="flex items-center justify-between mb-12">
                 <Button 
                   variant="outline" 

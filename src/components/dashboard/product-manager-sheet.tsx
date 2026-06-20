@@ -87,7 +87,8 @@ export function ProductManagerSheet({ isOpen, onOpenChange, productToEdit }: Pro
       }
       
       onOpenChange(false);
-    } catch (err: any) {
+    } catch (e) {
+      const err = e as Error & { code?: string };
       setError(err.message || 'May error sa pag-save ng produkto.');
     } finally {
       setLoading(false);
@@ -105,7 +106,8 @@ export function ProductManagerSheet({ isOpen, onOpenChange, productToEdit }: Pro
       setLoading(true);
       await deleteProduct(currentTenant.id, productToEdit.id);
       onOpenChange(false);
-    } catch (err: any) {
+    } catch (e) {
+      const err = e as Error & { code?: string };
       setError(err.message || 'May error sa pag-delete ng produkto.');
     } finally {
       setLoading(false);

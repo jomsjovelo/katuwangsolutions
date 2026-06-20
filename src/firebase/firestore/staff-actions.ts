@@ -14,7 +14,8 @@ export async function loginUser(email: string, password: string) {
     const { signInWithEmailAndPassword } = await import('firebase/auth');
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     return { success: true, user: userCredential.user };
-  } catch (error: any) {
+  } catch (e) {
+      const error = e as Error & { code?: string };
     if (error.code === 'auth/invalid-credential') {
       throw new Error('Invalid email or password.');
     }
@@ -98,7 +99,8 @@ export async function registerStaff(
       await userCredential.user.delete().catch(console.error);
       throw transactionError;
     }
-  } catch (error: any) {
+  } catch (e) {
+      const error = e as Error & { code?: string };
     if (error.code === 'auth/email-already-in-use') {
       throw new Error('An account with this email already exists. Please log in directly.');
     }

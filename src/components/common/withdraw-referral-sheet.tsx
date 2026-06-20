@@ -78,7 +78,8 @@ export function WithdrawReferralSheet({
         accountNumber
       );
       setStep(3); // Success step
-    } catch (err: any) {
+    } catch (e) {
+      const err = e as Error & { code?: string };
       setError(err.message || "Failed to submit withdrawal request.");
     } finally {
       setIsSubmitting(false);

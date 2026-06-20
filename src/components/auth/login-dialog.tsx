@@ -42,6 +42,12 @@ export function LoginDialog({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  
+  // Forgot Password States
+  const [view, setView] = useState<'login' | 'forgot'>('login');
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetMessage, setResetMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -58,7 +64,8 @@ export function LoginDialog({ children }: { children: React.ReactNode }) {
       
       // Force a hard navigation to dashboard to guarantee AuthGuard sees the clean persisted auth state
       window.location.href = '/dashboard';
-    } catch (error: any) {
+    } catch (e) {
+      const error = e as Error & { code?: string };
       if (error instanceof FirebaseError) {
         switch (error.code) {
           case 'auth/invalid-credential':
@@ -76,8 +83,49 @@ export function LoginDialog({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail || !resetEmail.includes('@')) {
+      setResetMessage({ type: 'error', text: 'Mangyaring maglagay ng valid na email address.' });
+      return;
+    }
+    
+    try {
+      setResetLoading(true);
+      setResetMessage(null);
+      const { getAuth, sendPasswordResetEmail } = await import('firebase/auth');
+      await sendPasswordResetEmail(getAuth(), resetEmail);
+      setResetMessage({ 
+        type: 'success', 
+        text: `Nagpadala na kami ng reset link sa ${resetEmail}. I-check ang inyong inbox at spam folder.` 
+      });
+      setResetEmail('');
+    } catch (e) {
+      const error = e as Error & { code?: string };
+      setResetMessage({ 
+        type: 'error', 
+        text: 'Maaaring hindi nakarehistro ang email na ito, o may error sa network.' 
+      });
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  // Reset view when dialog closes
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (!isOpen) {
+      setTimeout(() => {
+        setView('login');
+        setResetMessage(null);
+        setResetEmail('');
+        setAuthError(null);
+      }, 300);
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
@@ -88,23 +136,82 @@ export function LoginDialog({ children }: { children: React.ReactNode }) {
           </div>
           <div>
             <DialogTitle className="text-2xl font-black font-headline uppercase tracking-tight">
-              Magsimula Na
+              {view === 'login' ? 'Magsimula Na' : 'I-reset ang Password'}
             </DialogTitle>
             <DialogDescription className="text-slate-500 font-medium mt-1">
-              I-enter ang inyong account details upang makapasok sa Katuwang Environment.
+              {view === 'login' 
+                ? 'I-enter ang inyong account details upang makapasok sa Katuwang Environment.'
+                : 'I-enter ang inyong email at padadalhan ka namin ng link para mag-set ng bagong password.'}
             </DialogDescription>
           </div>
         </DialogHeader>
 
-        {authError && (
-          <Alert variant="destructive" className="mb-4 bg-destructive/10 border-none">
-            <AlertDescription className="font-bold text-center">
-              {authError}
-            </AlertDescription>
-          </Alert>
-        )}
+        {view === 'forgot' ? (
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+            {resetMessage && (
+              <Alert 
+                variant={resetMessage.type === 'error' ? 'destructive' : 'default'} 
+                className={`mb-4 border-none ${resetMessage.type === 'error' ? 'bg-destructive/10' : 'bg-emerald-50 text-emerald-800'}`}
+              >
+                <AlertDescription className="font-bold text-center">
+                  {resetMessage.text}
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            <form onSubmit={handleResetPassword} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-slate-400">Email Address</label>
+                <Input 
+                  type="email"
+                  placeholder="pangalan@negosyo.com" 
+                  autoComplete="email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50 focus-visible:ring-primary focus-visible:ring-offset-2" 
+                  disabled={resetLoading}
+                />
+              </div>
+              
+              <div className="pt-4 space-y-3">
+                <Button 
+                  type="submit" 
+                  className="w-full h-14 rounded-xl text-base font-bold shadow-lg hover:shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2"
+                  disabled={resetLoading}
+                >
+                  {resetLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    'Magpadala ng Reset Link'
+                  )}
+                </Button>
+                
+                <Button 
+                  type="button" 
+                  variant="ghost"
+                  className="w-full h-12 text-slate-500 font-bold hover:text-slate-700"
+                  onClick={() => {
+                    setView('login');
+                    setResetMessage(null);
+                  }}
+                  disabled={resetLoading}
+                >
+                  Bumalik sa Login
+                </Button>
+              </div>
+            </form>
+          </div>
+        ) : (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+            {authError && (
+              <Alert variant="destructive" className="mb-4 bg-destructive/10 border-none">
+                <AlertDescription className="font-bold text-center">
+                  {authError}
+                </AlertDescription>
+              </Alert>
+            )}
 
-        <Form {...form}>
+            <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
@@ -144,7 +251,17 @@ export function LoginDialog({ children }: { children: React.ReactNode }) {
               )}
             />
             
-            <div className="pt-4 space-y-4">
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setView('forgot')}
+                className="text-[11px] font-bold text-primary hover:underline"
+              >
+                Nakalimutan ang password?
+              </button>
+            </div>
+            
+            <div className="pt-2 space-y-4">
               <Button 
                 type="submit" 
                 className="w-full h-14 rounded-xl text-base font-bold shadow-lg hover:shadow-xl transition-all joy-glow active:scale-95 flex items-center justify-center gap-2"
@@ -181,6 +298,8 @@ export function LoginDialog({ children }: { children: React.ReactNode }) {
             Register bilang Staff
           </Button>
         </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

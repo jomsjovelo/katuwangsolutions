@@ -65,7 +65,8 @@ export function AdminManagement() {
       setNewUid('');
       setNewEmail('');
       setNewRole('support');
-    } catch (error: any) {
+    } catch (e) {
+      const error = e as Error & { code?: string };
       console.error(error);
       alert(error.message || 'Failed to add admin. You must be a Superadmin to do this.');
     } finally {
@@ -91,7 +92,8 @@ export function AdminManagement() {
           timestamp: serverTimestamp()
         });
       }
-    } catch (error: any) {
+    } catch (e) {
+      const error = e as Error & { code?: string };
       console.error(error);
       alert(error.message || 'Failed to remove admin. You must be a Superadmin to do this.');
     }

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Home, ShoppingCart, Package, BarChart2, User } from 'lucide-react';
+import { Home, ShoppingCart, Package, BarChart2, User, Banknote } from 'lucide-react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { getModuleTheme } from '@/lib/theme-utils';
 import { useHaptic } from '@/hooks/use-haptic';
@@ -12,6 +12,7 @@ const tabs = [
   { id: 'benta',   label: 'Sale',   Icon: ShoppingCart },
   { id: 'stock',   label: 'Stock',   Icon: Package },
   { id: 'ulat',    label: 'Report',    Icon: BarChart2 },
+  { id: 'kita',    label: 'Kita Ko', Icon: Banknote },
   { id: 'profile', label: 'Profile', Icon: User },
 ] as const;
 

@@ -139,7 +139,8 @@ export async function POST(req: Request) {
       isMock: false,
     });
 
-  } catch (error: any) {
+  } catch (e) {
+      const error = e as Error & { code?: string };
     console.error('[Payments] Generation error:', error.message);
     return NextResponse.json(
       { error: error.message || 'Failed to generate payment link.' },

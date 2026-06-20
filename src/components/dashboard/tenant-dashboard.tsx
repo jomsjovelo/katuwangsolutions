@@ -34,9 +34,11 @@ const FarmDashboard = dynamic(() => import('@/components/dashboard/farm/farm-das
 const ProfileTab = dynamic(() => import('@/components/dashboard/profile-tab').then(m => m.ProfileTab));
 const StockTab = dynamic(() => import('@/components/dashboard/stock-tab').then(m => m.StockTab));
 const HomeTab = dynamic(() => import('@/components/dashboard/home-tab').then(m => m.HomeTab));
+const ReferralDashboard = dynamic(() => import('@/components/dashboard/referral-dashboard').then(m => m.ReferralDashboard));
 
 import { KatuwangErrorBoundary } from '@/components/common/error-boundary';
 import { SnapDate } from '@/components/snap-date';
+import { EmailVerificationBanner } from '@/components/auth/email-verification-banner';
 import { 
   Card, 
   CardContent, 
@@ -195,7 +197,7 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
     return <BentaDashboard />;
   };
 
-  const isIndustryTab = !['profile', 'stock', 'ulat', 'home'].includes(activeTab || 'home');
+  const isIndustryTab = !['profile', 'stock', 'ulat', 'home', 'kita'].includes(activeTab || 'home');
 
   return (
     <KatuwangErrorBoundary>
@@ -208,12 +210,18 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
           <span>{syncMessage}</span>
         </div>
       )}
+      
+      <EmailVerificationBanner />
       <div className={activeTab === 'home' || !activeTab ? 'block' : 'hidden'}>
         <HomeTab setTab={onTabChange} />
       </div>
       
       <div className={activeTab === 'profile' ? 'block' : 'hidden'}>
         <ProfileTab />
+      </div>
+
+      <div className={activeTab === 'kita' ? 'block' : 'hidden'}>
+        <ReferralDashboard />
       </div>
       
       <div className={activeTab === 'stock' ? 'block' : 'hidden'}>

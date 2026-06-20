@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronLeft, WifiOff, BookOpen, Clock } from 'lucide-react';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { useOnlineStatus } from '@/hooks/use-online-status';
@@ -31,6 +31,18 @@ export function AppHeader({ title, subtitle, onBack, rightAction }: AppHeaderPro
   const [showTimeLog, setShowTimeLog] = useState(false);
   const haptic = useHaptic();
   const { announcements } = useAnnouncements(true); // only fetch active
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (pendingCount > 0) {
+        e.preventDefault();
+        e.returnValue = ''; // Standard required for Chrome/modern browsers
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [pendingCount]);
 
   const getIcon = (type: string) => {
     switch (type) {

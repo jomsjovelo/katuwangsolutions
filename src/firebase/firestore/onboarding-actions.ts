@@ -6,7 +6,8 @@ import {
 } from 'firebase/firestore';
 import { runTransactionResilient } from './resilient-transaction';
 import { 
-  createUserWithEmailAndPassword 
+  createUserWithEmailAndPassword,
+  sendEmailVerification
 } from 'firebase/auth';
 import { initializeFirebase } from '../index';
 import { BusinessInfoSchema, AccountSchema } from '@/lib/schemas/onboarding';
@@ -150,8 +151,18 @@ export async function registerNewTenant(onboardingData: any) {
       throw transactionError; // Re-throw to be caught by the outer block
     }
 
+    // Send email verification as the very last step
+    try {
+      await sendEmailVerification(userCredential.user);
+      console.log('Email verification sent.');
+    } catch (verifyError) {
+      console.error('Failed to send verification email:', verifyError);
+      // We don't throw here because the user is already successfully created
+    }
+
     return { success: true };
-  } catch (error: any) {
+  } catch (e) {
+      const error = e as Error & { code?: string };
     console.error('Registration failed:', error);
     throw new Error(error.message || 'Registration failed. Please try again.');
   }

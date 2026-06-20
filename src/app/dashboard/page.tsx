@@ -10,8 +10,18 @@ import { AppHeader } from '@/components/shell/app-header';
 import { BrandLogo } from '@/components/ui/brand-logo';
 
 export default function TenantDashboardPage() {
-  const [activeTab, setActiveTab] = useState<'home' | 'benta' | 'stock' | 'ulat' | 'profile'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'benta' | 'stock' | 'ulat' | 'kita' | 'profile'>('home');
   const { isLoading, activeTenant } = useTenantStore();
+
+  // Listen for programmatic tab navigation from child components (e.g., Kita Ko shortcut in ProfileTab)
+  React.useEffect(() => {
+    const handler = (e: Event) => {
+      const tab = (e as CustomEvent).detail;
+      if (tab) setActiveTab(tab as any);
+    };
+    window.addEventListener('katuwang-nav', handler);
+    return () => window.removeEventListener('katuwang-nav', handler);
+  }, []);
   
   if (isLoading) {
     return (

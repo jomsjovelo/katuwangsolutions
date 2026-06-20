@@ -155,7 +155,8 @@ export function FiveSixDashboard() {
       setNewName('');
       setNewPhone('');
       setActiveDrawer('none');
-    } catch (err: any) {
+    } catch (e) {
+      const err = e as Error & { code?: string };
       setErrorMsg(err.message || "Failed to add borrower.");
     } finally {
       setIsSubmitting(false);
@@ -191,7 +192,8 @@ export function FiveSixDashboard() {
       setSuccessMsg(`Pautang naitala para kay ${selectedBorrower.name}!`);
       setTimeout(() => setSuccessMsg(null), 3000);
       setActiveDrawer('none');
-    } catch (err: any) {
+    } catch (e) {
+      const err = e as Error & { code?: string };
       setErrorMsg(err.message || "Failed to record loan transaction.");
     } finally {
       setIsSubmitting(false);
@@ -222,7 +224,8 @@ export function FiveSixDashboard() {
       setSuccessMsg(`Bayad na ₱${payAmount} natanggap mula kay ${selectedBorrower.name}!`);
       setTimeout(() => setSuccessMsg(null), 3000);
       setActiveDrawer('none');
-    } catch (err: any) {
+    } catch (e) {
+      const err = e as Error & { code?: string };
       setErrorMsg(err.message || "Failed to record payment transaction.");
     } finally {
       setIsSubmitting(false);
@@ -239,7 +242,8 @@ export function FiveSixDashboard() {
       playPaymentSound();
       setSuccessMsg(`Penalty nailapat kay ${borrower.name}! (+5% ng daily due)`);
       setTimeout(() => setSuccessMsg(null), 3000);
-    } catch (err: any) {
+    } catch (e) {
+      const err = e as Error & { code?: string };
       setErrorMsg(err.message || 'Failed to apply penalty.');
     } finally {
       setIsSubmitting(false);

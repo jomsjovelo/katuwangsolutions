@@ -18,7 +18,7 @@ import {
   getDoc
 } from 'firebase/firestore';
 import { app } from '@/firebase/config';
-import { sendStaffInvite, removeStaffMember } from '@/firebase/firestore/staff-actions';
+import { sendStaffInvite, removeStaffMember, regenerateBusinessCode } from '@/firebase/firestore/staff-actions';
 import { getModuleTheme } from '@/lib/theme-utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -57,7 +57,8 @@ import {
   Banknote,
   Link as LinkIcon,
   CheckCircle2,
-  Copy
+  Copy,
+  RefreshCw
 } from 'lucide-react';
 import { EscPosBluetoothDriver } from '@/lib/hardware/print-driver';
 import { HelpGuideDrawer } from '@/components/shell/help-guide-drawer';
@@ -83,6 +84,7 @@ export function ProfileTab() {
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [isSponsorOpen, setIsSponsorOpen] = useState(false);
   const [sponsorStaffName, setSponsorStaffName] = useState('');
+  const [isRegenerating, setIsRegenerating] = useState(false);
   
   // New referral state
   const [withdrawOpen, setWithdrawOpen] = useState(false);
@@ -389,6 +391,21 @@ export function ProfileTab() {
     }
   };
 
+  const handleRegenerateCode = async () => {
+    if (!currentTenant || !currentTenant.businessCode) return;
+    if (!confirm("Are you sure you want to regenerate the business code? The old code will no longer work for new staff invites.")) return;
+    
+    setIsRegenerating(true);
+    try {
+      const newCode = await regenerateBusinessCode(currentTenant.id, currentTenant.businessCode);
+      setCurrentTenant({ ...currentTenant, businessCode: newCode });
+    } catch (e: any) {
+      alert(e.message || "Failed to regenerate code.");
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-full">
       <main className="p-4 space-y-6 pb-24">
@@ -595,8 +612,20 @@ export function ProfileTab() {
                 <div className="flex gap-4">
                   <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 flex-1 flex flex-col items-center justify-center text-center">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Business Code</span>
-                    <div className="text-4xl font-black text-slate-800 tracking-[0.25em]">
-                      {currentTenant?.businessCode || '----'}
+                    <div className="flex items-center gap-2">
+                      <div className="text-4xl font-black text-slate-800 tracking-[0.25em]">
+                        {currentTenant?.businessCode || '----'}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleRegenerateCode}
+                        disabled={isRegenerating || !currentTenant?.businessCode}
+                        className="h-8 w-8 text-slate-400 hover:text-primary"
+                        title="Regenerate Code"
+                      >
+                        {isRegenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                      </Button>
                     </div>
                   </div>
                   {currentTenant?.businessCode && (

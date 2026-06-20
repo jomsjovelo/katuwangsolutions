@@ -177,26 +177,31 @@ export function AccountStep({ data, onUpdate, onNext }: AccountStepProps) {
             <div className="prose prose-slate prose-sm max-w-none space-y-6 pb-8">
               <section>
                 <h3 className="text-lg font-bold text-slate-900 mb-2">1. Acceptance of Terms</h3>
-                <p className="text-slate-600">By accessing and using Katuwang Solutions, you agree to be bound by these Terms and Conditions. Our services are specifically designed for Micro, Small, and Medium Enterprises (MSMEs) operating in the Philippines.</p>
+                <p className="text-slate-600">By accessing and using Katuwang Solutions, you agree to be bound by these Terms and Conditions. Our services are specifically designed for Micro, Small, and Medium Enterprises (MSMEs) operating in the Philippines. You must be at least 18 years old.</p>
               </section>
               <section>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">2. Subscription and Billing</h3>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">2. Account Security & Email Access</h3>
                 <p className="text-slate-600">
-                  <strong>Pricing:</strong> Access to a single Katuwang module is billed at ₱99.00 per month (Philippine Peso). <br />
-                  <strong>No Auto-Renew:</strong> We do not automatically charge your payment method. You must manually renew to continue.<br />
-                  <strong>Cancellation:</strong> You may cancel at any time by allowing your subscription to expire.
+                  We use email verification for password resets. <strong>If you lose access to your email address or forget its password, Katuwang Solutions is not responsible for the lost access to your account.</strong> We cannot manually bypass email verification for security reasons.
                 </p>
               </section>
               <section>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">3. Data Privacy & Collection</h3>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">3. Offline Mode & Data Syncing</h3>
                 <p className="text-slate-600">
-                  We collect essential personal information (such as your full name, birthday, gender, and complete address) for identity verification and account security. You must be at least 18 years old to create a business account. You retain full ownership of all data you input into the system. We do not sell your business data, customer lists, or financial records to third parties. We employ industry-standard encryption to protect your data.
+                  Transactions made offline are saved locally on your device. <strong>If your device breaks, is lost, or its cache is cleared before syncing to the cloud, that data is permanently lost.</strong> We are not liable for unsynced data.
                 </p>
               </section>
               <section>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">4. Service Availability</h3>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">4. Data Accuracy & Staff Liability</h3>
                 <p className="text-slate-600">
-                  Katuwang Solutions is provided "as is". We reserve the right to temporarily suspend the service for maintenance or updates.
+                  You are solely responsible for the accuracy of all data (sales, inventory, loans) entered into the app. Katuwang Solutions is a recording tool, not a lending agency or tax accountant. Business owners are strictly liable for the actions of their staff accounts.
+                </p>
+              </section>
+              <section>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">5. Subscription</h3>
+                <p className="text-slate-600">
+                  <strong>Pricing:</strong> Access to a single Katuwang module is billed at ₱99.00 per month (Philippine Peso) on promo. <br />
+                  <strong>No Auto-Renew:</strong> We do not automatically charge your payment method. You must manually renew to continue.
                 </p>
               </section>
             </div>

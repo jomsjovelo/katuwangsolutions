@@ -37,7 +37,8 @@ export default function RsvpPage() {
         if (snap.exists()) {
           setEventData(snap.data());
         }
-      } catch (err: any) {
+      } catch (e) {
+      const err = e as Error & { code?: string };
         console.warn('Cannot fetch event details (expected if unauthenticated):', err.message);
       } finally {
         setLoading(false);
@@ -66,7 +67,8 @@ export default function RsvpPage() {
       });
 
       setSubmitted(true);
-    } catch (err: any) {
+    } catch (e) {
+      const err = e as Error & { code?: string };
       setError(err.message || 'Failed to submit RSVP.');
     } finally {
       setIsSubmitting(false);
