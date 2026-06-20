@@ -37,7 +37,7 @@ export function PayrollDashboard() {
   useDynamicThemeColor(theme);
   
   const { user } = useUser();
-  const isOwner = currentTenant?.ownerUid === user?.uid || currentTenant?.role === 'owner';
+  const isOwner = currentTenant?.ownerUid === user?.uid || (currentTenant as any)?.role === 'owner';
 
   // --- Employee List ---
   const empQuery = React.useMemo(() => {

@@ -26,7 +26,7 @@ export function RentalDashboard() {
   useDynamicThemeColor(theme);
 
   const { user } = useUser();
-  const isOwner = currentTenant?.ownerUid === user?.uid || currentTenant?.role === 'owner';
+  const isOwner = currentTenant?.ownerUid === user?.uid || (currentTenant as any)?.role === 'owner';
 
   React.useEffect(() => {
     if (inventoryError) {

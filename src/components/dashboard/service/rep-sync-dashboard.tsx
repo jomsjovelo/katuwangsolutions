@@ -48,7 +48,7 @@ export function RepSyncDashboard() {
   useDynamicThemeColor(theme);
   
   const { user } = useUser();
-  const isOwner = currentTenant?.ownerUid === user?.uid || currentTenant?.role === 'owner';
+  const isOwner = currentTenant?.ownerUid === user?.uid || (currentTenant as any)?.role === 'owner';
 
   // Gym State
   const { members, activeMembers, expiredMembers, recentCheckIns, loading } = useGymMemberships();

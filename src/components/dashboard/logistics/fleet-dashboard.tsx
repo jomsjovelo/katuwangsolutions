@@ -78,7 +78,7 @@ export function FleetDashboard() {
   useDynamicThemeColor(theme);
 
   const { user } = useUser();
-  const isOwner = currentTenant?.ownerUid === user?.uid || currentTenant?.role === 'owner';
+  const isOwner = currentTenant?.ownerUid === user?.uid || (currentTenant as any)?.role === 'owner';
 
   const tripsQuery = React.useMemo(() => {
     return currentTenant 

@@ -47,7 +47,7 @@ export function TrimTrackDashboard() {
   useDynamicThemeColor(theme);
 
   const { user } = useUser();
-  const isOwner = currentTenant?.ownerUid === user?.uid || currentTenant?.role === 'owner';
+  const isOwner = currentTenant?.ownerUid === user?.uid || (currentTenant as any)?.role === 'owner';
 
   // Salon State
   const { waitingAppointments, inChairAppointments, doneAppointments, loading, error: salonError } = useSalonAppointments();

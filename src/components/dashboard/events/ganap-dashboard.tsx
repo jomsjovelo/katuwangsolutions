@@ -47,7 +47,7 @@ export function GanapDashboard() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const { user } = useUser();
-  const isOwner = currentTenant?.ownerUid === user?.uid || currentTenant?.role === 'owner';
+  const isOwner = currentTenant?.ownerUid === user?.uid || (currentTenant as any)?.role === 'owner';
 
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);

@@ -58,7 +58,7 @@ export function SpinDashboard() {
   useDynamicThemeColor(theme);
 
   const { user } = useUser();
-  const isOwner = currentTenant?.ownerUid === user?.uid || currentTenant?.role === 'owner';
+  const isOwner = currentTenant?.ownerUid === user?.uid || (currentTenant as any)?.role === 'owner';
 
   // Laundry State
   const { queuedOrders, washingOrders, readyOrders, claimedOrders, loading, error: laundryError } = useLaundry();

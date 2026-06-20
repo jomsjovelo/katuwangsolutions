@@ -72,7 +72,7 @@ export function AutoBossDashboard() {
   useDynamicThemeColor(theme);
   
   const { user } = useUser();
-  const isOwner = currentTenant?.ownerUid === user?.uid || currentTenant?.role === 'owner';
+  const isOwner = currentTenant?.ownerUid === user?.uid || (currentTenant as any)?.role === 'owner';
 
   // Carwash State
   const { scheduledOrders, queuedOrders, washingOrders, dryingOrders, readyOrders, loading, error: carwashError } = useCarwashOrders();
