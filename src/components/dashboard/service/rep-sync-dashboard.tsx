@@ -24,7 +24,8 @@ import {
   RefreshCw,
   X,
   ScanLine,
-  Trash2
+  Trash2,
+  QrCode
 } from "lucide-react";
 
 const PLAN_PRICES: Record<string, number> = {
