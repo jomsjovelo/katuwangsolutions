@@ -542,3 +542,76 @@ export async function deleteCreditTransaction(
   return true;
 }
 
+export interface CapitalEntry {
+  id: string;
+  amount: number; // in centavos
+  note?: string;
+  timestamp: Timestamp;
+}
+
+/**
+ * Record a capital injection to the lending business
+ */
+export async function recordCapitalInjection(
+  tenantId: string,
+  amountPesos: number,
+  note: string,
+  userId: string,
+  userName: string
+) {
+  if (isNaN(amountPesos) || amountPesos <= 0) throw new Error("Ang halaga ng pondo ay dapat valid at higit sa zero.");
+
+  const amountCentavos = Math.round(amountPesos * 100);
+  const capitalRef = collection(db, 'tenants', tenantId, 'capital_entries');
+  const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+
+  await runTransactionResilient(db, async (transaction) => {
+    const masterAccountSnap = await transaction.get(masterAccountRef);
+    
+    // 1. Add capital entry
+    const newCapitalRef = doc(capitalRef);
+    transaction.set(newCapitalRef, {
+      amount: amountCentavos,
+      note,
+      timestamp: serverTimestamp(),
+      userId,
+      userName
+    });
+
+    // 2. Increase master cash
+    if (!masterAccountSnap.exists()) {
+      transaction.set(masterAccountRef, {
+        id: 'master-cash',
+        tenantId,
+        name: 'Main Cash Register',
+        type: 'asset',
+        balance: amountCentavos,
+        isActive: true,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    } else {
+      transaction.set(masterAccountRef, {
+        balance: increment(amountCentavos),
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    }
+
+    // 3. Log into ledger
+    const ledgerRef = collection(db, 'tenants', tenantId, 'transactions');
+    const ledgerTxRef = doc(ledgerRef);
+    transaction.set(ledgerTxRef, {
+      id: ledgerTxRef.id,
+      tenantId,
+      accountId: 'master-cash',
+      amount: amountCentavos,
+      type: 'income',
+      category: 'Capital',
+      description: `Capital Injection: ${note}`,
+      date: new Date(),
+      createdAt: serverTimestamp()
+    });
+  });
+
+  return true;
+}

@@ -198,7 +198,13 @@ export function AccountStep({ data, onUpdate, onNext }: AccountStepProps) {
                 </p>
               </section>
               <section>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">5. Subscription</h3>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">5. Activity Logs & Data Retention</h3>
+                <p className="text-slate-600">
+                  To keep the app fast and organized, minor Activity Logs (e.g., recent sales, stock alerts) are only retained for a rolling window of <strong>7 days</strong>. Older logs are automatically hidden and overwritten.
+                </p>
+              </section>
+              <section>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">6. Subscription</h3>
                 <p className="text-slate-600">
                   <strong>Pricing:</strong> Access to a single Katuwang module is billed at ₱99.00 per month (Philippine Peso) on promo. <br />
                   <strong>No Auto-Renew:</strong> We do not automatically charge your payment method. You must manually renew to continue.

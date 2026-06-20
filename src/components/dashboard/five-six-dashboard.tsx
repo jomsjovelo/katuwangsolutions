@@ -35,7 +35,8 @@ import {
   MapPin,
   Trash2,
   Edit3,
-  Save
+  Save,
+  TrendingUp
 } from "lucide-react";
 import { 
   addBorrower, 
@@ -45,10 +46,12 @@ import {
   getBorrowerLedger,
   deleteCreditTransaction,
   editCreditTransaction,
+  recordCapitalInjection,
   Borrower,
   CreditTransaction
 } from '@/firebase/firestore/credit-actions';
 import { useUser } from '@/firebase/auth/use-user';
+import { useCreditStats } from '@/hooks/use-credit-stats';
 import { playSuccessBeep } from '@/components/common/gcash-qr-modal';
 
 import { playCashRegisterSwoosh } from '@/lib/hardware/audio-synthesizer';
@@ -64,8 +67,11 @@ export function FiveSixDashboard() {
   // Firestore real-time state listeners
   const [borrowers, setBorrowers] = useState<Borrower[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeDrawer, setActiveDrawer] = useState<'none' | 'add_borrower' | 'record_loan' | 'record_payment' | 'sms_alert' | 'view_ledger'>('none');
+  const [activeDrawer, setActiveDrawer] = useState<'none' | 'add_borrower' | 'record_loan' | 'record_payment' | 'sms_alert' | 'view_ledger' | 'add_capital'>('none');
   const [selectedBorrower, setSelectedBorrower] = useState<Borrower | null>(null);
+
+  // Credit Stats
+  const { totalCapitalPesos, cashOnHandPesos, totalOutstandingPesos, generatedRevenuePesos, loading: statsLoading } = useCreditStats();
 
   // Feature States
   const [searchQuery, setSearchQuery] = useState('');
@@ -89,12 +95,17 @@ export function FiveSixDashboard() {
 
   const [loanPrincipal, setLoanPrincipal] = useState('2000');
   const [loanInterest, setLoanInterest] = useState('400'); // 5-6 default interest (20%)
+  const [interestMode, setInterestMode] = useState<'20' | '10' | 'custom'>('20');
   const [loanDailyDue, setLoanDailyDue] = useState('100');
   const [loanTermDays, setLoanTermDays] = useState('24'); // Default 24 days
 
   const [payAmount, setPayAmount] = useState('500');
   const [newArea, setNewArea] = useState('');
   const [collectTodayMode, setCollectTodayMode] = useState(false);
+
+  // Capital Form
+  const [capitalAmount, setCapitalAmount] = useState('10000');
+  const [capitalNote, setCapitalNote] = useState('Initial Capital');
 
   const handleDeleteTx = async (tx: CreditTransaction) => {
     if (!currentTenant || !selectedBorrower || !user) return;
@@ -181,7 +192,6 @@ export function FiveSixDashboard() {
 
   // Aggregate metrics
   const activeDebtors = borrowers.filter(b => b.status === 'active');
-  const totalOutstandingPesos = borrowers.reduce((acc, curr) => acc + (curr.outstanding || 0), 0) / 100;
   // Use Math.min to prevent inflated daily expected collections
   const totalCollectiblesTodayPesos = activeDebtors.reduce((acc, curr) => acc + Math.min(curr.outstanding || 0, curr.dailyDue || 0), 0) / 100;
 
@@ -277,6 +287,42 @@ export function FiveSixDashboard() {
     } catch (e) {
       const err = e as Error & { code?: string };
       setErrorMsg(err.message || "Failed to record loan transaction.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Add Capital Submit
+  const handleAddCapital = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentTenant || !user) return;
+
+    try {
+      setIsSubmitting(true);
+      setErrorMsg(null);
+
+      const capParsed = parseFloat(capitalAmount);
+      if (isNaN(capParsed) || capParsed <= 0) {
+        throw new Error("Ang halaga ng puhunan ay dapat higit sa zero at valid na numero.");
+      }
+
+      await recordCapitalInjection(
+        currentTenant.id,
+        capParsed,
+        capitalNote,
+        user.uid,
+        user.displayName || user.email || 'Unknown User'
+      );
+
+      try { playSuccessBeep(); } catch (err) { /* ignore autoplay blocks */ }
+      setSuccessMsg(`₱${capParsed.toLocaleString()} Puhunan naidagdag sa Master Cash!`);
+      setTimeout(() => setSuccessMsg(null), 3000);
+      setActiveDrawer('none');
+      setCapitalAmount('10000');
+      setCapitalNote('Additional Capital');
+    } catch (e) {
+      const err = e as Error & { code?: string };
+      setErrorMsg(err.message || "Failed to record capital.");
     } finally {
       setIsSubmitting(false);
     }
@@ -427,22 +473,39 @@ export function FiveSixDashboard() {
         </section>
 
         {/* Real-time Collections & Credit Statistics */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <Card 
             className="shadow-none border border-slate-200/60 rounded-[28px] overflow-hidden transition-colors"
             style={{ backgroundColor: `${theme.primary}08` }}
           >
             <CardHeader className="p-4 pb-0">
               <CardDescription className="text-[9px] font-black uppercase tracking-wider text-slate-400">
-                Target na Singilin Ngayon
+                Puhunan (Capital)
               </CardDescription>
               <CardTitle className="text-xl font-headline font-black text-slate-800 mt-1">
-                ₱{totalCollectiblesTodayPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                ₱{totalCapitalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-1.5 text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1.5 border-t border-slate-100 bg-white/40 mt-3">
-              <ArrowDownToLine className="h-3.5 w-3.5" style={{ color: theme.primary }} /> 
-              May {activeDebtors.length} aktibong utang
+              <Wallet className="h-3.5 w-3.5" style={{ color: theme.primary }} /> 
+              Total Injected Capital
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="shadow-none border border-slate-200/60 rounded-[28px] overflow-hidden transition-colors bg-white"
+          >
+            <CardHeader className="p-4 pb-0">
+              <CardDescription className="text-[9px] font-black uppercase tracking-wider text-slate-400">
+                Cash on Hand
+              </CardDescription>
+              <CardTitle className="text-xl font-headline font-black text-slate-800 mt-1">
+                ₱{cashOnHandPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-1.5 text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1.5 border-t border-slate-100 bg-slate-50 mt-3">
+              <Banknote className="h-3.5 w-3.5 text-emerald-500" /> 
+              Available to Lend
             </CardContent>
           </Card>
           
@@ -460,7 +523,24 @@ export function FiveSixDashboard() {
             </CardHeader>
             <CardContent className="p-4 pt-1.5 text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1.5 border-t border-slate-100 bg-white/40 mt-3">
               <ArrowUpFromLine className="h-3.5 w-3.5" style={{ color: theme.secondary }} /> 
-              Capital + interest book
+              Capital + Interest Book
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="shadow-none border border-emerald-200/60 rounded-[28px] overflow-hidden transition-colors bg-emerald-50/30"
+          >
+            <CardHeader className="p-4 pb-0">
+              <CardDescription className="text-[9px] font-black uppercase tracking-wider text-emerald-600">
+                Generated Revenue
+              </CardDescription>
+              <CardTitle className="text-xl font-headline font-black text-emerald-700 mt-1">
+                ₱{generatedRevenuePesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-1.5 text-[9px] font-bold text-emerald-600 uppercase flex items-center gap-1.5 border-t border-emerald-100 bg-white/40 mt-3">
+              <TrendingUp className="h-3.5 w-3.5" /> 
+              Realized Profit
             </CardContent>
           </Card>
         </div>
@@ -482,9 +562,15 @@ export function FiveSixDashboard() {
               </Button>
               <Button 
                 onClick={() => setActiveDrawer('add_borrower')}
-                className="text-xs font-bold flex items-center gap-1 cursor-pointer bg-slate-200/80 hover:bg-slate-200 text-slate-600 rounded-xl px-3 py-1.5 h-auto border-none"
+                className="text-[10px] font-bold flex items-center gap-1 cursor-pointer bg-slate-200/80 hover:bg-slate-200 text-slate-600 rounded-xl px-2.5 py-1.5 h-auto border-none transition-colors"
               >
-                <UserPlus className="h-4 w-4" /> Add Debtor
+                <UserPlus className="h-3.5 w-3.5" /> Debtor
+              </Button>
+              <Button 
+                onClick={() => setActiveDrawer('add_capital')}
+                className="text-[10px] font-bold flex items-center gap-1 cursor-pointer bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-xl px-2.5 py-1.5 h-auto border-none transition-colors"
+              >
+                <Banknote className="h-3.5 w-3.5" /> Capital
               </Button>
             </div>
           </div>
@@ -714,6 +800,7 @@ export function FiveSixDashboard() {
                   {activeDrawer === 'record_payment' && <Wallet className="h-4.5 w-4.5" />}
                   {activeDrawer === 'sms_alert' && <MessageSquare className="h-4.5 w-4.5" />}
                   {activeDrawer === 'view_ledger' && <History className="h-4.5 w-4.5" />}
+                  {activeDrawer === 'add_capital' && <Banknote className="h-4.5 w-4.5" />}
                 </div>
                 <h4 className="font-headline font-black text-xs uppercase tracking-widest text-slate-800">
                   {activeDrawer === 'add_borrower' && "Setup Credit Borrower"}
@@ -721,6 +808,7 @@ export function FiveSixDashboard() {
                   {activeDrawer === 'record_payment' && "Mag-rehistro ng Bayad"}
                   {activeDrawer === 'sms_alert' && "SMS Billing Assistant"}
                   {activeDrawer === 'view_ledger' && "Transaction Ledger"}
+                  {activeDrawer === 'add_capital' && "Magdagdag ng Puhunan"}
                 </h4>
               </div>
               <Button 
@@ -839,6 +927,53 @@ export function FiveSixDashboard() {
                     </select>
                   </div>
 
+                  <div className="space-y-2 pb-2">
+                    <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Piliin ang Interes</label>
+                    <div className="flex bg-slate-100/50 p-1 rounded-xl">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => {
+                          setInterestMode('20');
+                          const amt = parseFloat(loanPrincipal) || 0;
+                          setLoanInterest((amt * 0.2).toFixed(0));
+                        }}
+                        className={cn(
+                          "flex-1 h-8 rounded-lg text-xs font-bold transition-all border-none cursor-pointer",
+                          interestMode === '20' ? "bg-white shadow-sm text-slate-800" : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                        )}
+                      >
+                        20% (Standard)
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => {
+                          setInterestMode('10');
+                          const amt = parseFloat(loanPrincipal) || 0;
+                          setLoanInterest((amt * 0.1).toFixed(0));
+                        }}
+                        className={cn(
+                          "flex-1 h-8 rounded-lg text-xs font-bold transition-all border-none cursor-pointer",
+                          interestMode === '10' ? "bg-white shadow-sm text-slate-800" : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                        )}
+                      >
+                        10%
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setInterestMode('custom')}
+                        className={cn(
+                          "flex-1 h-8 rounded-lg text-xs font-bold transition-all border-none cursor-pointer",
+                          interestMode === 'custom' ? "bg-white shadow-sm text-slate-800" : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                        )}
+                      >
+                        Custom Amount
+                      </Button>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Halaga ng Pautang (₱)</label>
@@ -850,9 +985,12 @@ export function FiveSixDashboard() {
                         value={loanPrincipal}
                         onChange={(e) => {
                           setLoanPrincipal(e.target.value);
-                          // Autocalculate 20% interest for 5-6 loan mock standard
                           const amt = parseFloat(e.target.value) || 0;
-                          setLoanInterest((amt * 0.2).toFixed(0));
+                          if (interestMode === '20') {
+                            setLoanInterest((amt * 0.2).toFixed(0));
+                          } else if (interestMode === '10') {
+                            setLoanInterest((amt * 0.1).toFixed(0));
+                          }
                         }}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800"
                       />
@@ -864,9 +1002,17 @@ export function FiveSixDashboard() {
                         name="loanInterest"
                         type="number" 
                         required
+                        readOnly={interestMode !== 'custom'}
                         value={loanInterest}
-                        onChange={(e) => setLoanInterest(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800"
+                        onChange={(e) => {
+                          if (interestMode === 'custom') {
+                            setLoanInterest(e.target.value);
+                          }
+                        }}
+                        className={cn(
+                          "w-full border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800 transition-colors",
+                          interestMode !== 'custom' ? "bg-slate-100 text-slate-500" : "bg-slate-50"
+                        )}
                       />
                     </div>
                   </div>
@@ -1083,8 +1229,52 @@ export function FiveSixDashboard() {
                 </div>
               )}
 
-            </div>
+              {/* 6. Add Capital Form */}
+              {activeDrawer === 'add_capital' && (
+                <form id="add-capital-form" onSubmit={handleAddCapital} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Halaga ng Puhunan (₱)</label>
+                    <Input 
+                      id="add-capital-amount"
+                      name="capitalAmount"
+                      type="number" 
+                      required
+                      value={capitalAmount}
+                      onChange={(e) => setCapitalAmount(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-emerald-300 text-slate-800"
+                    />
+                  </div>
 
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Tala (Note)</label>
+                    <Input 
+                      id="add-capital-note"
+                      name="capitalNote"
+                      type="text" 
+                      placeholder="Hal. Additional Capital"
+                      value={capitalNote}
+                      onChange={(e) => setCapitalNote(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-emerald-300 text-slate-800 placeholder:text-slate-400"
+                    />
+                  </div>
+
+                  <div className="pt-2">
+                    <Button 
+                      type="submit" 
+                      disabled={isSubmitting}
+                      className="w-full h-12 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-sm transition-colors shadow-lg shadow-emerald-500/20"
+                    >
+                      {isSubmitting ? (
+                        <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                      ) : (
+                        "Idagdag sa Puhunan"
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              )}
+
+            </div>
           </div>
         </div>
       )}

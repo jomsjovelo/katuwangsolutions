@@ -139,35 +139,42 @@ export default function TermsPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">12. Privacy & Data Collection</h2>
+            <h2 className="text-xl font-bold text-slate-900">12. Activity Logs & Data Retention</h2>
+            <p className="text-slate-600 leading-relaxed">
+              To ensure optimal app performance and reduce visual clutter, Katuwang Solutions aggregates and displays Activity Logs (e.g., recent sales, stock alerts, system events) for a rolling window of <strong>7 days only</strong>. Activity data older than 7 days is automatically hidden and overwritten from the Activity Organizer views. We do not provide long-term historical exports of minor activity events.
+            </p>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="text-xl font-bold text-slate-900">13. Privacy & Data Collection</h2>
             <p className="text-slate-600 leading-relaxed">
               We collect necessary information such as your email, business name, and transaction records to provide our services. Your data is securely stored using Firebase/Google infrastructure. We respect your privacy and align with the principles of the Data Privacy Act of 2012 (Republic Act No. 10173) of the Philippines. We do not and will never sell your personal or business data to third parties.
             </p>
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">13. Acceptable Use Policy</h2>
+            <h2 className="text-xl font-bold text-slate-900">14. Acceptable Use Policy</h2>
             <p className="text-slate-600 leading-relaxed">
               You agree not to use the Service for any unlawful purpose or in any way that interrupts, damages, or impairs the service. Prohibited activities include, but are not limited to: creating fake business accounts, spamming, abusing the referral system, using the app for illegal activities, and impersonating Katuwang Solutions staff. Violation of this policy may result in immediate account termination and forfeiture of any balances or referral earnings.
             </p>
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">14. Intellectual Property</h2>
+            <h2 className="text-xl font-bold text-slate-900">15. Intellectual Property</h2>
             <p className="text-slate-600 leading-relaxed">
               All rights, title, and interest in and to the Katuwang Solutions app, including but not limited to its UI, content, module names, logos, and brand assets, are and will remain the exclusive property of Katuwang Solutions. We grant you a limited, non-exclusive, non-transferable, and revocable license to use our software for your business operations in accordance with these Terms.
             </p>
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">15. Service Availability & Maintenance</h2>
+            <h2 className="text-xl font-bold text-slate-900">16. Service Availability & Maintenance</h2>
             <p className="text-slate-600 leading-relaxed">
               We strive to maintain a 99%+ uptime for our services, leveraging Firebase/Google infrastructure SLAs. However, we do not guarantee uninterrupted access and may occasionally schedule maintenance windows. We are not liable for any business losses, loss of revenue, or other damages that may occur during any periods of downtime or service interruption.
             </p>
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">16. Contact & Support</h2>
+            <h2 className="text-xl font-bold text-slate-900">17. Contact & Support</h2>
             <p className="text-slate-600 leading-relaxed">
               For official support, please email us at <a href="mailto:support@katuwangsolutions.com" className="text-blue-600 hover:underline">support@katuwangsolutions.com</a>. We aim to respond within 1–3 business days. For urgent concerns, you may also reach out via our official Facebook Page.
               <br /><br />

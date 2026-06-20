@@ -29,6 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { useTenantStore } from '@/store/use-tenant-store';
 import { WithdrawReferralSheet } from '@/components/common/withdraw-referral-sheet';
 import { ReferralHistorySheet } from '@/components/dashboard/referral-history-sheet';
+import { ActivityOrganizer } from './activity-organizer';
 import { 
   User, 
   Users, 
@@ -59,7 +60,8 @@ import {
   CheckCircle2,
   Copy,
   RefreshCw,
-  Activity
+  Activity,
+  ArrowRight
 } from 'lucide-react';
 import { EscPosBluetoothDriver } from '@/lib/hardware/print-driver';
 import { HelpGuideDrawer } from '@/components/shell/help-guide-drawer';
@@ -96,6 +98,8 @@ export function ProfileTab() {
   // QR Upload state
   const [isUploadingQr, setIsUploadingQr] = useState(false);
   const [qrUploadError, setQrUploadError] = useState<string | null>(null);
+
+  const [showOrganizer, setShowOrganizer] = useState(false);
 
   // Audit log state
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
@@ -439,7 +443,8 @@ export function ProfileTab() {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-50 min-h-full">
+    <div className="flex-1 flex flex-col bg-slate-50 min-h-full relative">
+      {showOrganizer && <ActivityOrganizer onClose={() => setShowOrganizer(false)} />}
       <main className="p-4 space-y-6 pb-24">
         
         {/* User Card */}
@@ -765,11 +770,14 @@ export function ProfileTab() {
             <Card className="bg-white border-slate-200 shadow-sm rounded-[24px]">
               <CardHeader className="p-4 pb-2 border-b border-slate-50 flex flex-row items-center justify-between">
                 <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
-                  <Activity className="h-4 w-4" /> Activity Log
+                  <Activity className="h-4 w-4" /> System Audit Log
                 </CardTitle>
-                <Badge className="bg-slate-100 text-slate-500 hover:bg-slate-100 border-none font-bold uppercase tracking-wider text-[8px] px-2 py-0.5 rounded-full">
-                  Last 20
-                </Badge>
+                <button 
+                  onClick={() => setShowOrganizer(true)}
+                  className="text-[10px] font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"
+                >
+                  View All Activity <ArrowRight className="h-3 w-3" />
+                </button>
               </CardHeader>
               <CardContent className="p-0">
                 {auditLogs.length === 0 ? (

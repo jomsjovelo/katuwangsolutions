@@ -9,6 +9,8 @@ import { usePWAInstall } from '@/hooks/use-pwa-install';
 import { getModuleTheme } from '@/lib/theme-utils';
 import { collection, onSnapshot, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
+import { useActivityLogs } from '@/hooks/use-activity-logs';
+import { ActivityOrganizer } from './activity-organizer';
 import { cn } from '@/lib/utils';
 import { 
   TrendingUp, 
@@ -54,6 +56,8 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
   // 5-6 Tracker custom state for transactions
   const [creditTransactions, setCreditTransactions] = useState<any[]>([]);
   const [creditTransactionsLoading, setCreditTransactionsLoading] = useState(false);
+  const [showOrganizer, setShowOrganizer] = useState(false);
+  const { logs: activityLogs, loading: activityLogsLoading } = useActivityLogs();
 
   useEffect(() => {
     if (currentTenant?.moduleType !== '5-6-tracker') return;
@@ -201,82 +205,12 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
   if (isDemo || !currentTenant) {
     displayActivity = getMockActivity(currentTenant?.moduleType || 'benta-snap');
   } else {
-    // Generate feed from actual sales data
-    const realSales = (sales || []).slice(0, 4).map((sale: any, i: number) => {
-      let timeLabel = 'Just now';
-      if (sale.createdAt && sale.createdAt.toDate) {
-          const diffMins = Math.floor((Date.now() - sale.createdAt.toDate().getTime()) / 60000);
-          if (diffMins === 0) timeLabel = 'Just now';
-          else if (diffMins < 60) timeLabel = `${diffMins} mins ago`;
-          else timeLabel = `${Math.floor(diffMins / 60)} hours ago`;
-      }
-      return {
-         id: sale.id || `sale-${i}`,
-         type: 'sale',
-         title: `Sold: ${sale.productName || 'Item'}`,
-         amount: sale.totalAmount ? sale.totalAmount / 100 : 0,
-         time: timeLabel,
-         icon: ShoppingCart,
-         color: 'text-emerald-500',
-         bg: 'bg-emerald-50'
-      }
-    });
-    
-    // Add 1 stock alert if applicable
-    const stockAlerts = [];
-    if (outOfStockItems?.length > 0) {
-      stockAlerts.push({
-         id: `alert-out-${outOfStockItems[0].id}`,
-         type: 'alert',
-         title: `Ubos Na: ${outOfStockItems[0].name}`,
-         amount: null,
-         time: 'Urgent',
-         icon: AlertTriangle,
-         color: 'text-red-500',
-         bg: 'bg-red-50'
-      });
-    } else if (lowStockItems?.length > 0) {
-      stockAlerts.push({
-         id: `alert-low-${lowStockItems[0].id}`,
-         type: 'alert',
-         title: `Paubos Na: ${lowStockItems[0].name}`,
-         amount: null,
-         time: 'Check Stock',
-         icon: AlertTriangle,
-         color: 'text-amber-500',
-         bg: 'bg-amber-50'
-      });
-    }
-
-    displayActivity = [...realSales, ...stockAlerts].slice(0, 5);
-  }
-
-  // Override displayActivity for 5-6-tracker if not demo
-  if (!isDemo && currentTenant?.moduleType === '5-6-tracker') {
-    displayActivity = creditTransactions.slice(0, 5).map((tx, i) => {
-      let timeLabel = 'Just now';
-      if (tx.timestamp && tx.timestamp.toDate) {
-        const diffMins = Math.floor((Date.now() - tx.timestamp.toDate().getTime()) / 60000);
-        if (diffMins === 0) timeLabel = 'Just now';
-        else if (diffMins < 60) timeLabel = `${diffMins} mins ago`;
-        else timeLabel = `${Math.floor(diffMins / 60)} hours ago`;
-      }
-      const isPayment = tx.type === 'payment';
-      return {
-        id: tx.id || `tx-${i}`,
-        type: isPayment ? 'sale' : 'stock',
-        title: isPayment ? `Payment Received` : `Loan Disbursed`,
-        amount: tx.amount ? tx.amount / 100 : 0,
-        time: timeLabel,
-        icon: isPayment ? Banknote : FileText,
-        color: isPayment ? 'text-emerald-500' : 'text-blue-500',
-        bg: isPayment ? 'bg-emerald-50' : 'bg-blue-50'
-      };
-    });
+    displayActivity = activityLogs.slice(0, 5);
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-50 min-h-screen pb-24 lg:pb-6">
+    <div className="flex-1 flex flex-col bg-slate-50 min-h-screen pb-24 lg:pb-6 relative">
+      {showOrganizer && <ActivityOrganizer onClose={() => setShowOrganizer(false)} />}
       <main className="p-4 space-y-6 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
         
         {/* Dynamic Header */}
@@ -472,10 +406,10 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
           <div className="flex items-center justify-between mb-3 px-1">
             <h3 className="text-[11px] font-black uppercase tracking-widest text-slate-400">Recent Activity</h3>
             <button 
-              onClick={() => setTab?.('ulat')}
+              onClick={() => setShowOrganizer(true)}
               className="text-[10px] font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"
             >
-              View Reports <ArrowRight className="h-3 w-3" />
+              View All Activity <ArrowRight className="h-3 w-3" />
             </button>
           </div>
           
