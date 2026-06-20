@@ -171,13 +171,12 @@ export function ProfileTab() {
     return () => unsubscribe();
   }, [currentTenant, profile?.role]);
 
-  // 2.5 Fetch Pending Staff Approvals
   useEffect(() => {
-    if (!user || profile?.role !== 'owner') return;
+    if (!user || !currentTenant || profile?.role !== 'owner') return;
 
     const pendingQuery = query(
       collection(db, 'users'),
-      where('enterpriseOwnerUid', '==', user.uid),
+      where('tenantId', '==', currentTenant.id),
       where('approvalStatus', '==', 'pending')
     );
 
@@ -190,7 +189,7 @@ export function ProfileTab() {
     });
 
     return () => unsubscribe();
-  }, [user, profile?.role, db]);
+  }, [user, profile?.role, db, currentTenant]);
 
   // 3. Fetch Pending Invites List
   // Only owners can see invites — non-owners skip this subscription

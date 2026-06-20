@@ -112,17 +112,6 @@ export async function registerStaff(
           updatedAt: serverTimestamp(),
         });
 
-        if (assignedTenantId) {
-          const tenantRef = doc(db, 'tenants', assignedTenantId);
-          const tenantSnap = await transaction.get(tenantRef);
-          if (tenantSnap.exists()) {
-            // Add to tenant's staffUids
-            transaction.update(tenantRef, {
-              staffUids: arrayUnion(uid),
-              updatedAt: serverTimestamp(),
-            });
-          }
-        }
       });
 
       return { success: true, user: userCredential.user };

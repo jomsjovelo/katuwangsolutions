@@ -90,7 +90,9 @@ service cloud.firestore {
     // 5. Users Collection (Staff profiles and owner profiles)
     match /users/{userId} {
       // LOCK: businessCode is immutable after it is set — only MasterAdmin can override.
-      allow write: if isAuthenticated() && (
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      
+      allow update: if isAuthenticated() && (
         request.auth.uid == userId || isMasterAdmin()
       ) && (
         isMasterAdmin() ||
@@ -98,6 +100,8 @@ service cloud.firestore {
         !('businessCode' in request.resource.data) ||
         request.resource.data.businessCode == resource.data.businessCode
       );
+
+      allow delete: if isAuthenticated() && (request.auth.uid == userId || isMasterAdmin());
       
       allow get: if isAuthenticated() && (
         isMasterAdmin() ||
