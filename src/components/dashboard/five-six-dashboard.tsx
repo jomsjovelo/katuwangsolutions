@@ -90,8 +90,7 @@ export function FiveSixDashboard() {
   // Form Fields
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
-  const [newLimit, setNewLimit] = useState('5000');
-  const [newDailyDue, setNewDailyDue] = useState('100');
+
 
   const [loanPrincipal, setLoanPrincipal] = useState('');
   const [loanInterest, setLoanInterest] = useState(''); // 5-6 default interest (20%)
@@ -224,11 +223,16 @@ export function FiveSixDashboard() {
         throw new Error("Mangyaring maglagay ng valid na PH mobile number (ex. 09123456789).");
       }
 
-      const limitParsed = parseFloat(newLimit);
-      const dailyDueParsed = parseFloat(newDailyDue);
-      if (isNaN(limitParsed) || limitParsed <= 0 || isNaN(dailyDueParsed) || dailyDueParsed <= 0) {
-        throw new Error("Paki-check ang limit at target. Dapat ito ay valid na numero.");
-      }
+      const principalParsed = parseFloat(loanPrincipal);
+      const interestParsed = parseFloat(loanInterest);
+      const termParsed = parseFloat(loanTermDays);
+
+      if (isNaN(principalParsed) || principalParsed <= 0) throw new Error("Ang Halaga ng Pautang ay dapat valid at higit sa zero.");
+      if (isNaN(interestParsed) || interestParsed < 0) throw new Error("Ang Interes ay dapat valid.");
+      if (isNaN(termParsed) || termParsed <= 0) throw new Error("Ang Termino ay dapat valid.");
+
+      const limitParsed = principalParsed;
+      const dailyDueParsed = Math.ceil((principalParsed + interestParsed) / termParsed);
 
       const newBorrowerId = await addBorrower(
         currentTenant.id,
@@ -239,29 +243,21 @@ export function FiveSixDashboard() {
         newArea
       );
 
-      const principalParsed = parseFloat(loanPrincipal);
-      if (!isNaN(principalParsed) && principalParsed > 0) {
-        const interestParsed = parseFloat(loanInterest);
-        const termParsed = parseFloat(loanTermDays);
-        
-        if (isNaN(interestParsed) || interestParsed < 0) throw new Error("Invalid interest.");
-        
-        const intervalParsed = loanSchedule === 'custom' && loanIntervalDays ? parseInt(loanIntervalDays) : undefined;
-        const isToday = loanDateStr === new Date().toISOString().split('T')[0];
-        const parsedDate = (!isToday && loanDateStr) ? new Date(`${loanDateStr}T12:00:00`) : undefined;
+      const intervalParsed = loanSchedule === 'custom' && loanIntervalDays ? parseInt(loanIntervalDays) : undefined;
+      const isToday = loanDateStr === new Date().toISOString().split('T')[0];
+      const parsedDate = (!isToday && loanDateStr) ? new Date(`${loanDateStr}T12:00:00`) : undefined;
 
-        await recordLoan(
-          currentTenant.id,
-          newBorrowerId,
-          principalParsed,
-          interestParsed,
-          dailyDueParsed, // Use the daily target they just set
-          termParsed,
-          loanSchedule,
-          intervalParsed,
-          parsedDate
-        );
-      }
+      await recordLoan(
+        currentTenant.id,
+        newBorrowerId,
+        principalParsed,
+        interestParsed,
+        dailyDueParsed,
+        termParsed,
+        loanSchedule,
+        intervalParsed,
+        parsedDate
+      );
 
       try { playSuccessBeep(); } catch (err) { /* ignore autoplay blocks */ }
       setSuccessMsg("Bagong borrower naidagdag sa database!");
@@ -908,33 +904,6 @@ export function FiveSixDashboard() {
                         value={newArea}
                         onChange={(e) => setNewArea(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800 placeholder:text-slate-400"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Credit Limit (₱)</label>
-                      <Input 
-                        id="add-borrower-limit"
-                        name="newLimit"
-                        type="number" 
-                        required
-                        value={newLimit}
-                        onChange={(e) => setNewLimit(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Daily Target (₱)</label>
-                      <Input 
-                        id="add-borrower-target"
-                        name="newDailyDue"
-                        type="number" 
-                        required
-                        value={newDailyDue}
-                        onChange={(e) => setNewDailyDue(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800"
                       />
                     </div>
                   </div>
