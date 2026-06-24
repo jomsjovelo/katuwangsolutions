@@ -19,7 +19,7 @@ import {
 } from 'firebase/firestore';
 import { app } from '@/firebase/config';
 import { sendStaffInvite, removeStaffMember, regenerateBusinessCode } from '@/firebase/firestore/staff-actions';
-import { getModuleTheme } from '@/lib/theme-utils';
+import { getModuleTheme, MODULE_THEMES, ModuleTheme } from '@/lib/theme-utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -574,7 +574,7 @@ export function ProfileTab() {
         )}
 
         {/* Unlocked Modules Switcher */}
-        {currentTenant && (currentTenant.unlockedModules?.length > 0 || currentTenant.id === 'demo' || currentTenant.name.toLowerCase().includes('demo')) && (
+        {currentTenant && ((currentTenant.unlockedModules?.length ?? 0) > 0 || currentTenant.id === 'demo' || currentTenant.name.toLowerCase().includes('demo')) && (
           <Card className="bg-white border-slate-200 shadow-sm overflow-hidden rounded-[24px]">
             <CardHeader className="p-4 pb-2 flex flex-row items-center gap-2">
               <PlusSquare className="h-4 w-4" style={{ color: theme.primary }} />
@@ -588,6 +588,7 @@ export function ProfileTab() {
                   key === currentTenant.moduleType || 
                   currentTenant.unlockedModules?.includes(key)
                 ).map(([key, modTheme]) => {
+                  const themeObj = modTheme as ModuleTheme;
                   const isActiveModule = (activeModuleOverride || currentTenant.moduleType) === key;
                   return (
                     <button
@@ -599,19 +600,19 @@ export function ProfileTab() {
                       <div className="flex items-center gap-3">
                         <div
                           className="h-9 w-9 rounded-xl flex items-center justify-center text-white shrink-0"
-                          style={{ backgroundColor: isActiveModule ? modTheme.primary : '#94a3b8' }}
+                          style={{ backgroundColor: isActiveModule ? themeObj.primary : '#94a3b8' }}
                         >
                           <Activity className="h-4 w-4" />
                         </div>
                         <div>
                           <p className="text-sm font-bold text-slate-800 leading-tight">
-                            {modTheme.name}
+                            {themeObj.name}
                           </p>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-0.5">{modTheme.tagline}</p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-0.5">{themeObj.tagline}</p>
                         </div>
                       </div>
                       {isActiveModule ? (
-                        <Badge className="text-[9px] font-black uppercase tracking-widest border-none shrink-0" style={{ backgroundColor: `${modTheme.primary}20`, color: modTheme.primary }}>
+                        <Badge className="text-[9px] font-black uppercase tracking-widest border-none shrink-0" style={{ backgroundColor: `${themeObj.primary}20`, color: themeObj.primary }}>
                           Active
                         </Badge>
                       ) : (
