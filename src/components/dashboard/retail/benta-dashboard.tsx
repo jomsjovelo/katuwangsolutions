@@ -8,7 +8,7 @@ import { useTenant } from '@/app/lib/tenant-context';
 import { useInventory } from '@/hooks/use-inventory';
 import { useSyncStatus } from '@/hooks/use-sync-status';
 import { useCart } from '@/hooks/use-cart';
-import { processCheckout, addProduct, deleteSale, CartItem } from '@/firebase/firestore/retail-actions';
+import { processCheckout, processCreditCheckout, addProduct, deleteSale, CartItem } from '@/firebase/firestore/retail-actions';
 import { Card, CardContent } from "@/components/ui/card";
 import { useUser } from '@/firebase/auth/use-user';
 import { Badge } from "@/components/ui/badge";
@@ -225,7 +225,41 @@ function BentaDashboardContent() {
     }
   };
 
-  // Removed handlePalistaCheckout logic (Utang features deprecated)
+  const handlePalistaCheckout = async () => {
+    if (!currentTenant || cart.length === 0) return;
+    if (!palistaName || palistaName.trim() === '') {
+      setError("Ilagay ang pangalan ng Customer.");
+      return;
+    }
+    try {
+      setIsProcessing(true);
+      setError(null);
+      
+      const palistaDate = new Date();
+      const saleId = await processCreditCheckout(currentTenant.id, cart, finalTotalCentavos, palistaName, palistaDate);
+      
+      setCompletedSale({
+        items: [...cart],
+        total: finalTotalCentavos,
+        paymentMethod: 'palista',
+        saleId,
+        pointsEarned: 0,
+      });
+      
+      setCart([]);
+      setShowMobileCart(false);
+      setShowPalistaInput(false);
+      setPalistaName('');
+      setShowReceipt(true);
+      
+      setSuccessMsg(`Pautang naitala para kay ${palistaName}!`);
+      setTimeout(() => setSuccessMsg(null), 4000);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   // Debounce search input to maintain responsive keystrokes
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
@@ -571,24 +605,22 @@ function BentaDashboardContent() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <Button 
                       onClick={() => setShowCashModal(true)} 
                       disabled={cart.length === 0 || isProcessing}
-                      className="h-12 bg-emerald-500 hover:bg-emerald-600 text-white font-bold shadow-md shadow-emerald-500/20 active:scale-95 transition-transform rounded-xl gap-1.5"
+                      className="h-12 bg-emerald-500 hover:bg-emerald-600 text-white font-bold shadow-md shadow-emerald-500/20 active:scale-95 transition-transform rounded-xl gap-1.5 px-0"
                     >
                       {isProcessing ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        <>
-                          <Coins className="h-4 w-4" /> Cash Benta
-                        </>
+                        <><Coins className="h-4 w-4" /> Cash</>
                       )}
                     </Button>
                     <Button 
                       onClick={() => setShowGCashQr(true)} 
                       disabled={cart.length === 0 || isProcessing}
-                      className="h-12 text-white font-bold shadow-md active:scale-95 transition-all rounded-xl gap-1.5 border-none"
+                      className="h-12 text-white font-bold shadow-md active:scale-95 transition-all rounded-xl gap-1.5 border-none px-0"
                       style={{ backgroundColor: '#007aff', boxShadow: '0 8px 16px -4px #007aff40' }}
                     >
                       {isProcessing ? (
@@ -597,12 +629,18 @@ function BentaDashboardContent() {
                         <><Receipt className="h-4 w-4" /> GCash</>
                       )}
                     </Button>
+                    <Button 
+                      onClick={() => setShowPalistaInput(true)} 
+                      disabled={cart.length === 0 || isProcessing}
+                      className="h-12 bg-orange-500 hover:bg-orange-600 text-white font-bold shadow-md shadow-orange-500/20 active:scale-95 transition-transform rounded-xl gap-1.5 px-0"
+                    >
+                      {isProcessing ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <><Tag className="h-4 w-4" /> Palista</>
+                      )}
+                    </Button>
                   </div>
-                  {/* Palista / Store Credit */}
-                  {false && (
-                    <div className="pt-1">
-                    </div>
-                  )}
                 </div>
               </CardContent>
             </Card>
@@ -912,6 +950,56 @@ function BentaDashboardContent() {
               {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Tapusin ang Sale'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showPalistaInput} onOpenChange={setShowPalistaInput}>
+        <DialogContent className="sm:max-w-md rounded-2xl p-0 overflow-hidden border-0">
+          <div className="p-6 bg-gradient-to-br from-orange-500 to-orange-600 text-white relative">
+            <div className="absolute right-0 top-0 opacity-10 transform translate-x-4 -translate-y-4">
+              <Tag className="h-24 w-24" />
+            </div>
+            <DialogTitle className="text-2xl font-black font-headline relative z-10 flex items-center gap-2">
+              Palista / Utang
+            </DialogTitle>
+            <DialogDescription className="text-orange-100 mt-1 relative z-10">
+              Ilagay ang pangalan ng uutang. Ito ay mapupunta sa Credit Tracker.
+            </DialogDescription>
+          </div>
+          
+          <div className="p-6 space-y-4 bg-white">
+            <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-sm font-bold text-orange-800">Halaga ng Utang:</span>
+                <span className="text-xl font-black text-orange-900">₱{finalTotalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="palistaName" className="font-bold text-slate-700">Pangalan ng Customer</Label>
+              <Input
+                id="palistaName"
+                value={palistaName}
+                onChange={(e) => setPalistaName(e.target.value)}
+                placeholder="Hal. Juan Dela Cruz"
+                className="h-12 rounded-xl border-slate-200"
+                autoFocus
+              />
+            </div>
+
+            <DialogFooter className="mt-4 gap-2">
+              <Button variant="outline" onClick={() => setShowPalistaInput(false)} className="h-12 rounded-xl font-bold flex-1">
+                Kanselahin
+              </Button>
+              <Button 
+                onClick={handlePalistaCheckout}
+                disabled={!palistaName.trim() || isProcessing} 
+                className="h-12 rounded-xl font-bold bg-orange-500 hover:bg-orange-600 text-white flex-1"
+              >
+                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Ilista ang Utang"}
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 

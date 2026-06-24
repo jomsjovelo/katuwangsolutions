@@ -90,6 +90,24 @@ export function BuildStackDashboard() {
           paymentMethod: 'palista', // It's a credit sale
           createdAt: serverTimestamp()
         });
+
+        // Record it in the unified Credit Tracker
+        const creditsRef = collection(db, 'tenants', currentTenant.id, 'retail_credits');
+        const newCreditRef = doc(creditsRef);
+        transaction.set(newCreditRef, {
+          id: newCreditRef.id,
+          tenantId: currentTenant.id,
+          type: 'receivable',
+          name: `Project: ${project.name}`,
+          amount: totalCost,
+          paidAmount: 0,
+          status: 'unpaid',
+          creditDate: serverTimestamp(),
+          relatedSaleId: newSaleRef.id,
+          description: `Build Stack Dispatch: ${dispatchQty}x ${product.name}`,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
       });
 
       toast({

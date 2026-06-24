@@ -1,4 +1,4 @@
-import { getFirestore, doc, collection, serverTimestamp, setDoc, increment } from 'firebase/firestore';
+import { getFirestore, doc, collection, serverTimestamp, setDoc, increment, Timestamp } from 'firebase/firestore';
 import { initializeFirebase } from '../index';
 import { ProductSchema } from '@/lib/schemas/inventory';
 import { runTransactionResilient } from './resilient-transaction';
@@ -289,3 +289,100 @@ export async function deleteDispatch(
   return true;
 }
 
+/**
+ * Process a retail sale on credit (Palista / Utang)
+ */
+export async function processCreditCheckout(
+  tenantId: string,
+  cart: CartItem[],
+  totalAmountCentavos: number,
+  palistaName: string,
+  palistaDate: Date
+): Promise<string> {
+  if (cart.length === 0) throw new Error('Cart is empty');
+  if (!palistaName || palistaName.trim() === '') throw new Error('Customer name is required for credit.');
+
+  const db = getKatuwangDb();
+  let saleDocId = '';
+  
+  await runTransactionResilient(db, async (transaction) => {
+    let secureTotalAmount = 0;
+
+    const productDocs: Record<string, { ref: ReturnType<typeof doc>; newStock: number }> = {};
+    for (const item of cart) {
+      if (item.quantity <= 0 || isNaN(item.quantity)) {
+        throw new Error(`Invalid quantity for ${item.name}.`);
+      }
+
+      if (item.productId.startsWith('misc-')) {
+        secureTotalAmount += Math.round(item.price * item.quantity);
+        continue;
+      }
+
+      const productRef = doc(db, 'tenants', tenantId, 'products', item.productId);
+      const productSnap = await transaction.get(productRef);
+      
+      if (!productSnap.exists()) {
+        throw new Error(`Product ${item.name} does not exist.`);
+      }
+      
+      const productData = productSnap.data();
+      const currentStock = productData.currentStock || 0;
+      const secureDbPrice = productData.salePrice || 0;
+
+      if (currentStock < item.quantity) {
+        throw new Error(`Not enough stock for ${item.name}. Available: ${currentStock}`);
+      }
+      
+      secureTotalAmount += Math.round(secureDbPrice * item.quantity);
+
+      productDocs[item.productId] = {
+        ref: productRef,
+        newStock: currentStock - item.quantity
+      };
+    }
+
+    for (const item of cart) {
+      if (!item.productId.startsWith('misc-')) {
+        transaction.update(productDocs[item.productId].ref, {
+          currentStock: productDocs[item.productId].newStock,
+          updatedAt: serverTimestamp()
+        });
+      }
+    }
+
+    const salesRef = collection(db, 'tenants', tenantId, 'sales');
+    const newSaleRef = doc(salesRef);
+    saleDocId = newSaleRef.id;
+    
+    transaction.set(newSaleRef, {
+      id: newSaleRef.id,
+      tenantId,
+      items: cart,
+      totalAmount: secureTotalAmount,
+      paymentMethod: 'palista',
+      createdAt: serverTimestamp()
+    });
+
+    // Create the credit record
+    const creditsRef = collection(db, 'tenants', tenantId, 'retail_credits');
+    const newCreditRef = doc(creditsRef);
+    
+    transaction.set(newCreditRef, {
+      id: newCreditRef.id,
+      tenantId,
+      type: 'receivable',
+      name: palistaName,
+      amount: secureTotalAmount,
+      paidAmount: 0,
+      status: 'unpaid',
+      creditDate: Timestamp.fromDate(palistaDate),
+      relatedSaleId: newSaleRef.id,
+      description: `Benta Snap Palista Checkout`,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+  });
+
+  return saleDocId;
+}

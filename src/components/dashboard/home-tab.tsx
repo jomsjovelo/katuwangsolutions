@@ -11,6 +11,7 @@ import { collection, onSnapshot, query, where, orderBy, Timestamp } from 'fireba
 import { initializeFirebase } from '@/firebase';
 import { useActivityLogs } from '@/hooks/use-activity-logs';
 import { ActivityOrganizer } from './activity-organizer';
+import { CreditTracker } from './credit-tracker';
 import { cn } from '@/lib/utils';
 import { 
   TrendingUp, 
@@ -374,6 +375,10 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
           </Card>
         </section>
         )}
+
+        <section className="mt-4">
+          <CreditTracker />
+        </section>
 
         {/* Quick Actions */}
         <section>
