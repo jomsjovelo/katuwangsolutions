@@ -376,9 +376,11 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
         </section>
         )}
 
-        <section className="mt-4">
-          <CreditTracker />
-        </section>
+        {['benta-snap', 'fresh-tally', 'build-stack'].includes(currentTenant?.moduleType || '') && (
+          <section className="mt-4">
+            <CreditTracker />
+          </section>
+        )}
 
         {/* Quick Actions */}
         <section>
