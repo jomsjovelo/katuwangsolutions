@@ -99,10 +99,12 @@ export function ReferralDashboard() {
   }, [loadHistory]);
 
   // Derived stats
-  const lifetimeEarnings = profile?.referralEarnings || 0;
-  const availableBalance = profile?.availableBalance ?? lifetimeEarnings;
-  const activeReferrals = roster.filter((r) => r.isActive).length;
-  const totalReferrals = roster.length;
+  const isDemo = profile?.email === 'demo@katuwangsolutions.com';
+
+  const lifetimeEarnings = isDemo ? 1560 : (profile?.referralEarnings || 0);
+  const availableBalance = isDemo ? 1560 : (profile?.availableBalance ?? lifetimeEarnings);
+  const activeReferrals = isDemo ? 156 : roster.filter((r) => r.isActive).length;
+  const totalReferrals = isDemo ? 156 : roster.length;
   const referralCode = profile?.referralCode || '';
   const referralLink = typeof window !== 'undefined'
     ? `${window.location.origin}/onboarding?ref=${referralCode}`

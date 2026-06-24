@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { LoginDialog } from '@/components/auth/login-dialog';
 import { Store, Users, ArrowRight, Loader2 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -154,6 +155,18 @@ export function ModeSelectionStep({ onSelectStartBusiness }: ModeSelectionStepPr
           </div>
         </div>
       </button>
+
+      {/* Login Link */}
+      <div className="pt-2 w-full text-center fade-in delay-200">
+        <p className="text-xs text-slate-500 font-medium">
+          May account na?{' '}
+          <LoginDialog>
+            <button className="text-primary font-black hover:underline underline-offset-4 cursor-pointer">
+              Mag-login dito
+            </button>
+          </LoginDialog>
+        </p>
+      </div>
     </div>
   );
 }
