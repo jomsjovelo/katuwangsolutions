@@ -75,7 +75,7 @@ export function ProfileTab() {
   const [showInstallGuide, setShowInstallGuide] = useState(false);
   const { user } = useUser();
   const { currentTenant, setCurrentTenant, allTenants } = useTenant();
-  const { reset } = useTenantStore();
+  const { reset, switchActiveModule, activeModuleOverride } = useTenantStore();
   const { deferredPrompt, isInstalled, triggerInstall, isIOS } = usePWAInstall();
   
   const [profile, setProfile] = useState<any>(null);
@@ -560,6 +560,58 @@ export function ProfileTab() {
                       </div>
                       {isActive ? (
                         <Badge className="text-[9px] font-black uppercase tracking-widest border-none shrink-0" style={{ backgroundColor: `${theme.primary}20`, color: theme.primary }}>
+                          Active
+                        </Badge>
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Unlocked Modules Switcher */}
+        {currentTenant && (currentTenant.unlockedModules?.length > 0 || currentTenant.id === 'demo' || currentTenant.name.toLowerCase().includes('demo')) && (
+          <Card className="bg-white border-slate-200 shadow-sm overflow-hidden rounded-[24px]">
+            <CardHeader className="p-4 pb-2 flex flex-row items-center gap-2">
+              <PlusSquare className="h-4 w-4" style={{ color: theme.primary }} />
+              <CardTitle className="text-sm font-black text-slate-800">Switch Active Module</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="divide-y divide-slate-100">
+                {Object.entries(MODULE_THEMES).filter(([key]) => 
+                  currentTenant.id === 'demo' || 
+                  currentTenant.name.toLowerCase().includes('demo') || 
+                  key === currentTenant.moduleType || 
+                  currentTenant.unlockedModules?.includes(key)
+                ).map(([key, modTheme]) => {
+                  const isActiveModule = (activeModuleOverride || currentTenant.moduleType) === key;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => switchActiveModule(key)}
+                      disabled={isActiveModule}
+                      className="w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors hover:bg-slate-50 disabled:cursor-default"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="h-9 w-9 rounded-xl flex items-center justify-center text-white shrink-0"
+                          style={{ backgroundColor: isActiveModule ? modTheme.primary : '#94a3b8' }}
+                        >
+                          <Activity className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-800 leading-tight">
+                            {modTheme.name}
+                          </p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-0.5">{modTheme.tagline}</p>
+                        </div>
+                      </div>
+                      {isActiveModule ? (
+                        <Badge className="text-[9px] font-black uppercase tracking-widest border-none shrink-0" style={{ backgroundColor: `${modTheme.primary}20`, color: modTheme.primary }}>
                           Active
                         </Badge>
                       ) : (
