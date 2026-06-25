@@ -45,6 +45,7 @@ interface TenantState {
   userProfile: UserProfile | null;
   activeModuleOverride: string | null; // Locally override the current app view
   isLoading: boolean;
+  isSeeding: boolean;
   error: string | null;
   
   // Actions
@@ -56,6 +57,7 @@ interface TenantState {
   switchActiveModule: (moduleId: string | null) => void;
   setUserProfile: (profile: UserProfile | null) => void;
   setLoading: (loading: boolean) => void;
+  setSeeding: (seeding: boolean) => void;
   setError: (error: string | null) => void;
   reset: () => void;
 }
@@ -68,6 +70,7 @@ export const useTenantStore = create<TenantState>()(
       userProfile: null,
       activeModuleOverride: null,
       isLoading: true,
+      isSeeding: false,
       error: null,
 
   setActiveTenant: (tenant) => set((state) => {
@@ -130,10 +133,14 @@ export const useTenantStore = create<TenantState>()(
     if (state.isLoading === loading) return state;
     return { isLoading: loading };
   }),
+  setSeeding: (seeding) => set((state) => {
+    if (state.isSeeding === seeding) return state;
+    return { isSeeding: seeding };
+  }),
   setError: (error) => set({ error: error }),
   
   reset: () => {
-    set({ activeTenant: null, allTenants: [], userProfile: null, activeModuleOverride: null, isLoading: false, error: null });
+    set({ activeTenant: null, allTenants: [], userProfile: null, activeModuleOverride: null, isLoading: false, isSeeding: false, error: null });
   }
     }),
     {

@@ -11,7 +11,7 @@ import { BrandLogo } from '@/components/ui/brand-logo';
 
 export default function TenantDashboardPage() {
   const [activeTab, setActiveTab] = useState<'home' | 'benta' | 'stock' | 'ulat' | 'kita' | 'profile'>('home');
-  const { isLoading, activeTenant } = useTenantStore();
+  const { isLoading, isSeeding, activeTenant } = useTenantStore();
 
   // Listen for programmatic tab navigation from child components (e.g., Kita Ko shortcut in ProfileTab)
   React.useEffect(() => {
@@ -23,7 +23,7 @@ export default function TenantDashboardPage() {
     return () => window.removeEventListener('katuwang-nav', handler);
   }, []);
   
-  if (isLoading) {
+  if (isLoading || isSeeding) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-6">

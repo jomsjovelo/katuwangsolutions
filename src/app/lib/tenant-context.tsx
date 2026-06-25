@@ -51,8 +51,8 @@ export function useTenant() {
     const effectiveTenantId = isDemo && activeModuleOverride ? `demo_${activeModuleOverride}` : activeTenant.id;
 
     if (effectiveTenantId.startsWith('demo_') && !seedingIds.has(effectiveTenantId)) {
-      // Force UI into loading state while we securely seed the tenant document
-      useTenantStore.getState().setLoading(true);
+      // Force UI into seeding state while we securely seed the tenant document
+      useTenantStore.getState().setSeeding(true);
       
       import('@/firebase/firestore/demo-seeder').then(({ seedDemoAccountIfNeeded }) => {
         seedDemoAccountIfNeeded(
@@ -61,7 +61,7 @@ export function useTenant() {
           activeTenant.ownerUid || 'demo'
         ).finally(() => {
           setSeedingIds(prev => new Set(prev).add(effectiveTenantId));
-          useTenantStore.getState().setLoading(false);
+          useTenantStore.getState().setSeeding(false);
         });
       });
     }
