@@ -15,11 +15,17 @@ export function useTenant() {
     allTenants, 
     updateTenantStatus, 
     updateTenantPricing,
-    isLoading
+    isLoading,
+    activeModuleOverride
   } = useTenantStore();
 
+  const currentTenant = activeTenant ? {
+    ...activeTenant,
+    moduleType: activeModuleOverride || activeTenant.moduleType
+  } : null;
+
   return {
-    currentTenant: activeTenant,
+    currentTenant,
     setCurrentTenant: setActiveTenant,
     allTenants,
     updateTenantStatus,
