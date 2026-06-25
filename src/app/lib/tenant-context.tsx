@@ -19,6 +19,8 @@ export function useTenant() {
     activeModuleOverride
   } = useTenantStore();
 
+  const [seedingIds, setSeedingIds] = React.useState<Set<string>>(new Set());
+
   const currentTenant = React.useMemo(() => {
     if (!activeTenant) return null;
     
@@ -30,24 +32,40 @@ export function useTenant() {
       ? `demo_${activeModuleOverride}` 
       : activeTenant.id;
       
+    // If it's a demo tenant and it's currently being seeded (or about to be seeded),
+    // we return null to prevent Firestore snapshot listeners from mounting prematurely
+    if (effectiveTenantId.startsWith('demo_') && !seedingIds.has(effectiveTenantId)) {
+      return null;
+    }
+      
     return {
       ...activeTenant,
       id: effectiveTenantId,
       moduleType
     };
-  }, [activeTenant, activeModuleOverride]);
+  }, [activeTenant, activeModuleOverride, seedingIds]);
 
   React.useEffect(() => {
-    if (currentTenant?.id.startsWith('demo_')) {
+    if (!activeTenant) return;
+    const isDemo = activeTenant.id === 'demo' || activeTenant.name?.toLowerCase().includes('demo');
+    const effectiveTenantId = isDemo && activeModuleOverride ? `demo_${activeModuleOverride}` : activeTenant.id;
+
+    if (effectiveTenantId.startsWith('demo_') && !seedingIds.has(effectiveTenantId)) {
+      // Force UI into loading state while we securely seed the tenant document
+      useTenantStore.getState().setLoading(true);
+      
       import('@/firebase/firestore/demo-seeder').then(({ seedDemoAccountIfNeeded }) => {
         seedDemoAccountIfNeeded(
-          currentTenant.id, 
-          currentTenant.moduleType, 
-          currentTenant.ownerUid || 'demo'
-        );
+          effectiveTenantId, 
+          activeModuleOverride || activeTenant.moduleType, 
+          activeTenant.ownerUid || 'demo'
+        ).finally(() => {
+          setSeedingIds(prev => new Set(prev).add(effectiveTenantId));
+          useTenantStore.getState().setLoading(false);
+        });
       });
     }
-  }, [currentTenant?.id, currentTenant?.moduleType, currentTenant?.ownerUid]);
+  }, [activeTenant, activeModuleOverride, seedingIds]);
 
   return {
     currentTenant,
