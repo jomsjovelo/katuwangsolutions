@@ -20,11 +20,34 @@ export function useTenant() {
   } = useTenantStore();
 
   const currentTenant = React.useMemo(() => {
-    return activeTenant ? {
+    if (!activeTenant) return null;
+    
+    const isDemo = activeTenant.id === 'demo' || activeTenant.name?.toLowerCase().includes('demo');
+    const moduleType = activeModuleOverride || activeTenant.moduleType;
+    
+    // For demo accounts, route database queries to a module-specific demo tenant ID
+    const effectiveTenantId = isDemo && activeModuleOverride 
+      ? `demo_${activeModuleOverride}` 
+      : activeTenant.id;
+      
+    return {
       ...activeTenant,
-      moduleType: activeModuleOverride || activeTenant.moduleType
-    } : null;
+      id: effectiveTenantId,
+      moduleType
+    };
   }, [activeTenant, activeModuleOverride]);
+
+  React.useEffect(() => {
+    if (currentTenant?.id.startsWith('demo_')) {
+      import('@/firebase/firestore/demo-seeder').then(({ seedDemoAccountIfNeeded }) => {
+        seedDemoAccountIfNeeded(
+          currentTenant.id, 
+          currentTenant.moduleType, 
+          currentTenant.ownerUid || 'demo'
+        );
+      });
+    }
+  }, [currentTenant?.id, currentTenant?.moduleType, currentTenant?.ownerUid]);
 
   return {
     currentTenant,
