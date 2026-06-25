@@ -171,15 +171,17 @@ export async function seedDemoAccountIfNeeded(tenantId: string, moduleType: stri
     seedProducts.forEach((prod) => {
       const newProdRef = doc(productsRef);
       batch.set(newProdRef, {
+        tenantId,
         name: prod.name,
-        price: prod.price,
-        cost: prod.cost,
+        salePrice: prod.price,
+        costPrice: prod.cost,
         currentStock: prod.stock,
         minStock: prod.minStock,
-        status: 'active',
+        isActive: true,
+        category: 'General',
+        unit: 'pcs',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        categoryId: 'demo-category',
       });
     });
     
@@ -195,28 +197,18 @@ export async function seedDemoAccountIfNeeded(tenantId: string, moduleType: stri
       const randomProd = seedProducts[Math.floor(Math.random() * seedProducts.length)];
       const qty = Math.floor(Math.random() * 3) + 1;
       const totalAmount = randomProd.price * qty;
-      const totalCost = randomProd.cost * qty;
-      const totalProfit = totalAmount - totalCost;
       
       const newSaleRef = doc(salesRef);
       salesBatch.set(newSaleRef, {
         tenantId,
-        cashierId: actualUid,
-        items: [{
-          productId: 'demo-prod-' + i,
-          name: randomProd.name,
-          price: randomProd.price,
-          cost: randomProd.cost,
-          quantity: qty,
-          subtotal: totalAmount
-        }],
+        productId: 'demo-prod-' + i,
+        productName: randomProd.name,
+        unitPrice: randomProd.price,
+        quantity: qty,
         totalAmount,
-        totalCost,
-        totalProfit,
         paymentMethod: 'cash',
-        amountPaid: totalAmount,
-        change: 0,
-        status: 'completed',
+        status: 'paid',
+        performedBy: actualUid,
         // Randomize time within the last 24 hours
         createdAt: new Date(Date.now() - Math.random() * 86400000), 
       });
