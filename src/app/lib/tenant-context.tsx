@@ -19,10 +19,12 @@ export function useTenant() {
     activeModuleOverride
   } = useTenantStore();
 
-  const currentTenant = activeTenant ? {
-    ...activeTenant,
-    moduleType: activeModuleOverride || activeTenant.moduleType
-  } : null;
+  const currentTenant = React.useMemo(() => {
+    return activeTenant ? {
+      ...activeTenant,
+      moduleType: activeModuleOverride || activeTenant.moduleType
+    } : null;
+  }, [activeTenant, activeModuleOverride]);
 
   return {
     currentTenant,
