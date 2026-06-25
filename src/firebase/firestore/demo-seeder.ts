@@ -1,5 +1,5 @@
 import { initializeFirebase } from '../index';
-import { collection, doc, writeBatch, getDocs, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, writeBatch, getDocs, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 interface SeedProduct {
   name: string;
@@ -141,19 +141,20 @@ export async function seedDemoAccountIfNeeded(tenantId: string, moduleType: stri
   try {
     isSeeding = true;
     
-    // Check if products exist
-    const productsRef = collection(db, 'tenants', tenantId, 'products');
-    const snap = await getDocs(productsRef);
+    // Check if tenant exists. If it does, we assume it's already seeded.
+    // We do this instead of checking products to avoid permission errors
+    // since we haven't created the tenant document (and thus ownerUid) yet!
+    const tenantRef = doc(db, 'tenants', tenantId);
+    const tenantSnap = await getDoc(tenantRef);
     
-    if (!snap.empty) {
+    if (tenantSnap.exists()) {
       isSeeding = false;
       return; // Already seeded
     }
     
     console.log(`[DemoSeeder] Seeding module: ${moduleType} for tenant: ${tenantId}...`);
     
-    // First, create the tenant document itself so Firestore Rules pass
-    const tenantRef = doc(db, 'tenants', tenantId);
+    // First, create the tenant document itself so Firestore Rules pass for subcollections
     await setDoc(tenantRef, {
       name: `Demo - ${moduleType.replace('-', ' ').toUpperCase()}`,
       moduleType,
