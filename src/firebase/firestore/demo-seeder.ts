@@ -166,6 +166,8 @@ export async function seedDemoAccountIfNeeded(tenantId: string, moduleType: stri
     const seedProducts = MODULE_SEED_DATA[moduleType] || MODULE_SEED_DATA['benta-snap'];
     const batch = writeBatch(db);
     
+    const productsRef = collection(db, 'tenants', tenantId, 'products');
+    
     seedProducts.forEach((prod) => {
       const newProdRef = doc(productsRef);
       batch.set(newProdRef, {
