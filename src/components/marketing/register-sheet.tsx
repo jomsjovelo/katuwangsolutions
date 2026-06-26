@@ -45,7 +45,7 @@ const APP_GROUPS = [
     items: [
       { id: 'sahod-flow', name: 'Sahod Flow', icon: Banknote, desc: 'Payroll automation.' },
       { id: 'ledger-flow', name: 'Ledger Flow', icon: BookText, desc: 'Financial insights & P&L.' },
-      { id: 'biyahe-sync', name: 'Biyahe Sync', icon: Truck, desc: 'Fleet dispatching & tracking.' },
+      { id: 'biyahe-sync', name: 'Biyahe Sync', icon: Truck, desc: 'Trucking service dispatching & tracking.' },
     ]
   },
   {

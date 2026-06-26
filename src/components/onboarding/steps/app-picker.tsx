@@ -43,7 +43,7 @@ const apps = [
     items: [
       { id: 'sahod-flow', name: 'Sahod Flow', icon: Banknote, desc: 'Effortless payroll management for a happy, on-time team.' },
       { id: 'ledger-flow', name: 'Ledger Flow', icon: BookText, desc: 'Crystal-clear financial insights to watch your profits soar.' },
-      { id: 'biyahe-sync', name: 'Biyahe Sync', icon: Truck, desc: 'Real-time fleet dispatching to keep your business moving.' },
+      { id: 'biyahe-sync', name: 'Biyahe Sync', icon: Truck, desc: 'Real-time trucking dispatching to keep your fleet moving.' },
     ]
   },
   {

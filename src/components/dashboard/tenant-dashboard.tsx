@@ -27,7 +27,7 @@ const AutoBossDashboard = dynamic(() => import('@/components/dashboard/service/a
 const WellnessDashboard = dynamic(() => import('@/components/dashboard/service/wellness-dashboard').then(m => m.WellnessDashboard));
 const TrimTrackDashboard = dynamic(() => import('@/components/dashboard/service/trim-track-dashboard').then(m => m.TrimTrackDashboard));
 const RepSyncDashboard = dynamic(() => import('@/components/dashboard/service/rep-sync-dashboard').then(m => m.RepSyncDashboard));
-const FleetDashboard = dynamic(() => import('@/components/dashboard/logistics/fleet-dashboard').then(m => m.FleetDashboard));
+const FleetDashboard = dynamic(() => import('@/components/dashboard/trucking/fleet-dashboard').then(m => m.FleetDashboard));
 const RentalDashboard = dynamic(() => import('@/components/dashboard/rental/rental-dashboard').then(m => m.RentalDashboard));
 const FarmDashboard = dynamic(() => import('@/components/dashboard/farm/farm-dashboard').then(m => m.FarmDashboard));
 

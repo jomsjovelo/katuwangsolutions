@@ -25,7 +25,7 @@ const APPS = [
   { id: 'ledger-flow', name: 'Ledger Flow', category: 'Corporate', desc: 'Simple, clear accounting and main cash', price: 299 },
   { id: 'sahod-flow', name: 'Sahod Flow', category: 'Corporate', desc: 'Automated staff payroll and timesheets', price: 249 },
   
-  { id: 'biyahe-sync', name: 'Biyahe Sync', category: 'Logistics', desc: 'Trucking and delivery fee tracker', price: 349 },
+  { id: 'biyahe-sync', name: 'Biyahe Sync', category: 'Trucking', desc: 'Trucking service and hauling fee tracker', price: 349 },
   { id: 'ani-grow', name: 'Ani Grow', category: 'Agriculture', desc: 'Farm harvest and bodega crop tracking', price: 199 },
 
   { id: 'bite-snap', name: 'Bite Snap', category: 'Food', desc: 'Eatery POS with Kitchen Display (KDS)', price: 299 },

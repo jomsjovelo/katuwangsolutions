@@ -5,7 +5,7 @@ import { useTenant } from '@/app/lib/tenant-context';
 import { useCollection } from 'react-firebase-hooks/firestore';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
-import { addTrip, updateTripStatus, updateTripExpenses, deleteTrip } from '@/firebase/firestore/logistics-actions';
+import { addTrip, updateTripStatus, updateTripExpenses, deleteTrip } from '@/firebase/firestore/trucking-actions';
 import { useUser } from '@/firebase/auth/use-user';
 import { chargeRetailSaleToCredit } from '@/firebase/firestore/credit-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -89,7 +89,7 @@ const TripCard = React.memo(({
             <p className="text-xs font-bold text-slate-700">{trip.plateNumber || 'TBD'}</p>
           </div>
           <div className="text-right">
-            <p className="text-[9px] text-slate-400 font-bold uppercase">Load</p>
+            <p className="text-[9px] text-slate-400 font-bold uppercase">Cargo</p>
             <p className="text-xs font-bold text-slate-700">{trip.loadDescription || 'None'}</p>
           </div>
         </div>
@@ -385,7 +385,7 @@ export function FleetDashboard() {
       
       if (trip && trip.deliveryFee > 0) {
         setCompletedSale({
-          items: [{ name: `Delivery: ${trip.origin} to ${trip.destination}`, quantity: 1, price: trip.deliveryFee }],
+          items: [{ name: `Hauling: ${trip.origin} to ${trip.destination}`, quantity: 1, price: trip.deliveryFee }],
           total: trip.deliveryFee,
           paymentMethod,
           saleId: trip.id
@@ -445,7 +445,7 @@ export function FleetDashboard() {
                 </div>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="trip-load" className="text-[10px] uppercase">Load Description</Label>
+                <Label htmlFor="trip-load" className="text-[10px] uppercase">Cargo Description</Label>
                 <Input id="trip-load" name="tripLoad" placeholder="e.g. 50 boxes of supplies" value={loadDesc} onChange={e => setLoadDesc(e.target.value)} />
               </div>
               <div className="grid grid-cols-3 gap-3">
@@ -458,7 +458,7 @@ export function FleetDashboard() {
                   <Input id="trip-plate" name="tripPlate" placeholder="e.g. ABC 1234" value={plateNumber} onChange={e => setPlateNumber(e.target.value)} />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="trip-fee" className="text-[10px] uppercase">Delivery Fee (₱)</Label>
+                  <Label htmlFor="trip-fee" className="text-[10px] uppercase">Hauling Fee (₱)</Label>
                   <Input id="trip-fee" name="tripFee" type="number" placeholder="0.00" value={fee} onChange={e => setFee(Number(e.target.value) || '')} />
                 </div>
               </div>
@@ -649,7 +649,7 @@ export function FleetDashboard() {
             setPendingGCashTripId(null);
           }}
           totalAmount={trips.find((t: any) => t.id === pendingGCashTripId)?.deliveryFee || 0}
-          tenantName={currentTenant?.name || "Katuwang Logistics"}
+          tenantName={currentTenant?.name || "Katuwang Trucking"}
           paymentType="gcash"
           onPaymentVerified={async (paymentMethod, gcashRef) => {
             setShowGCashQr(false);
@@ -663,7 +663,7 @@ export function FleetDashboard() {
         <ThermalReceiptPreview
           open={showReceipt}
           onClose={() => setShowReceipt(false)}
-          storeName={currentTenant?.name || "Katuwang Logistics"}
+          storeName={currentTenant?.name || "Katuwang Trucking"}
           receiptType="DELIVERY RECEIPT (ePOD)"
           items={completedSale?.items || []}
           totalAmountPesos={(completedSale?.total || 0) / 100}

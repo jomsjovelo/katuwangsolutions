@@ -446,27 +446,27 @@ export const appGroups: AppGroup[] = [
         id: 'biyahe-sync',
         name: 'Biyahe Sync',
         icon: Truck,
-        tagline: 'Real-time fleet dispatching to keep your business moving.',
+        tagline: 'Real-time trucking dispatching to keep your fleet moving.',
         imageSrc: '/apps/biyahe-sync.png',
         features: ['Driver tracking', 'ePOD signatures', 'Fuel expense logs', 'Route performance', 'GPS map'],
-        description: 'Every delivery is a promise to your customer. Biyahe Sync keeps that promise by putting you in full control of your fleet — track drivers in real time, capture digital proof of delivery, and log fuel expenses automatically. Deliver faster, dispute less, and cut operating costs.',
+        description: 'Every hauling trip is a promise to your client. Biyahe Sync keeps that promise by putting you in full control of your trucking service — track drivers in real time, capture digital proof of delivery, and log fuel expenses automatically. Haul faster, dispute less, and cut operating costs.',
         benefits: [
-          'Live GPS map of all drivers and vehicles from one screen',
+          'Live GPS map of all drivers and trucks from one screen',
           'Electronic Proof of Delivery with customer signature on phone',
           'Fuel expense log tied to each trip for accurate costing',
-          'Delivery performance reports by driver, route, and vehicle',
+          'Trucking performance reports by driver, route, and vehicle',
         ],
         stats: [
           { value: '15%', label: 'Fuel cost reduction' },
-          { value: '0', label: 'Delivery disputes' },
+          { value: '0', label: 'Hauling disputes' },
           { value: '2×', label: 'Dispatcher efficiency' },
         ],
         howItWorks: [
-          { step: 'Dispatch fleet', detail: 'Assign vehicles, drivers, and delivery routes for the day.' },
+          { step: 'Dispatch fleet', detail: 'Assign trucks, drivers, and hauling routes for the day.' },
           { step: 'Capture signatures', detail: 'Drivers get digital Proof of Delivery right on their phones.' },
           { step: 'Log fuel & tolls', detail: 'Drivers log on-road expenses that sync directly to your dashboard.' }
         ],
-        targetUsers: ['Logistics', 'Delivery Fleets', 'Distributors']
+        targetUsers: ['Trucking Services', 'Haulers', 'Freight Operators']
       },
     ],
   },

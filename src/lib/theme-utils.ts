@@ -94,7 +94,7 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
     tagline: 'Mabilis at madaling payroll para sa mga staff'
   },
   
-  // 5. Logistics (Biyahe)
+  // 5. Trucking Service (Biyahe)
   'biyahe-sync': {
     primary: '#3B82F6',
     primaryBg: 'from-blue-500 to-blue-600',
@@ -105,7 +105,7 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
     secondaryText: 'text-white',
     glowClass: 'joy-glow-blue',
     name: 'Biyahe Sync',
-    tagline: 'Maayos na logistics at paghahatid ng produkto'
+    tagline: 'Maayos na trucking service at paghahatid ng kargamento'
   },
   
   // 6. Agriculture (Ani)

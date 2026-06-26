@@ -1,6 +1,6 @@
 import { getFirestore, doc, collection, serverTimestamp, setDoc, increment } from 'firebase/firestore';
 import { initializeFirebase } from '../index';
-import { TripSchema } from '@/lib/schemas/logistics';
+import { TripSchema } from '@/lib/schemas/trucking';
 import { runTransactionResilient } from './resilient-transaction';
 
 export const getKatuwangDb = () => initializeFirebase().db;
@@ -122,7 +122,7 @@ export async function updateTripStatus(tenantId: string, tripId: string, newStat
           amount: revenue,
           type: 'income',
           category: 'Sales',
-          description: `Delivery Fee to: ${tripData.destination || 'Client'} (${paymentMethod})`,
+          description: `Hauling Fee to: ${tripData.destination || 'Client'} (${paymentMethod})`,
           date: new Date(),
           createdAt: serverTimestamp()
         });
@@ -132,8 +132,8 @@ export async function updateTripStatus(tenantId: string, tripId: string, newStat
         transaction.set(newSaleRef, {
           id: newSaleRef.id,
           tenantId,
-          module: 'logistics',
-          items: [{ name: `Delivery: ${tripData.origin} to ${tripData.destination}`, quantity: 1, price: revenue }],
+          module: 'trucking',
+          items: [{ name: `Hauling: ${tripData.origin} to ${tripData.destination}`, quantity: 1, price: revenue }],
           totalAmount: revenue,
           paymentMethod: paymentMethod,
           createdAt: serverTimestamp()
@@ -242,7 +242,7 @@ export async function deleteTrip(
       type: 'void_sale', // Reusing void_sale for now
       description: `Voided Trip: ${tripData.origin} to ${tripData.destination}`,
       meta: {
-        module: 'logistics',
+        module: 'trucking',
         targetId: tripId,
         driver: tripData.driverName,
         status: tripData.status,
