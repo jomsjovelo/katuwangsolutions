@@ -60,7 +60,7 @@ export function GCashQrModal({
   const amountPesos = totalAmount / 100;
   const [gcashRef] = useState(() => `KAT${Date.now().toString(36).toUpperCase()}`);
   const qrData = `payph://merchant/${encodeURIComponent(tenantName)}?amount=${amountPesos}&ref=${gcashRef}`;
-  const { activeTenant } = useTenantStore();
+  const activeTenant = useTenantStore(state => state.activeTenant);
   
   // Try to use the owner's uploaded QR first
   const customQrImage = activeTenant?.gcashQrImageBase64;

@@ -11,7 +11,9 @@ import { BrandLogo } from '@/components/ui/brand-logo';
 
 export default function TenantDashboardPage() {
   const [activeTab, setActiveTab] = useState<'home' | 'benta' | 'stock' | 'ulat' | 'kita' | 'profile'>('home');
-  const { isLoading, isSeeding, activeTenant } = useTenantStore();
+  const isLoading = useTenantStore(state => state.isLoading);
+  const isSeeding = useTenantStore(state => state.isSeeding);
+  const activeTenant = useTenantStore(state => state.activeTenant);
 
   // Listen for programmatic tab navigation from child components (e.g., Kita Ko shortcut in ProfileTab)
   React.useEffect(() => {

@@ -38,6 +38,142 @@ import {
   Trash2
 } from "lucide-react";
 
+const TripCard = React.memo(({ 
+  trip, theme, isOwner, handleDeleteTrip, openMaps, handleAddExpense, 
+  expenseInput, setExpenseInputForTrip, moveTrip, setShowSignatureModal, isProcessing
+}: any) => {
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+      {/* Trip Header */}
+      <div className="px-3 py-2 border-b bg-slate-50 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Badge 
+            className="font-black text-[9px] text-white"
+            style={{ backgroundColor: trip.status === 'planned' ? '#64748b' : theme.primary }}
+          >
+            {trip.status.replace('_', ' ').toUpperCase()}
+          </Badge>
+          {isOwner && (
+            <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full" onClick={() => handleDeleteTrip(trip.id)}>
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+        <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
+          <Banknote className="h-3 w-3" />
+          ₱{((trip.deliveryFee || 0) / 100).toLocaleString()} Fee
+        </span>
+      </div>
+
+      {/* Route Info */}
+      <div className="p-3 space-y-4">
+        <div className="relative pl-6 space-y-3">
+          <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-slate-200" />
+          <div className="relative">
+            <div className="absolute -left-6 top-0.5 h-3 w-3 rounded-full border-2 border-white bg-slate-300" />
+            <p className="text-xs font-bold text-slate-800">{trip.origin}</p>
+          </div>
+          <div className="relative">
+            <div className="absolute -left-6 top-0.5 h-3 w-3 rounded-full border-2 border-white" style={{ backgroundColor: theme.primary }} />
+            <p className="text-xs font-bold text-slate-800">{trip.destination}</p>
+          </div>
+        </div>
+
+        <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 grid grid-cols-3 gap-2 items-center text-center">
+          <div className="text-left">
+            <p className="text-[9px] text-slate-400 font-bold uppercase">Driver</p>
+            <p className="text-xs font-bold text-slate-700">{trip.driverName || 'Unassigned'}</p>
+          </div>
+          <div>
+            <p className="text-[9px] text-slate-400 font-bold uppercase">Vehicle</p>
+            <p className="text-xs font-bold text-slate-700">{trip.plateNumber || 'TBD'}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[9px] text-slate-400 font-bold uppercase">Load</p>
+            <p className="text-xs font-bold text-slate-700">{trip.loadDescription || 'None'}</p>
+          </div>
+        </div>
+
+        {trip.status === 'in_transit' && (
+          <Button 
+            variant="outline" 
+            className="w-full h-8 text-[10px] font-bold text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100 mt-2"
+            onClick={() => openMaps(trip.destination)}
+          >
+            <MapIcon className="h-3 w-3 mr-1" /> Open Route in Google Maps
+          </Button>
+        )}
+
+        {/* Proof of Delivery (if completed) */}
+        {trip.status === 'completed' && trip.signatureData && (
+          <div className="pt-2 border-t border-dashed space-y-2">
+            <span className="text-[10px] font-bold text-emerald-600 uppercase flex items-center gap-1">
+              <CheckCircle2 className="h-3 w-3" /> Proof of Delivery (ePOD)
+            </span>
+            <div className="bg-white border border-slate-200 rounded-lg p-2 flex justify-center">
+              <img src={trip.signatureData} alt="Client Signature" className="max-h-20" />
+            </div>
+          </div>
+        )}
+
+        {/* Expense Tracking (for active trips) */}
+        {(trip.status === 'in_transit' || trip.status === 'loading') && (
+          <div className="pt-2 border-t border-dashed space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                <Fuel className="h-3 w-3" /> Trip Expenses
+              </span>
+              <span className="text-xs font-bold text-red-500">
+                -₱{((trip.tripExpenses || 0) / 100).toLocaleString()}
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <Label htmlFor={`expense-${trip.id}`} className="sr-only">Add Expense Amount</Label>
+              <Input 
+                id={`expense-${trip.id}`}
+                name={`expenseAmount`}
+                placeholder="Gas/Toll (₱)" 
+                type="number"
+                className="h-8 text-xs"
+                value={expenseInput || ''}
+                onChange={e => setExpenseInputForTrip(trip.id, Number(e.target.value) || '')}
+              />
+              <Button 
+                onClick={() => handleAddExpense(trip.id)}
+                disabled={isProcessing || !expenseInput}
+                size="sm" 
+                variant="secondary"
+                className="h-8 text-xs font-bold"
+              >
+                Add
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="pt-2">
+          {trip.status === 'planned' && (
+            <Button onClick={() => moveTrip(trip.id, 'loading')} disabled={isProcessing} className="w-full h-9 font-bold text-[10px] uppercase text-white" style={{ backgroundColor: theme.primary }}>
+              Start Loading
+            </Button>
+          )}
+          {trip.status === 'loading' && (
+            <Button onClick={() => moveTrip(trip.id, 'in_transit')} disabled={isProcessing} className="w-full h-9 font-bold text-[10px] uppercase text-white" style={{ backgroundColor: theme.primary }}>
+              Dispatch to Road
+            </Button>
+          )}
+          {trip.status === 'in_transit' && (
+            <Button onClick={() => setShowSignatureModal(trip.id)} disabled={isProcessing} className="w-full h-9 font-bold text-[10px] uppercase bg-emerald-500 text-white hover:bg-emerald-600">
+              <CheckCircle2 className="h-3 w-3 mr-1" /> Mark Delivered & Get ePOD
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
+
 export function FleetDashboard() {
   const { currentTenant } = useTenant();
   const db = useFirestore();
@@ -96,9 +232,13 @@ export function FleetDashboard() {
     }
   }, [tripsError, toast]);
 
-  const plannedTrips = trips.filter((t: any) => t.status === 'planned');
-  const activeTrips = trips.filter((t: any) => t.status === 'in_transit' || t.status === 'loading');
-  const completedTrips = trips.filter((t: any) => t.status === 'completed').slice(0, 20);
+  const { plannedTrips, activeTrips, completedTrips } = React.useMemo(() => {
+    return {
+      plannedTrips: trips.filter((t: any) => t.status === 'planned'),
+      activeTrips: trips.filter((t: any) => t.status === 'in_transit' || t.status === 'loading'),
+      completedTrips: trips.filter((t: any) => t.status === 'completed').slice(0, 20)
+    };
+  }, [trips]);
 
   const [showArchive, setShowArchive] = useState(false);
 
@@ -366,137 +506,20 @@ export function FleetDashboard() {
             {loading && <div className="text-center py-8 text-xs text-slate-400">Loading Fleet stream...</div>}
             
             {trips.filter((t: any) => t.status !== 'completed').map((trip: any) => (
-              <div 
-                key={trip.id} 
-                className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm"
-              >
-                {/* Trip Header */}
-                <div className="px-3 py-2 border-b bg-slate-50 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Badge 
-                      className="font-black text-[9px] text-white"
-                      style={{ backgroundColor: trip.status === 'planned' ? '#64748b' : theme.primary }}
-                    >
-                      {trip.status.replace('_', ' ').toUpperCase()}
-                    </Badge>
-                    {isOwner && (
-                      <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full" onClick={() => handleDeleteTrip(trip.id)}>
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
-                  <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
-                    <Banknote className="h-3 w-3" />
-                    ₱{((trip.deliveryFee || 0) / 100).toLocaleString()} Fee
-                  </span>
-                </div>
-
-                {/* Route Info */}
-                <div className="p-3 space-y-4">
-                  <div className="relative pl-6 space-y-3">
-                    <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-slate-200" />
-                    <div className="relative">
-                      <div className="absolute -left-6 top-0.5 h-3 w-3 rounded-full border-2 border-white bg-slate-300" />
-                      <p className="text-xs font-bold text-slate-800">{trip.origin}</p>
-                    </div>
-                    <div className="relative">
-                      <div className="absolute -left-6 top-0.5 h-3 w-3 rounded-full border-2 border-white" style={{ backgroundColor: theme.primary }} />
-                      <p className="text-xs font-bold text-slate-800">{trip.destination}</p>
-                    </div>
-                  </div>
-
-                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 grid grid-cols-3 gap-2 items-center text-center">
-                    <div className="text-left">
-                      <p className="text-[9px] text-slate-400 font-bold uppercase">Driver</p>
-                      <p className="text-xs font-bold text-slate-700">{trip.driverName || 'Unassigned'}</p>
-                    </div>
-                    <div>
-                      <p className="text-[9px] text-slate-400 font-bold uppercase">Vehicle</p>
-                      <p className="text-xs font-bold text-slate-700">{trip.plateNumber || 'TBD'}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[9px] text-slate-400 font-bold uppercase">Load</p>
-                      <p className="text-xs font-bold text-slate-700">{trip.loadDescription || 'None'}</p>
-                    </div>
-                  </div>
-
-                  {trip.status === 'in_transit' && (
-                    <Button 
-                      variant="outline" 
-                      className="w-full h-8 text-[10px] font-bold text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100 mt-2"
-                      onClick={() => openMaps(trip.destination)}
-                    >
-                      <MapIcon className="h-3 w-3 mr-1" /> Open Route in Google Maps
-                    </Button>
-                  )}
-
-                  {/* Proof of Delivery (if completed) */}
-                  {trip.status === 'completed' && trip.signatureData && (
-                    <div className="pt-2 border-t border-dashed space-y-2">
-                      <span className="text-[10px] font-bold text-emerald-600 uppercase flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" /> Proof of Delivery (ePOD)
-                      </span>
-                      <div className="bg-white border border-slate-200 rounded-lg p-2 flex justify-center">
-                        <img src={trip.signatureData} alt="Client Signature" className="max-h-20" />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Expense Tracking (for active trips) */}
-                  {(trip.status === 'in_transit' || trip.status === 'loading') && (
-                    <div className="pt-2 border-t border-dashed space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
-                          <Fuel className="h-3 w-3" /> Trip Expenses
-                        </span>
-                        <span className="text-xs font-bold text-red-500">
-                          -₱{((trip.tripExpenses || 0) / 100).toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="flex gap-2">
-                        <Label htmlFor={`expense-${trip.id}`} className="sr-only">Add Expense Amount</Label>
-                        <Input 
-                          id={`expense-${trip.id}`}
-                          name={`expenseAmount`}
-                          placeholder="Gas/Toll (₱)" 
-                          type="number"
-                          className="h-8 text-xs"
-                          value={expenseInputs[trip.id] || ''}
-                          onChange={e => setExpenseInputs(prev => ({ ...prev, [trip.id]: Number(e.target.value) || '' }))}
-                        />
-                        <Button 
-                          onClick={() => handleAddExpense(trip.id)}
-                          disabled={isProcessing || !expenseInputs[trip.id]}
-                          size="sm" 
-                          variant="secondary"
-                          className="h-8 text-xs font-bold"
-                        >
-                          Add
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Actions */}
-                  <div className="pt-2">
-                    {trip.status === 'planned' && (
-                      <Button onClick={() => moveTrip(trip.id, 'loading')} disabled={isProcessing} className="w-full h-9 font-bold text-[10px] uppercase text-white" style={{ backgroundColor: theme.primary }}>
-                        Start Loading
-                      </Button>
-                    )}
-                    {trip.status === 'loading' && (
-                      <Button onClick={() => moveTrip(trip.id, 'in_transit')} disabled={isProcessing} className="w-full h-9 font-bold text-[10px] uppercase text-white" style={{ backgroundColor: theme.primary }}>
-                        Dispatch to Road
-                      </Button>
-                    )}
-                    {trip.status === 'in_transit' && (
-                      <Button onClick={() => setShowSignatureModal(trip.id)} disabled={isProcessing} className="w-full h-9 font-bold text-[10px] uppercase bg-emerald-500 text-white hover:bg-emerald-600">
-                        <CheckCircle2 className="h-3 w-3 mr-1" /> Mark Delivered & Get ePOD
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <TripCard 
+                key={trip.id}
+                trip={trip}
+                theme={theme}
+                isOwner={isOwner}
+                handleDeleteTrip={handleDeleteTrip}
+                openMaps={openMaps}
+                handleAddExpense={handleAddExpense}
+                expenseInput={expenseInputs[trip.id]}
+                setExpenseInputForTrip={(tripId: string, val: number | '') => setExpenseInputs(prev => ({ ...prev, [tripId]: val }))}
+                moveTrip={moveTrip}
+                setShowSignatureModal={setShowSignatureModal}
+                isProcessing={isProcessing}
+              />
             ))}
           </div>
         </section>

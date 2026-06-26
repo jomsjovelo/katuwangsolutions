@@ -6,6 +6,7 @@ import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/fi
 import { useFirestore } from '@/firebase/provider';
 import { completeServiceOrder, deleteServiceOrder } from '@/firebase/firestore/service-actions';
 import { useUser } from '@/firebase/auth/use-user';
+import { getCustomerPoints } from '@/firebase/firestore/loyalty-actions';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -59,6 +60,68 @@ const INSPECTION_ITEMS = [
   'Antenna Removed',
   'Valuables Secured'
 ];
+
+const OrderCard = React.memo(({ order, actions, isOwner, onDelete }: { order: any, actions: React.ReactNode, isOwner: boolean, onDelete: (id: string) => void }) => {
+  const hasPriorDamage = order.inspectionNotes && order.inspectionNotes.length > 0;
+  
+  return (
+  <Card className="shadow-sm border-slate-200 mb-3">
+    <CardContent className="p-3">
+      <div className="flex justify-between items-start mb-2">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <h4 className="font-bold text-slate-800 tracking-widest text-sm bg-slate-100 px-2 py-0.5 rounded border border-slate-200 inline-block">
+              {order.plateNumber}
+            </h4>
+            {hasPriorDamage && (
+              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[8px] font-black uppercase px-1.5 py-0">
+                ⚠️ Prior Damage
+              </Badge>
+            )}
+            {isOwner && (
+              <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0 ml-1" onClick={() => onDelete(order.id)}>
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+          <p className="text-xs text-slate-500 font-medium">{order.vehicleType} • {order.servicePackage}</p>
+          {order.mechanicName && <p className="text-[10px] text-slate-400 mt-0.5">Assigned: {order.mechanicName}</p>}
+          {order.partsUsed && order.partsUsed.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {order.partsUsed.map((p: any, i: number) => (
+                <Badge key={i} variant="secondary" className="text-[9px] bg-slate-100 text-slate-600">
+                  {p.quantity}x {p.name}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="text-right">
+          <Badge variant="outline" className={order.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}>
+            {order.paymentStatus}
+          </Badge>
+          <p className="text-sm font-bold text-slate-700 mt-1">₱{(order.amountDue / 100).toLocaleString()}</p>
+          {order.appointmentDate && order.status === 'Scheduled' && (
+            <p className="text-[10px] font-bold text-amber-600 mt-0.5 flex items-center justify-end gap-1">
+              <Clock className="h-3 w-3" />
+              {order.appointmentDate.toDate ? format(order.appointmentDate.toDate(), 'MMM d, h:mm a') : format(new Date(order.appointmentDate), 'MMM d, h:mm a')}
+            </p>
+          )}
+          {order.therapistCommission && (
+            <p className="text-[9px] font-bold text-emerald-600 mt-0.5">
+              +₱{(order.therapistCommission / 100).toLocaleString()} Comm
+            </p>
+          )}
+        </div>
+      </div>
+      <div className="mt-3 flex gap-2">
+        {actions}
+      </div>
+    </CardContent>
+  </Card>
+  );
+});
+OrderCard.displayName = 'OrderCard';
 
 export function AutoBossDashboard() {
   const { currentTenant } = useTenant();
@@ -115,7 +178,6 @@ export function AutoBossDashboard() {
       if (cleanPhone.length >= 10 && currentTenant) {
         setIsFetchingPoints(true);
         try {
-          const { getCustomerPoints } = await import('@/firebase/firestore/loyalty-actions');
           const points = await getCustomerPoints(currentTenant.id, cleanPhone);
           setPointsBalance(points);
         } catch (e) {
@@ -131,7 +193,7 @@ export function AutoBossDashboard() {
     
     const timer = setTimeout(fetchPoints, 500);
     return () => clearTimeout(timer);
-  }, [customerPhone, currentTenant]);
+  }, [customerPhone, currentTenant?.id]);
 
   const toggleInspectionItem = (item: string) => {
     setInspectionNotes(prev => 
@@ -261,65 +323,6 @@ export function AutoBossDashboard() {
     }
   };
 
-  const OrderCard = ({ order, actions }: { order: any, actions: React.ReactNode }) => {
-    const hasPriorDamage = order.inspectionNotes && order.inspectionNotes.length > 0;
-    
-    return (
-    <Card className="shadow-sm border-slate-200 mb-3">
-      <CardContent className="p-3">
-        <div className="flex justify-between items-start mb-2">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <h4 className="font-bold text-slate-800 tracking-widest text-sm bg-slate-100 px-2 py-0.5 rounded border border-slate-200 inline-block">
-                {order.plateNumber}
-              </h4>
-              {hasPriorDamage && (
-                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[8px] font-black uppercase px-1.5 py-0">
-                  ⚠️ Prior Damage
-                </Badge>
-              )}
-              {isOwner && (
-                <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0 ml-1" onClick={() => handleDeleteOrder(order.id)}>
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
-            <p className="text-xs text-slate-500 font-medium">{order.vehicleType} • {order.servicePackage}</p>
-            {order.mechanicName && <p className="text-[10px] text-slate-400 mt-0.5">Assigned: {order.mechanicName}</p>}
-            {order.partsUsed && order.partsUsed.length > 0 && (
-              <div className="mt-1 flex flex-wrap gap-1">
-                {order.partsUsed.map((p: any, i: number) => (
-                  <Badge key={i} variant="secondary" className="text-[9px] bg-slate-100 text-slate-600">
-                    {p.quantity}x {p.name}
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="text-right">
-            <Badge variant="outline" className={order.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}>
-              {order.paymentStatus}
-            </Badge>
-            <p className="text-sm font-bold text-slate-700 mt-1">₱{(order.amountDue / 100).toLocaleString()}</p>
-            {order.appointmentDate && order.status === 'Scheduled' && (
-              <p className="text-[10px] font-bold text-amber-600 mt-0.5 flex items-center justify-end gap-1">
-                <Clock className="h-3 w-3" />
-                {order.appointmentDate.toDate ? format(order.appointmentDate.toDate(), 'MMM d, h:mm a') : format(new Date(order.appointmentDate), 'MMM d, h:mm a')}
-              </p>
-            )}
-            {order.therapistCommission && (
-              <p className="text-[9px] font-bold text-emerald-600 mt-0.5">
-                +₱{(order.therapistCommission / 100).toLocaleString()} Comm
-              </p>
-            )}
-          </div>
-        </div>
-        <div className="mt-3 flex gap-2">
-          {actions}
-        </div>
-      </CardContent>
-    </Card>
-  )};
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-screen">
@@ -543,7 +546,7 @@ export function AutoBossDashboard() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {scheduledOrders.map(order => (
-                  <OrderCard key={order.id} order={order} actions={
+                  <OrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} actions={
                     <Button size="sm" className="w-full h-7 text-[10px] bg-slate-800 hover:bg-slate-700" onClick={() => updateStatus(order, 'Queued')}>
                       <ArrowRight className="h-3 w-3 mr-1" /> Mark Arrived (Move to Queue)
                     </Button>
@@ -568,7 +571,7 @@ export function AutoBossDashboard() {
               </div>
               <div className="space-y-2">
                 {queuedOrders.map(order => (
-                  <OrderCard key={order.id} order={order} actions={
+                  <OrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} actions={
                     <Button size="sm" className="w-full h-7 text-[10px] bg-slate-800 hover:bg-slate-700" onClick={() => updateStatus(order, 'Washing')}>
                       <Droplets className="h-3 w-3 mr-1 text-cyan-400" /> Move to Wash Bay
                     </Button>
@@ -586,7 +589,7 @@ export function AutoBossDashboard() {
               </div>
               <div className="space-y-2">
                 {washingOrders.map(order => (
-                  <OrderCard key={order.id} order={order} actions={
+                  <OrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} actions={
                     <Button size="sm" className="w-full h-7 text-[10px] bg-cyan-600 hover:bg-cyan-700 text-white" onClick={() => updateStatus(order, 'Drying')}>
                       <Wind className="h-3 w-3 mr-1 text-sky-200" /> Move to Drying
                     </Button>
@@ -604,7 +607,7 @@ export function AutoBossDashboard() {
               </div>
               <div className="space-y-2">
                 {dryingOrders.map(order => (
-                  <OrderCard key={order.id} order={order} actions={
+                  <OrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} actions={
                     <Button size="sm" className="w-full h-7 text-[10px] bg-indigo-500 hover:bg-indigo-600" onClick={() => updateStatus(order, 'Ready')}>
                       <CheckCircle2 className="h-3 w-3 mr-1" /> Mark Ready
                     </Button>
@@ -622,7 +625,7 @@ export function AutoBossDashboard() {
               </div>
               <div className="space-y-2">
                 {readyOrders.map(order => (
-                  <OrderCard key={order.id} order={order} actions={
+                  <OrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} actions={
                     <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600" onClick={() => setSelectedOrderForPayment(order)}>
                       <CircleDollarSign className="h-3 w-3 mr-1" /> Pay & Release
                     </Button>

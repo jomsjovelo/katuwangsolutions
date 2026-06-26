@@ -11,7 +11,44 @@ import {
 } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, Truck, HardHat, TrendingUp, Plus } from "lucide-react";
+import { HardHat, Users, CheckCircle2, TrendingUp, AlertTriangle, Truck, Plus, Package } from "lucide-react";
+
+const ProjectListItem = React.memo(({ project }: { project: any }) => (
+  <div className="p-4 hover:bg-slate-50">
+    <div className="flex justify-between items-start mb-2">
+      <div>
+        <h4 className="font-bold text-slate-800">{project.name}</h4>
+        <p className="text-xs text-slate-500">{project.contractor}</p>
+      </div>
+      <div className="text-right">
+        <p className="text-xs font-black uppercase tracking-widest text-slate-500">Unpaid Bill</p>
+        <p className="font-bold text-red-500">
+          ₱{((project.totalMaterialCost - project.totalPaymentsCollected) / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+        </p>
+      </div>
+    </div>
+  </div>
+));
+ProjectListItem.displayName = 'ProjectListItem';
+
+const InventoryListItem = React.memo(({ product }: { product: any }) => (
+  <div className="p-4 hover:bg-slate-50 flex justify-between items-center">
+    <div>
+      <h4 className="font-bold text-slate-800">{product.name}</h4>
+      <p className="text-xs text-slate-500">Selling Price: ₱{(product.salePrice / 100).toLocaleString()}</p>
+    </div>
+    <div className="text-right">
+      <div className="text-sm font-bold">
+        {product.currentStock} {product.unit}
+      </div>
+      {product.currentStock <= product.minStock && (
+        <div className="text-[10px] text-red-500 font-bold uppercase tracking-widest mt-1">Low Stock</div>
+      )}
+    </div>
+  </div>
+));
+InventoryListItem.displayName = 'InventoryListItem';
+
 import { useProjects } from '@/hooks/use-projects';
 import { useInventory } from '@/hooks/use-inventory';
 import { useFirestore } from '@/firebase/provider';
@@ -260,20 +297,7 @@ export function BuildStackDashboard() {
               ) : (
                 <div className="divide-y divide-slate-100">
                   {activeProjects.map((project: any) => (
-                    <div key={project.id} className="p-4 hover:bg-slate-50">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h4 className="font-bold text-slate-800">{project.name}</h4>
-                          <p className="text-xs text-slate-500">{project.contractor}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs font-black uppercase tracking-widest text-slate-500">Unpaid Bill</p>
-                          <p className="font-bold text-red-500">
-                            ₱{((project.totalMaterialCost - project.totalPaymentsCollected) / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                    <ProjectListItem key={project.id} project={project} />
                   ))}
                 </div>
               )}
@@ -300,20 +324,7 @@ export function BuildStackDashboard() {
               ) : (
                 <div className="divide-y divide-slate-100">
                   {products.map((product: any) => (
-                    <div key={product.id} className="p-4 hover:bg-slate-50 flex justify-between items-center">
-                      <div>
-                        <h4 className="font-bold text-slate-800">{product.name}</h4>
-                        <p className="text-xs text-slate-500">Selling Price: ₱{(product.salePrice / 100).toLocaleString()}</p>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-bold">
-                          {product.currentStock} {product.unit}
-                        </div>
-                        {product.currentStock <= product.minStock && (
-                          <div className="text-[10px] text-red-500 font-bold uppercase tracking-widest mt-1">Low Stock</div>
-                        )}
-                      </div>
-                    </div>
+                    <InventoryListItem key={product.id} product={product} />
                   ))}
                 </div>
               )}

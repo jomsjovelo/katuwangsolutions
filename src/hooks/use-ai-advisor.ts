@@ -43,7 +43,7 @@ export function useAIAdvisor() {
         setActionSteps([]);
       }
     }
-  }, [currentTenant]);
+  }, [currentTenant?.id]);
 
   const askAdvisor = async (forceRefresh = false) => {
     if (!currentTenant) return;

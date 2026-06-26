@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useUser } from '@/firebase/auth/use-user';
 import { useTenantStore, Tenant } from '@/store/use-tenant-store';
-import { doc, onSnapshot, getFirestore } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { getAuth, signOut } from 'firebase/auth';
 import { app } from '@/firebase/config';
 import { ShieldAlert, Loader2, AlertCircle } from 'lucide-react';
@@ -15,7 +15,11 @@ import Image from 'next/image';
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const db = useFirestore();
   const { user, loading: authLoading } = useUser();
-  const { activeTenant, setActiveTenant, userProfile, isLoading, setLoading, error, setError } = useTenantStore();
+  const activeTenant = useTenantStore(state => state.activeTenant);
+  const setActiveTenant = useTenantStore(state => state.setActiveTenant);
+  const userProfile = useTenantStore(state => state.userProfile);
+  const isLoading = useTenantStore(state => state.isLoading);
+  const error = useTenantStore(state => state.error);
   const router = useRouter();
   const pathname = usePathname();
   const [checking, setChecking] = useState(true);
@@ -23,6 +27,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [profileTenantId, setProfileTenantId] = useState<string | null>(null);
   const [maintenance, setMaintenance] = useState<{ mode: boolean; message: string } | null>(null);
+
+  // Stable refs for store actions — prevents spurious effect re-runs
+  const setLoadingRef = useRef(useTenantStore.getState().setLoading);
+  const setErrorRef = useRef(useTenantStore.getState().setError);
+  const setActiveTenantRef = useRef(useTenantStore.getState().setActiveTenant);
 
   // 0. Fetch System Config (Maintenance Mode)
   useEffect(() => {
@@ -41,52 +50,31 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     return () => unsub();
   }, [db]);
 
-  // 1. Auth Status & Admin Check
+  // 1. Auth Status & Admin Check — only re-runs when the logged-in user identity changes
+  const userUid = user?.uid ?? null;
   useEffect(() => {
     if (authLoading) return;
 
     if (!user) {
       useTenantStore.getState().reset();
       setIsAdmin(null);
-      const isPublicPath = pathname === '/' || pathname === '/admin' || pathname.startsWith('/rsvp') || pathname.startsWith('/product') || pathname.startsWith('/terms') || pathname.startsWith('/onboarding');
-      if (!isPublicPath) {
-        router.push('/');
-      }
       setChecking(false);
-      setLoading(false);
       return;
     }
 
-    // If admin status is already known, just handle routing
-    if (isAdmin !== null) {
-      if (isAdmin === true) {
-        if (pathname !== '/admin' && pathname !== '/dashboard' && !pathname.startsWith('/module/')) {
-          router.push('/admin');
-        }
-        setChecking(false);
-        setLoading(false);
-      } else if (isAdmin === false) {
-        if (pathname === '/admin') {
-          router.push('/dashboard');
-        }
-      }
-      return;
-    }
+    // isAdmin already resolved — nothing more to do here
+    if (isAdmin !== null) return;
 
     // We only reach here if user is logged in AND isAdmin is null (initial load or fresh login)
-    // Force Auth SDK to yield and ensure token is minted before Firestore queries.
-    // passing `true` forces a refresh if needed, ensuring the backend sees the new token.
-    user.getIdToken(true).then(() => {
-      // Check Admin status using Firestore
+    user.getIdToken().then(() => {
       const adminRef = doc(db, 'admins', user.uid);
-      // getDoc instead of onSnapshot for admin check to save reads, assuming admin status rarely changes during a session
       import('firebase/firestore').then(({ getDoc }) => {
         getDoc(adminRef).then((snap) => {
           const isUserAdmin = snap.exists();
           setIsAdmin(isUserAdmin);
-          // Only drop checking if admin. For normal users, wait for userProfile/tenant fetch.
           if (isUserAdmin) {
             setChecking(false);
+            setLoadingRef.current(false);
           }
         }).catch((err) => {
           console.error('Admin check error:', err);
@@ -97,14 +85,32 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       console.error('Token fetch error:', err);
       setIsAdmin(false);
     });
-  }, [user, db, router, pathname, authLoading, isAdmin]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userUid, db, authLoading]);
 
-  // 2. Fetch User Profile to get Tenant ID
+  // 1b. Routing effect — runs on pathname changes (kept separate to avoid re-triggering admin check)
+  useEffect(() => {
+    if (authLoading || isAdmin === null) return;
+    if (!user) {
+      const isPublicPath = pathname === '/' || pathname === '/admin' || pathname.startsWith('/rsvp') || pathname.startsWith('/product') || pathname.startsWith('/terms') || pathname.startsWith('/onboarding');
+      if (!isPublicPath) router.push('/');
+      return;
+    }
+    if (isAdmin === true) {
+      if (pathname !== '/admin' && pathname !== '/dashboard' && !pathname.startsWith('/module/')) {
+        router.push('/admin');
+      }
+    } else if (isAdmin === false) {
+      if (pathname === '/admin') router.push('/dashboard');
+    }
+  }, [user, isAdmin, pathname, router, authLoading]);
+
+  // 2. Fetch User Profile to get Tenant ID — only re-attaches when user identity or admin status changes
   useEffect(() => {
     // Only fetch tenant if the user is authenticated and NOT an admin
-    if (!user || isAdmin === true || isAdmin === null) return;
+    if (!userUid || isAdmin === true || isAdmin === null || !user) return;
     
-    setLoading(true);
+    setLoadingRef.current(true);
     const userRef = doc(db, 'users', user.uid);
     
     const unsubscribeUser = onSnapshot(userRef, (userSnap) => {
@@ -121,36 +127,37 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         if (userData.approvalStatus === 'pending_owner' || userData.approvalStatus === 'pending_admin' || userData.approvalStatus === 'pending') {
           // If staff is pending, we don't need to fetch tenant. Drop checking immediately.
           setChecking(false);
-          setLoading(false);
+          setLoadingRef.current(false);
         } else if (persistedTenant && isAuthorizedForPersisted) {
           setTenantId(persistedTenant.id);
         } else if (userData.tenantId) {
           setTenantId(userData.tenantId);
         } else {
-          setError('User is not associated with any business.');
+          setErrorRef.current('User is not associated with any business.');
           setChecking(false);
-          setLoading(false);
+          setLoadingRef.current(false);
         }
       } else {
-        setError('User profile not found.');
+        setErrorRef.current('User profile not found.');
         setChecking(false);
-        setLoading(false);
+        setLoadingRef.current(false);
       }
     }, (err) => {
       console.error('AuthGuard: User Profile Security/Network Error', err);
-      setError('Connection interrupted while fetching user.');
+      setErrorRef.current('Connection interrupted while fetching user.');
       setChecking(false);
-      setLoading(false);
+      setLoadingRef.current(false);
     });
 
     return () => unsubscribeUser();
-  }, [user, isAdmin, setError, setLoading]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userUid, isAdmin, db]);
 
-  // 3. Fetch Tenant Data
+  // 3. Fetch Tenant Data — only re-attaches when the tenantId changes
   useEffect(() => {
     if (!tenantId) return;
     
-    setLoading(true);
+    setLoadingRef.current(true);
     const tenantRef = doc(db, 'tenants', tenantId);
     
     let unsubscribeTenant: (() => void) | undefined;
@@ -162,15 +169,15 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       unsubscribeTenant = onSnapshot(tenantRef, (tenantSnap) => {
         if (tenantSnap.exists()) {
           const tenantData = { id: tenantSnap.id, ...tenantSnap.data() } as Tenant;
-          setActiveTenant(tenantData);
-          if (pathname === '/') router.push('/dashboard');
+          setActiveTenantRef.current(tenantData);
+          // Use latest pathname via the ref to avoid stale closure without adding pathname as dep
+          if (window.location.pathname === '/') router.push('/dashboard');
         } else {
-          setError('Business account not found or was deleted.');
+          setErrorRef.current('Business account not found or was deleted.');
         }
         setChecking(false);
-        setLoading(false);
+        setLoadingRef.current(false);
       }, (err) => {
-        // If the user was just signed out, ignore this error. It's an expected side-effect of signOut() invalidating the token.
         const auth = getAuth(app);
         if (!auth.currentUser) {
           console.log('AuthGuard: Ignoring fetch error because user is signed out.');
@@ -180,12 +187,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         console.error(`AuthGuard: Tenant Fetch Security/Network Error (Attempt ${retryCount + 1}/${MAX_RETRIES})`, err);
         if (retryCount < MAX_RETRIES) {
           retryCount++;
-          // Exponential backoff: 500ms, 1000ms, 2000ms, etc.
           retryTimeout = setTimeout(attachListener, 500 * Math.pow(2, retryCount - 1));
         } else {
-          setError('Connection interrupted while fetching business data after multiple retries. Please refresh.');
+          setErrorRef.current('Connection interrupted while fetching business data after multiple retries. Please refresh.');
           setChecking(false);
-          setLoading(false);
+          setLoadingRef.current(false);
         }
       });
     };
@@ -196,7 +202,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       if (unsubscribeTenant) unsubscribeTenant();
       clearTimeout(retryTimeout);
     };
-  }, [tenantId, db, pathname, router, setActiveTenant]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantId, db]);
 
   // Helper to check if current route is public
   const isPublicRoute = pathname === '/' || pathname === '/admin' || pathname.startsWith('/rsvp') || pathname.startsWith('/product') || pathname.startsWith('/terms') || pathname.startsWith('/onboarding');
@@ -206,6 +213,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   // We do not block render on /onboarding (except for initial auth load) because creating an account 
   // automatically logs the user in. If we block render, it unmounts the onboarding wizard and resets its state!
   if (authLoading || (!isOnboarding && (checking || isLoading || (user && isAdmin === null)))) {
+    console.log('AuthGuard is blocking render:', { authLoading, isOnboarding, checking, isLoading, hasUser: !!user, isAdmin });
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-white">
         <div className="relative flex flex-col items-center gap-6">

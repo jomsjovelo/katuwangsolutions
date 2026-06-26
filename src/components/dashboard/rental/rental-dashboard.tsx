@@ -17,6 +17,64 @@ import { useFirestore } from '@/firebase/provider';
 import { useTenant } from '@/app/lib/tenant-context';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 
+import { useToast } from '@/hooks/use-toast';
+
+
+const BookingItem = React.memo(({ booking, isOwner, handleDeleteBooking, returningId, handleReturnItem }: any) => (
+  <div className="p-4 flex items-center justify-between hover:bg-slate-50">
+    <div>
+      <div className="flex items-center gap-2">
+        <p className="font-bold text-slate-800 text-sm">{booking.itemName}</p>
+        {isOwner && (
+          <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0" onClick={() => handleDeleteBooking(booking)}>
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
+      <p className="text-xs text-slate-500">{booking.customerName} • ₱{booking.totalCost} 
+        <span className={`ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold ${booking.paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+          {booking.paymentStatus === 'paid' ? 'PAID' : 'UNPAID'}
+        </span>
+      </p>
+    </div>
+    <div className="flex items-center gap-3">
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={returningId === booking.id}
+        onClick={() => {
+          if (booking.paymentStatus === 'unpaid') {
+             if (window.confirm(`This booking is UNPAID (₱${booking.totalCost}). Collect payment now and return item?`)) {
+                handleReturnItem(booking);
+             }
+          } else {
+             handleReturnItem(booking);
+          }
+        }}
+        className="h-8 rounded-lg px-3 text-[10px] font-black text-emerald-600 border-emerald-200 hover:bg-emerald-50 flex items-center gap-1"
+      >
+        {returningId === booking.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+        Return
+      </Button>
+    </div>
+  </div>
+));
+BookingItem.displayName = 'BookingItem';
+
+const InventoryItem = React.memo(({ item }: any) => (
+  <div className="p-4 flex items-center justify-between hover:bg-slate-50">
+    <div>
+      <p className="font-bold text-slate-800 text-sm">{item.name}</p>
+      <p className="text-xs text-slate-500">{item.category}</p>
+    </div>
+    <div className="text-right">
+      <p className="font-bold text-slate-800 text-sm">{item.availableQuantity} / {item.totalQuantity} Available</p>
+      <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black">₱{item.dailyRate}/day</p>
+    </div>
+  </div>
+));
+InventoryItem.displayName = 'InventoryItem';
+
 export function RentalDashboard() {
   const [activeTab, setActiveTab] = useState<'active' | 'inventory' | 'calendar'>('active');
   const { inventory, inventoryLoading, inventoryError, activeBookings, bookingsLoading, bookingsError } = useRental();
@@ -331,43 +389,7 @@ export function RentalDashboard() {
                 ) : (
                   <div className="divide-y divide-slate-100">
                     {activeBookings.map(booking => (
-                      <div key={booking.id} className="p-4 flex items-center justify-between hover:bg-slate-50">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-bold text-slate-800 text-sm">{booking.itemName}</p>
-                            {isOwner && (
-                              <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0" onClick={() => handleDeleteBooking(booking)}>
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            )}
-                          </div>
-                          <p className="text-xs text-slate-500">{booking.customerName} • ₱{booking.totalCost} 
-                            <span className={`ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold ${booking.paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                              {booking.paymentStatus === 'paid' ? 'PAID' : 'UNPAID'}
-                            </span>
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={returningId === booking.id}
-                            onClick={() => {
-                              if (booking.paymentStatus === 'unpaid') {
-                                 if (window.confirm(`This booking is UNPAID (₱${booking.totalCost}). Collect payment now and return item?`)) {
-                                    handleReturnItem(booking);
-                                 }
-                              } else {
-                                 handleReturnItem(booking);
-                              }
-                            }}
-                            className="h-8 rounded-lg px-3 text-[10px] font-black text-emerald-600 border-emerald-200 hover:bg-emerald-50 flex items-center gap-1"
-                          >
-                            {returningId === booking.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
-                            Return
-                          </Button>
-                        </div>
-                      </div>
+                      <BookingItem key={booking.id} booking={booking} isOwner={isOwner} handleDeleteBooking={handleDeleteBooking} returningId={returningId} handleReturnItem={handleReturnItem} />
                     ))}
                   </div>
                 )}
@@ -450,16 +472,7 @@ export function RentalDashboard() {
               ) : (
                 <div className="divide-y divide-slate-100">
                   {inventory.map(item => (
-                    <div key={item.id} className="p-4 flex items-center justify-between hover:bg-slate-50">
-                      <div>
-                        <p className="font-bold text-slate-800 text-sm">{item.name}</p>
-                        <p className="text-xs text-slate-500">{item.category}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-slate-800 text-sm">{item.availableQuantity} / {item.totalQuantity} Available</p>
-                        <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black">₱{item.dailyRate}/day</p>
-                      </div>
-                    </div>
+                    <InventoryItem key={item.id} item={item} />
                   ))}
                 </div>
               )}

@@ -16,6 +16,49 @@ import { addRetailCredit, recordRetailCreditPayment, RetailCreditEntry } from '@
 import { Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
+const CreditListItem = React.memo(({ credit, idx, setSelectedCredit, setShowPayModal, setPaymentAmountStr }: any) => {
+  const isReceivable = credit.type === 'receivable';
+  const remaining = credit.amount - (credit.paidAmount || 0);
+  
+  return (
+    <div className={cn("p-4 flex items-center justify-between", idx > 0 && "border-t border-slate-50")}>
+      <div>
+        <div className="flex items-center gap-2">
+          <span className={cn(
+            "text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded",
+            isReceivable ? "bg-emerald-100 text-emerald-700" : "bg-orange-100 text-orange-700"
+          )}>
+            {isReceivable ? 'Pautang' : 'Utang sa Supplier'}
+          </span>
+          <span className="text-xs font-bold text-slate-400">
+            {credit.creditDate?.toDate().toLocaleDateString()}
+          </span>
+        </div>
+        <h4 className="font-extrabold text-sm text-slate-800 mt-1">{credit.name}</h4>
+        {credit.description && <p className="text-[10px] font-medium text-slate-400 mt-0.5">{credit.description}</p>}
+      </div>
+      <div className="text-right flex flex-col items-end gap-2">
+        <div>
+          <h5 className="font-black text-sm text-slate-800">₱{(remaining / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</h5>
+          {credit.paidAmount > 0 && (
+            <p className="text-[9px] font-bold text-slate-400">
+              Paid: ₱{(credit.paidAmount / 100).toLocaleString()}
+            </p>
+          )}
+        </div>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => { setSelectedCredit(credit); setShowPayModal(true); setPaymentAmountStr((remaining/100).toString()); }}
+          className="h-7 text-[10px] font-bold px-3 rounded-lg border-slate-200 hover:bg-slate-50"
+        >
+          Bayaran
+        </Button>
+      </div>
+    </div>
+  );
+});
+
 export function CreditTracker() {
   const { currentTenant } = useTenant();
   const theme = getModuleTheme(currentTenant?.moduleType);
@@ -52,7 +95,7 @@ export function CreditTracker() {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [currentTenant]);
+  }, [currentTenant?.id]);
 
   const unpaidCredits = credits.filter(c => c.status !== 'paid');
   
@@ -170,47 +213,16 @@ export function CreditTracker() {
 
       {unpaidCredits.length > 0 && (
         <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
-          {unpaidCredits.map((credit, idx) => {
-            const isReceivable = credit.type === 'receivable';
-            const remaining = credit.amount - (credit.paidAmount || 0);
-            return (
-              <div key={credit.id} className={cn("p-4 flex items-center justify-between", idx > 0 && "border-t border-slate-50")}>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className={cn(
-                      "text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded",
-                      isReceivable ? "bg-emerald-100 text-emerald-700" : "bg-orange-100 text-orange-700"
-                    )}>
-                      {isReceivable ? 'Pautang' : 'Utang sa Supplier'}
-                    </span>
-                    <span className="text-xs font-bold text-slate-400">
-                      {credit.creditDate?.toDate().toLocaleDateString()}
-                    </span>
-                  </div>
-                  <h4 className="font-extrabold text-sm text-slate-800 mt-1">{credit.name}</h4>
-                  {credit.description && <p className="text-[10px] font-medium text-slate-400 mt-0.5">{credit.description}</p>}
-                </div>
-                <div className="text-right flex flex-col items-end gap-2">
-                  <div>
-                    <h5 className="font-black text-sm text-slate-800">₱{(remaining / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</h5>
-                    {credit.paidAmount > 0 && (
-                      <p className="text-[9px] font-bold text-slate-400">
-                        Paid: ₱{(credit.paidAmount / 100).toLocaleString()}
-                      </p>
-                    )}
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => { setSelectedCredit(credit); setShowPayModal(true); setPaymentAmountStr((remaining/100).toString()); }}
-                    className="h-7 text-[10px] font-bold px-3 rounded-lg border-slate-200 hover:bg-slate-50"
-                  >
-                    Bayaran
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
+          {unpaidCredits.map((credit, idx) => (
+            <CreditListItem 
+              key={credit.id}
+              credit={credit}
+              idx={idx}
+              setSelectedCredit={setSelectedCredit}
+              setShowPayModal={setShowPayModal}
+              setPaymentAmountStr={setPaymentAmountStr}
+            />
+          ))}
         </div>
       )}
 

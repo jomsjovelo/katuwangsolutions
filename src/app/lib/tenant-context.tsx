@@ -1,6 +1,6 @@
 "use client"
 
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useMemo } from 'react';
 import { useTenantStore, Tenant, SubscriptionStatus, PricingTier } from '@/store/use-tenant-store';
 
 export function TenantProvider({ children }: { children: ReactNode }) {
@@ -9,17 +9,15 @@ export function TenantProvider({ children }: { children: ReactNode }) {
 }
 
 export function useTenant() {
-  const { 
-    activeTenant, 
-    setActiveTenant, 
-    allTenants, 
-    updateTenantStatus, 
-    updateTenantPricing,
-    isLoading,
-    activeModuleOverride
-  } = useTenantStore();
+  const activeTenant = useTenantStore(state => state.activeTenant);
+  const setActiveTenant = useTenantStore(state => state.setActiveTenant);
+  const allTenants = useTenantStore(state => state.allTenants);
+  const updateTenantStatus = useTenantStore(state => state.updateTenantStatus);
+  const updateTenantPricing = useTenantStore(state => state.updateTenantPricing);
+  const isLoading = useTenantStore(state => state.isLoading);
+  const activeModuleOverride = useTenantStore(state => state.activeModuleOverride);
 
-  const [seedingIds, setSeedingIds] = React.useState<Set<string>>(new Set());
+  const seededTenants = useTenantStore(state => state.seededTenants);
 
   const currentTenant = React.useMemo(() => {
     if (!activeTenant) return null;
@@ -34,7 +32,7 @@ export function useTenant() {
       
     // If it's a demo tenant and it's currently being seeded (or about to be seeded),
     // we return null to prevent Firestore snapshot listeners from mounting prematurely
-    if (effectiveTenantId.startsWith('demo_') && !seedingIds.has(effectiveTenantId)) {
+    if (effectiveTenantId.startsWith('demo_') && !seededTenants.includes(effectiveTenantId)) {
       return null;
     }
       
@@ -43,14 +41,14 @@ export function useTenant() {
       id: effectiveTenantId,
       moduleType
     };
-  }, [activeTenant, activeModuleOverride, seedingIds]);
+  }, [activeTenant, activeModuleOverride, seededTenants]);
 
   React.useEffect(() => {
     if (!activeTenant) return;
     const isDemo = activeTenant.id === 'demo' || activeTenant.name?.toLowerCase().includes('demo');
     const effectiveTenantId = isDemo && activeModuleOverride ? `demo_${activeModuleOverride}` : activeTenant.id;
 
-    if (effectiveTenantId.startsWith('demo_') && !seedingIds.has(effectiveTenantId)) {
+    if (effectiveTenantId.startsWith('demo_') && !seededTenants.includes(effectiveTenantId)) {
       // Force UI into seeding state while we securely seed the tenant document
       useTenantStore.getState().setSeeding(true);
       
@@ -60,20 +58,20 @@ export function useTenant() {
           activeModuleOverride || activeTenant.moduleType, 
           activeTenant.ownerUid || 'demo'
         ).finally(() => {
-          setSeedingIds(prev => new Set(prev).add(effectiveTenantId));
+          useTenantStore.getState().markAsSeeded(effectiveTenantId);
           useTenantStore.getState().setSeeding(false);
         });
       });
     }
-  }, [activeTenant, activeModuleOverride, seedingIds]);
+  }, [activeTenant, activeModuleOverride, seededTenants]);
 
-  return {
+  return useMemo(() => ({
     currentTenant,
     setCurrentTenant: setActiveTenant,
     allTenants,
     updateTenantStatus,
     updateTenantPricing,
     isLoading
-  };
+  }), [currentTenant, setActiveTenant, allTenants, updateTenantStatus, updateTenantPricing, isLoading]);
 }
 

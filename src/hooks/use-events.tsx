@@ -24,9 +24,13 @@ export function useEvents() {
 
   const { data, loading, error } = useCollection<EventModel>(eventsQuery);
 
-  const upcomingEvents = data.filter(e => e.status === 'Upcoming');
-  const ongoingEvents = data.filter(e => e.status === 'Ongoing');
-  const pastEvents = data.filter(e => e.status === 'Done');
+  const { upcomingEvents, ongoingEvents, pastEvents } = React.useMemo(() => {
+    return {
+      upcomingEvents: data.filter(e => e.status === 'Upcoming'),
+      ongoingEvents: data.filter(e => e.status === 'Ongoing'),
+      pastEvents: data.filter(e => e.status === 'Done')
+    };
+  }, [data]);
 
   return { 
     events: data, 

@@ -15,6 +15,52 @@ interface BottomNavProps {
   onTabChange?: (tab: TabId) => void;
 }
 
+const NavItem = React.memo(({ 
+  id, label, Icon, isActive, themePrimary, hasOutStock, hasLowStock, haptic, onTabChange 
+}: {
+  id: TabId, label: string, Icon: any, isActive: boolean, themePrimary: string, 
+  hasOutStock: boolean, hasLowStock: boolean, haptic: any, onTabChange?: (tab: TabId) => void
+}) => {
+  return (
+    <button
+      onClick={() => {
+        haptic(10);
+        onTabChange?.(id);
+      }}
+      className="flex-1 flex flex-col items-center justify-center gap-0.5 relative active:scale-95 transition-transform duration-100"
+    >
+      {/* Active indicator dot dynamically colored matching current tenant theme */}
+      {isActive && (
+        <span 
+          className="absolute top-1.5 left-1/2 -translate-x-1/2 h-1 w-5 rounded-full transition-colors duration-300" 
+          style={{ backgroundColor: themePrimary }}
+        />
+      )}
+      
+      <div className="relative">
+        <Icon
+          className="h-5 w-5 transition-colors duration-300"
+          strokeWidth={isActive ? 2.5 : 1.5}
+          color={isActive ? themePrimary : '#94A3B8'}
+        />
+        {/* Low Stock / Out of Stock Notification Dot on the Stock Tab */}
+        {id === 'stock' && (hasOutStock || hasLowStock) && (
+          <span 
+            className={`absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full border-2 border-white ${hasOutStock ? 'bg-red-500 animate-pulse' : 'bg-amber-500'}`}
+          />
+        )}
+      </div>
+      
+      <span
+        className="text-[9px] font-bold uppercase tracking-widest transition-colors duration-300"
+        style={{ color: isActive ? themePrimary : '#94A3B8' }}
+      >
+        {label}
+      </span>
+    </button>
+  );
+});
+
 export function BottomNav({ activeTab = 'home', onTabChange }: BottomNavProps) {
   const { currentTenant } = useTenant();
   const theme = getModuleTheme(currentTenant?.moduleType);
@@ -45,43 +91,18 @@ export function BottomNav({ activeTab = 'home', onTabChange }: BottomNavProps) {
         {tabs.map(({ id, label, Icon }) => {
           const isActive = activeTab === id;
           return (
-            <button
+            <NavItem
               key={id}
-              onClick={() => {
-                haptic(10);
-                onTabChange?.(id as TabId);
-              }}
-              className="flex-1 flex flex-col items-center justify-center gap-0.5 relative active:scale-95 transition-transform duration-100"
-            >
-              {/* Active indicator dot dynamically colored matching current tenant theme */}
-              {isActive && (
-                <span 
-                  className="absolute top-1.5 left-1/2 -translate-x-1/2 h-1 w-5 rounded-full transition-colors duration-300" 
-                  style={{ backgroundColor: theme.primary }}
-                />
-              )}
-              
-              <div className="relative">
-                <Icon
-                  className="h-5 w-5 transition-colors duration-300"
-                  strokeWidth={isActive ? 2.5 : 1.5}
-                  color={isActive ? theme.primary : '#94A3B8'}
-                />
-                {/* Low Stock / Out of Stock Notification Dot on the Stock Tab */}
-                {id === 'stock' && (hasOutStock || hasLowStock) && (
-                  <span 
-                    className={`absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full border-2 border-white ${hasOutStock ? 'bg-red-500 animate-pulse' : 'bg-amber-500'}`}
-                  />
-                )}
-              </div>
-              
-              <span
-                className="text-[9px] font-bold uppercase tracking-widest transition-colors duration-300"
-                style={{ color: isActive ? theme.primary : '#94A3B8' }}
-              >
-                {label}
-              </span>
-            </button>
+              id={id as TabId}
+              label={label}
+              Icon={Icon}
+              isActive={isActive}
+              themePrimary={theme.primary}
+              hasOutStock={hasOutStock}
+              hasLowStock={hasLowStock}
+              haptic={haptic}
+              onTabChange={onTabChange}
+            />
           );
         })}
       </div>

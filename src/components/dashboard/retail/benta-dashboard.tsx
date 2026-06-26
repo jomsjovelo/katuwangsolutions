@@ -62,6 +62,117 @@ export function BentaDashboard() {
   );
 }
 
+const ProductCard = React.memo(({ product, cartQty, theme, addToCart }: any) => {
+  const outOfStock = product.currentStock <= 0;
+  const isLowStock = !outOfStock && product.currentStock <= product.minStock;
+
+  return (
+    <div 
+      onClick={() => addToCart(product)}
+      className={cn(
+        "bg-white border-2 rounded-2xl p-4 flex flex-col items-center text-center transition-all cursor-pointer relative select-none tap-target",
+        outOfStock 
+          ? "opacity-40 border-slate-100 grayscale cursor-not-allowed" 
+          : "border-slate-100 hover:border-slate-200 shadow-sm"
+      )}
+      style={(!outOfStock && cartQty > 0) ? { borderColor: `${theme.primary}60` } : {}}
+    >
+      {cartQty > 0 && (
+        <span 
+          className="absolute top-2 right-2 text-[10px] font-black h-5 min-w-5 px-1.5 rounded-full flex items-center justify-center border-2 border-white animate-in scale-in"
+          style={{ backgroundColor: theme.secondary, color: theme.secondaryText }}
+        >
+          {cartQty}
+        </span>
+      )}
+
+      <div 
+        className={cn(
+          "h-12 w-12 rounded-2xl flex items-center justify-center mb-3 transition-colors duration-300"
+        )}
+        style={outOfStock ? { backgroundColor: '#f1f5f9', color: '#94a3b8' } : { 
+          backgroundColor: `${theme.primary}15`, 
+          color: theme.primary 
+        }}
+      >
+        <Package className="h-6 w-6" />
+      </div>
+      
+      <h4 className="font-extrabold text-xs text-slate-800 leading-tight mb-0.5 line-clamp-2 min-h-[2rem]">
+        {product.name}
+      </h4>
+      
+      <div className="flex items-center gap-1.5 mt-1 mb-3">
+        <Tag className="h-3 w-3 text-slate-400" />
+        <span className="text-[10px] font-black uppercase text-slate-400">
+          {product.category || 'General'}
+        </span>
+      </div>
+
+      <div className="w-full border-t border-slate-50 pt-2 flex items-center justify-between mt-auto">
+        <div className="text-left">
+          <p className="text-[9px] font-bold text-slate-400 leading-none">Presyo</p>
+          <span className="text-xs font-black text-slate-800">
+            ₱{(product.salePrice / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+          </span>
+        </div>
+        <Badge 
+          variant={outOfStock ? "secondary" : "default"} 
+          className={cn(
+            "text-[8px] font-black px-1.5 py-0.5 uppercase tracking-wide border-transparent", 
+            outOfStock ? "bg-slate-100 text-slate-500" : isLowStock ? "bg-amber-100 text-amber-700" : ""
+          )}
+          style={(outOfStock || isLowStock) ? {} : {
+            backgroundColor: `${theme.primary}15`,
+            color: theme.primary
+          }}
+        >
+          {outOfStock ? 'Ubos' : isLowStock ? `Paubos: ${product.currentStock}` : `${product.currentStock} ${product.unit}`}
+        </Badge>
+      </div>
+    </div>
+  );
+});
+
+const CartItemCard = React.memo(({ item, theme, products, removeFromCart, addToCart, isMobile = false }: any) => {
+  const btnSize = isMobile ? "h-7 w-7" : "h-6 w-6";
+  const iconSize = isMobile ? "h-3.5 w-3.5" : "h-3 w-3";
+  const padClass = isMobile ? "p-3" : "p-2.5";
+  
+  return (
+    <div className={`flex justify-between items-center bg-slate-50 ${padClass} rounded-xl border border-slate-100`}>
+      <div className="flex-1 pr-2">
+        <h4 className="font-extrabold text-xs text-slate-800 line-clamp-1">{item.name}</h4>
+        <p className="text-[10px] text-slate-400 font-bold">₱{(item.price / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })} each</p>
+      </div>
+      
+      <div className="flex items-center gap-2">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className={`${btnSize} p-0 rounded-lg hover:bg-slate-100 border-slate-200`}
+          onClick={() => removeFromCart(item.productId)}
+        >
+          <Minus className={iconSize} />
+        </Button>
+        <span className="font-extrabold text-xs w-5 text-center text-slate-800">{item.quantity}</span>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className={`${btnSize} p-0 rounded-lg text-white border-transparent`}
+          style={{ backgroundColor: theme.primary }}
+          onClick={() => {
+            const realProduct = products.find((p: any) => p.id === item.productId);
+            if (realProduct) addToCart(realProduct);
+          }}
+        >
+          <Plus className={iconSize} />
+        </Button>
+      </div>
+    </div>
+  );
+});
+
 function BentaDashboardContent() {
   const { user } = useUser();
   const [profile, setProfile] = useState<any>(null);
@@ -72,7 +183,7 @@ function BentaDashboardContent() {
 
   // Load user profile in real-time using static imports (no more dynamic require)
   useEffect(() => {
-    if (!user) return;
+    if (!user?.uid) return;
     const { db } = initializeFirebase();
     const userRef = doc(db, 'users', user.uid);
     const unsubscribe = onSnapshot(userRef, (snap: any) => {
@@ -454,78 +565,17 @@ function BentaDashboardContent() {
                 </div>
               ) : (
                 filteredProducts.map((product: any) => {
-                  const outOfStock = product.currentStock <= 0;
-                  const isLowStock = !outOfStock && product.currentStock <= product.minStock;
                   const cartItem = cart.find(item => item.productId === product.id);
                   const cartQty = cartItem ? cartItem.quantity : 0;
                   
                   return (
-                    <div 
+                    <ProductCard
                       key={product.id}
-                      onClick={() => addToCart(product)}
-                      className={cn(
-                        "bg-white border-2 rounded-2xl p-4 flex flex-col items-center text-center transition-all cursor-pointer relative select-none tap-target",
-                        outOfStock 
-                          ? "opacity-40 border-slate-100 grayscale cursor-not-allowed" 
-                          : "border-slate-100 hover:border-slate-200 shadow-sm"
-                      )}
-                      style={(!outOfStock && cartQty > 0) ? { borderColor: `${theme.primary}60` } : {}}
-                    >
-                      {/* Cart Quantity Indicator Badge with Dynamic Secondary Color */}
-                      {cartQty > 0 && (
-                        <span 
-                          className="absolute top-2 right-2 text-[10px] font-black h-5 min-w-5 px-1.5 rounded-full flex items-center justify-center border-2 border-white animate-in scale-in"
-                          style={{ backgroundColor: theme.secondary, color: theme.secondaryText }}
-                        >
-                          {cartQty}
-                        </span>
-                      )}
-
-                      <div 
-                        className={cn(
-                          "h-12 w-12 rounded-2xl flex items-center justify-center mb-3 transition-colors duration-300"
-                        )}
-                        style={outOfStock ? { backgroundColor: '#f1f5f9', color: '#94a3b8' } : { 
-                          backgroundColor: `${theme.primary}15`, 
-                          color: theme.primary 
-                        }}
-                      >
-                        <Package className="h-6 w-6" />
-                      </div>
-                      
-                      <h4 className="font-extrabold text-xs text-slate-800 leading-tight mb-0.5 line-clamp-2 min-h-[2rem]">
-                        {product.name}
-                      </h4>
-                      
-                      <div className="flex items-center gap-1.5 mt-1 mb-3">
-                        <Tag className="h-3 w-3 text-slate-400" />
-                        <span className="text-[10px] font-black uppercase text-slate-400">
-                          {product.category || 'General'}
-                        </span>
-                      </div>
-
-                      <div className="w-full border-t border-slate-50 pt-2 flex items-center justify-between mt-auto">
-                        <div className="text-left">
-                          <p className="text-[9px] font-bold text-slate-400 leading-none">Presyo</p>
-                          <span className="text-xs font-black text-slate-800">
-                            ₱{(product.salePrice / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                        <Badge 
-                          variant={outOfStock ? "secondary" : "default"} 
-                          className={cn(
-                            "text-[8px] font-black px-1.5 py-0.5 uppercase tracking-wide border-transparent", 
-                            outOfStock ? "bg-slate-100 text-slate-500" : isLowStock ? "bg-amber-100 text-amber-700" : ""
-                          )}
-                          style={(outOfStock || isLowStock) ? {} : {
-                            backgroundColor: `${theme.primary}15`,
-                            color: theme.primary
-                          }}
-                        >
-                          {outOfStock ? 'Ubos' : isLowStock ? `Paubos: ${product.currentStock}` : `${product.currentStock} ${product.unit}`}
-                        </Badge>
-                      </div>
-                    </div>
+                      product={product}
+                      cartQty={cartQty}
+                      theme={theme}
+                      addToCart={addToCart}
+                    />
                   )
                 })
               )}
@@ -559,36 +609,14 @@ function BentaDashboardContent() {
                     </div>
                   ) : (
                     cart.map(item => (
-                      <div key={item.productId} className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                        <div className="flex-1 pr-2">
-                          <h4 className="font-extrabold text-xs text-slate-800 line-clamp-1">{item.name}</h4>
-                          <p className="text-[10px] text-slate-400 font-bold">₱{(item.price / 100).toLocaleString()} each</p>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="h-6 w-6 p-0 rounded-lg hover:bg-slate-100 border-slate-200" 
-                            onClick={() => removeFromCart(item.productId)}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="font-extrabold text-xs w-4 text-center text-slate-800">{item.quantity}</span>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="h-6 w-6 p-0 rounded-lg text-white border-transparent" 
-                            style={{ backgroundColor: theme.primary }}
-                            onClick={() => {
-                              const realProduct = products.find((p: any) => p.id === item.productId);
-                              if (realProduct) addToCart(realProduct);
-                            }}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
+                      <CartItemCard
+                        key={item.productId}
+                        item={item}
+                        theme={theme}
+                        products={products}
+                        removeFromCart={removeFromCart}
+                        addToCart={addToCart}
+                      />
                     ))
                   )}
                 </div>
@@ -713,38 +741,15 @@ function BentaDashboardContent() {
           {/* Cart Items List */}
           <div className="space-y-3 py-2 max-h-[40vh] overflow-y-auto">
             {cart.map(item => (
-              <div key={item.productId} className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
-                <div className="flex-1 pr-2">
-                  <h4 className="font-extrabold text-xs text-slate-800">{item.name}</h4>
-                  <p className="text-[10px] text-slate-400 font-bold">
-                    ₱{(item.price / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })} each
-                  </p>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="h-7 w-7 p-0 rounded-lg hover:bg-slate-100 border-slate-200" 
-                    onClick={() => removeFromCart(item.productId)}
-                  >
-                    <Minus className="h-3.5 w-3.5" />
-                  </Button>
-                  <span className="font-extrabold text-xs w-5 text-center text-slate-800">{item.quantity}</span>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="h-7 w-7 p-0 rounded-lg text-white border-transparent" 
-                    style={{ backgroundColor: theme.primary }}
-                    onClick={() => {
-                      const realProduct = products.find((p: any) => p.id === item.productId);
-                      if (realProduct) addToCart(realProduct);
-                    }}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
+              <CartItemCard
+                key={item.productId}
+                item={item}
+                theme={theme}
+                products={products}
+                removeFromCart={removeFromCart}
+                addToCart={addToCart}
+                isMobile={true}
+              />
             ))}
           </div>
 

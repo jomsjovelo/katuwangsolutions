@@ -64,8 +64,6 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 import { useUserTenants } from '@/hooks/use-user-tenants';
-import { useInventory } from '@/hooks/use-inventory';
-import { useSales } from '@/hooks/use-sales';
 import { useUser } from '@/firebase/auth/use-user';
 import { useSyncStatus } from '@/hooks/use-sync-status';
 
@@ -80,12 +78,8 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
   const { data: profile } = useFirestoreDocument(user ? doc(db, 'users', user.uid) : null);
   
   const { currentTenant, setCurrentTenant, allTenants, isLoading: storeLoading } = useTenant();
-  const { activeModuleOverride } = useTenantStore();
+  const activeModuleOverride = useTenantStore(state => state.activeModuleOverride);
   const { loading: tenantsLoading } = useUserTenants();
-  const { products, loading: inventoryLoading } = useInventory();
-  
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const { dailyTotalPesos, loading: salesLoading } = useSales(selectedDate);
   const [mounted, setMounted] = useState(false);
   const { isOnline, pendingCount, syncMessage, isSyncing } = useSyncStatus(currentTenant?.id);
 
@@ -95,7 +89,7 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
 
 
   // Prevent hydration mismatch or show loading while fetching real data
-  if (!mounted || tenantsLoading || storeLoading || inventoryLoading || salesLoading) {
+  if (!mounted || tenantsLoading || storeLoading) {
     return (
       <div className="flex-1 bg-background min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">

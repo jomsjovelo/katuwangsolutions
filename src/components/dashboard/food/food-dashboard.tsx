@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { useCollection } from 'react-firebase-hooks/firestore';
-import { collection, query, orderBy, doc, setDoc, serverTimestamp, limit } from 'firebase/firestore';
+import { collection, query, orderBy, doc, setDoc, serverTimestamp, limit, where } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { addFoodOrder, updateFoodOrderStatus, deleteFoodOrder } from '@/firebase/firestore/food-actions';
 import { useUser } from '@/firebase/auth/use-user';
@@ -32,6 +32,97 @@ import {
   Coins,
   AlertCircle
 } from "lucide-react";
+
+const PendingOrderCard = React.memo(({ order, theme, isOwner, handleDeleteOrder, moveOrder, isProcessing }: any) => (
+  <div 
+    className="bg-white border-2 rounded-xl overflow-hidden shadow-sm transition-all duration-300"
+    style={{ borderColor: `${theme.primary}30` }}
+  >
+    <div 
+      className="px-3 py-2 border-b flex items-center justify-between"
+      style={{ backgroundColor: `${theme.primary}08` }}
+    >
+      <div className="flex items-center gap-2">
+        <Badge 
+          className="font-black text-[10px] text-white border-transparent"
+          style={{ backgroundColor: theme.primary }}
+        >
+          NEW
+        </Badge>
+        <span className="font-bold text-sm text-slate-800">#{order.orderNumber}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] font-bold text-slate-500 uppercase">{order.tableNumber}</span>
+        <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 rounded-full" onClick={() => handleDeleteOrder(order.id)}>
+          <Trash2 className="h-3 w-3" />
+        </Button>
+      </div>
+    </div>
+    <div className="p-3 space-y-2">
+      <ul className="space-y-1">
+        {order.items.map((item: any, i: any) => (
+          <li key={i} className="text-sm flex flex-col border-b border-slate-50 pb-1 last:border-0">
+            <div className="flex justify-between">
+              <span className="font-bold text-slate-700">{item.quantity}x {item.name}</span>
+            </div>
+            {item.notes && <span className="text-[10px] text-red-500 font-bold uppercase pl-4">Note: {item.notes}</span>}
+          </li>
+        ))}
+      </ul>
+      <Button 
+        onClick={() => moveOrder(order.id, 'preparing')} 
+        disabled={isProcessing}
+        className="w-full h-10 mt-2 font-bold uppercase tracking-widest text-[10px] text-white border-none active:scale-95 transition-all"
+        style={{ 
+          backgroundColor: theme.primary, 
+          boxShadow: `0 4px 12px -2px ${theme.primary}30` 
+        }}
+      >
+        Start Preparing
+      </Button>
+    </div>
+  </div>
+));
+
+const PreparingOrderCard = React.memo(({ order, isOwner, handleDeleteOrder, moveOrder, isProcessing }: any) => (
+  <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm opacity-90">
+    <div className="bg-slate-100 px-3 py-2 border-b border-slate-200 flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <Badge className="font-black text-[10px] bg-slate-500 text-white hover:bg-slate-500">PREPARING</Badge>
+        <span className="font-bold text-sm text-slate-800">#{order.orderNumber}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] font-bold text-slate-500 uppercase">{order.tableNumber}</span>
+        {isOwner && (
+          <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 rounded-full" onClick={() => handleDeleteOrder(order.id)}>
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
+    </div>
+    <div className="p-3 space-y-2">
+      <ul className="space-y-1">
+        {order.items.map((item: any, i: any) => (
+          <li key={i} className="text-sm flex flex-col">
+            <div className="flex justify-between">
+              <span className="font-medium text-slate-600">{item.quantity}x {item.name}</span>
+            </div>
+            {item.notes && <span className="text-[10px] text-red-400 font-bold uppercase pl-4">Note: {item.notes}</span>}
+          </li>
+        ))}
+      </ul>
+      <div className="flex gap-2 pt-2">
+        <Button 
+          onClick={() => moveOrder(order.id, 'served', order.totalAmount, order.tableNumber)} 
+          disabled={isProcessing}
+          className="w-full h-10 font-bold uppercase tracking-widest text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white"
+        >
+          <CheckCircle2 className="h-4 w-4 mr-1" /> Mark Served
+        </Button>
+      </div>
+    </div>
+  </div>
+));
 
 export function FoodDashboard() {
   const { currentTenant } = useTenant();
@@ -70,7 +161,8 @@ export function FoodDashboard() {
   const ordersQuery = React.useMemo(() => {
     return currentTenant && db
     ? query(collection(db, 'tenants', currentTenant.id, 'food_orders'),
-        orderBy('createdAt', 'desc'), limit(300)) : null;
+        where('status', 'in', ['pending', 'preparing']),
+        orderBy('createdAt', 'desc')) : null;
   }, [currentTenant?.id, db]);
 
   const [ordersSnapshot, ordersLoading, ordersError] = useCollection(ordersQuery as any);
@@ -422,95 +514,26 @@ export function FoodDashboard() {
               {ordersLoading && <div className="text-center py-4 text-xs text-slate-400">Loading KDS stream...</div>}
               
               {pendingOrders.map((order: any) => (
-                <div 
+                <PendingOrderCard 
                   key={order.id} 
-                  className="bg-white border-2 rounded-xl overflow-hidden shadow-sm transition-all duration-300"
-                  style={{ borderColor: `${theme.primary}30` }}
-                >
-                  <div 
-                    className="px-3 py-2 border-b flex items-center justify-between"
-                    style={{ backgroundColor: `${theme.primary}08` }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Badge 
-                        className="font-black text-[10px] text-white border-transparent"
-                        style={{ backgroundColor: theme.primary }}
-                      >
-                        NEW
-                      </Badge>
-                      <span className="font-bold text-sm text-slate-800">#{order.orderNumber}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase">{order.tableNumber}</span>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 rounded-full" onClick={() => handleDeleteOrder(order.id)}>
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="p-3 space-y-2">
-                    <ul className="space-y-1">
-                      {order.items.map((item: any, i: any) => (
-                        <li key={i} className="text-sm flex flex-col border-b border-slate-50 pb-1 last:border-0">
-                          <div className="flex justify-between">
-                            <span className="font-bold text-slate-700">{item.quantity}x {item.name}</span>
-                          </div>
-                          {item.notes && <span className="text-[10px] text-red-500 font-bold uppercase pl-4">Note: {item.notes}</span>}
-                        </li>
-                      ))}
-                    </ul>
-                    <Button 
-                      onClick={() => moveOrder(order.id, 'preparing')} 
-                      disabled={isProcessing}
-                      className="w-full h-10 mt-2 font-bold uppercase tracking-widest text-[10px] text-white border-none active:scale-95 transition-all"
-                      style={{ 
-                        backgroundColor: theme.primary, 
-                        boxShadow: `0 4px 12px -2px ${theme.primary}30` 
-                      }}
-                    >
-                      Start Preparing
-                    </Button>
-                  </div>
-                </div>
+                  order={order}
+                  theme={theme}
+                  isOwner={isOwner}
+                  handleDeleteOrder={handleDeleteOrder}
+                  moveOrder={moveOrder}
+                  isProcessing={isProcessing}
+                />
               ))}
 
               {preparingOrders.map((order: any) => (
-                <div key={order.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm opacity-90">
-                  <div className="bg-slate-100 px-3 py-2 border-b border-slate-200 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Badge className="font-black text-[10px] bg-slate-500 text-white hover:bg-slate-500">PREPARING</Badge>
-                      <span className="font-bold text-sm text-slate-800">#{order.orderNumber}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase">{order.tableNumber}</span>
-                      {isOwner && (
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 rounded-full" onClick={() => handleDeleteOrder(order.id)}>
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="p-3 space-y-2">
-                    <ul className="space-y-1">
-                      {order.items.map((item: any, i: any) => (
-                        <li key={i} className="text-sm flex flex-col">
-                          <div className="flex justify-between">
-                            <span className="font-medium text-slate-600">{item.quantity}x {item.name}</span>
-                          </div>
-                          {item.notes && <span className="text-[10px] text-red-400 font-bold uppercase pl-4">Note: {item.notes}</span>}
-                        </li>
-                      ))}
-                    </ul>
-                    <div className="flex gap-2 pt-2">
-                      <Button 
-                        onClick={() => moveOrder(order.id, 'served', order.totalAmount, order.tableNumber)} 
-                        disabled={isProcessing}
-                        className="w-full h-10 font-bold uppercase tracking-widest text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white"
-                      >
-                        <CheckCircle2 className="h-4 w-4 mr-1" /> Mark Served
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+                <PreparingOrderCard 
+                  key={order.id} 
+                  order={order}
+                  isOwner={isOwner}
+                  handleDeleteOrder={handleDeleteOrder}
+                  moveOrder={moveOrder}
+                  isProcessing={isProcessing}
+                />
               ))}
               
               {!ordersLoading && pendingOrders.length === 0 && preparingOrders.length === 0 && (

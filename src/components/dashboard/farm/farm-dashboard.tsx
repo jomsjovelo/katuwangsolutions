@@ -29,6 +29,48 @@ import {
   Trash2
 } from "lucide-react";
 
+const HarvestCard = React.memo(({ harvest, actions, isOwner, handleDeleteHarvest }: { harvest: any, actions: React.ReactNode, isOwner: boolean, handleDeleteHarvest: (id: string) => void }) => (
+  <Card className="shadow-sm border-slate-200 mb-3 hover:shadow-md transition-shadow">
+    <CardContent className="p-3">
+      <div className="flex justify-between items-start mb-3">
+        <div className="flex gap-2">
+          <div>
+            <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+              {harvest.cropType}
+            </h4>
+            <div className="flex items-center gap-2 mt-1.5">
+              <Badge variant="secondary" className="text-[10px] bg-amber-50 text-amber-600 border-amber-100">
+                {harvest.quantity} {harvest.unit}
+              </Badge>
+              {harvest.fieldLocation && (
+                <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
+                  Location: {harvest.fieldLocation}
+                </span>
+              )}
+            </div>
+          </div>
+          {isOwner && (
+            <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0" onClick={() => handleDeleteHarvest(harvest.id)}>
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+        <div className="text-right">
+          <Badge variant="outline" className={harvest.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}>
+            {harvest.paymentStatus}
+          </Badge>
+          {harvest.expectedValue > 0 && (
+            <p className="text-sm font-bold text-slate-700 mt-1">₱{(harvest.expectedValue).toLocaleString()}</p>
+          )}
+        </div>
+      </div>
+      <div className="flex gap-2">
+        {actions}
+      </div>
+    </CardContent>
+  </Card>
+));
+
 export function FarmDashboard() {
   const { currentTenant } = useTenant();
   const db = useFirestore();
@@ -153,47 +195,7 @@ export function FarmDashboard() {
     }
   };
 
-  const HarvestCard = ({ harvest, actions }: { harvest: any, actions: React.ReactNode }) => (
-    <Card className="shadow-sm border-slate-200 mb-3 hover:shadow-md transition-shadow">
-      <CardContent className="p-3">
-        <div className="flex justify-between items-start mb-3">
-          <div className="flex gap-2">
-            <div>
-              <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-                {harvest.cropType}
-              </h4>
-              <div className="flex items-center gap-2 mt-1.5">
-                <Badge variant="secondary" className="text-[10px] bg-amber-50 text-amber-600 border-amber-100">
-                  {harvest.quantity} {harvest.unit}
-                </Badge>
-                {harvest.fieldLocation && (
-                  <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
-                    Location: {harvest.fieldLocation}
-                  </span>
-                )}
-              </div>
-            </div>
-            {isOwner && (
-              <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0" onClick={() => handleDeleteHarvest(harvest.id)}>
-                <Trash2 className="h-3 w-3" />
-              </Button>
-            )}
-          </div>
-          <div className="text-right">
-            <Badge variant="outline" className={harvest.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}>
-              {harvest.paymentStatus}
-            </Badge>
-            {harvest.expectedValue > 0 && (
-              <p className="text-sm font-bold text-slate-700 mt-1">₱{(harvest.expectedValue).toLocaleString()}</p>
-            )}
-          </div>
-        </div>
-        <div className="flex gap-2">
-          {actions}
-        </div>
-      </CardContent>
-    </Card>
-  );
+
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-screen">
@@ -283,11 +285,17 @@ export function FarmDashboard() {
               </div>
               <div className="space-y-2">
                 {plannedHarvests.map(harvest => (
-                  <HarvestCard key={harvest.id} harvest={harvest} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-amber-600 hover:bg-amber-700" onClick={() => updateStatus(harvest, 'In Bodega')}>
-                      <Warehouse className="h-3 w-3 mr-1 text-amber-200" /> Store in Bodega
-                    </Button>
-                  } />
+                  <HarvestCard 
+                    key={harvest.id} 
+                    harvest={harvest} 
+                    isOwner={isOwner}
+                    handleDeleteHarvest={handleDeleteHarvest}
+                    actions={
+                      <Button size="sm" className="w-full h-7 text-[10px] bg-amber-600 hover:bg-amber-700" onClick={() => updateStatus(harvest, 'In Bodega')}>
+                        <Warehouse className="h-3 w-3 mr-1 text-amber-200" /> Store in Bodega
+                      </Button>
+                    } 
+                  />
                 ))}
               </div>
             </div>
@@ -301,19 +309,25 @@ export function FarmDashboard() {
               </div>
               <div className="space-y-2">
                 {inBodegaHarvests.map(harvest => (
-                  <HarvestCard key={harvest.id} harvest={harvest} actions={
-                    <div className="flex gap-2 w-full">
-                      <Button size="sm" className="flex-1 h-7 text-[10px] font-bold text-white border-none" style={{ backgroundColor: theme.primary }} onClick={() => updateStatus(harvest, 'Dispatched', 'Paid', 'cash')}>
-                        <Coins className="h-3 w-3 mr-1" /> Cash
-                      </Button>
-                      <Button size="sm" className="flex-1 h-7 text-[10px] font-bold text-white border-none" style={{ backgroundColor: '#007aff' }} onClick={() => {
-                        setPendingPaymentHarvest(harvest);
-                        setShowGCashQr(true);
-                      }}>
-                        <Receipt className="h-3 w-3 mr-1" /> GCash
-                      </Button>
-                    </div>
-                  } />
+                  <HarvestCard 
+                    key={harvest.id} 
+                    harvest={harvest} 
+                    isOwner={isOwner}
+                    handleDeleteHarvest={handleDeleteHarvest}
+                    actions={
+                      <div className="flex gap-2 w-full">
+                        <Button size="sm" className="flex-1 h-7 text-[10px] font-bold text-white border-none" style={{ backgroundColor: theme.primary }} onClick={() => updateStatus(harvest, 'Dispatched', 'Paid', 'cash')}>
+                          <Coins className="h-3 w-3 mr-1" /> Cash
+                        </Button>
+                        <Button size="sm" className="flex-1 h-7 text-[10px] font-bold text-white border-none" style={{ backgroundColor: '#007aff' }} onClick={() => {
+                          setPendingPaymentHarvest(harvest);
+                          setShowGCashQr(true);
+                        }}>
+                          <Receipt className="h-3 w-3 mr-1" /> GCash
+                        </Button>
+                      </div>
+                    } 
+                  />
                 ))}
               </div>
             </div>
@@ -327,11 +341,17 @@ export function FarmDashboard() {
               </div>
               <div className="space-y-2 opacity-70">
                 {dispatchedHarvests.map(harvest => (
-                  <HarvestCard key={harvest.id} harvest={harvest} actions={
-                    <Button disabled size="sm" variant="outline" className="w-full h-7 text-[10px] font-bold text-indigo-600 border-indigo-200 bg-indigo-50">
-                      Settled
-                    </Button>
-                  } />
+                  <HarvestCard 
+                    key={harvest.id} 
+                    harvest={harvest} 
+                    isOwner={isOwner}
+                    handleDeleteHarvest={handleDeleteHarvest}
+                    actions={
+                      <Button disabled size="sm" variant="outline" className="w-full h-7 text-[10px] font-bold text-indigo-600 border-indigo-200 bg-indigo-50">
+                        Settled
+                      </Button>
+                    } 
+                  />
                 ))}
               </div>
             </div>

@@ -24,8 +24,12 @@ export function useProjects() {
 
   const { data, loading, error } = useCollection<Project>(projectsQuery);
 
-  const activeProjects = data.filter(p => p.status === 'active');
-  const completedProjects = data.filter(p => p.status === 'completed');
+  const { activeProjects, completedProjects } = React.useMemo(() => {
+    return {
+      activeProjects: data.filter(p => p.status === 'active'),
+      completedProjects: data.filter(p => p.status === 'completed')
+    };
+  }, [data]);
 
   return { 
     projects: data, 

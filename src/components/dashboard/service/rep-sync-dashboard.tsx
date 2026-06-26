@@ -35,6 +35,53 @@ const PLAN_PRICES: Record<string, number> = {
   'Promo': 800,
 };
 
+const MemberCard = React.memo(({ member, actions, isOwner, onDelete }: { member: any, actions: React.ReactNode, isOwner: boolean, onDelete: (id: string) => void }) => {
+  const isExpired = member.status === 'Expired';
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(member.id)}`;
+  const [showQr, setShowQr] = useState(false);
+  return (
+    <Card className="shadow-sm border-slate-200 mb-3 hover:shadow-md transition-shadow">
+      <CardContent className="p-3">
+        <div className="flex justify-between items-start mb-2">
+          <div>
+            <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+              <UserCircle2 className="h-4 w-4 text-slate-500" />
+              {member.memberName}
+            </h4>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge variant="secondary" className="text-[10px] bg-slate-100 text-slate-600 border-slate-200">
+                {member.planType}
+              </Badge>
+              {isExpired && (
+                <Badge variant="destructive" className="text-[10px]">Expired</Badge>
+              )}
+            </div>
+          </div>
+          <div className="flex gap-1">
+            {isOwner && (
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-lg shrink-0" onClick={() => onDelete(member.id)}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+            <button onClick={() => setShowQr(!showQr)} className="h-7 w-7 rounded-lg bg-slate-100 flex items-center justify-center cursor-pointer border-none" title="Show QR Code">
+              <QrCode className="h-4 w-4 text-slate-500" />
+            </button>
+          </div>
+        </div>
+        {showQr && (
+          <div className="flex justify-center py-2 animate-in fade-in duration-200">
+            <img src={qrUrl} alt="Member QR" className="rounded-xl border border-slate-200" width={120} height={120} />
+          </div>
+        )}
+        <div className="flex gap-2 mt-3">
+          {actions}
+        </div>
+      </CardContent>
+    </Card>
+  );
+});
+MemberCard.displayName = 'MemberCard';
+
 export function RepSyncDashboard() {
   const { currentTenant } = useTenant();
   const db = useFirestore();
@@ -235,51 +282,7 @@ export function RepSyncDashboard() {
     );
   };
 
-  const MemberCard = ({ member, actions }: { member: any, actions: React.ReactNode }) => {
-    const isExpired = member.status === 'Expired';
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(member.id)}`;
-    const [showQr, setShowQr] = useState(false);
-    return (
-      <Card className="shadow-sm border-slate-200 mb-3 hover:shadow-md transition-shadow">
-        <CardContent className="p-3">
-          <div className="flex justify-between items-start mb-2">
-            <div>
-              <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-                <UserCircle2 className="h-4 w-4 text-slate-500" />
-                {member.memberName}
-              </h4>
-              <div className="flex items-center gap-2 mt-1">
-                <Badge variant="secondary" className="text-[10px] bg-slate-100 text-slate-600 border-slate-200">
-                  {member.planType}
-                </Badge>
-                {isExpired && (
-                  <Badge variant="destructive" className="text-[10px]">Expired</Badge>
-                )}
-              </div>
-            </div>
-            <div className="flex gap-1">
-              {isOwner && (
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-lg shrink-0" onClick={() => handleDeleteMember(member.id)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
-              <button onClick={() => setShowQr(!showQr)} className="h-7 w-7 rounded-lg bg-slate-100 flex items-center justify-center cursor-pointer border-none" title="Show QR Code">
-                <QrCode className="h-4 w-4 text-slate-500" />
-              </button>
-            </div>
-          </div>
-          {showQr && (
-            <div className="flex justify-center py-2 animate-in fade-in duration-200">
-              <img src={qrUrl} alt="Member QR" className="rounded-xl border border-slate-200" width={120} height={120} />
-            </div>
-          )}
-          <div className="flex gap-2 mt-3">
-            {actions}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
+
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-screen">
@@ -398,7 +401,7 @@ export function RepSyncDashboard() {
               </div>
               <div className="space-y-2">
                 {recentCheckIns.map(member => (
-                  <MemberCard key={member.id} member={member} actions={
+                  <MemberCard key={member.id} member={member} isOwner={isOwner} onDelete={handleDeleteMember} actions={
                     <Button disabled size="sm" className="w-full h-7 text-[10px] bg-slate-100 text-slate-400 hover:bg-slate-100">
                       Inside Gym
                     </Button>
@@ -416,7 +419,7 @@ export function RepSyncDashboard() {
               </div>
               <div className="space-y-2">
                 {activeMembers.map(member => (
-                  <MemberCard key={member.id} member={member} actions={
+                  <MemberCard key={member.id} member={member} isOwner={isOwner} onDelete={handleDeleteMember} actions={
                     <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white" onClick={() => handleCheckIn(member.id!, member.memberName)}>
                       <Plus className="h-3 w-3 mr-1" /> Log Attendance
                     </Button>
@@ -434,7 +437,7 @@ export function RepSyncDashboard() {
               </div>
               <div className="space-y-2">
                 {expiredMembers.map(member => (
-                  <MemberCard key={member.id} member={member} actions={<RenewalActions member={member} />} />
+                  <MemberCard key={member.id} member={member} isOwner={isOwner} onDelete={handleDeleteMember} actions={<RenewalActions member={member} />} />
                 ))}
               </div>
             </div>

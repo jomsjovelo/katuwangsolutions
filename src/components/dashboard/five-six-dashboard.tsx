@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useReducer, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 // FIX S2-3: Static ES imports replace dynamic require() calls inside useEffect
 import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
@@ -58,7 +58,273 @@ import { playSuccessBeep } from '@/components/common/gcash-qr-modal';
 import { playCashRegisterSwoosh } from '@/lib/hardware/audio-synthesizer';
 
 // Synthesize a quick cash register sliding sound when a borrower pays
-const playPaymentSound = () => playCashRegisterSwoosh();
+const playPaymentSound = () => playCashRegisterSwoosh()// Ensure borrower type is available
+
+
+const BorrowerCard = React.memo(({ 
+  borrower, theme, isSubmitting, handleApplyPenalty, handleQuickCollect, 
+  setSelectedBorrower, setActiveDrawer, setPayAmount, openLedger,
+  setEditName, setEditPhone, setEditArea, setEditLimit, setEditDailyDue
+}: any) => {
+  const outstandingPesos = (borrower.outstanding || 0) / 100;
+  const limitPesos = (borrower.limit || 0) / 100;
+  const dailyDuePesos = (borrower.dailyDue || 0) / 100;
+  const isPaid = borrower.status === 'fully_paid';
+  
+  let isAutoOverdue = false;
+  if (!isPaid) {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const compareDate = borrower.lastPaymentDate ? borrower.lastPaymentDate.toDate() : (borrower.createdAt?.toDate() || today);
+    compareDate.setHours(0,0,0,0);
+    
+    const diffDays = Math.floor((today.getTime() - compareDate.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays >= 1) {
+      isAutoOverdue = true;
+    }
+  }
+
+  return (
+    <div className="bg-white border border-slate-200/60 rounded-2xl p-4 flex flex-col gap-3.5 shadow-sm relative overflow-hidden group hover:border-slate-300 transition-colors">
+      {/* Status side indicators */}
+      <div 
+        className="absolute left-0 top-0 bottom-0 w-1.5"
+        style={{ backgroundColor: isPaid ? '#10b981' : theme.primary }}
+      />
+      
+      <div className="flex items-center justify-between pl-1">
+        <div className="flex items-center gap-3">
+          <div 
+            className="h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ 
+              backgroundColor: isPaid ? '#ecfdf5' : `${theme.primary}15`, 
+              color: isPaid ? '#10b981' : theme.primary 
+            }}
+          >
+            <Users className="h-4.5 w-4.5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h4 className="text-sm font-black text-slate-800">{borrower.name}</h4>
+              {isPaid ? (
+                <Badge className="text-[7px] font-black uppercase bg-emerald-50 text-emerald-700 border-none px-1.5 py-0.5 rounded-md">Fully Paid</Badge>
+              ) : (
+                <Badge className="text-[7px] font-black uppercase bg-red-50 text-red-700 border-none px-1.5 py-0.5 rounded-md">May Utang</Badge>
+              )}
+              {isAutoOverdue && (
+                <Badge className="text-[7px] font-black uppercase bg-amber-100 text-amber-700 border-none px-1.5 py-0.5 rounded-md flex items-center gap-0.5"><AlertCircle className="h-2 w-2" /> Overdue</Badge>
+              )}
+            </div>
+            <div className="flex flex-col gap-0.5 mt-0.5">
+              <div className="flex items-center gap-1 text-[9px] text-slate-400 font-bold">
+                <Phone className="h-3 w-3 text-slate-300" />
+                <span>{borrower.phone}</span>
+              </div>
+              {borrower.area && (
+                <div className="flex items-center gap-1 text-[9px] text-slate-400 font-bold">
+                  <MapPin className="h-3 w-3 text-slate-300" />
+                  <span>{borrower.area}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Balances display */}
+        <div className="text-right">
+          <div 
+            className="text-base font-headline font-black"
+            style={{ color: isPaid ? '#10b981' : theme.primary }}
+          >
+            ₱{outstandingPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+          </div>
+          <div className="text-[8px] font-black text-slate-400 uppercase tracking-wide">
+            Limit: ₱{limitPesos.toLocaleString()}
+          </div>
+        </div>
+      </div>
+
+      {/* Missed days indicator */}
+      {!isPaid && (borrower.missedDays || 0) > 0 && (
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-red-50 border border-red-100 text-[9px] font-black text-red-600">
+          <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+          {borrower.missedDays} araw na hindi nagbayad • Penalty: +₱{((borrower.totalPenalty || 0) / 100).toFixed(0)}
+        </div>
+      )}
+
+      {/* Action controls row */}
+      <div className="pl-1 pt-3 border-t border-slate-50 flex flex-col gap-2.5">
+        {!isPaid && (
+          <div className="text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1.5">
+            <Coins className="h-3.5 w-3.5 text-slate-300" />
+            {borrower.paymentSchedule === 'weekly' ? 'Lingguhang Target' :
+              borrower.paymentSchedule === 'monthly' ? 'Buwanang Target' :
+              borrower.paymentSchedule === 'custom' ? `Target bawat ${borrower.paymentIntervalDays} araw` : 
+              'Target Ngayong Araw'}: <span className="font-extrabold text-slate-700">₱{dailyDuePesos}</span>
+          </div>
+        )}
+        
+        <div className="flex flex-wrap gap-1.5">
+          {isPaid && (
+            <Button 
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedBorrower(borrower);
+                setActiveDrawer('record_loan');
+              }}
+              className="h-8 rounded-lg px-3 text-[9px] font-black text-white flex items-center gap-1 border-none cursor-pointer"
+              style={{ backgroundColor: theme.primary }}
+            >
+              <Banknote className="h-3.5 w-3.5" />
+              Pautangin Ulit
+            </Button>
+          )}
+
+          {!isPaid && (
+            <>
+              <Button 
+                variant="outline"
+                onClick={(e) => { e.stopPropagation(); handleApplyPenalty(borrower); }}
+                disabled={isSubmitting}
+                className="h-8 rounded-lg px-2 text-[9px] font-black text-red-500 hover:text-red-700 flex items-center gap-1 border-red-200 cursor-pointer"
+              >
+                <Zap className="h-3 w-3" />
+                Penalty
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={(e) => { e.stopPropagation(); handleQuickCollect(borrower); }}
+                disabled={isSubmitting}
+                className="h-8 rounded-lg px-2 text-[9px] font-black text-slate-500 hover:text-slate-700 flex items-center gap-1 border-slate-200 cursor-pointer"
+              >
+                <CheckCheck className="h-3 w-3 text-emerald-500" />
+                1-Tap
+              </Button>
+              <Button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedBorrower(borrower);
+                  setPayAmount(dailyDuePesos.toString());
+                  setActiveDrawer('record_payment');
+                }}
+                className="h-8 rounded-lg px-3 text-[9px] font-black text-white flex items-center gap-1 border-none cursor-pointer"
+                style={{ backgroundColor: theme.secondary }}
+              >
+                <Wallet className="h-3.5 w-3.5" />
+                Singilin
+              </Button>
+            </>
+          )}
+
+          <Button 
+            variant="outline"
+            onClick={(e) => { e.stopPropagation(); openLedger(borrower); }}
+            className="h-8 rounded-lg px-2 text-[9px] font-black text-slate-500 hover:text-slate-700 flex items-center gap-1 border-slate-200 cursor-pointer"
+          >
+            <History className="h-3.5 w-3.5 text-slate-400" />
+            History
+          </Button>
+          
+          <Button 
+            variant="outline"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedBorrower(borrower);
+              setEditName(borrower.name);
+              setEditPhone(borrower.phone);
+              setEditArea(borrower.area || '');
+              setEditLimit((borrower.limit / 100).toString());
+              setEditDailyDue((borrower.dailyDue / 100).toString());
+              setActiveDrawer('edit_borrower');
+            }}
+            className="h-8 rounded-lg px-2 text-[9px] font-black text-slate-500 hover:text-slate-700 flex items-center gap-1 border-slate-200 cursor-pointer"
+          >
+            <Edit3 className="h-3.5 w-3.5 text-slate-400" />
+            Edit
+          </Button>
+
+          <Button 
+            variant="outline"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedBorrower(borrower);
+              setActiveDrawer('sms_alert');
+            }}
+            className="h-8 rounded-lg w-8 p-0 flex items-center justify-center border-slate-200 cursor-pointer"
+          >
+            <MessageSquare className="h-3.5 w-3.5 text-slate-400" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+type FormState = {
+  editNote: string;
+  editName: string;
+  editPhone: string;
+  editArea: string;
+  editLimit: string;
+  editDailyDue: string;
+  newName: string;
+  newPhone: string;
+  newArea: string;
+  loanPrincipal: string;
+  loanInterest: string;
+  interestMode: '20' | '10' | 'custom';
+  loanSchedule: 'daily' | 'weekly' | 'monthly' | 'custom';
+  loanIntervalDays: string;
+  loanDailyDue: string;
+  loanTermDays: string;
+  loanDateStr: string;
+  payAmount: string;
+  collectTodayMode: boolean;
+  capitalAmount: string;
+  capitalNote: string;
+};
+
+const initialFormState: FormState = {
+  editNote: '',
+  editName: '',
+  editPhone: '',
+  editArea: '',
+  editLimit: '',
+  editDailyDue: '',
+  newName: '',
+  newPhone: '',
+  newArea: '',
+  loanPrincipal: '',
+  loanInterest: '',
+  interestMode: '20',
+  loanSchedule: 'daily',
+  loanIntervalDays: '3',
+  loanDailyDue: '100',
+  loanTermDays: '24',
+  loanDateStr: new Date().toISOString().split('T')[0],
+  payAmount: '500',
+  collectTodayMode: false,
+  capitalAmount: '10000',
+  capitalNote: 'Initial Capital',
+};
+
+type FormAction = 
+  | { type: 'SET_FIELD'; field: keyof FormState; value: any }
+  | { type: 'RESET_FORM' }
+  | { type: 'POPULATE_EDIT'; payload: Partial<FormState> };
+
+function formReducer(state: FormState, action: FormAction): FormState {
+  switch (action.type) {
+    case 'SET_FIELD':
+      return { ...state, [action.field]: action.value };
+    case 'RESET_FORM':
+      return { ...initialFormState, loanDateStr: new Date().toISOString().split('T')[0] };
+    case 'POPULATE_EDIT':
+      return { ...state, ...action.payload };
+    default:
+      return state;
+  }
+}
 
 export function FiveSixDashboard() {
   const { currentTenant } = useTenant();
@@ -79,12 +345,6 @@ export function FiveSixDashboard() {
   const [ledgerHistory, setLedgerHistory] = useState<CreditTransaction[]>([]);
   const [loadingLedger, setLoadingLedger] = useState(false);
   const [editingTx, setEditingTx] = useState<CreditTransaction | null>(null);
-  const [editNote, setEditNote] = useState('');
-  const [editName, setEditName] = useState('');
-  const [editPhone, setEditPhone] = useState('');
-  const [editArea, setEditArea] = useState('');
-  const [editLimit, setEditLimit] = useState('');
-  const [editDailyDue, setEditDailyDue] = useState('');
   
   const { user } = useUser();
 
@@ -93,27 +353,39 @@ export function FiveSixDashboard() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Form Fields
-  const [newName, setNewName] = useState('');
-  const [newPhone, setNewPhone] = useState('');
+  // Form Fields Managed by Reducer
+  const [formState, dispatchForm] = useReducer(formReducer, initialFormState);
+  const {
+    editNote, editName, editPhone, editArea, editLimit, editDailyDue,
+    newName, newPhone, newArea,
+    loanPrincipal, loanInterest, interestMode, loanSchedule, loanIntervalDays, loanDailyDue, loanTermDays, loanDateStr,
+    payAmount, collectTodayMode,
+    capitalAmount, capitalNote
+  } = formState;
 
-
-  const [loanPrincipal, setLoanPrincipal] = useState('');
-  const [loanInterest, setLoanInterest] = useState(''); // 5-6 default interest (20%)
-  const [interestMode, setInterestMode] = useState<'20' | '10' | 'custom'>('20');
-  const [loanSchedule, setLoanSchedule] = useState<'daily' | 'weekly' | 'monthly' | 'custom'>('daily');
-  const [loanIntervalDays, setLoanIntervalDays] = useState('3');
-  const [loanDailyDue, setLoanDailyDue] = useState('100');
-  const [loanTermDays, setLoanTermDays] = useState('24'); // Default 24 days
-  const [loanDateStr, setLoanDateStr] = useState(new Date().toISOString().split('T')[0]);
-
-  const [payAmount, setPayAmount] = useState('500');
-  const [newArea, setNewArea] = useState('');
-  const [collectTodayMode, setCollectTodayMode] = useState(false);
-
-  // Capital Form
-  const [capitalAmount, setCapitalAmount] = useState('10000');
-  const [capitalNote, setCapitalNote] = useState('Initial Capital');
+  // Setters for backward compatibility (reduces refactoring churn)
+  const setField = useCallback((field: keyof FormState, value: any) => dispatchForm({ type: 'SET_FIELD', field, value }), []);
+  const setEditNote = useCallback((val: string) => setField('editNote', val), [setField]);
+  const setEditName = useCallback((val: string) => setField('editName', val), [setField]);
+  const setEditPhone = useCallback((val: string) => setField('editPhone', val), [setField]);
+  const setEditArea = useCallback((val: string) => setField('editArea', val), [setField]);
+  const setEditLimit = useCallback((val: string) => setField('editLimit', val), [setField]);
+  const setEditDailyDue = useCallback((val: string) => setField('editDailyDue', val), [setField]);
+  const setNewName = useCallback((val: string) => setField('newName', val), [setField]);
+  const setNewPhone = useCallback((val: string) => setField('newPhone', val), [setField]);
+  const setNewArea = useCallback((val: string) => setField('newArea', val), [setField]);
+  const setLoanPrincipal = useCallback((val: string) => setField('loanPrincipal', val), [setField]);
+  const setLoanInterest = useCallback((val: string) => setField('loanInterest', val), [setField]);
+  const setInterestMode = useCallback((val: any) => setField('interestMode', val), [setField]);
+  const setLoanSchedule = useCallback((val: any) => setField('loanSchedule', val), [setField]);
+  const setLoanIntervalDays = useCallback((val: string) => setField('loanIntervalDays', val), [setField]);
+  const setLoanDailyDue = useCallback((val: string) => setField('loanDailyDue', val), [setField]);
+  const setLoanTermDays = useCallback((val: string) => setField('loanTermDays', val), [setField]);
+  const setLoanDateStr = useCallback((val: string) => setField('loanDateStr', val), [setField]);
+  const setPayAmount = useCallback((val: string) => setField('payAmount', val), [setField]);
+  const setCollectTodayMode = useCallback((val: boolean) => setField('collectTodayMode', val), [setField]);
+  const setCapitalAmount = useCallback((val: string) => setField('capitalAmount', val), [setField]);
+  const setCapitalNote = useCallback((val: string) => setField('capitalNote', val), [setField]);
 
   const handleDeleteTx = async (tx: CreditTransaction) => {
     if (!currentTenant || !selectedBorrower || !user) return;
@@ -198,7 +470,7 @@ export function FiveSixDashboard() {
 
   // Real-time Firestore binding
   useEffect(() => {
-    if (!currentTenant) return;
+    if (!currentTenant?.id) return;
     setLoading(true);
 
     const { db } = initializeFirebase();
@@ -222,24 +494,28 @@ export function FiveSixDashboard() {
     });
 
     return () => unsubscribe();
-  }, [currentTenant]);
+  }, [currentTenant?.id]);
 
   // Aggregate metrics
-  const activeDebtors = borrowers.filter(b => b.status === 'active');
-  // Use Math.min to prevent inflated daily expected collections
-  const totalCollectiblesTodayPesos = activeDebtors.reduce((acc, curr) => acc + Math.min(curr.outstanding || 0, curr.dailyDue || 0), 0) / 100;
+  const { activeDebtors, totalCollectiblesTodayPesos, filteredBorrowers } = React.useMemo(() => {
+    const activeDebtors = borrowers.filter(b => b.status === 'active');
+    // Use Math.min to prevent inflated daily expected collections
+    const totalCollectiblesTodayPesos = activeDebtors.reduce((acc, curr) => acc + Math.min(curr.outstanding || 0, curr.dailyDue || 0), 0) / 100;
 
-  // Filter borrowers by search query and mode
-  let filteredBorrowers = borrowers.filter(b => 
-    b.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    (b.area && b.area.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+    // Filter borrowers by search query and mode
+    let filteredBorrowers = borrowers.filter(b => 
+      b.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      (b.area && b.area.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
 
-  if (collectTodayMode) {
-    filteredBorrowers = filteredBorrowers.filter(b => b.status === 'active');
-    // Sort by daily due descending for easier high-value collection first
-    filteredBorrowers.sort((a, b) => b.dailyDue - a.dailyDue);
-  }
+    if (collectTodayMode) {
+      filteredBorrowers = filteredBorrowers.filter(b => b.status === 'active');
+      // Sort by daily due descending for easier high-value collection first
+      filteredBorrowers.sort((a, b) => b.dailyDue - a.dailyDue);
+    }
+
+    return { activeDebtors, totalCollectiblesTodayPesos, filteredBorrowers };
+  }, [borrowers, searchQuery, collectTodayMode]);
 
   // Add Borrower Submit
   const handleAddBorrower = async (e: React.FormEvent) => {
@@ -667,203 +943,25 @@ export function FiveSixDashboard() {
             </div>
           ) : (
             <div className="grid gap-2.5">
-              {filteredBorrowers.map((borrower) => {
-                const outstandingPesos = (borrower.outstanding || 0) / 100;
-                const limitPesos = (borrower.limit || 0) / 100;
-                const dailyDuePesos = (borrower.dailyDue || 0) / 100;
-                const isPaid = borrower.status === 'fully_paid';
-                
-                let isAutoOverdue = false;
-                if (!isPaid) {
-                  const today = new Date();
-                  today.setHours(0,0,0,0);
-                  const compareDate = borrower.lastPaymentDate ? borrower.lastPaymentDate.toDate() : (borrower.createdAt?.toDate() || today);
-                  compareDate.setHours(0,0,0,0);
-                  
-                  const diffDays = Math.floor((today.getTime() - compareDate.getTime()) / (1000 * 60 * 60 * 24));
-                  if (diffDays >= 1) {
-                    isAutoOverdue = true;
-                  }
-                }
-
-                return (
-                  <div 
-                    key={borrower.id} 
-                    className="bg-white border border-slate-200/60 rounded-2xl p-4 flex flex-col gap-3.5 shadow-sm relative overflow-hidden group hover:border-slate-300 transition-colors"
-                  >
-                    {/* Status side indicators */}
-                    <div 
-                      className="absolute left-0 top-0 bottom-0 w-1.5"
-                      style={{ backgroundColor: isPaid ? '#10b981' : theme.primary }}
-                    />
-                    
-                    <div className="flex items-center justify-between pl-1">
-                      <div className="flex items-center gap-3">
-                        <div 
-                          className="h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                          style={{ 
-                            backgroundColor: isPaid ? '#ecfdf5' : `${theme.primary}15`, 
-                            color: isPaid ? '#10b981' : theme.primary 
-                          }}
-                        >
-                          <Users className="h-4.5 w-4.5" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="text-sm font-black text-slate-800">{borrower.name}</h4>
-                            {isPaid ? (
-                              <Badge className="text-[7px] font-black uppercase bg-emerald-50 text-emerald-700 border-none px-1.5 py-0.5 rounded-md">Fully Paid</Badge>
-                            ) : (
-                              <Badge className="text-[7px] font-black uppercase bg-red-50 text-red-700 border-none px-1.5 py-0.5 rounded-md">May Utang</Badge>
-                            )}
-                            {isAutoOverdue && (
-                              <Badge className="text-[7px] font-black uppercase bg-amber-100 text-amber-700 border-none px-1.5 py-0.5 rounded-md flex items-center gap-0.5"><AlertCircle className="h-2 w-2" /> Overdue</Badge>
-                            )}
-                          </div>
-                          <div className="flex flex-col gap-0.5 mt-0.5">
-                            <div className="flex items-center gap-1 text-[9px] text-slate-400 font-bold">
-                              <Phone className="h-3 w-3 text-slate-300" />
-                              <span>{borrower.phone}</span>
-                            </div>
-                            {borrower.area && (
-                              <div className="flex items-center gap-1 text-[9px] text-slate-400 font-bold">
-                                <MapPin className="h-3 w-3 text-slate-300" />
-                                <span>{borrower.area}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Right Balances display */}
-                      <div className="text-right">
-                        <div 
-                          className="text-base font-headline font-black"
-                          style={{ color: isPaid ? '#10b981' : theme.primary }}
-                        >
-                          ₱{outstandingPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                        </div>
-                        <div className="text-[8px] font-black text-slate-400 uppercase tracking-wide">
-                          Limit: ₱{limitPesos.toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Missed days indicator */}
-                    {!isPaid && (borrower.missedDays || 0) > 0 && (
-                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-red-50 border border-red-100 text-[9px] font-black text-red-600">
-                        <AlertTriangle className="h-3 w-3 flex-shrink-0" />
-                        {borrower.missedDays} araw na hindi nagbayad • Penalty: +₱{((borrower.totalPenalty || 0) / 100).toFixed(0)}
-                      </div>
-                    )}
-
-                    {/* Action controls row */}
-                    <div className="pl-1 pt-3 border-t border-slate-50 flex flex-col gap-2.5">
-                      {!isPaid && (
-                        <div className="text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1.5">
-                          <Coins className="h-3.5 w-3.5 text-slate-300" />
-                          {borrower.paymentSchedule === 'weekly' ? 'Lingguhang Target' :
-                           borrower.paymentSchedule === 'monthly' ? 'Buwanang Target' :
-                           borrower.paymentSchedule === 'custom' ? `Target bawat ${borrower.paymentIntervalDays} araw` : 
-                           'Target Ngayong Araw'}: <span className="font-extrabold text-slate-700">₱{dailyDuePesos}</span>
-                        </div>
-                      )}
-                      
-                      <div className="flex flex-wrap gap-1.5">
-                        {isPaid && (
-                          <Button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedBorrower(borrower);
-                              setActiveDrawer('record_loan');
-                            }}
-                            className="h-8 rounded-lg px-3 text-[9px] font-black text-white flex items-center gap-1 border-none cursor-pointer"
-                            style={{ backgroundColor: theme.primary }}
-                          >
-                            <Banknote className="h-3.5 w-3.5" />
-                            Pautangin Ulit
-                          </Button>
-                        )}
-
-                        {!isPaid && (
-                          <>
-                            <Button 
-                              variant="outline"
-                              onClick={(e) => { e.stopPropagation(); handleApplyPenalty(borrower); }}
-                              disabled={isSubmitting}
-                              className="h-8 rounded-lg px-2 text-[9px] font-black text-red-500 hover:text-red-700 flex items-center gap-1 border-red-200 cursor-pointer"
-                            >
-                              <Zap className="h-3 w-3" />
-                              Penalty
-                            </Button>
-                            <Button 
-                              variant="outline"
-                              onClick={(e) => { e.stopPropagation(); handleQuickCollect(borrower); }}
-                              disabled={isSubmitting}
-                              className="h-8 rounded-lg px-2 text-[9px] font-black text-slate-500 hover:text-slate-700 flex items-center gap-1 border-slate-200 cursor-pointer"
-                            >
-                              <CheckCheck className="h-3 w-3 text-emerald-500" />
-                              1-Tap
-                            </Button>
-                            <Button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedBorrower(borrower);
-                                setPayAmount(dailyDuePesos.toString());
-                                setActiveDrawer('record_payment');
-                              }}
-                              className="h-8 rounded-lg px-3 text-[9px] font-black text-white flex items-center gap-1 border-none cursor-pointer"
-                              style={{ backgroundColor: theme.secondary }}
-                            >
-                              <Wallet className="h-3.5 w-3.5" />
-                              Singilin
-                            </Button>
-                          </>
-                        )}
-
-                        <Button 
-                          variant="outline"
-                          onClick={(e) => { e.stopPropagation(); openLedger(borrower); }}
-                          className="h-8 rounded-lg px-2 text-[9px] font-black text-slate-500 hover:text-slate-700 flex items-center gap-1 border-slate-200 cursor-pointer"
-                        >
-                          <History className="h-3.5 w-3.5 text-slate-400" />
-                          History
-                        </Button>
-                        
-                        <Button 
-                          variant="outline"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedBorrower(borrower);
-                            setEditName(borrower.name);
-                            setEditPhone(borrower.phone);
-                            setEditArea(borrower.area || '');
-                            setEditLimit((borrower.limit / 100).toString());
-                            setEditDailyDue((borrower.dailyDue / 100).toString());
-                            setActiveDrawer('edit_borrower');
-                          }}
-                          className="h-8 rounded-lg px-2 text-[9px] font-black text-slate-500 hover:text-slate-700 flex items-center gap-1 border-slate-200 cursor-pointer"
-                        >
-                          <Edit3 className="h-3.5 w-3.5 text-slate-400" />
-                          Edit
-                        </Button>
-
-                        <Button 
-                          variant="outline"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedBorrower(borrower);
-                            setActiveDrawer('sms_alert');
-                          }}
-                          className="h-8 rounded-lg w-8 p-0 flex items-center justify-center border-slate-200 cursor-pointer"
-                        >
-                          <MessageSquare className="h-3.5 w-3.5 text-slate-400" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+              {filteredBorrowers.map((borrower) => (
+                <BorrowerCard
+                  key={borrower.id}
+                  borrower={borrower}
+                  theme={theme}
+                  isSubmitting={isSubmitting}
+                  handleApplyPenalty={handleApplyPenalty}
+                  handleQuickCollect={handleQuickCollect}
+                  setSelectedBorrower={setSelectedBorrower}
+                  setActiveDrawer={setActiveDrawer}
+                  setPayAmount={setPayAmount}
+                  openLedger={openLedger}
+                  setEditName={setEditName}
+                  setEditPhone={setEditPhone}
+                  setEditArea={setEditArea}
+                  setEditLimit={setEditLimit}
+                  setEditDailyDue={setEditDailyDue}
+                />
+              ))}
             </div>
           )}
         </section>

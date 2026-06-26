@@ -45,6 +45,104 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
+const getMockActivity = (module: string = 'benta-snap') => {
+  const data: Record<string, any[]> = {
+    'benta-snap': [
+      { id: 1, type: 'sale', title: 'New Sale Completed', amount: 1250, time: '10 mins ago', icon: ShoppingCart, color: 'text-cyan-500', bg: 'bg-cyan-50' },
+      { id: 2, type: 'stock', title: 'Restocked Kopiko Brown', amount: null, time: '1 hour ago', icon: Package, color: 'text-blue-500', bg: 'bg-blue-50' },
+      { id: 3, type: 'alert', title: 'Low Stock: Safeguard', amount: null, time: '3 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+    ],
+    'fresh-tally': [
+      { id: 1, type: 'sale', title: 'Sold: 5kg Mangoes', amount: 850, time: '15 mins ago', icon: ShoppingCart, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+      { id: 2, type: 'stock', title: 'New Delivery: Cabbage', amount: null, time: '2 hours ago', icon: Leaf, color: 'text-green-500', bg: 'bg-green-50' },
+      { id: 3, type: 'alert', title: 'Low Stock: Ripe Bananas', amount: null, time: '5 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+    ],
+    'build-stack': [
+      { id: 1, type: 'sale', title: 'Sale: Cement (5 Sacks)', amount: 1250, time: '5 mins ago', icon: Wrench, color: 'text-slate-500', bg: 'bg-slate-100' },
+      { id: 2, type: 'stock', title: 'Restocked Plywood (1/2)', amount: null, time: '2 hours ago', icon: Package, color: 'text-yellow-600', bg: 'bg-yellow-50' },
+      { id: 3, type: 'alert', title: 'Low Stock: Common Nails', amount: null, time: '4 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+    ],
+    '5-6-tracker': [
+      { id: 1, type: 'sale', title: 'Payment Received: Juan D.', amount: 500, time: '10 mins ago', icon: Banknote, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+      { id: 2, type: 'stock', title: 'New Loan Approved', amount: null, time: '1 hour ago', icon: FileText, color: 'text-blue-500', bg: 'bg-blue-50' },
+      { id: 3, type: 'alert', title: 'Overdue: Maria Cruz', amount: null, time: '3 hours ago', icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' },
+    ],
+    'ledger-flow': [
+      { id: 1, type: 'sale', title: 'Invoice Paid: Client A', amount: 4500, time: '30 mins ago', icon: Banknote, color: 'text-indigo-500', bg: 'bg-indigo-50' },
+      { id: 2, type: 'stock', title: 'Logged Expense: Utilities', amount: null, time: '2 hours ago', icon: Calculator, color: 'text-rose-500', bg: 'bg-rose-50' },
+      { id: 3, type: 'alert', title: 'Pending Approval: PR-102', amount: null, time: '5 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+    ],
+    'sahod-flow': [
+      { id: 1, type: 'sale', title: 'Salary Disbursed', amount: 25000, time: '10 mins ago', icon: Banknote, color: 'text-blue-500', bg: 'bg-blue-50' },
+      { id: 2, type: 'stock', title: 'Added New Employee', amount: null, time: '1 hour ago', icon: Users, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+      { id: 3, type: 'alert', title: 'Missing DTR: Pedro', amount: null, time: '3 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+    ],
+    'biyahe-sync': [
+      { id: 1, type: 'sale', title: 'Delivered: Parcel to QC', amount: 150, time: '20 mins ago', icon: Truck, color: 'text-blue-500', bg: 'bg-blue-50' },
+      { id: 2, type: 'stock', title: 'Package Received at Hub', amount: null, time: '1 hour ago', icon: Package, color: 'text-orange-500', bg: 'bg-orange-50' },
+      { id: 3, type: 'alert', title: 'Delayed: Route B', amount: null, time: '2 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+    ],
+    'ani-grow': [
+      { id: 1, type: 'sale', title: 'Sold: 10 Sacks Rice', amount: 12000, time: '1 hour ago', icon: Banknote, color: 'text-amber-600', bg: 'bg-amber-50' },
+      { id: 2, type: 'stock', title: 'Harvest Logged: Corn', amount: null, time: '3 hours ago', icon: Tractor, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+      { id: 3, type: 'alert', title: 'Low Stock: Fertilizer', amount: null, time: '1 day ago', icon: Sprout, color: 'text-orange-500', bg: 'bg-orange-50' },
+    ],
+    'bite-snap': [
+      { id: 1, type: 'sale', title: 'Order #102 Served', amount: 450, time: '5 mins ago', icon: Utensils, color: 'text-orange-500', bg: 'bg-orange-50' },
+      { id: 2, type: 'stock', title: 'Restocked Coca-Cola', amount: null, time: '1 hour ago', icon: Package, color: 'text-blue-500', bg: 'bg-blue-50' },
+      { id: 3, type: 'alert', title: 'Low Stock: Rice', amount: null, time: '2 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+    ],
+    'timpla-track': [
+      { id: 1, type: 'sale', title: 'Order: Iced Caramel Macchiato', amount: 180, time: '5 mins ago', icon: Utensils, color: 'text-amber-600', bg: 'bg-amber-50' },
+      { id: 2, type: 'stock', title: 'Restocked Espresso Beans', amount: null, time: '2 hours ago', icon: Package, color: 'text-stone-600', bg: 'bg-stone-50' },
+      { id: 3, type: 'alert', title: 'Low Stock: Almond Milk', amount: null, time: '3 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+    ],
+    'ganap-master': [
+      { id: 1, type: 'sale', title: 'Booking Confirmed: Wedding', amount: 15000, time: '1 hour ago', icon: PartyPopper, color: 'text-orange-500', bg: 'bg-orange-50' },
+      { id: 2, type: 'stock', title: 'Menu Updated', amount: null, time: '3 hours ago', icon: FileText, color: 'text-blue-500', bg: 'bg-blue-50' },
+      { id: 3, type: 'alert', title: 'Missing Supplier: Flowers', amount: null, time: '5 hours ago', icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' },
+    ],
+    'spin-snap': [
+      { id: 1, type: 'sale', title: 'Laundry Finished: Wash & Fold', amount: 180, time: '15 mins ago', icon: Sparkles, color: 'text-cyan-500', bg: 'bg-cyan-50' },
+      { id: 2, type: 'stock', title: 'Restocked Fabric Conditioner', amount: null, time: '2 hours ago', icon: Package, color: 'text-blue-500', bg: 'bg-blue-50' },
+      { id: 3, type: 'alert', title: 'Low Stock: Detergent Powder', amount: null, time: '5 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+    ],
+    'hydro-sync': [
+      { id: 1, type: 'sale', title: 'Delivered: 5 Gallons (Round)', amount: 150, time: '8 mins ago', icon: Droplets, color: 'text-sky-500', bg: 'bg-sky-50' },
+      { id: 2, type: 'stock', title: 'Restocked Bottle Caps', amount: null, time: '1 hour ago', icon: Package, color: 'text-teal-500', bg: 'bg-teal-50' },
+      { id: 3, type: 'alert', title: 'Low Stock: Plastic Seals', amount: null, time: '3 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+    ],
+    'auto-boss': [
+      { id: 1, type: 'sale', title: 'Completed: Premium Carwash', amount: 350, time: '5 mins ago', icon: Car, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+      { id: 2, type: 'stock', title: 'Restocked Tire Wax', amount: null, time: '1 hour ago', icon: Package, color: 'text-teal-500', bg: 'bg-teal-50' },
+      { id: 3, type: 'alert', title: 'Low Stock: Car Shampoo', amount: null, time: '4 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+    ],
+    'wellness-pro': [
+      { id: 1, type: 'sale', title: 'New Client: Swedish Massage', amount: 800, time: '15 mins ago', icon: Sparkles, color: 'text-purple-500', bg: 'bg-purple-50' },
+      { id: 2, type: 'stock', title: 'Restocked Lavender Oil', amount: null, time: '2 hours ago', icon: Package, color: 'text-pink-500', bg: 'bg-pink-50' },
+      { id: 3, type: 'alert', title: 'Low Stock: Towels', amount: null, time: '5 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+    ],
+    'trim-track': [
+      { id: 1, type: 'sale', title: 'Haircut: Fade + Beard Trim', amount: 250, time: '12 mins ago', icon: Scissors, color: 'text-rose-500', bg: 'bg-rose-50' },
+      { id: 2, type: 'stock', title: 'Restocked Hair Pomade', amount: null, time: '3 hours ago', icon: Package, color: 'text-purple-500', bg: 'bg-purple-50' },
+      { id: 3, type: 'alert', title: 'Low Stock: Neck Strips', amount: null, time: '1 day ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+    ],
+    'rep-sync': [
+      { id: 1, type: 'sale', title: 'New Member: 1 Month Plan', amount: 1500, time: '30 mins ago', icon: Dumbbell, color: 'text-slate-500', bg: 'bg-slate-100' },
+      { id: 2, type: 'stock', title: 'Restocked Whey Protein', amount: null, time: '2 hours ago', icon: Package, color: 'text-blue-500', bg: 'bg-blue-50' },
+      { id: 3, type: 'alert', title: 'Low Stock: Bottled Water', amount: null, time: '4 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+    ],
+    'rental': [
+      { id: 1, type: 'sale', title: 'Rented: Monoblock Chairs (50)', amount: 500, time: '10 mins ago', icon: Users, color: 'text-amber-500', bg: 'bg-amber-50' },
+      { id: 2, type: 'stock', title: 'Returned: Videoke Machine', amount: null, time: '1 hour ago', icon: Home, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+      { id: 3, type: 'alert', title: 'Overdue: Folding Table', amount: null, time: '2 hours ago', icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' },
+    ],
+  };
+  
+  // Default fallback
+  return data[module] || data['benta-snap'];
+};
+
 export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
   const { currentTenant } = useTenant();
   const { user } = useUser();
@@ -85,7 +183,7 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
     });
 
     return () => unsubscribe();
-  }, [currentTenant]);
+  }, [currentTenant?.id]);
 
   const displayDailyTotalPesos = currentTenant?.moduleType === '5-6-tracker' 
     ? creditTransactions.filter(tx => tx.type === 'payment').reduce((acc, curr) => acc + curr.amount, 0) / 100
@@ -101,103 +199,7 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
     return 'Magandang Gabi';
   };
 
-  const getMockActivity = (module: string = 'benta-snap') => {
-    const data: Record<string, any[]> = {
-      'benta-snap': [
-        { id: 1, type: 'sale', title: 'New Sale Completed', amount: 1250, time: '10 mins ago', icon: ShoppingCart, color: 'text-cyan-500', bg: 'bg-cyan-50' },
-        { id: 2, type: 'stock', title: 'Restocked Kopiko Brown', amount: null, time: '1 hour ago', icon: Package, color: 'text-blue-500', bg: 'bg-blue-50' },
-        { id: 3, type: 'alert', title: 'Low Stock: Safeguard', amount: null, time: '3 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
-      ],
-      'fresh-tally': [
-        { id: 1, type: 'sale', title: 'Sold: 5kg Mangoes', amount: 850, time: '15 mins ago', icon: ShoppingCart, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-        { id: 2, type: 'stock', title: 'New Delivery: Cabbage', amount: null, time: '2 hours ago', icon: Leaf, color: 'text-green-500', bg: 'bg-green-50' },
-        { id: 3, type: 'alert', title: 'Low Stock: Ripe Bananas', amount: null, time: '5 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
-      ],
-      'build-stack': [
-        { id: 1, type: 'sale', title: 'Sale: Cement (5 Sacks)', amount: 1250, time: '5 mins ago', icon: Wrench, color: 'text-slate-500', bg: 'bg-slate-100' },
-        { id: 2, type: 'stock', title: 'Restocked Plywood (1/2)', amount: null, time: '2 hours ago', icon: Package, color: 'text-yellow-600', bg: 'bg-yellow-50' },
-        { id: 3, type: 'alert', title: 'Low Stock: Common Nails', amount: null, time: '4 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
-      ],
-      '5-6-tracker': [
-        { id: 1, type: 'sale', title: 'Payment Received: Juan D.', amount: 500, time: '10 mins ago', icon: Banknote, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-        { id: 2, type: 'stock', title: 'New Loan Approved', amount: null, time: '1 hour ago', icon: FileText, color: 'text-blue-500', bg: 'bg-blue-50' },
-        { id: 3, type: 'alert', title: 'Overdue: Maria Cruz', amount: null, time: '3 hours ago', icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' },
-      ],
-      'ledger-flow': [
-        { id: 1, type: 'sale', title: 'Invoice Paid: Client A', amount: 4500, time: '30 mins ago', icon: Banknote, color: 'text-indigo-500', bg: 'bg-indigo-50' },
-        { id: 2, type: 'stock', title: 'Logged Expense: Utilities', amount: null, time: '2 hours ago', icon: Calculator, color: 'text-rose-500', bg: 'bg-rose-50' },
-        { id: 3, type: 'alert', title: 'Pending Approval: PR-102', amount: null, time: '5 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
-      ],
-      'sahod-flow': [
-        { id: 1, type: 'sale', title: 'Salary Disbursed', amount: 25000, time: '10 mins ago', icon: Banknote, color: 'text-blue-500', bg: 'bg-blue-50' },
-        { id: 2, type: 'stock', title: 'Added New Employee', amount: null, time: '1 hour ago', icon: Users, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-        { id: 3, type: 'alert', title: 'Missing DTR: Pedro', amount: null, time: '3 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
-      ],
-      'biyahe-sync': [
-        { id: 1, type: 'sale', title: 'Delivered: Parcel to QC', amount: 150, time: '20 mins ago', icon: Truck, color: 'text-blue-500', bg: 'bg-blue-50' },
-        { id: 2, type: 'stock', title: 'Package Received at Hub', amount: null, time: '1 hour ago', icon: Package, color: 'text-orange-500', bg: 'bg-orange-50' },
-        { id: 3, type: 'alert', title: 'Delayed: Route B', amount: null, time: '2 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
-      ],
-      'ani-grow': [
-        { id: 1, type: 'sale', title: 'Sold: 10 Sacks Rice', amount: 12000, time: '1 hour ago', icon: Banknote, color: 'text-amber-600', bg: 'bg-amber-50' },
-        { id: 2, type: 'stock', title: 'Harvest Logged: Corn', amount: null, time: '3 hours ago', icon: Tractor, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-        { id: 3, type: 'alert', title: 'Low Stock: Fertilizer', amount: null, time: '1 day ago', icon: Sprout, color: 'text-orange-500', bg: 'bg-orange-50' },
-      ],
-      'bite-snap': [
-        { id: 1, type: 'sale', title: 'Order #102 Served', amount: 450, time: '5 mins ago', icon: Utensils, color: 'text-orange-500', bg: 'bg-orange-50' },
-        { id: 2, type: 'stock', title: 'Restocked Coca-Cola', amount: null, time: '1 hour ago', icon: Package, color: 'text-blue-500', bg: 'bg-blue-50' },
-        { id: 3, type: 'alert', title: 'Low Stock: Rice', amount: null, time: '2 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
-      ],
-      'timpla-track': [
-        { id: 1, type: 'sale', title: 'Order: Iced Caramel Macchiato', amount: 180, time: '5 mins ago', icon: Utensils, color: 'text-amber-600', bg: 'bg-amber-50' },
-        { id: 2, type: 'stock', title: 'Restocked Espresso Beans', amount: null, time: '2 hours ago', icon: Package, color: 'text-stone-600', bg: 'bg-stone-50' },
-        { id: 3, type: 'alert', title: 'Low Stock: Almond Milk', amount: null, time: '3 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
-      ],
-      'ganap-master': [
-        { id: 1, type: 'sale', title: 'Booking Confirmed: Wedding', amount: 15000, time: '1 hour ago', icon: PartyPopper, color: 'text-orange-500', bg: 'bg-orange-50' },
-        { id: 2, type: 'stock', title: 'Menu Updated', amount: null, time: '3 hours ago', icon: FileText, color: 'text-blue-500', bg: 'bg-blue-50' },
-        { id: 3, type: 'alert', title: 'Missing Supplier: Flowers', amount: null, time: '5 hours ago', icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' },
-      ],
-      'spin-snap': [
-        { id: 1, type: 'sale', title: 'Laundry Finished: Wash & Fold', amount: 180, time: '15 mins ago', icon: Sparkles, color: 'text-cyan-500', bg: 'bg-cyan-50' },
-        { id: 2, type: 'stock', title: 'Restocked Fabric Conditioner', amount: null, time: '2 hours ago', icon: Package, color: 'text-blue-500', bg: 'bg-blue-50' },
-        { id: 3, type: 'alert', title: 'Low Stock: Detergent Powder', amount: null, time: '5 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
-      ],
-      'hydro-sync': [
-        { id: 1, type: 'sale', title: 'Delivered: 5 Gallons (Round)', amount: 150, time: '8 mins ago', icon: Droplets, color: 'text-sky-500', bg: 'bg-sky-50' },
-        { id: 2, type: 'stock', title: 'Restocked Bottle Caps', amount: null, time: '1 hour ago', icon: Package, color: 'text-teal-500', bg: 'bg-teal-50' },
-        { id: 3, type: 'alert', title: 'Low Stock: Plastic Seals', amount: null, time: '3 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
-      ],
-      'auto-boss': [
-        { id: 1, type: 'sale', title: 'Completed: Premium Carwash', amount: 350, time: '5 mins ago', icon: Car, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-        { id: 2, type: 'stock', title: 'Restocked Tire Wax', amount: null, time: '1 hour ago', icon: Package, color: 'text-teal-500', bg: 'bg-teal-50' },
-        { id: 3, type: 'alert', title: 'Low Stock: Car Shampoo', amount: null, time: '4 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
-      ],
-      'wellness-pro': [
-        { id: 1, type: 'sale', title: 'New Client: Swedish Massage', amount: 800, time: '15 mins ago', icon: Sparkles, color: 'text-purple-500', bg: 'bg-purple-50' },
-        { id: 2, type: 'stock', title: 'Restocked Lavender Oil', amount: null, time: '2 hours ago', icon: Package, color: 'text-pink-500', bg: 'bg-pink-50' },
-        { id: 3, type: 'alert', title: 'Low Stock: Towels', amount: null, time: '5 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
-      ],
-      'trim-track': [
-        { id: 1, type: 'sale', title: 'Haircut: Fade + Beard Trim', amount: 250, time: '12 mins ago', icon: Scissors, color: 'text-rose-500', bg: 'bg-rose-50' },
-        { id: 2, type: 'stock', title: 'Restocked Hair Pomade', amount: null, time: '3 hours ago', icon: Package, color: 'text-purple-500', bg: 'bg-purple-50' },
-        { id: 3, type: 'alert', title: 'Low Stock: Neck Strips', amount: null, time: '1 day ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
-      ],
-      'rep-sync': [
-        { id: 1, type: 'sale', title: 'New Member: 1 Month Plan', amount: 1500, time: '30 mins ago', icon: Dumbbell, color: 'text-slate-500', bg: 'bg-slate-100' },
-        { id: 2, type: 'stock', title: 'Restocked Whey Protein', amount: null, time: '2 hours ago', icon: Package, color: 'text-blue-500', bg: 'bg-blue-50' },
-        { id: 3, type: 'alert', title: 'Low Stock: Bottled Water', amount: null, time: '4 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
-      ],
-      'rental': [
-        { id: 1, type: 'sale', title: 'Rented: Monoblock Chairs (50)', amount: 500, time: '10 mins ago', icon: Users, color: 'text-amber-500', bg: 'bg-amber-50' },
-        { id: 2, type: 'stock', title: 'Returned: Videoke Machine', amount: null, time: '1 hour ago', icon: Home, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-        { id: 3, type: 'alert', title: 'Overdue: Folding Table', amount: null, time: '2 hours ago', icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' },
-      ],
-    };
-    
-    // Default fallback
-    return data[module] || data['benta-snap'];
-  };
+
 
   const isDemo = currentTenant?.id === 'demo' || currentTenant?.name?.toLowerCase().includes('demo');
 
@@ -206,7 +208,7 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
   if (isDemo || !currentTenant) {
     displayActivity = getMockActivity(currentTenant?.moduleType || 'benta-snap');
   } else {
-    displayActivity = activityLogs.slice(0, 5);
+    displayActivity = (activityLogs || []).slice(0, 5);
   }
 
   return (

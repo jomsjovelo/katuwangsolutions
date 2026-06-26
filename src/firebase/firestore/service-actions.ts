@@ -508,3 +508,28 @@ export async function deleteServiceOrder(
   
   return true;
 }
+
+export const addSalonAppointment = async (tenantId: string, data: any) => {
+  const db = getKatuwangDb();
+  const counterRef = doc(db, 'tenants', tenantId, 'counters', 'salon_queue');
+  const apptRef = doc(collection(db, 'tenants', tenantId, 'salon_appointments'));
+
+  await runTransactionResilient(db, async (transaction: any) => {
+    const counterDoc = await transaction.get(counterRef);
+    let newQueueNumber = 1;
+    if (counterDoc.exists()) {
+      newQueueNumber = (counterDoc.data().current || 0) + 1;
+    }
+    
+    transaction.set(counterRef, { current: newQueueNumber }, { merge: true });
+    
+    transaction.set(apptRef, {
+      ...data,
+      tenantId,
+      queueNumber: newQueueNumber,
+      createdAt: serverTimestamp()
+    });
+  });
+  
+  return apptRef.id;
+};

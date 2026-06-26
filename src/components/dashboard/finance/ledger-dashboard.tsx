@@ -42,6 +42,49 @@ function formatTimestamp(val: any): string {
   }
 }
 
+
+
+const TransactionItem = React.memo(({ t, isOwner, onDelete, formatTimestamp }: any) => (
+  <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-3 flex items-center gap-3">
+    <div className={cn(
+      "p-2 rounded-xl shrink-0",
+      t.type === 'income' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'
+    )}>
+      {t.type === 'income'
+        ? <TrendingUp className="h-4 w-4" />
+        : <TrendingDown className="h-4 w-4" />
+      }
+    </div>
+    <div className="flex-1 min-w-0">
+      <h4 className="text-sm font-bold text-slate-800 truncate">
+        {t.description || t.category || (t.type === 'income' ? 'Income' : 'Expense')}
+      </h4>
+      <div className="flex items-center gap-2 mt-0.5">
+        {t.category && (
+          <Badge variant="secondary" className="text-[9px] px-1.5 py-0 bg-slate-100 text-slate-500">
+            {t.category}
+          </Badge>
+        )}
+        <p className="text-[10px] text-slate-400 font-medium">
+          {formatTimestamp(t.createdAt)}
+        </p>
+      </div>
+    </div>
+    <div className={cn(
+      "text-sm font-black font-headline shrink-0 flex items-center gap-2",
+      t.type === 'income' ? 'text-emerald-600' : 'text-red-500'
+    )}>
+      <span>{t.type === 'income' ? '+' : '-'}₱{(t.amount / 100).toLocaleString('en-PH')}</span>
+      {isOwner && (
+        <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-full shrink-0" onClick={() => onDelete(t.id)}>
+          <Trash2 className="h-3 w-3" />
+        </Button>
+      )}
+    </div>
+  </div>
+));
+TransactionItem.displayName = 'TransactionItem';
+
 export function LedgerDashboard() {
   const { currentTenant } = useTenant();
   const db = useFirestore();
@@ -79,14 +122,17 @@ export function LedgerDashboard() {
     }
   }, [txError, masterError, toast]);
 
-  let recentIncome = 0;
-  let recentExpense = 0;
-  const transactions = txSnapshot?.docs.map((doc: any) => {
-    const data = doc.data();
-    if (data.type === 'income') recentIncome += data.amount;
-    if (data.type === 'expense') recentExpense += data.amount;
-    return { id: doc.id, ...data };
-  }) || [];
+  const { recentIncome, recentExpense, transactions } = React.useMemo(() => {
+    let recentIncome = 0;
+    let recentExpense = 0;
+    const transactions = txSnapshot?.docs.map((doc: any) => {
+      const data = doc.data();
+      if (data.type === 'income') recentIncome += data.amount;
+      if (data.type === 'expense') recentExpense += data.amount;
+      return { id: doc.id, ...data };
+    }) || [];
+    return { recentIncome, recentExpense, transactions };
+  }, [txSnapshot]);
 
   // --- Add Entry Form ---
   const [showForm, setShowForm] = useState(false);
@@ -406,46 +452,7 @@ export function LedgerDashboard() {
 
           <div className="space-y-2">
             {transactions.map((t: any) => (
-              <div
-                key={t.id}
-                className="bg-white border border-slate-100 shadow-sm rounded-xl p-3 flex items-center gap-3"
-              >
-                <div className={cn(
-                  "p-2 rounded-xl shrink-0",
-                  t.type === 'income' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'
-                )}>
-                  {t.type === 'income'
-                    ? <TrendingUp className="h-4 w-4" />
-                    : <TrendingDown className="h-4 w-4" />
-                  }
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-bold text-slate-800 truncate">
-                    {t.description || t.category || (t.type === 'income' ? 'Income' : 'Expense')}
-                  </h4>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    {t.category && (
-                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 bg-slate-100 text-slate-500">
-                        {t.category}
-                      </Badge>
-                    )}
-                    <p className="text-[10px] text-slate-400 font-medium">
-                      {formatTimestamp(t.createdAt)}
-                    </p>
-                  </div>
-                </div>
-                <div className={cn(
-                  "text-sm font-black font-headline shrink-0 flex items-center gap-2",
-                  t.type === 'income' ? 'text-emerald-600' : 'text-red-500'
-                )}>
-                  <span>{t.type === 'income' ? '+' : '-'}₱{(t.amount / 100).toLocaleString('en-PH')}</span>
-                  {isOwner && (
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-full shrink-0" onClick={() => handleDelete(t.id)}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  )}
-                </div>
-              </div>
+              <TransactionItem key={t.id} t={t} isOwner={isOwner} onDelete={handleDelete} formatTimestamp={formatTimestamp} />
             ))}
           </div>
         </section>

@@ -32,22 +32,15 @@ export function useRental() {
       : null;
   }, [currentTenant?.id, db]);
 
-  const customersQuery = React.useMemo(() => {
-    return currentTenant && db
-      ? query(
-          collection(db, 'tenants', currentTenant.id, 'rental_customers').withConverter(createConverter(RentalCustomerSchema)),
-          orderBy('createdAt', 'desc'),
-          limit(300)
-        )
-      : null;
-  }, [currentTenant?.id, db]);
-
   const inventory = useCollection<RentalInventoryModel>(inventoryQuery);
   const bookings = useCollection<RentalBookingModel>(bookingsQuery);
-  const customers = useCollection<RentalCustomerModel>(customersQuery);
 
-  const activeBookings = bookings.data.filter(b => b.status === 'active');
-  const reservedBookings = bookings.data.filter(b => b.status === 'reserved');
+  const { activeBookings, reservedBookings } = React.useMemo(() => {
+    return {
+      activeBookings: bookings.data.filter(b => b.status === 'active'),
+      reservedBookings: bookings.data.filter(b => b.status === 'reserved')
+    };
+  }, [bookings.data]);
 
   return { 
     inventory: inventory.data, 
@@ -57,9 +50,6 @@ export function useRental() {
     activeBookings,
     reservedBookings,
     bookingsLoading: bookings.loading,
-    bookingsError: bookings.error,
-    customers: customers.data,
-    customersLoading: customers.loading,
-    customersError: customers.error
+    bookingsError: bookings.error
   };
 }

@@ -35,6 +35,78 @@ const PRICES = {
   slim: 30,
 };
 
+const OrderCard = React.memo(({ order, actions, isOwner, onDelete }: { order: any, actions: React.ReactNode, isOwner: boolean, onDelete: (id: string) => void }) => {
+  const openMaps = (address: string) => {
+    const encoded = encodeURIComponent(address);
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${encoded}`, '_blank');
+  };
+
+  return (
+    <Card className="shadow-sm border-slate-200 mb-3">
+      <CardContent className="p-3">
+        <div className="flex justify-between items-start mb-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1"><User className="h-3 w-3"/> {order.customerName}</h4>
+              {isOwner && (
+                <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0" onClick={() => onDelete(order.id)}>
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 flex items-center gap-1 mt-1"><MapPin className="h-3 w-3 text-red-400"/> {order.address}</p>
+          </div>
+          <div className="text-right">
+            <Badge variant="outline" className={order.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}>
+              {order.paymentStatus}
+            </Badge>
+            <p className="text-sm font-bold text-slate-700 mt-1">₱{(order.amountDue / 100).toLocaleString()}</p>
+          </div>
+        </div>
+        
+        <div className="flex gap-2 text-xs font-medium text-slate-600 mb-2 bg-slate-50 p-2 rounded-md border border-slate-100">
+          {order.roundOrdered > 0 && <span>{order.roundOrdered} Round</span>}
+          {order.roundOrdered > 0 && order.slimOrdered > 0 && <span>•</span>}
+          {order.slimOrdered > 0 && <span>{order.slimOrdered} Slim</span>}
+        </div>
+
+        {/* Maps Button */}
+        <button
+          onClick={() => openMaps(order.address)}
+          className="w-full h-7 mb-2 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 text-[10px] font-black flex items-center justify-center gap-1.5 cursor-pointer hover:bg-blue-100 transition-colors"
+        >
+          <Navigation className="h-3 w-3" /> Open in Google Maps
+        </button>
+
+        {order.status === 'Delivered' && (
+          <div className="space-y-1 mb-3">
+            <div className="flex gap-2 text-xs font-medium text-emerald-600 bg-emerald-50 p-2 rounded-md border border-emerald-100">
+              <span>Returns:</span>
+              {order.roundReturned > 0 && <span>{order.roundReturned} Round</span>}
+              {order.roundReturned > 0 && order.slimReturned > 0 && <span>•</span>}
+              {order.slimReturned > 0 && <span>{order.slimReturned} Slim</span>}
+              {order.roundReturned === 0 && order.slimReturned === 0 && <span>None</span>}
+            </div>
+            {(order.roundOrdered > order.roundReturned || order.slimOrdered > order.slimReturned) && (
+              <div className="flex gap-2 text-xs font-bold text-amber-600 bg-amber-50 p-2 rounded-md border border-amber-100">
+                <span>Loaned:</span>
+                {order.roundOrdered > order.roundReturned && <span>{order.roundOrdered - order.roundReturned} Round</span>}
+                {order.roundOrdered > order.roundReturned && order.slimOrdered > order.slimReturned && <span>•</span>}
+                {order.slimOrdered > order.slimReturned && <span>{order.slimOrdered - order.slimReturned} Slim</span>}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          {actions}
+        </div>
+      </CardContent>
+    </Card>
+  );
+});
+OrderCard.displayName = 'OrderCard';
+
 export function HydroDashboard() {
   const { currentTenant } = useTenant();
   const db = useFirestore();
@@ -202,69 +274,7 @@ export function HydroDashboard() {
     }
   };
 
-  const OrderCard = ({ order, actions }: { order: any, actions: React.ReactNode }) => (
-    <Card className="shadow-sm border-slate-200 mb-3">
-      <CardContent className="p-3">
-        <div className="flex justify-between items-start mb-2">
-          <div>
-            <div className="flex items-center gap-2">
-              <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1"><User className="h-3 w-3"/> {order.customerName}</h4>
-              {isOwner && (
-                <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0" onClick={() => handleDeleteOrder(order.id)}>
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
-            <p className="text-xs text-slate-500 flex items-center gap-1 mt-1"><MapPin className="h-3 w-3 text-red-400"/> {order.address}</p>
-          </div>
-          <div className="text-right">
-            <Badge variant="outline" className={order.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}>
-              {order.paymentStatus}
-            </Badge>
-            <p className="text-sm font-bold text-slate-700 mt-1">₱{(order.amountDue / 100).toLocaleString()}</p>
-          </div>
-        </div>
-        
-        <div className="flex gap-2 text-xs font-medium text-slate-600 mb-2 bg-slate-50 p-2 rounded-md border border-slate-100">
-          {order.roundOrdered > 0 && <span>{order.roundOrdered} Round</span>}
-          {order.roundOrdered > 0 && order.slimOrdered > 0 && <span>•</span>}
-          {order.slimOrdered > 0 && <span>{order.slimOrdered} Slim</span>}
-        </div>
 
-        {/* Maps Button */}
-        <button
-          onClick={() => openMaps(order.address)}
-          className="w-full h-7 mb-2 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 text-[10px] font-black flex items-center justify-center gap-1.5 cursor-pointer hover:bg-blue-100 transition-colors"
-        >
-          <Navigation className="h-3 w-3" /> Open in Google Maps
-        </button>
-
-        {order.status === 'Delivered' && (
-          <div className="space-y-1 mb-3">
-            <div className="flex gap-2 text-xs font-medium text-emerald-600 bg-emerald-50 p-2 rounded-md border border-emerald-100">
-              <span>Returns:</span>
-              {order.roundReturned > 0 && <span>{order.roundReturned} Round</span>}
-              {order.roundReturned > 0 && order.slimReturned > 0 && <span>•</span>}
-              {order.slimReturned > 0 && <span>{order.slimReturned} Slim</span>}
-              {order.roundReturned === 0 && order.slimReturned === 0 && <span>None</span>}
-            </div>
-            {(order.roundOrdered > order.roundReturned || order.slimOrdered > order.slimReturned) && (
-              <div className="flex gap-2 text-xs font-bold text-amber-600 bg-amber-50 p-2 rounded-md border border-amber-100">
-                <span>Loaned:</span>
-                {order.roundOrdered > order.roundReturned && <span>{order.roundOrdered - order.roundReturned} Round</span>}
-                {order.roundOrdered > order.roundReturned && order.slimOrdered > order.slimReturned && <span>•</span>}
-                {order.slimOrdered > order.slimReturned && <span>{order.slimOrdered - order.slimReturned} Slim</span>}
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="flex gap-2">
-          {actions}
-        </div>
-      </CardContent>
-    </Card>
-  );
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-screen">
@@ -378,7 +388,7 @@ export function HydroDashboard() {
               </div>
               <div className="space-y-2">
                 {pendingOrders.map(order => (
-                  <OrderCard key={order.id} order={order} actions={
+                  <OrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} actions={
                     <Button size="sm" className="w-full h-7 text-[10px] bg-slate-800 text-white hover:bg-slate-700" onClick={() => updateStatus(order.id!, 'Out for Delivery')}>
                       <Truck className="h-3 w-3 mr-1" /> Dispatch
                     </Button>
@@ -396,7 +406,7 @@ export function HydroDashboard() {
               </div>
               <div className="space-y-2">
                 {outForDeliveryOrders.map(order => (
-                  <OrderCard key={order.id} order={order} actions={
+                  <OrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} actions={
                     <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white" onClick={() => setSettleOrderId(order.id!)}>
                       <CircleDollarSign className="h-3 w-3 mr-1" /> Settle & Complete
                     </Button>
@@ -414,7 +424,7 @@ export function HydroDashboard() {
               </div>
               <div className="space-y-2 opacity-75">
                 {deliveredOrders.map(order => (
-                  <OrderCard key={order.id} order={order} actions={
+                  <OrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} actions={
                     <Button disabled size="sm" variant="outline" className="w-full h-7 text-[10px] font-bold text-emerald-600 border-emerald-200 bg-emerald-50">
                       Settled
                     </Button>

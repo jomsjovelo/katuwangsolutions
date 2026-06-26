@@ -9,6 +9,9 @@ const withSerwist = withSerwistInit({
 
 const nextConfig: NextConfig = {
   /* config options here */
+  experimental: {
+    optimizePackageImports: ['lucide-react', 'recharts', 'firebase'],
+  },
   eslint: {
     // ESLint v8 is used but eslint.config.mjs uses flat config (v9 format).
     // Linting is run separately via `next lint` in CI — not during builds.

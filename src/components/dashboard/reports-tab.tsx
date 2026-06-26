@@ -245,7 +245,7 @@ export function ReportsTab() {
     }
   };
 
-  const { start: rangeStart, end: rangeEnd } = getRangeBounds(dateRangeStr);
+  const { start: rangeStart, end: rangeEnd } = React.useMemo(() => getRangeBounds(dateRangeStr), [dateRangeStr]);
 
   // Load unified master ledger transactions
   useEffect(() => {
@@ -265,7 +265,7 @@ export function ReportsTab() {
       orderBy('createdAt', 'desc')
     );
 
-    const unsubscribe = onSnapshot(q, (snap: any) => {
+    const handleSnapshot = (snap: any) => {
       const records: any[] = [];
       snap.forEach((doc: any) => {
         const data = doc.data();
@@ -279,11 +279,18 @@ export function ReportsTab() {
       });
       setTransactions(records);
       setLoadingTx(false);
-    }, (err: any) => {
-      console.error("Error loading master ledger", err);
-      setTransactions([]);
-      setLoadingTx(false);
-    });
+    };
+
+    let unsubscribe: any = null;
+    if (dateRangeStr === 'today') {
+      unsubscribe = onSnapshot(q, handleSnapshot);
+    } else {
+      getDocs(q).then(handleSnapshot).catch(err => {
+        console.error("Error loading master ledger", err);
+        setTransactions([]);
+        setLoadingTx(false);
+      });
+    }
 
     const yQuery = query(
       txRef,
@@ -302,8 +309,12 @@ export function ReportsTab() {
       setYesterdayIncomePesos(yTotal);
     }).catch(e => console.error("Error fetching yesterday transactions", e));
 
-    return () => unsubscribe();
-  }, [currentTenant, dateRangeStr]);
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [currentTenant?.id, dateRangeStr, rangeStart, rangeEnd]);
 
   // Load Top Referrers
   useEffect(() => {
@@ -326,7 +337,7 @@ export function ReportsTab() {
         setBorrowers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       });
     }
-  }, [currentTenant]);
+  }, [currentTenant?.id]);
 
   // Aggregate unified metrics
   const incomeTxs = transactions.filter(t => t.type === 'income');

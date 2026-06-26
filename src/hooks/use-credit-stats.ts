@@ -18,15 +18,36 @@ export function useCreditStats() {
     const { db } = initializeFirebase();
     let pendingUnsubs = 0;
     
-    // 1. Listen to Capital Entries
-    const capitalRef = collection(db, 'tenants', currentTenant.id, 'capital_entries');
+    // 1. Listen to Master Stats
+    const masterStatsRef = doc(db, 'tenants', currentTenant.id, 'accounts', 'master-stats');
     pendingUnsubs++;
-    const unsubCapital = onSnapshot(capitalRef, (snap) => {
-      let sum = 0;
-      snap.forEach(doc => {
-        sum += (doc.data().amount || 0);
-      });
-      setTotalCapital(sum);
+    const unsubStats = onSnapshot(masterStatsRef, async (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setTotalCapital(data.totalCapital || 0);
+        setTotalOutstanding(data.totalOutstanding || 0);
+      } else {
+        // Fallback: Aggregate and initialize if missing
+        import('firebase/firestore').then(async ({ getDocs, setDoc }) => {
+          let capitalSum = 0;
+          let outstandingSum = 0;
+          
+          const capSnap = await getDocs(collection(db, 'tenants', currentTenant.id, 'capital_entries'));
+          capSnap.forEach(doc => { capitalSum += (doc.data().amount || 0); });
+          
+          const borSnap = await getDocs(collection(db, 'tenants', currentTenant.id, 'borrowers'));
+          borSnap.forEach(doc => { outstandingSum += (doc.data().outstanding || 0); });
+          
+          setTotalCapital(capitalSum);
+          setTotalOutstanding(outstandingSum);
+          
+          await setDoc(masterStatsRef, {
+            totalCapital: capitalSum,
+            totalOutstanding: outstandingSum,
+            updatedAt: new Date()
+          });
+        });
+      }
       pendingUnsubs--;
       if (pendingUnsubs === 0) setLoading(false);
     });
@@ -44,25 +65,11 @@ export function useCreditStats() {
       if (pendingUnsubs === 0) setLoading(false);
     });
 
-    // 3. Listen to Borrowers for Total Outstanding
-    const borrowersRef = collection(db, 'tenants', currentTenant.id, 'borrowers');
-    pendingUnsubs++;
-    const unsubBorrowers = onSnapshot(borrowersRef, (snap) => {
-      let sum = 0;
-      snap.forEach(doc => {
-        sum += (doc.data().outstanding || 0);
-      });
-      setTotalOutstanding(sum);
-      pendingUnsubs--;
-      if (pendingUnsubs === 0) setLoading(false);
-    });
-
     return () => {
-      unsubCapital();
+      unsubStats();
       unsubCash();
-      unsubBorrowers();
     };
-  }, [currentTenant]);
+  }, [currentTenant?.id]);
 
   const totalAssets = cashOnHand + totalOutstanding;
   const generatedRevenue = totalAssets - totalCapital;

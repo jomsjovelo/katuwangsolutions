@@ -19,7 +19,7 @@ import { MailOpen, Loader2, Sparkles, X } from 'lucide-react';
 export function InvitationGuard({ children }: { children: React.ReactNode }) {
   const { user } = useUser();
   const db = useFirestore();
-  const { setActiveTenant } = useTenantStore();
+  const setActiveTenant = useTenantStore(state => state.setActiveTenant);
 
   const [pendingInvite, setPendingInvite] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);

@@ -6,6 +6,7 @@ import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/fi
 import { useFirestore } from '@/firebase/provider';
 import { completeServiceOrder, deleteServiceOrder } from '@/firebase/firestore/service-actions';
 import { useUser } from '@/firebase/auth/use-user';
+import { getCustomerPoints } from '@/firebase/firestore/loyalty-actions';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,62 @@ const SERVICE_PRICES: Record<string, number> = {
   'Body Scrub': 1000,
   'Spa Package': 1500,
 };
+
+const AppointmentCard = React.memo(({ appointment, actions, isOwner, onDelete }: { appointment: any, actions: React.ReactNode, isOwner: boolean, onDelete: (id: string) => void }) => (
+  <Card className="shadow-sm border-slate-200 mb-3 hover:shadow-md transition-shadow">
+    <CardContent className="p-3">
+      <div className="flex justify-between items-start mb-3">
+        <div className="flex gap-2">
+          <div>
+            <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+              <UserCircle2 className="h-4 w-4 text-purple-400" />
+              {appointment.clientName}
+            </h4>
+          <div className="flex items-center gap-2 mt-1.5">
+            <Badge variant="secondary" className="text-[10px] bg-purple-50 text-purple-600 border-purple-100">
+              {appointment.serviceType}
+            </Badge>
+            <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
+              w/ {appointment.therapistName}
+            </span>
+            {appointment.roomNumber && (
+              <Badge variant="outline" className="text-[9px] border-slate-200 text-slate-600 bg-slate-50">
+                {appointment.roomNumber}
+              </Badge>
+            )}
+          </div>
+          </div>
+          {isOwner && (
+            <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0" onClick={() => onDelete(appointment.id)}>
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+        <div className="text-right">
+          <Badge variant="outline" className={appointment.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}>
+            {appointment.paymentStatus}
+          </Badge>
+          <p className="text-sm font-bold text-slate-700 mt-1">₱{(appointment.amountDue / 100).toLocaleString()}</p>
+          {appointment.appointmentDate && appointment.status === 'Scheduled' && (
+            <p className="text-[10px] font-bold text-amber-600 mt-0.5 flex items-center justify-end gap-1">
+              <Clock className="h-3 w-3" />
+              {appointment.appointmentDate.toDate ? format(appointment.appointmentDate.toDate(), 'MMM d, h:mm a') : format(new Date(appointment.appointmentDate), 'MMM d, h:mm a')}
+            </p>
+          )}
+          {appointment.therapistCommission && (
+            <p className="text-[9px] font-bold text-emerald-600 mt-0.5">
+              +₱{(appointment.therapistCommission / 100).toLocaleString()} Comm
+            </p>
+          )}
+        </div>
+      </div>
+      <div className="flex gap-2">
+        {actions}
+      </div>
+    </CardContent>
+  </Card>
+));
+AppointmentCard.displayName = 'AppointmentCard';
 
 export function WellnessDashboard() {
   const { currentTenant } = useTenant();
@@ -79,7 +136,6 @@ export function WellnessDashboard() {
       if (cleanPhone.length >= 10 && currentTenant) {
         setIsFetchingPoints(true);
         try {
-          const { getCustomerPoints } = await import('@/firebase/firestore/loyalty-actions');
           const points = await getCustomerPoints(currentTenant.id, cleanPhone);
           setPointsBalance(points);
         } catch (e) {
@@ -95,7 +151,7 @@ export function WellnessDashboard() {
     
     const timer = setTimeout(fetchPoints, 500);
     return () => clearTimeout(timer);
-  }, [customerPhone, currentTenant]);
+  }, [customerPhone, currentTenant?.id]);
 
   // Auto-calculate suggested price
   const suggestedPrice = SERVICE_PRICES[serviceType] || 0;
@@ -201,60 +257,7 @@ export function WellnessDashboard() {
     }
   };
 
-  const AppointmentCard = ({ appointment, actions }: { appointment: any, actions: React.ReactNode }) => (
-    <Card className="shadow-sm border-slate-200 mb-3 hover:shadow-md transition-shadow">
-      <CardContent className="p-3">
-        <div className="flex justify-between items-start mb-3">
-          <div className="flex gap-2">
-            <div>
-              <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-                <UserCircle2 className="h-4 w-4 text-purple-400" />
-                {appointment.clientName}
-              </h4>
-            <div className="flex items-center gap-2 mt-1.5">
-              <Badge variant="secondary" className="text-[10px] bg-purple-50 text-purple-600 border-purple-100">
-                {appointment.serviceType}
-              </Badge>
-              <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
-                w/ {appointment.therapistName}
-              </span>
-              {appointment.roomNumber && (
-                <Badge variant="outline" className="text-[9px] border-slate-200 text-slate-600 bg-slate-50">
-                  {appointment.roomNumber}
-                </Badge>
-              )}
-            </div>
-            </div>
-            {isOwner && (
-              <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0" onClick={() => handleDeleteAppointment(appointment.id)}>
-                <Trash2 className="h-3 w-3" />
-              </Button>
-            )}
-          </div>
-          <div className="text-right">
-            <Badge variant="outline" className={appointment.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}>
-              {appointment.paymentStatus}
-            </Badge>
-            <p className="text-sm font-bold text-slate-700 mt-1">₱{(appointment.amountDue / 100).toLocaleString()}</p>
-            {appointment.appointmentDate && appointment.status === 'Scheduled' && (
-              <p className="text-[10px] font-bold text-amber-600 mt-0.5 flex items-center justify-end gap-1">
-                <Clock className="h-3 w-3" />
-                {appointment.appointmentDate.toDate ? format(appointment.appointmentDate.toDate(), 'MMM d, h:mm a') : format(new Date(appointment.appointmentDate), 'MMM d, h:mm a')}
-              </p>
-            )}
-            {appointment.therapistCommission && (
-              <p className="text-[9px] font-bold text-emerald-600 mt-0.5">
-                +₱{(appointment.therapistCommission / 100).toLocaleString()} Comm
-              </p>
-            )}
-          </div>
-        </div>
-        <div className="flex gap-2">
-          {actions}
-        </div>
-      </CardContent>
-    </Card>
-  );
+
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-screen">
@@ -389,7 +392,7 @@ export function WellnessDashboard() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {scheduledAppointments.map(appt => (
-                  <AppointmentCard key={appt.id} appointment={appt} actions={
+                  <AppointmentCard key={appt.id} appointment={appt} isOwner={isOwner} onDelete={handleDeleteAppointment} actions={
                     <Button size="sm" className="w-full h-7 text-[10px] bg-slate-800 hover:bg-slate-700" onClick={() => updateStatus(appt, 'Waiting')}>
                       <ArrowRight className="h-3 w-3 mr-1" /> Client Arrived
                     </Button>
@@ -414,7 +417,7 @@ export function WellnessDashboard() {
               </div>
               <div className="space-y-2">
                 {waitingAppointments.map(appt => (
-                  <AppointmentCard key={appt.id} appointment={appt} actions={
+                  <AppointmentCard key={appt.id} appointment={appt} isOwner={isOwner} onDelete={handleDeleteAppointment} actions={
                     <div className="w-full flex gap-1">
                       <select 
                         className="border border-slate-200 text-[10px] rounded px-1 max-w-[80px]"
@@ -450,7 +453,7 @@ export function WellnessDashboard() {
               </div>
               <div className="space-y-2">
                 {inSessionAppointments.map(appt => (
-                  <AppointmentCard key={appt.id} appointment={appt} actions={
+                  <AppointmentCard key={appt.id} appointment={appt} isOwner={isOwner} onDelete={handleDeleteAppointment} actions={
                     <Button size="sm" className="w-full h-7 text-[10px] bg-sky-500 hover:bg-sky-600 text-white" onClick={() => updateStatus(appt, 'Resting')}>
                       <Coffee className="h-3 w-3 mr-1 text-sky-100" /> Move to Resting Area
                     </Button>
@@ -468,7 +471,7 @@ export function WellnessDashboard() {
               </div>
               <div className="space-y-2">
                 {restingAppointments.map(appt => (
-                  <AppointmentCard key={appt.id} appointment={appt} actions={
+                  <AppointmentCard key={appt.id} appointment={appt} isOwner={isOwner} onDelete={handleDeleteAppointment} actions={
                     <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white" onClick={() => setSelectedOrderForPayment(appt)}>
                       <CircleDollarSign className="h-3 w-3 mr-1" /> Checkout & Pay
                     </Button>
@@ -486,7 +489,7 @@ export function WellnessDashboard() {
               </div>
               <div className="space-y-2 opacity-70">
                 {doneAppointments.map(appt => (
-                  <AppointmentCard key={appt.id} appointment={appt} actions={
+                  <AppointmentCard key={appt.id} appointment={appt} isOwner={isOwner} onDelete={handleDeleteAppointment} actions={
                     <Button disabled size="sm" variant="outline" className="w-full h-7 text-[10px] font-bold text-emerald-600 border-emerald-200 bg-emerald-50">
                       Settled
                     </Button>

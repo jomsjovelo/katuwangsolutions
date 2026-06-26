@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
-import { completeServiceOrder, deleteServiceOrder } from '@/firebase/firestore/service-actions';
+import { completeServiceOrder, deleteServiceOrder, addSalonAppointment } from '@/firebase/firestore/service-actions';
 import { useUser } from '@/firebase/auth/use-user';
 import { awardPoints } from '@/firebase/firestore/loyalty-actions';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +35,51 @@ const SERVICE_PRICES: Record<string, number> = {
   'Treatment': 500,
   'Rebond': 1500,
 };
+
+const AppointmentCard = React.memo(({ appointment, actions, isOwner, onDelete }: { appointment: any, actions: React.ReactNode, isOwner: boolean, onDelete: (id: string) => void }) => (
+  <Card className="shadow-sm border-slate-200 mb-3 hover:shadow-md transition-shadow">
+    <CardContent className="p-3">
+      <div className="flex justify-between items-start mb-3">
+        <div className="flex gap-2">
+          <div>
+            <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+            <span className="bg-slate-800 text-white text-[10px] px-1.5 py-0.5 rounded font-black">#{appointment.queueNumber || '?'}</span>
+            {appointment.customerName}
+          </h4>
+          <div className="flex items-center gap-2 mt-1.5">
+            <Badge variant="secondary" className="text-[10px] bg-rose-50 text-rose-600 border-rose-100">
+              {appointment.serviceType}
+            </Badge>
+            <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
+              by {appointment.stylistName}
+            </span>
+            {appointment.chairNumber && (
+              <Badge variant="outline" className="text-[9px] border-slate-200 text-slate-600 bg-slate-50 ml-1">
+                {appointment.chairNumber}
+              </Badge>
+            )}
+          </div>
+          </div>
+          {isOwner && (
+            <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0" onClick={() => onDelete(appointment.id)}>
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+        <div className="text-right">
+          <Badge variant="outline" className={appointment.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}>
+            {appointment.paymentStatus}
+          </Badge>
+          <p className="text-sm font-bold text-slate-700 mt-1">₱{(appointment.amountDue / 100).toLocaleString()}</p>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        {actions}
+      </div>
+    </CardContent>
+  </Card>
+));
+AppointmentCard.displayName = 'AppointmentCard';
 
 export function TrimTrackDashboard() {
   const { currentTenant } = useTenant();
@@ -80,18 +125,14 @@ export function TrimTrackDashboard() {
     }
     setIsProcessing(true);
     try {
-      const apptRef = doc(collection(db, 'tenants', currentTenant.id, 'salon_appointments'));
-      await setDoc(apptRef, {
-        tenantId: currentTenant.id,
+      await addSalonAppointment(currentTenant.id, {
         customerName,
         phoneNumber,
         stylistName,
         serviceType,
         status: 'Waiting',
-        queueNumber: waitingAppointments.length + inChairAppointments.length + doneAppointments.length + 1,
         amountDue: Math.round(finalPrice * 100), // convert to cents safely
         paymentStatus: 'Unpaid',
-        createdAt: serverTimestamp(),
       });
       setCustomerName('');
       setPhoneNumber('');
@@ -162,49 +203,7 @@ export function TrimTrackDashboard() {
     return Object.entries(stats).sort((a, b) => b[1].total - a[1].total);
   }, [doneAppointments]);
 
-  const AppointmentCard = ({ appointment, actions }: { appointment: any, actions: React.ReactNode }) => (
-    <Card className="shadow-sm border-slate-200 mb-3 hover:shadow-md transition-shadow">
-      <CardContent className="p-3">
-        <div className="flex justify-between items-start mb-3">
-          <div className="flex gap-2">
-            <div>
-              <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-              <span className="bg-slate-800 text-white text-[10px] px-1.5 py-0.5 rounded font-black">#{appointment.queueNumber || '?'}</span>
-              {appointment.customerName}
-            </h4>
-            <div className="flex items-center gap-2 mt-1.5">
-              <Badge variant="secondary" className="text-[10px] bg-rose-50 text-rose-600 border-rose-100">
-                {appointment.serviceType}
-              </Badge>
-              <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
-                by {appointment.stylistName}
-              </span>
-              {appointment.chairNumber && (
-                <Badge variant="outline" className="text-[9px] border-slate-200 text-slate-600 bg-slate-50 ml-1">
-                  {appointment.chairNumber}
-                </Badge>
-              )}
-            </div>
-            </div>
-            {isOwner && (
-              <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0" onClick={() => handleDeleteAppointment(appointment.id)}>
-                <Trash2 className="h-3 w-3" />
-              </Button>
-            )}
-          </div>
-          <div className="text-right">
-            <Badge variant="outline" className={appointment.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}>
-              {appointment.paymentStatus}
-            </Badge>
-            <p className="text-sm font-bold text-slate-700 mt-1">₱{(appointment.amountDue / 100).toLocaleString()}</p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          {actions}
-        </div>
-      </CardContent>
-    </Card>
-  );
+
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-screen">
@@ -314,7 +313,7 @@ export function TrimTrackDashboard() {
               </div>
               <div className="space-y-2">
                 {waitingAppointments.map(appt => (
-                  <AppointmentCard key={appt.id} appointment={appt} actions={
+                  <AppointmentCard key={appt.id} appointment={appt} isOwner={isOwner} onDelete={handleDeleteAppointment} actions={
                     <div className="w-full flex gap-1">
                       <select 
                         className="border border-slate-200 text-[10px] rounded px-1 max-w-[80px]"
@@ -349,7 +348,7 @@ export function TrimTrackDashboard() {
               </div>
               <div className="space-y-2">
                 {inChairAppointments.map(appt => (
-                  <AppointmentCard key={appt.id} appointment={appt} actions={
+                  <AppointmentCard key={appt.id} appointment={appt} isOwner={isOwner} onDelete={handleDeleteAppointment} actions={
                     <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white" onClick={() => setSelectedOrderForPayment(appt)}>
                       <CircleDollarSign className="h-3 w-3 mr-1" /> Finish & Checkout
                     </Button>
@@ -367,7 +366,7 @@ export function TrimTrackDashboard() {
               </div>
               <div className="space-y-2 opacity-70">
                 {doneAppointments.map(appt => (
-                  <AppointmentCard key={appt.id} appointment={appt} actions={
+                  <AppointmentCard key={appt.id} appointment={appt} isOwner={isOwner} onDelete={handleDeleteAppointment} actions={
                     <Button disabled size="sm" variant="outline" className="w-full h-7 text-[10px] font-bold text-emerald-600 border-emerald-200 bg-emerald-50">
                       Settled
                     </Button>

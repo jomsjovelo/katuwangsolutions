@@ -24,10 +24,14 @@ export function useLaundry() {
 
   const { data, loading, error } = useCollection<LaundryOrderModel>(laundryQuery);
 
-  const queuedOrders = data.filter(o => o.status === 'Queued');
-  const washingOrders = data.filter(o => o.status === 'Washing');
-  const readyOrders = data.filter(o => o.status === 'Ready');
-  const claimedOrders = data.filter(o => o.status === 'Claimed');
+  const { queuedOrders, washingOrders, readyOrders, claimedOrders } = React.useMemo(() => {
+    return {
+      queuedOrders: data.filter(o => o.status === 'Queued'),
+      washingOrders: data.filter(o => o.status === 'Washing'),
+      readyOrders: data.filter(o => o.status === 'Ready'),
+      claimedOrders: data.filter(o => o.status === 'Claimed')
+    };
+  }, [data]);
 
   return { 
     orders: data, 

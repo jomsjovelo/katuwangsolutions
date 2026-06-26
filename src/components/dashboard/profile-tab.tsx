@@ -15,7 +15,8 @@ import {
   getFirestore,
   updateDoc,
   setDoc,
-  getDoc
+  getDoc,
+  getDocs
 } from 'firebase/firestore';
 import { app } from '@/firebase/config';
 import { sendStaffInvite, removeStaffMember, regenerateBusinessCode } from '@/firebase/firestore/staff-actions';
@@ -75,7 +76,9 @@ export function ProfileTab() {
   const [showInstallGuide, setShowInstallGuide] = useState(false);
   const { user } = useUser();
   const { currentTenant, setCurrentTenant, allTenants } = useTenant();
-  const { reset, switchActiveModule, activeModuleOverride } = useTenantStore();
+  const reset = useTenantStore(state => state.reset);
+  const switchActiveModule = useTenantStore(state => state.switchActiveModule);
+  const activeModuleOverride = useTenantStore(state => state.activeModuleOverride);
   const { deferredPrompt, isInstalled, triggerInstall, isIOS } = usePWAInstall();
   
   const [profile, setProfile] = useState<any>(null);
@@ -132,22 +135,19 @@ export function ProfileTab() {
   useEffect(() => {
     if (!user) return;
     
-    // We import orderBy and limit inside useEffect or at top of file, but we already have `query` etc.
-    // Ensure we import them safely if missing from top level:
     const fetchHistory = async () => {
-      const { query, collection, orderBy, limit, onSnapshot } = await import('firebase/firestore');
+      const { query, collection, orderBy, limit, getDocs } = await import('firebase/firestore');
       const historyRef = collection(db, 'users', user.uid, 'referral_history');
       const q = query(historyRef, orderBy('creditedAt', 'desc'), limit(10));
       
-      const unsubscribe = onSnapshot(q, (snap) => {
+      getDocs(q).then((snap) => {
         setReferralHistory(snap.docs.map(d => d.data()));
+      }).catch((err) => {
+        console.warn('ProfileTab: Referral history unavailable:', err.message);
       });
-      return unsubscribe;
     };
     
-    let unsub: (() => void) | undefined;
-    fetchHistory().then(u => { unsub = u; });
-    return () => { if (unsub) unsub(); };
+    fetchHistory();
   }, [user, db]);
 
   // 2. Fetch Active Staff List (role == staff & tenantId == tenantId)
@@ -205,16 +205,14 @@ export function ProfileTab() {
       where('status', '==', 'pending')
     );
 
-    const unsubscribe = onSnapshot(invitesQuery, (snapshot) => {
-      const invitesList = snapshot.docs.map(d => d.data());
+    getDocs(invitesQuery).then((snapshot: any) => {
+      const invitesList = snapshot.docs.map((d: any) => d.data());
       setPendingInvites(invitesList);
-    }, (err) => {
+    }).catch((err: any) => {
       // Rule not yet deployed or user not an owner — fail silently
       console.warn('ProfileTab: Invites list unavailable:', err.message);
       setPendingInvites([]);
     });
-
-    return () => unsubscribe();
   }, [currentTenant, profile?.role]);
 
   // 4. Fetch Audit Logs
@@ -223,26 +221,23 @@ export function ProfileTab() {
     if (!currentTenant || !profile || profile.role !== 'owner') return;
 
     const fetchLogs = async () => {
-      const { query, collection, orderBy, limit, onSnapshot } = await import('firebase/firestore');
+      const { query, collection, orderBy, limit, getDocs } = await import('firebase/firestore');
       const auditQuery = query(
         collection(db, 'tenants', currentTenant.id, 'audit_log'),
         orderBy('createdAt', 'desc'),
         limit(20)
       );
 
-      const unsubscribe = onSnapshot(auditQuery, (snapshot) => {
+      getDocs(auditQuery).then((snapshot) => {
         const logs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         setAuditLogs(logs);
-      }, (err) => {
+      }).catch((err) => {
         console.warn('ProfileTab: Audit log unavailable:', err.message);
         setAuditLogs([]);
       });
-      return unsubscribe;
     };
 
-    let unsub: (() => void) | undefined;
-    fetchLogs().then(u => { unsub = u; });
-    return () => { if (unsub) unsub(); };
+    fetchLogs();
   }, [currentTenant, profile?.role, db]);
 
   // Patch for Demo Account (or any missing code)

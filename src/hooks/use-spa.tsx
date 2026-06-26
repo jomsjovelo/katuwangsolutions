@@ -24,11 +24,15 @@ export function useSpaAppointments() {
 
   const { data, loading, error } = useCollection<SpaAppointmentModel>(spaQuery);
 
-  const scheduledAppointments = data.filter(a => a.status === 'Scheduled');
-  const waitingAppointments = data.filter(a => a.status === 'Waiting');
-  const inSessionAppointments = data.filter(a => a.status === 'In Session');
-  const restingAppointments = data.filter(a => a.status === 'Resting');
-  const doneAppointments = data.filter(a => a.status === 'Done');
+  const { scheduledAppointments, waitingAppointments, inSessionAppointments, restingAppointments, doneAppointments } = React.useMemo(() => {
+    return {
+      scheduledAppointments: data.filter(a => a.status === 'Scheduled'),
+      waitingAppointments: data.filter(a => a.status === 'Waiting'),
+      inSessionAppointments: data.filter(a => a.status === 'In Session'),
+      restingAppointments: data.filter(a => a.status === 'Resting'),
+      doneAppointments: data.filter(a => a.status === 'Done')
+    };
+  }, [data]);
 
   return { 
     appointments: data, 

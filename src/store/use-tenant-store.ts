@@ -46,6 +46,7 @@ interface TenantState {
   activeModuleOverride: string | null; // Locally override the current app view
   isLoading: boolean;
   isSeeding: boolean;
+  seededTenants: string[];
   error: string | null;
   
   // Actions
@@ -58,6 +59,7 @@ interface TenantState {
   setUserProfile: (profile: UserProfile | null) => void;
   setLoading: (loading: boolean) => void;
   setSeeding: (seeding: boolean) => void;
+  markAsSeeded: (tenantId: string) => void;
   setError: (error: string | null) => void;
   reset: () => void;
 }
@@ -69,8 +71,9 @@ export const useTenantStore = create<TenantState>()(
       allTenants: [],
       userProfile: null,
       activeModuleOverride: null,
-      isLoading: true,
+      isLoading: false,
       isSeeding: false,
+      seededTenants: [],
       error: null,
 
   setActiveTenant: (tenant) => set((state) => {
@@ -137,10 +140,14 @@ export const useTenantStore = create<TenantState>()(
     if (state.isSeeding === seeding) return state;
     return { isSeeding: seeding };
   }),
+  markAsSeeded: (tenantId) => set((state) => {
+    if (state.seededTenants.includes(tenantId)) return state;
+    return { seededTenants: [...state.seededTenants, tenantId] };
+  }),
   setError: (error) => set({ error: error }),
   
   reset: () => {
-    set({ activeTenant: null, allTenants: [], userProfile: null, activeModuleOverride: null, isLoading: false, isSeeding: false, error: null });
+    set({ activeTenant: null, allTenants: [], userProfile: null, activeModuleOverride: null, isLoading: false, isSeeding: false, seededTenants: [], error: null });
   }
     }),
     {
@@ -148,7 +155,8 @@ export const useTenantStore = create<TenantState>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ 
         activeTenant: state.activeTenant,
-        activeModuleOverride: state.activeModuleOverride
+        activeModuleOverride: state.activeModuleOverride,
+        seededTenants: state.seededTenants
       }),
     }
   )

@@ -36,16 +36,78 @@ const RATES: Record<string, number> = {
   'Ironing': 50,
 };
 
-const WashTimer = ({ startTime }: { startTime: number }) => {
-  const [elapsed, setElapsed] = useState(0);
+let sharedInterval: NodeJS.Timeout | null = null;
+let tickSubscribers: ((now: number) => void)[] = [];
+
+function subscribeTick(cb: (now: number) => void) {
+  tickSubscribers.push(cb);
+  if (!sharedInterval) {
+    sharedInterval = setInterval(() => {
+      const current = Date.now();
+      tickSubscribers.forEach(s => s(current));
+    }, 60000);
+  }
+  return () => {
+    tickSubscribers = tickSubscribers.filter(s => s !== cb);
+    if (tickSubscribers.length === 0 && sharedInterval) {
+      clearInterval(sharedInterval);
+      sharedInterval = null;
+    }
+  };
+}
+
+function useMinuteTick() {
+  const [now, setNow] = useState(Date.now());
   useEffect(() => {
-    const calc = () => setElapsed(Math.floor((Date.now() - startTime) / 60000));
-    calc();
-    const interval = setInterval(calc, 60000);
-    return () => clearInterval(interval);
-  }, [startTime]);
+    return subscribeTick(setNow);
+  }, []);
+  return now;
+}
+
+const WashTimer = React.memo(({ startTime }: { startTime: number }) => {
+  const now = useMinuteTick();
+  const elapsed = Math.floor((now - startTime) / 60000);
+  
   return <span className="text-[10px] text-indigo-600 font-bold ml-1 flex items-center gap-1"><Clock className="h-3 w-3" />{elapsed}m</span>;
-};
+});
+
+const OrderCard = React.memo(({ order, actions, isOwner, onDelete }: { order: any, actions: React.ReactNode, isOwner: boolean, onDelete: (id: string) => void }) => (
+  <Card className="shadow-sm border-slate-200 mb-3">
+    <CardContent className="p-3">
+      <div className="flex justify-between items-start mb-2">
+        <div className="flex gap-2">
+          <div>
+            <h4 className="font-bold text-slate-800 text-sm">{order.customerName}</h4>
+            <div className="text-xs text-slate-500 flex items-center mt-0.5">
+            {order.kilos} kg • {order.serviceType}
+            {order.status === 'Washing' && order.washStartTime && <WashTimer startTime={order.washStartTime} />}
+            {order.machineNumber && (
+              <Badge variant="outline" className="text-[9px] border-slate-200 text-slate-600 bg-slate-50 ml-2">
+                {order.machineNumber}
+              </Badge>
+            )}
+          </div>
+          </div>
+          {isOwner && (
+            <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0" onClick={() => onDelete(order.id)}>
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+        <div className="text-right">
+          <Badge variant="outline" className={order.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}>
+            {order.paymentStatus}
+          </Badge>
+          <p className="text-sm font-bold text-slate-700 mt-1">₱{(order.amountDue / 100).toLocaleString()}</p>
+        </div>
+      </div>
+      <div className="mt-3 flex gap-2">
+        {actions}
+      </div>
+    </CardContent>
+  </Card>
+));
+OrderCard.displayName = 'OrderCard';
 
 export function SpinDashboard() {
   const { currentTenant } = useTenant();
@@ -165,42 +227,7 @@ export function SpinDashboard() {
     }
   };
 
-  const OrderCard = ({ order, actions }: { order: any, actions: React.ReactNode }) => (
-    <Card className="shadow-sm border-slate-200 mb-3">
-      <CardContent className="p-3">
-        <div className="flex justify-between items-start mb-2">
-          <div className="flex gap-2">
-            <div>
-              <h4 className="font-bold text-slate-800 text-sm">{order.customerName}</h4>
-              <div className="text-xs text-slate-500 flex items-center mt-0.5">
-              {order.kilos} kg • {order.serviceType}
-              {order.status === 'Washing' && order.washStartTime && <WashTimer startTime={order.washStartTime} />}
-              {order.machineNumber && (
-                <Badge variant="outline" className="text-[9px] border-slate-200 text-slate-600 bg-slate-50 ml-2">
-                  {order.machineNumber}
-                </Badge>
-              )}
-            </div>
-            </div>
-            {isOwner && (
-              <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0" onClick={() => handleDeleteOrder(order.id)}>
-                <Trash2 className="h-3 w-3" />
-              </Button>
-            )}
-          </div>
-          <div className="text-right">
-            <Badge variant="outline" className={order.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}>
-              {order.paymentStatus}
-            </Badge>
-            <p className="text-sm font-bold text-slate-700 mt-1">₱{(order.amountDue / 100).toLocaleString()}</p>
-          </div>
-        </div>
-        <div className="mt-3 flex gap-2">
-          {actions}
-        </div>
-      </CardContent>
-    </Card>
-  );
+
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-screen">
@@ -293,7 +320,7 @@ export function SpinDashboard() {
               </div>
               <div className="space-y-2">
                 {queuedOrders.map(order => (
-                  <OrderCard key={order.id} order={order} actions={
+                  <OrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} actions={
                     <div className="w-full flex gap-1">
                       <select 
                         className="border border-slate-200 text-[10px] rounded px-1 max-w-[80px]"
@@ -329,7 +356,7 @@ export function SpinDashboard() {
               </div>
               <div className="space-y-2">
                 {washingOrders.map(order => (
-                  <OrderCard key={order.id} order={order} actions={
+                  <OrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} actions={
                     <Button size="sm" className="w-full h-7 text-[10px] bg-indigo-500 hover:bg-indigo-600" onClick={() => updateStatus(order, 'Ready')}>
                       <CheckCircle2 className="h-3 w-3 mr-1" /> Mark Ready
                     </Button>
@@ -347,7 +374,7 @@ export function SpinDashboard() {
               </div>
               <div className="space-y-2">
                 {readyOrders.map(order => (
-                  <OrderCard key={order.id} order={order} actions={
+                  <OrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} actions={
                     <>
                       <Button size="sm" variant="outline" className="flex-1 h-7 text-[10px] border-slate-200" onClick={() => handleCopySMS(order)}>
                         <MessageSquare className="h-3 w-3 mr-1 text-slate-500" /> SMS
@@ -370,7 +397,7 @@ export function SpinDashboard() {
               </div>
               <div className="space-y-2 opacity-75">
                 {claimedOrders.map(order => (
-                  <OrderCard key={order.id} order={order} actions={
+                  <OrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} actions={
                     <Button disabled size="sm" variant="outline" className="w-full h-7 text-[10px] font-bold text-emerald-600 border-emerald-200 bg-emerald-50">
                       Completed
                     </Button>

@@ -39,6 +39,68 @@ import {
 } from "lucide-react";
 import { EventModel } from '@/lib/schemas/events';
 
+
+
+
+const VendorItem = React.memo(({ v, index, markVendorPaid }: any) => (
+  <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg">
+    <div>
+      <p className="font-bold text-sm">{v.name}</p>
+      <p className="text-xs text-slate-500">{v.role} • {v.contact} • ₱{((v.cost || 0) / 100).toLocaleString()}</p>
+    </div>
+    {v.status === 'Paid' ? (
+      <Badge className="bg-emerald-100 text-emerald-700 border-transparent text-[10px]">PAID</Badge>
+    ) : (
+      <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => markVendorPaid(index)}>
+        Mark Paid
+      </Button>
+    )}
+  </div>
+));
+VendorItem.displayName = 'VendorItem';
+
+const GuestItem = React.memo(({ guest, handleToggleCheckIn }: any) => (
+  <div 
+    className={`flex items-center justify-between p-2.5 rounded-lg border text-xs transition-colors cursor-pointer ${
+      guest.checkedIn 
+        ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+        : 'bg-white border-slate-200 text-slate-700'
+    }`}
+    onClick={() => handleToggleCheckIn(guest.id, guest.checkedIn)}
+  >
+    <div className="flex items-center gap-2">
+      <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+        guest.checkedIn ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300'
+      }`}>
+        {guest.checkedIn && <CheckCircle2 className="h-2.5 w-2.5 text-white" />}
+      </div>
+      <div>
+        <p className="font-bold">{guest.name}</p>
+        <p className="text-[9px] text-slate-400">{guest.tableOrSeat} • {guest.mealPref}</p>
+      </div>
+    </div>
+    <span className={`text-[9px] font-black uppercase ${guest.checkedIn ? 'text-emerald-600' : 'text-slate-400'}`}>
+      {guest.checkedIn ? 'In ✓' : 'Tap to Check In'}
+    </span>
+  </div>
+));
+GuestItem.displayName = 'GuestItem';
+
+const EventItem = React.memo(({ event, onSelect }: any) => (
+  <Card className="shadow-sm border-slate-200 cursor-pointer active:scale-95 transition-transform" onClick={() => onSelect(event)}>
+    <CardContent className="p-4 flex items-center justify-between">
+      <div>
+        <h4 className="font-bold text-slate-800">{event.title}</h4>
+        <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+          <Clock className="h-3 w-3" /> {event.eventDate}
+        </p>
+      </div>
+      <ChevronRight className="h-5 w-5 text-slate-400" />
+    </CardContent>
+  </Card>
+));
+EventItem.displayName = 'EventItem';
+
 export function GanapDashboard() {
   const { currentTenant } = useTenant();
   const db = useFirestore();
@@ -443,19 +505,7 @@ export function GanapDashboard() {
                 <h4 className="font-bold flex items-center gap-2"><Truck className="h-4 w-4 text-purple-500" /> Vendors & Suppliers</h4>
                 
                 {selectedEvent.vendors?.map((v, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                    <div>
-                      <p className="font-bold text-sm">{v.name}</p>
-                      <p className="text-xs text-slate-500">{v.role} • {v.contact} • ₱{((v.cost || 0) / 100).toLocaleString()}</p>
-                    </div>
-                    {v.status === 'Paid' ? (
-                      <Badge className="bg-emerald-100 text-emerald-700 border-transparent text-[10px]">PAID</Badge>
-                    ) : (
-                      <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => markVendorPaid(i)}>
-                        Mark Paid
-                      </Button>
-                    )}
-                  </div>
+                  <VendorItem key={i} v={v} index={i} markVendorPaid={markVendorPaid} />
                 ))}
 
                 <div className="bg-white p-3 border border-slate-200 rounded-lg space-y-2 mt-2 shadow-sm">
@@ -514,30 +564,7 @@ export function GanapDashboard() {
                 ) : (
                   <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
                     {guests.map(guest => (
-                      <div 
-                        key={guest.id} 
-                        className={`flex items-center justify-between p-2.5 rounded-lg border text-xs transition-colors cursor-pointer ${
-                          guest.checkedIn 
-                            ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
-                            : 'bg-white border-slate-200 text-slate-700'
-                        }`}
-                        onClick={() => handleToggleCheckIn(guest.id, guest.checkedIn)}
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                            guest.checkedIn ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300'
-                          }`}>
-                            {guest.checkedIn && <CheckCircle2 className="h-2.5 w-2.5 text-white" />}
-                          </div>
-                          <div>
-                            <p className="font-bold">{guest.name}</p>
-                            <p className="text-[9px] text-slate-400">{guest.tableOrSeat} • {guest.mealPref}</p>
-                          </div>
-                        </div>
-                        <span className={`text-[9px] font-black uppercase ${guest.checkedIn ? 'text-emerald-600' : 'text-slate-400'}`}>
-                          {guest.checkedIn ? 'In ✓' : 'Tap to Check In'}
-                        </span>
-                      </div>
+                      <GuestItem key={guest.id} guest={guest} handleToggleCheckIn={handleToggleCheckIn} />
                     ))}
                   </div>
                 )}
@@ -688,17 +715,7 @@ export function GanapDashboard() {
                   </div>
                 ) : (
                   tab.data.map(event => (
-                    <Card key={event.id} className="shadow-sm border-slate-200 cursor-pointer active:scale-95 transition-transform" onClick={() => setSelectedEvent(event)}>
-                      <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                          <h4 className="font-bold text-slate-800">{event.title}</h4>
-                          <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
-                            <Clock className="h-3 w-3" /> {event.eventDate}
-                          </p>
-                        </div>
-                        <ChevronRight className="h-5 w-5 text-slate-400" />
-                      </CardContent>
-                    </Card>
+                    <EventItem key={event.id} event={event} onSelect={setSelectedEvent} />
                   ))
                 )}
               </TabsContent>

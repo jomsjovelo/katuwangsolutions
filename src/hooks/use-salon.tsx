@@ -28,9 +28,13 @@ export function useSalonAppointments() {
 
   const { data, loading, error } = useCollection<SalonAppointmentModel>(salonQuery);
 
-  const waitingAppointments = data.filter(a => a.status === 'Waiting');
-  const inChairAppointments = data.filter(a => a.status === 'In Chair');
-  const doneAppointments = data.filter(a => a.status === 'Done');
+  const { waitingAppointments, inChairAppointments, doneAppointments } = React.useMemo(() => {
+    return {
+      waitingAppointments: data.filter(a => a.status === 'Waiting'),
+      inChairAppointments: data.filter(a => a.status === 'In Chair'),
+      doneAppointments: data.filter(a => a.status === 'Done')
+    };
+  }, [data]);
 
   return { 
     appointments: data, 

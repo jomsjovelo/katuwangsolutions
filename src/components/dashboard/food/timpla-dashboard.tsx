@@ -3,10 +3,11 @@
 import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { useCollection } from 'react-firebase-hooks/firestore';
-import { collection, query, orderBy, doc, setDoc, serverTimestamp, limit } from 'firebase/firestore';
+import { collection, query, orderBy, doc, setDoc, serverTimestamp, limit, where } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { addFoodOrder, updateFoodOrderStatus, deleteFoodOrder } from '@/firebase/firestore/food-actions';
 import { useUser } from '@/firebase/auth/use-user';
+import { getCustomerPoints } from '@/firebase/firestore/loyalty-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -21,17 +22,84 @@ import { useIngredients } from '@/hooks/use-ingredients';
 import { useToast } from '@/hooks/use-toast';
 import { GCashQrModal } from '@/components/common/gcash-qr-modal';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
-import { 
-  Coffee, 
-  ChefHat, 
-  CheckCircle2, 
-  Plus, 
-  Loader2,
-  AlertCircle,
-  ShoppingCart,
-  Trash2,
-  Beaker
-} from "lucide-react";
+import { PackageOpen, Coffee, Plus, Minus, Search, QrCode, Smartphone, Coins, CreditCard, ChefHat, CheckCircle2, Trash2, ArrowLeft, AlertCircle, ShoppingCart, Beaker } from "lucide-react";
+
+const PendingOrderCard = React.memo(({ order, isOwner, onDelete, onMove, theme, isProcessing }: any) => (
+  <div className="bg-white border-2 rounded-xl overflow-hidden shadow-sm" style={{ borderColor: `${theme.primary}30` }}>
+    <div className="px-3 py-2 border-b flex items-center justify-between" style={{ backgroundColor: `${theme.primary}08` }}>
+      <div className="flex items-center gap-2">
+        <Badge className="font-black text-[10px] text-white border-transparent" style={{ backgroundColor: theme.primary }}>NEW</Badge>
+        <span className="font-bold text-sm text-slate-800">#{order.orderNumber}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        {isOwner && (
+          <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 rounded-full" onClick={() => onDelete(order.id)}>
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
+    </div>
+    <div className="p-3 space-y-2">
+      <ul className="space-y-1">
+        {order.items.map((item: any, i: any) => (
+          <li key={i} className="text-sm flex flex-col border-b border-slate-50 pb-1 last:border-0">
+            <div className="flex justify-between">
+              <span className="font-bold text-slate-700">{item.quantity}x {item.name}</span>
+            </div>
+            {item.notes && <span className="text-[10px] text-red-500 font-bold uppercase pl-4">Note: {item.notes}</span>}
+          </li>
+        ))}
+      </ul>
+      <Button 
+        onClick={() => onMove(order, 'preparing')} 
+        disabled={isProcessing}
+        className="w-full h-10 mt-2 font-bold uppercase tracking-widest text-[10px] text-white border-none active:scale-95"
+        style={{ backgroundColor: theme.primary, boxShadow: `0 4px 12px -2px ${theme.primary}30` }}
+      >
+        Make Drink
+      </Button>
+    </div>
+  </div>
+));
+PendingOrderCard.displayName = 'PendingOrderCard';
+
+const PreparingOrderCard = React.memo(({ order, isOwner, onDelete, onMove, isProcessing }: any) => (
+  <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm opacity-90">
+    <div className="bg-slate-100 px-3 py-2 border-b border-slate-200 flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <Badge className="font-black text-[10px] bg-slate-500 text-white">MAKING</Badge>
+        <span className="font-bold text-sm text-slate-800">#{order.orderNumber}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        {isOwner && (
+          <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 rounded-full" onClick={() => onDelete(order.id)}>
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
+    </div>
+    <div className="p-3 space-y-2">
+      <ul className="space-y-1">
+        {order.items.map((item: any, i: any) => (
+          <li key={i} className="text-sm flex flex-col">
+            <div className="flex justify-between">
+              <span className="font-medium text-slate-600">{item.quantity}x {item.name}</span>
+            </div>
+            {item.notes && <span className="text-[10px] text-red-400 font-bold uppercase pl-4">Note: {item.notes}</span>}
+          </li>
+        ))}
+      </ul>
+      <Button 
+        onClick={() => onMove(order, 'served', order.totalAmount, order.tableNumber)} 
+        disabled={isProcessing}
+        className="w-full h-10 font-bold uppercase tracking-widest text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white"
+      >
+        <CheckCircle2 className="h-4 w-4 mr-1" /> Mark Served
+      </Button>
+    </div>
+  </div>
+));
+PreparingOrderCard.displayName = 'PreparingOrderCard';
 
 export function TimplaDashboard() {
   const { currentTenant } = useTenant();
@@ -94,7 +162,6 @@ export function TimplaDashboard() {
       if (cleanPhone.length >= 10 && currentTenant) {
         setIsFetchingPoints(true);
         try {
-          const { getCustomerPoints } = await import('@/firebase/firestore/loyalty-actions');
           const points = await getCustomerPoints(currentTenant.id, cleanPhone);
           setPointsBalance(points);
         } catch (e) {
@@ -110,12 +177,13 @@ export function TimplaDashboard() {
     
     const timer = setTimeout(fetchPoints, 500);
     return () => clearTimeout(timer);
-  }, [customerPhone, currentTenant]);
+  }, [customerPhone, currentTenant?.id]);
 
   const ordersQuery = React.useMemo(() => {
     return currentTenant && db
     ? query(collection(db, 'tenants', currentTenant.id, 'food_orders'),
-        orderBy('createdAt', 'desc'), limit(300)) : null;
+        where('status', 'in', ['pending', 'preparing']),
+        orderBy('createdAt', 'desc')) : null;
   }, [currentTenant?.id, db]);
 
   const [ordersSnapshot, ordersLoading, ordersError] = useCollection(ordersQuery as any);
@@ -501,78 +569,11 @@ export function TimplaDashboard() {
               {ordersLoading && <div className="text-center py-4 text-xs text-slate-400">Loading queue...</div>}
               
               {pendingOrders.map((order: any) => (
-                <div key={order.id} className="bg-white border-2 rounded-xl overflow-hidden shadow-sm" style={{ borderColor: `${theme.primary}30` }}>
-                  <div className="px-3 py-2 border-b flex items-center justify-between" style={{ backgroundColor: `${theme.primary}08` }}>
-                    <div className="flex items-center gap-2">
-                      <Badge className="font-black text-[10px] text-white border-transparent" style={{ backgroundColor: theme.primary }}>NEW</Badge>
-                      <span className="font-bold text-sm text-slate-800">#{order.orderNumber}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {isOwner && (
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 rounded-full" onClick={() => handleDeleteOrder(order.id)}>
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="p-3 space-y-2">
-                    <ul className="space-y-1">
-                      {order.items.map((item: any, i: any) => (
-                        <li key={i} className="text-sm flex flex-col border-b border-slate-50 pb-1 last:border-0">
-                          <div className="flex justify-between">
-                            <span className="font-bold text-slate-700">{item.quantity}x {item.name}</span>
-                          </div>
-                          {item.notes && <span className="text-[10px] text-red-500 font-bold uppercase pl-4">Note: {item.notes}</span>}
-                        </li>
-                      ))}
-                    </ul>
-                    <Button 
-                      onClick={() => moveOrder(order, 'preparing')} 
-                      disabled={isProcessing}
-                      className="w-full h-10 mt-2 font-bold uppercase tracking-widest text-[10px] text-white border-none active:scale-95"
-                      style={{ backgroundColor: theme.primary, boxShadow: `0 4px 12px -2px ${theme.primary}30` }}
-                    >
-                      Make Drink
-                    </Button>
-                  </div>
-                </div>
+                <PendingOrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} onMove={moveOrder} theme={theme} isProcessing={isProcessing} />
               ))}
 
               {preparingOrders.map((order: any) => (
-                <div key={order.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm opacity-90">
-                  <div className="bg-slate-100 px-3 py-2 border-b border-slate-200 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Badge className="font-black text-[10px] bg-slate-500 text-white">MAKING</Badge>
-                      <span className="font-bold text-sm text-slate-800">#{order.orderNumber}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {isOwner && (
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 rounded-full" onClick={() => handleDeleteOrder(order.id)}>
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="p-3 space-y-2">
-                    <ul className="space-y-1">
-                      {order.items.map((item: any, i: any) => (
-                        <li key={i} className="text-sm flex flex-col">
-                          <div className="flex justify-between">
-                            <span className="font-medium text-slate-600">{item.quantity}x {item.name}</span>
-                          </div>
-                          {item.notes && <span className="text-[10px] text-red-400 font-bold uppercase pl-4">Note: {item.notes}</span>}
-                        </li>
-                      ))}
-                    </ul>
-                    <Button 
-                      onClick={() => moveOrder(order, 'served', order.totalAmount, order.tableNumber)} 
-                      disabled={isProcessing}
-                      className="w-full h-10 font-bold uppercase tracking-widest text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white"
-                    >
-                      <CheckCircle2 className="h-4 w-4 mr-1" /> Mark Served
-                    </Button>
-                  </div>
-                </div>
+                <PreparingOrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} onMove={moveOrder} isProcessing={isProcessing} />
               ))}
               
               {!ordersLoading && pendingOrders.length === 0 && preparingOrders.length === 0 && (

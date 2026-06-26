@@ -24,12 +24,16 @@ export function useCarwashOrders() {
 
   const { data, loading, error } = useCollection<CarwashOrderModel>(carwashQuery);
 
-  const scheduledOrders = data.filter(o => o.status === 'Scheduled');
-  const queuedOrders = data.filter(o => o.status === 'Queued');
-  const washingOrders = data.filter(o => o.status === 'Washing');
-  const dryingOrders = data.filter(o => o.status === 'Drying');
-  const readyOrders = data.filter(o => o.status === 'Ready');
-  const completedOrders = data.filter(o => o.status === 'Completed');
+  const { scheduledOrders, queuedOrders, washingOrders, dryingOrders, readyOrders, completedOrders } = React.useMemo(() => {
+    return {
+      scheduledOrders: data.filter(o => o.status === 'Scheduled'),
+      queuedOrders: data.filter(o => o.status === 'Queued'),
+      washingOrders: data.filter(o => o.status === 'Washing'),
+      dryingOrders: data.filter(o => o.status === 'Drying'),
+      readyOrders: data.filter(o => o.status === 'Ready'),
+      completedOrders: data.filter(o => o.status === 'Completed')
+    };
+  }, [data]);
 
   return { 
     orders: data, 

@@ -56,14 +56,16 @@ export function PayrollDashboard() {
   }, [empError, toast]);
 
   // Estimated period total (gross, before deductions)
-  const totalEstimatedPayroll = activeEmployees.reduce((acc: number, e: any) => {
-    const days = e.daysWorkedThisPeriod || 0;
-    if (e.salaryType === 'daily') return acc + (e.baseSalary * days);
-    // Monthly: prorate by actual days worked out of 26 standard working days/month
-    // If no days tracked yet (0), show full monthly as the estimate
-    if (days === 0) return acc + e.baseSalary;
-    return acc + Math.round(e.baseSalary * (days / 26));
-  }, 0);
+  const totalEstimatedPayroll = React.useMemo(() => {
+    return activeEmployees.reduce((acc: number, e: any) => {
+      const days = e.daysWorkedThisPeriod || 0;
+      if (e.salaryType === 'daily') return acc + (e.baseSalary * days);
+      // Monthly: prorate by actual days worked out of 26 standard working days/month
+      // If no days tracked yet (0), show full monthly as the estimate
+      if (days === 0) return acc + e.baseSalary;
+      return acc + Math.round(e.baseSalary * (days / 26));
+    }, 0);
+  }, [activeEmployees]);
 
   // --- Add Employee Form ---
   const [showAddForm, setShowAddForm] = useState(false);

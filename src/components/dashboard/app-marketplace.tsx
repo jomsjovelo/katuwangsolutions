@@ -47,7 +47,8 @@ export function AppMarketplace({ isOpen, onClose }: AppMarketplaceProps) {
   const db = useFirestore();
   const { toast } = useToast();
   
-  const { switchActiveModule, unlockModule } = useTenantStore();
+  const switchActiveModule = useTenantStore(state => state.switchActiveModule);
+  const unlockModule = useTenantStore(state => state.unlockModule);
   const [checkoutApp, setCheckoutApp] = useState<{id: string, name: string, price: number} | null>(null);
   const { getAppPrice } = useAppStoreConfig();
 
