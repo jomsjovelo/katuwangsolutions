@@ -379,6 +379,12 @@ export async function processCreditCheckout(
       creditDate: Timestamp.fromDate(palistaDate),
       relatedSaleId: newSaleRef.id,
       description: `Benta Snap Palista Checkout`,
+      items: cart.map(c => ({
+        productId: c.productId,
+        name: c.name,
+        quantity: c.quantity,
+        price: Math.round(c.price * 100) // stored in centavos
+      })),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });

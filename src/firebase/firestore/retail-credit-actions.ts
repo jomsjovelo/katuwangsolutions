@@ -15,12 +15,45 @@ export interface RetailCreditEntry {
   creditDate: Timestamp; // when the credit was incurred
   description?: string;
   relatedSaleId?: string;
+  items?: { productId?: string; name: string; quantity: number; price: number }[];
 }
 
-export async function addRetailCredit(data: Omit<RetailCreditEntry, 'id' | 'paidAmount' | 'status'>) {
+export async function addRetailCredit(
+  data: Omit<RetailCreditEntry, 'id' | 'paidAmount' | 'status'>,
+  updateStock: boolean = false
+) {
   const db = getKatuwangDb();
   
   await runTransactionResilient(db, async (transaction) => {
+    // Stage 1: Perform all GETs
+    const productDocsToUpdate: { ref: ReturnType<typeof doc>; newStock: number }[] = [];
+
+    if (updateStock && data.type === 'payable' && data.items && data.items.length > 0) {
+      for (const item of data.items) {
+        if (item.productId && !item.productId.startsWith('misc-')) {
+          const productRef = doc(db, 'tenants', data.tenantId, 'products', item.productId);
+          const productSnap = await transaction.get(productRef);
+          
+          if (productSnap.exists()) {
+            const productData = productSnap.data();
+            const currentStock = productData.currentStock || 0;
+            productDocsToUpdate.push({
+              ref: productRef,
+              newStock: currentStock + item.quantity
+            });
+          }
+        }
+      }
+    }
+
+    // Stage 2: Perform SETs and UPDATEs
+    for (const p of productDocsToUpdate) {
+      transaction.update(p.ref, {
+        currentStock: p.newStock,
+        updatedAt: serverTimestamp()
+      });
+    }
+
     const creditsRef = collection(db, 'tenants', data.tenantId, 'retail_credits');
     const newCreditRef = doc(creditsRef);
     

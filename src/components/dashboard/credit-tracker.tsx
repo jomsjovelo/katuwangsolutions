@@ -15,8 +15,9 @@ import { getModuleTheme } from '@/lib/theme-utils';
 import { addRetailCredit, recordRetailCreditPayment, RetailCreditEntry } from '@/firebase/firestore/retail-credit-actions';
 import { Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-
-const CreditListItem = React.memo(({ credit, idx, setSelectedCredit, setShowPayModal, setPaymentAmountStr }: any) => {
+import { useInventory } from '@/hooks/use-inventory';
+import { ShoppingCart, Package, Trash2, CheckSquare } from 'lucide-react';
+const CreditListItem = React.memo(({ credit, idx, setSelectedCredit, setShowPayModal, setPaymentAmountStr, setViewItemsCredit }: any) => {
   const isReceivable = credit.type === 'receivable';
   const remaining = credit.amount - (credit.paidAmount || 0);
   
@@ -36,6 +37,16 @@ const CreditListItem = React.memo(({ credit, idx, setSelectedCredit, setShowPayM
         </div>
         <h4 className="font-extrabold text-sm text-slate-800 mt-1">{credit.name}</h4>
         {credit.description && <p className="text-[10px] font-medium text-slate-400 mt-0.5">{credit.description}</p>}
+        {credit.items && credit.items.length > 0 && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setViewItemsCredit(credit)} 
+            className="text-[10px] h-6 px-2 text-indigo-600 hover:bg-indigo-50 mt-1 -ml-2"
+          >
+            <Package className="h-3 w-3 mr-1" /> Tingnan ang {credit.items.length} items
+          </Button>
+        )}
       </div>
       <div className="text-right flex flex-col items-end gap-2">
         <div>
@@ -67,6 +78,8 @@ export function CreditTracker() {
   const [credits, setCredits] = useState<RetailCreditEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const { products } = useInventory();
+  
   const [showAddModal, setShowAddModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [addForm, setAddForm] = useState({
@@ -74,8 +87,13 @@ export function CreditTracker() {
     name: '',
     amountStr: '',
     description: '',
-    dateStr: new Date().toISOString().split('T')[0]
+    dateStr: new Date().toISOString().split('T')[0],
+    useItems: false,
+    updateStock: true,
+    items: [] as { productId: string; name: string; quantity: string; priceStr: string }[]
   });
+
+  const [viewItemsCredit, setViewItemsCredit] = useState<RetailCreditEntry | null>(null);
 
   const [showPayModal, setShowPayModal] = useState(false);
   const [selectedCredit, setSelectedCredit] = useState<RetailCreditEntry | null>(null);
@@ -107,14 +125,26 @@ export function CreditTracker() {
     .filter(c => c.type === 'payable')
     .reduce((acc, curr) => acc + (curr.amount - (curr.paidAmount || 0)), 0);
 
+  const computedAmount = addForm.useItems 
+    ? addForm.items.reduce((acc, it) => acc + (parseFloat(it.quantity || '0') * parseFloat(it.priceStr || '0')), 0)
+    : parseFloat(addForm.amountStr || '0');
+
   const handleAddCredit = async () => {
-    if (!currentTenant || !addForm.name || !addForm.amountStr) return;
+    if (!currentTenant || !addForm.name) return;
+    if (!addForm.useItems && !addForm.amountStr) return;
     setIsSubmitting(true);
     try {
-      const amountCentavos = Math.round(parseFloat(addForm.amountStr) * 100);
+      const amountCentavos = Math.round(computedAmount * 100);
       if (isNaN(amountCentavos) || amountCentavos <= 0) throw new Error("Invalid amount");
       
       const dateVal = addForm.dateStr ? new Date(addForm.dateStr) : new Date();
+
+      const itemsToSave = addForm.useItems ? addForm.items.map(it => ({
+        productId: it.productId,
+        name: it.name,
+        quantity: parseFloat(it.quantity || '0'),
+        price: Math.round(parseFloat(it.priceStr || '0') * 100)
+      })) : undefined;
 
       await addRetailCredit({
         tenantId: currentTenant.id,
@@ -122,8 +152,9 @@ export function CreditTracker() {
         name: addForm.name,
         amount: amountCentavos,
         description: addForm.description,
-        creditDate: Timestamp.fromDate(dateVal)
-      });
+        creditDate: Timestamp.fromDate(dateVal),
+        items: itemsToSave
+      }, addForm.type === 'payable' ? addForm.updateStock : false);
       
       toast({ title: "Tagumpay!", description: "Ang credit ay naitala na." });
       setShowAddModal(false);
@@ -132,7 +163,10 @@ export function CreditTracker() {
         name: '',
         amountStr: '',
         description: '',
-        dateStr: new Date().toISOString().split('T')[0]
+        dateStr: new Date().toISOString().split('T')[0],
+        useItems: false,
+        updateStock: true,
+        items: []
       });
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: 'destructive' });
@@ -221,6 +255,7 @@ export function CreditTracker() {
               setSelectedCredit={setSelectedCredit}
               setShowPayModal={setShowPayModal}
               setPaymentAmountStr={setPaymentAmountStr}
+              setViewItemsCredit={setViewItemsCredit}
             />
           ))}
         </div>
@@ -263,15 +298,116 @@ export function CreditTracker() {
                 className="h-12 rounded-xl" placeholder="Juan Dela Cruz" 
               />
             </div>
-            <div className="space-y-2">
-              <Label>Halaga (₱)</Label>
-              <Input 
-                type="number" 
-                value={addForm.amountStr} 
-                onChange={(e) => setAddForm({...addForm, amountStr: e.target.value})} 
-                className="h-12 rounded-xl" placeholder="0.00" 
-              />
+            
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Itemized Breakdown?</Label>
+                <div 
+                  className={cn("w-10 h-6 rounded-full transition-colors cursor-pointer flex items-center px-1", addForm.useItems ? "bg-indigo-500" : "bg-slate-300")}
+                  onClick={() => setAddForm({...addForm, useItems: !addForm.useItems})}
+                >
+                  <div className={cn("w-4 h-4 bg-white rounded-full transition-transform shadow-sm", addForm.useItems && "translate-x-4")} />
+                </div>
+              </div>
+
+              {!addForm.useItems ? (
+                <div className="space-y-2">
+                  <Label>Halaga (₱)</Label>
+                  <Input 
+                    type="number" 
+                    value={addForm.amountStr} 
+                    onChange={(e) => setAddForm({...addForm, amountStr: e.target.value})} 
+                    className="h-12 rounded-xl" placeholder="0.00" 
+                  />
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {addForm.type === 'payable' && (
+                    <div className="flex items-center gap-2 p-2 bg-amber-50 text-amber-700 rounded-lg border border-amber-200 cursor-pointer" onClick={() => setAddForm({...addForm, updateStock: !addForm.updateStock})}>
+                      <CheckSquare className={cn("h-4 w-4", !addForm.updateStock && "opacity-30")} />
+                      <span className="text-xs font-bold">Awtomatikong idagdag sa Inventory Stock (Auto-Stock Update)</span>
+                    </div>
+                  )}
+                  {addForm.items.map((item, i) => (
+                    <div key={i} className="flex gap-2 items-center bg-white p-2 border border-slate-200 rounded-lg shadow-sm">
+                      <div className="flex-1 space-y-1">
+                        <Input 
+                          placeholder="Pangalan ng Item o Product" 
+                          className="h-8 text-xs border-slate-100" 
+                          value={item.name}
+                          onChange={(e) => {
+                            const newItems = [...addForm.items];
+                            newItems[i].name = e.target.value;
+                            setAddForm({...addForm, items: newItems});
+                          }}
+                        />
+                        {addForm.type === 'payable' && products && products.length > 0 && (
+                          <select 
+                            className="w-full text-xs h-8 rounded-md border border-slate-100 text-slate-500 bg-slate-50"
+                            value={item.productId}
+                            onChange={(e) => {
+                              const selected = products.find(p => p.id === e.target.value);
+                              const newItems = [...addForm.items];
+                              newItems[i].productId = e.target.value;
+                              if (selected) {
+                                newItems[i].name = selected.name;
+                                if (!newItems[i].priceStr) newItems[i].priceStr = (selected.supplierPrice || selected.salePrice || 0).toString();
+                              }
+                              setAddForm({...addForm, items: newItems});
+                            }}
+                          >
+                            <option value="">(Select Product sa Inventory)</option>
+                            {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          </select>
+                        )}
+                      </div>
+                      <Input 
+                        placeholder="Qty" 
+                        type="number"
+                        className="h-8 text-xs w-16" 
+                        value={item.quantity}
+                        onChange={(e) => {
+                          const newItems = [...addForm.items];
+                          newItems[i].quantity = e.target.value;
+                          setAddForm({...addForm, items: newItems});
+                        }}
+                      />
+                      <Input 
+                        placeholder="Price" 
+                        type="number"
+                        className="h-8 text-xs w-20" 
+                        value={item.priceStr}
+                        onChange={(e) => {
+                          const newItems = [...addForm.items];
+                          newItems[i].priceStr = e.target.value;
+                          setAddForm({...addForm, items: newItems});
+                        }}
+                      />
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:bg-red-50" onClick={() => {
+                        const newItems = [...addForm.items];
+                        newItems.splice(i, 1);
+                        setAddForm({...addForm, items: newItems});
+                      }}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setAddForm({...addForm, items: [...addForm.items, { productId: '', name: '', quantity: '1', priceStr: '' }]})}
+                    className="w-full h-8 border-dashed text-xs text-indigo-600 bg-white"
+                  >
+                    + Add Item
+                  </Button>
+                  <div className="flex justify-between items-center bg-indigo-50 p-2 rounded-lg mt-2">
+                    <span className="text-xs font-bold text-indigo-900">Total Computed Amount:</span>
+                    <span className="text-sm font-black text-indigo-700">₱{computedAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
+              )}
             </div>
+            
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Petsa</Label>
@@ -294,7 +430,7 @@ export function CreditTracker() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddModal(false)} className="rounded-xl font-bold">Kanselahin</Button>
-            <Button onClick={handleAddCredit} disabled={!addForm.name || !addForm.amountStr || isSubmitting} className="rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700 text-white">
+            <Button onClick={handleAddCredit} disabled={!addForm.name || (addForm.useItems ? addForm.items.length === 0 : !addForm.amountStr) || isSubmitting} className="rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700 text-white">
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'I-save'}
             </Button>
           </DialogFooter>
@@ -337,6 +473,49 @@ export function CreditTracker() {
             <Button variant="outline" onClick={() => setShowPayModal(false)} className="rounded-xl font-bold">Kanselahin</Button>
             <Button onClick={handlePayment} disabled={!paymentAmountStr || isSubmitting} className="rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700 text-white">
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Kumpirmahin'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Items Dialog */}
+      <Dialog open={!!viewItemsCredit} onOpenChange={(open) => !open && setViewItemsCredit(null)}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5 text-indigo-500" /> Item Breakdown
+            </DialogTitle>
+            <DialogDescription>
+              Mga items para kay {viewItemsCredit?.name}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3 max-h-[60vh] overflow-y-auto">
+            {viewItemsCredit?.items?.map((item, i) => (
+              <div key={i} className="flex justify-between items-center p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                <div>
+                  <h4 className="font-bold text-sm text-slate-800">{item.name}</h4>
+                  <p className="text-xs text-slate-500 font-medium">{item.quantity}x @ ₱{(item.price / 100).toLocaleString('en-PH', {minimumFractionDigits: 2})}</p>
+                </div>
+                <span className="font-black text-slate-900">
+                  ₱{((item.quantity * item.price) / 100).toLocaleString('en-PH', {minimumFractionDigits: 2})}
+                </span>
+              </div>
+            ))}
+            <div className="flex justify-between items-center pt-3 border-t border-slate-200 px-1">
+              <span className="font-black text-slate-400 uppercase tracking-widest text-xs">Total Items Amount</span>
+              <span className="text-lg font-black text-indigo-600">
+                ₱{viewItemsCredit?.items?.reduce((acc, curr) => acc + (curr.quantity * curr.price), 0) ? (viewItemsCredit.items.reduce((acc, curr) => acc + (curr.quantity * curr.price), 0) / 100).toLocaleString('en-PH', {minimumFractionDigits:2}) : '0.00'}
+              </span>
+            </div>
+            {viewItemsCredit && viewItemsCredit.items && viewItemsCredit.amount !== viewItemsCredit.items.reduce((acc, curr) => acc + (curr.quantity * curr.price), 0) && (
+              <p className="text-[10px] text-orange-500 font-bold bg-orange-50 p-2 rounded-lg border border-orange-100">
+                Note: The total credit amount (₱{(viewItemsCredit.amount / 100).toLocaleString('en-PH', {minimumFractionDigits: 2})}) differs from the sum of items. This can happen if discounts or miscellaneous charges were applied during checkout.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setViewItemsCredit(null)} className="rounded-xl font-bold bg-slate-800 text-white hover:bg-slate-700 w-full">
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
