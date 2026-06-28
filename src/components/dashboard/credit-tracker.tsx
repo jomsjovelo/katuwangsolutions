@@ -351,7 +351,7 @@ export function CreditTracker() {
                               newItems[i].productId = e.target.value;
                               if (selected) {
                                 newItems[i].name = selected.name;
-                                if (!newItems[i].priceStr) newItems[i].priceStr = (selected.supplierPrice || selected.salePrice || 0).toString();
+                                if (!newItems[i].priceStr) newItems[i].priceStr = (selected.costPrice || selected.salePrice || 0).toString();
                               }
                               setAddForm({...addForm, items: newItems});
                             }}
