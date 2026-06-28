@@ -281,12 +281,12 @@ export const appGroups: AppGroup[] = [
       },
       {
         id: 'wellness-pro',
-        name: 'Wellness Pro',
+        name: 'Wellness',
         icon: Sun,
         tagline: 'Elevate your spa experience with seamless booking and billing.',
         imageSrc: '/apps/wellness-pro.png',
         features: ['Appointment calendar', 'Staff commissions', 'Package sales', 'Client notes', 'Room scheduling'],
-        description: 'Your spa is a sanctuary — your software should feel the same way. Wellness Pro gives you a beautiful appointment calendar, automated staff commission tracking, and flexible package deals that keep clients coming back again and again. Deliver premium service with zero administrative chaos.',
+        description: 'Your spa is a sanctuary — your software should feel the same way. Wellness gives you a beautiful appointment calendar, automated staff commission tracking, and flexible package deals that keep clients coming back again and again. Deliver premium service with zero administrative chaos.',
         benefits: [
           'Online booking calendar synced across all therapists and rooms',
           'Automatic commission calculation per staff member per service',

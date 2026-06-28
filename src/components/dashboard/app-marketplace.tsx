@@ -35,7 +35,7 @@ const APPS = [
   { id: 'spin-snap', name: 'Spin Snap', category: 'Service', desc: 'Laundry shop washer/dryer tracking', price: 199 },
   { id: 'hydro-sync', name: 'Hydro Sync', category: 'Service', desc: 'Water station delivery queue management', price: 149 },
   { id: 'auto-boss', name: 'Auto Boss', category: 'Service', desc: 'Car wash slots and package detailing', price: 249 },
-  { id: 'wellness-pro', name: 'Wellness Pro', category: 'Service', desc: 'Spa and wellness booking center', price: 199 },
+  { id: 'wellness-pro', name: 'Wellness', category: 'Service', desc: 'Spa and wellness booking center', price: 199 },
   { id: 'trim-track', name: 'Trim Track', category: 'Service', desc: 'Salon and barbershop chair tracking', price: 149 },
   { id: 'rep-sync', name: 'Rep Sync', category: 'Service', desc: 'Gym membership and daily walk-ins', price: 299 },
   

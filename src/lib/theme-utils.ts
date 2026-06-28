@@ -216,7 +216,7 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
     secondaryBg: 'bg-pink-400 hover:bg-pink-500',
     secondaryText: 'text-slate-900',
     glowClass: 'joy-glow-violet',
-    name: 'Wellness Pro',
+    name: 'Wellness',
     tagline: 'Mabilis na serbisyo sa spa/salong katuwang sa ganda'
   },
   

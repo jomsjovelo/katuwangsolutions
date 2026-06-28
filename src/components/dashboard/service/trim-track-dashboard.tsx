@@ -16,6 +16,8 @@ import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useSalonAppointments } from '@/hooks/use-salon';
 import { useToast } from '@/hooks/use-toast';
 import { ServicePaymentModal } from '@/components/common/service-payment-modal';
+import { ChairGrid } from './chair-grid';
+import { ChairSetupModal } from './chair-setup-modal';
 import { 
   Scissors, 
   Plus, 
@@ -95,8 +97,9 @@ export function TrimTrackDashboard() {
   const isOwner = currentTenant?.ownerUid === user?.uid || (currentTenant as any)?.role === 'owner';
 
   // Salon State
-  const { waitingAppointments, inChairAppointments, doneAppointments, loading, error: salonError } = useSalonAppointments();
+  const { waitingAppointments, inChairAppointments, doneAppointments, loading, error: salonError, chairs } = useSalonAppointments();
   const [chairAssignments, setChairAssignments] = useState<Record<string, string>>({});
+  const [showChairSetup, setShowChairSetup] = useState(false);
 
   React.useEffect(() => {
     if (salonError) {
@@ -148,10 +151,16 @@ export function TrimTrackDashboard() {
     }
   };
 
-  const updateStatus = async (appt: any, status: string, paymentStatus?: string, chairNumber?: string, paymentMethod: string = 'cash') => {
+  const updateStatus = async (appt: any, status: string, paymentStatus?: string, chairName?: string, paymentMethod: string = 'cash', chairId?: string) => {
     if (!currentTenant || !db) return;
     try {
       if (status === 'Done' && paymentStatus === 'Paid') {
+        // Release chair back to available before completing payment
+        if (appt.chairId) {
+          const { releaseChair } = await import('@/firebase/firestore/chair-actions');
+          await releaseChair(currentTenant.id, appt.chairId);
+        }
+
         await completeServiceOrder(
           currentTenant.id, 
           'salon_appointments', 
@@ -172,7 +181,14 @@ export function TrimTrackDashboard() {
         const apptRef = doc(db, 'tenants', currentTenant.id, 'salon_appointments', appt.id);
         const updates: any = { status, updatedAt: serverTimestamp() };
         if (paymentStatus) updates.paymentStatus = paymentStatus;
-        if (chairNumber) updates.chairNumber = chairNumber;
+        if (chairName) updates.chairNumber = chairName;
+
+        if (status === 'In Chair' && chairId) {
+          const { occupyChair } = await import('@/firebase/firestore/chair-actions');
+          await occupyChair(currentTenant.id, chairId, appt.id);
+          updates.chairId = chairId;
+        }
+
         await updateDoc(apptRef, updates);
       }
       toast({ title: 'Status Updated', description: `Customer moved to ${status}.` });
@@ -299,6 +315,39 @@ export function TrimTrackDashboard() {
           </Card>
         )}
 
+        {/* Chairs Tab */}
+        <div className="mb-4 flex justify-between items-center">
+          <h3 className="font-black uppercase tracking-widest text-slate-500 text-xs">Barber Chairs</h3>
+          <Button size="sm" onClick={() => setShowChairSetup(true)} className="font-bold rounded-full">
+            {(chairs || []).length === 0 ? 'Setup Chairs' : '+ Add Chairs'}
+          </Button>
+        </div>
+
+        <ChairGrid 
+          chairs={chairs || []} 
+          theme={theme} 
+          onRename={async (chair) => {
+            const newName = window.prompt('Enter new name for chair:', chair.name);
+            if (newName && newName.trim() !== chair.name) {
+              const { renameChair } = await import('@/firebase/firestore/chair-actions');
+              if (currentTenant) await renameChair(currentTenant.id, chair.id, newName);
+            }
+          }}
+          onDelete={async (chair) => {
+            if (window.confirm(`Are you sure you want to delete ${chair.name}?`)) {
+              const { deleteChair } = await import('@/firebase/firestore/chair-actions');
+              if (currentTenant) {
+                try {
+                  await deleteChair(currentTenant.id, chair.id);
+                } catch (e: any) {
+                  toast({ title: 'Error', description: e.message, variant: 'destructive' });
+                }
+              }
+            }
+          }}
+        />
+
+        <div className="mt-6">
         {loading ? (
           <div className="text-center py-8 text-sm text-slate-400">Loading shop floor...</div>
         ) : (
@@ -316,20 +365,24 @@ export function TrimTrackDashboard() {
                   <AppointmentCard key={appt.id} appointment={appt} isOwner={isOwner} onDelete={handleDeleteAppointment} actions={
                     <div className="w-full flex gap-1">
                       <select 
-                        className="border border-slate-200 text-[10px] rounded px-1 max-w-[80px]"
+                        className="border border-slate-200 text-[10px] rounded px-1 max-w-[90px]"
                         value={chairAssignments[appt.id as string] || ''}
                         onChange={e => setChairAssignments(prev => ({...prev, [appt.id as string]: e.target.value}))}
                       >
                         <option value="">Chair</option>
-                        {Array.from({length: 10}).map((_, i) => (
-                          <option key={i} value={`Chair ${i+1}`}>Chair {i+1}</option>
+                        {(chairs || []).filter((c: any) => c.status === 'available').map((chair: any) => (
+                          <option key={chair.id} value={chair.id}>{chair.name}</option>
                         ))}
                       </select>
                       <Button 
                         size="sm" 
                         className="flex-1 h-7 text-[10px] bg-rose-600 hover:bg-rose-700 disabled:opacity-50" 
                         disabled={!chairAssignments[appt.id as string]}
-                        onClick={() => updateStatus(appt, 'In Chair', undefined, chairAssignments[appt.id as string])}
+                        onClick={() => {
+                          const chairId = chairAssignments[appt.id as string];
+                          const chairObj = (chairs || []).find((c: any) => c.id === chairId);
+                          updateStatus(appt, 'In Chair', undefined, chairObj?.name, 'cash', chairId);
+                        }}
                       >
                         <Armchair className="h-3 w-3 mr-1 text-rose-200" /> Sit In Chair
                       </Button>
@@ -377,6 +430,7 @@ export function TrimTrackDashboard() {
 
           </div>
         )}
+        </div>
 
         {/* Barber Leaderboard */}
         {leaderboard.length > 0 && (
@@ -420,6 +474,18 @@ export function TrimTrackDashboard() {
             }}
           />
         )}
+
+        <ChairSetupModal
+          open={showChairSetup}
+          onClose={() => setShowChairSetup(false)}
+          theme={theme}
+          onSetup={async (names) => {
+            if (!currentTenant) return;
+            const { setupChairs } = await import('@/firebase/firestore/chair-actions');
+            await setupChairs(currentTenant.id, names);
+            toast({ title: 'Chairs Added', description: 'Chairs are now ready for assignment.' });
+          }}
+        />
 
       </main>
     </div>

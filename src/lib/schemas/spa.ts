@@ -10,9 +10,17 @@ export const SpaAppointmentSchema = z.object({
   status: z.enum(['Scheduled', 'Waiting', 'In Session', 'Resting', 'Done']).default('Waiting'),
   amountDue: z.number().min(0), // in cents
   paymentStatus: z.enum(['Unpaid', 'Paid']).default('Unpaid'),
-  customerPhone: z.string().optional(),
+  customerPhone: z.string().nullable().optional(),
   appointmentDate: z.any().optional(),
-  
+
+  // Room tracking
+  roomId: z.string().nullable().optional(),
+  roomNumber: z.string().nullable().optional(),
+
+  // Commission & loyalty
+  therapistCommission: z.number().optional(),
+  referrerCode: z.string().nullable().optional(),
+
   createdAt: z.any().optional(),
   updatedAt: z.any().optional(),
 });

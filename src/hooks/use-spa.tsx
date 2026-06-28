@@ -22,7 +22,17 @@ export function useSpaAppointments() {
     : null;
   }, [currentTenant?.id, db]);
 
+  const roomsQuery = React.useMemo(() => {
+    return currentTenant && db
+    ? query(
+        collection(db, 'tenants', currentTenant.id, 'rooms'),
+        orderBy('createdAt', 'asc')
+      )
+    : null;
+  }, [currentTenant?.id, db]);
+
   const { data, loading, error } = useCollection<SpaAppointmentModel>(spaQuery);
+  const { data: rooms, loading: roomsLoading } = useCollection<any>(roomsQuery);
 
   const { scheduledAppointments, waitingAppointments, inSessionAppointments, restingAppointments, doneAppointments } = React.useMemo(() => {
     return {
@@ -36,12 +46,13 @@ export function useSpaAppointments() {
 
   return { 
     appointments: data, 
+    rooms,
     scheduledAppointments,
     waitingAppointments,
     inSessionAppointments,
     restingAppointments,
     doneAppointments,
-    loading, 
+    loading: loading || roomsLoading, 
     error 
   };
 }

@@ -32,7 +32,7 @@ const apps = [
       { id: 'spin-snap', name: 'Spin Snap', icon: RotateCcw, desc: 'Automated laundry tracking from drop-off to pickup.' },
       { id: 'hydro-sync', name: 'Hydro Sync', icon: Droplets, desc: 'Streamlined water delivery logistics for thirsty neighborhoods.' },
       { id: 'auto-boss', name: 'Auto Boss', icon: Sparkles, desc: 'Rev up your shop with automated slot and payment tracking.' },
-      { id: 'wellness-pro', name: 'Wellness Pro', icon: Sun, desc: 'Elevate your spa experience with seamless booking and billing.' },
+      { id: 'wellness-pro', name: 'Wellness', icon: Sun, desc: 'Elevate your spa experience with seamless booking and billing.' },
       { id: 'trim-track', name: 'Trim Track', icon: Scissors, desc: 'Keep your barber chairs full and your payments tracked.' },
       { id: 'rep-sync', name: 'Rep Sync', icon: Dumbbell, desc: 'Automate gym memberships, attendance, and renewals effortlessly.' },
       { id: 'rental', name: 'Rental', icon: CalendarHeart, desc: 'Track your rental equipment and bookings effortlessly.' },

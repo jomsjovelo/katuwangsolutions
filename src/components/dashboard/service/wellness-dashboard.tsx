@@ -19,6 +19,8 @@ import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useSpaAppointments } from '@/hooks/use-spa';
 import { useToast } from '@/hooks/use-toast';
 import { ServicePaymentModal } from '@/components/common/service-payment-modal';
+import { RoomGrid } from './room-grid';
+import { RoomSetupModal } from './room-setup-modal';
 import { 
   Sun, 
   Plus, 
@@ -110,8 +112,9 @@ export function WellnessDashboard() {
   const isOwner = currentTenant?.ownerUid === user?.uid || (currentTenant as any)?.role === 'owner';
 
   // Spa State
-  const { scheduledAppointments, waitingAppointments, inSessionAppointments, restingAppointments, doneAppointments, loading } = useSpaAppointments();
+  const { scheduledAppointments, waitingAppointments, inSessionAppointments, restingAppointments, doneAppointments, loading, rooms } = useSpaAppointments();
   const [roomAssignments, setRoomAssignments] = useState<Record<string, string>>({});
+  const [showRoomSetup, setShowRoomSetup] = useState(false);
 
   // Create Booking Form
   const [showAddForm, setShowAddForm] = useState(false);
@@ -204,7 +207,7 @@ export function WellnessDashboard() {
     }
   };
 
-  const updateStatus = async (appointment: any, status: string, paymentStatus?: string, roomName?: string, paymentMethod: string = 'cash') => {
+  const updateStatus = async (appointment: any, status: string, paymentStatus?: string, roomName?: string, paymentMethod: string = 'cash', roomId?: string) => {
     if (!currentTenant || !db) return;
     try {
       if (paymentStatus === 'Paid') {
@@ -214,6 +217,11 @@ export function WellnessDashboard() {
         const commissionPercentage = currentTenant.therapistCommissionRate ?? 0.40;
         const commissionCentavos = Math.round((appointment.amountDue || 0) * commissionPercentage);
         
+        if (appointment.roomId) {
+          const { releaseRoom } = await import('@/firebase/firestore/room-actions');
+          await releaseRoom(currentTenant.id, appointment.roomId);
+        }
+
         await completeServiceOrder(
           currentTenant.id,
           'spa_appointments',
@@ -238,6 +246,18 @@ export function WellnessDashboard() {
         const updates: any = { status, updatedAt: serverTimestamp() };
         if (paymentStatus) updates.paymentStatus = paymentStatus;
         if (roomName) updates.roomNumber = roomName;
+        
+        if (status === 'In Session' && roomId) {
+          const { occupyRoom } = await import('@/firebase/firestore/room-actions');
+          await occupyRoom(currentTenant.id, roomId, appointment.id);
+          updates.roomId = roomId;
+        } else if (status === 'Done' || status === 'Resting') {
+          if (appointment.roomId) {
+            const { releaseRoom } = await import('@/firebase/firestore/room-actions');
+            await releaseRoom(currentTenant.id, appointment.roomId);
+            updates.roomId = null;
+          }
+        }
         await updateDoc(apptRef, updates);
       }
       toast({ title: 'Status Updated', description: `Client moved to ${status}.` });
@@ -371,10 +391,44 @@ export function WellnessDashboard() {
         )}
 
         <Tabs defaultValue="queue" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-4 rounded-xl">
+          <TabsList className="grid w-full grid-cols-3 mb-4 rounded-xl">
+            <TabsTrigger value="rooms" className="rounded-lg text-xs md:text-sm font-bold">Rooms</TabsTrigger>
             <TabsTrigger value="queue" className="rounded-lg text-xs md:text-sm font-bold">Live Lounge</TabsTrigger>
             <TabsTrigger value="calendar" className="rounded-lg text-xs md:text-sm font-bold">Appointments</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="rooms" className="space-y-4 animate-in slide-in-from-bottom-4 duration-300">
+            <div className="flex justify-between items-center">
+              <h3 className="font-black uppercase tracking-widest text-slate-500 text-xs">Wellness Rooms</h3>
+              <Button size="sm" onClick={() => setShowRoomSetup(true)} className="font-bold rounded-full">
+                {(rooms || []).length === 0 ? "Setup Rooms" : "+ Add Rooms"}
+              </Button>
+            </div>
+            
+            <RoomGrid 
+              rooms={rooms || []} 
+              theme={theme} 
+              onRename={async (room) => {
+                const newName = window.prompt("Enter new name for room:", room.name);
+                if (newName && newName.trim() !== room.name) {
+                  const { renameRoom } = await import('@/firebase/firestore/room-actions');
+                  if (currentTenant) await renameRoom(currentTenant.id, room.id, newName);
+                }
+              }}
+              onDelete={async (room) => {
+                if (window.confirm(`Are you sure you want to delete ${room.name}?`)) {
+                  const { deleteRoom } = await import('@/firebase/firestore/room-actions');
+                  if (currentTenant) {
+                    try {
+                      await deleteRoom(currentTenant.id, room.id);
+                    } catch (e: any) {
+                      toast({ title: "Error", description: e.message, variant: "destructive" });
+                    }
+                  }
+                }
+              }}
+            />
+          </TabsContent>
 
           <TabsContent value="calendar" className="space-y-4 animate-in slide-in-from-bottom-4 duration-300">
             <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
@@ -425,16 +479,19 @@ export function WellnessDashboard() {
                         onChange={e => setRoomAssignments(prev => ({...prev, [appt.id as string]: e.target.value}))}
                       >
                         <option value="">Room</option>
-                        {Array.from({length: 10}).map((_, i) => (
-                          <option key={i} value={`Room ${i+1}`}>Room {i+1}</option>
+                        {(rooms || []).filter((r: any) => r.status === 'available').map((room: any) => (
+                          <option key={room.id} value={room.id}>{room.name}</option>
                         ))}
-                        <option value="VIP Room">VIP</option>
                       </select>
                       <Button 
                         size="sm" 
                         className="flex-1 h-7 text-[10px] bg-purple-600 hover:bg-purple-700" 
                         disabled={!roomAssignments[appt.id as string]}
-                        onClick={() => updateStatus(appt, 'In Session', undefined, roomAssignments[appt.id as string])}
+                        onClick={() => {
+                          const roomId = roomAssignments[appt.id as string];
+                          const roomObj = (rooms || []).find((r: any) => r.id === roomId);
+                          updateStatus(appt, 'In Session', undefined, roomObj?.name, 'cash', roomId);
+                        }}
                       >
                         <Flower2 className="h-3 w-3 mr-1 text-purple-200" /> Start
                       </Button>
@@ -515,6 +572,18 @@ export function WellnessDashboard() {
             }}
           />
         )}
+
+        <RoomSetupModal 
+          open={showRoomSetup} 
+          onClose={() => setShowRoomSetup(false)} 
+          theme={theme}
+          onSetup={async (names) => {
+            if (!currentTenant) return;
+            const { setupRooms } = await import('@/firebase/firestore/room-actions');
+            await setupRooms(currentTenant.id, names);
+            toast({ title: 'Rooms Added', description: 'Rooms are now available for booking.' });
+          }}
+        />
 
       </main>
     </div>

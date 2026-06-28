@@ -34,7 +34,7 @@ const APP_GROUPS = [
       { id: 'spin-snap', name: 'Spin Snap', icon: RotateCcw, desc: 'Automated laundry tracking.' },
       { id: 'hydro-sync', name: 'Hydro Sync', icon: Droplets, desc: 'Water delivery logistics.' },
       { id: 'auto-boss', name: 'Auto Boss', icon: Sparkles, desc: 'Auto shop management.' },
-      { id: 'wellness-pro', name: 'Wellness Pro', icon: Sun, desc: 'Spa & clinic booking.' },
+      { id: 'wellness-pro', name: 'Wellness', icon: Sun, desc: 'Spa & clinic booking.' },
       { id: 'trim-track', name: 'Trim Track', icon: Scissors, desc: 'Barber & salon queue.' },
       { id: 'rep-sync', name: 'Rep Sync', icon: Dumbbell, desc: 'Gym membership & attendance.' },
       { id: 'rental', name: 'Rental', icon: CalendarHeart, desc: 'Equipment & booking tracker.' },

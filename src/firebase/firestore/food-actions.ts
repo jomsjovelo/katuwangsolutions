@@ -1,11 +1,11 @@
-import { getFirestore, doc, collection, serverTimestamp, setDoc, increment } from 'firebase/firestore';
+import { getFirestore, doc, collection, serverTimestamp, setDoc, increment, arrayUnion } from 'firebase/firestore';
 import { initializeFirebase } from '../index';
 import { FoodOrderSchema } from '@/lib/schemas/food';
 import { runTransactionResilient } from './resilient-transaction';
 
 export const getKatuwangDb = () => initializeFirebase().db;
 
-export async function addFoodOrder(tenantId: string, tableNumber: string, items: any[], discountCentavos: number = 0, customerPhone?: string, referrerCode?: string, paymentMethod: string = 'cash', gcashRef?: string) {
+export async function addFoodOrder(tenantId: string, tableNumber: string, items: any[], discountCentavos: number = 0, customerPhone?: string, referrerCode?: string, paymentMethod: string = 'cash', gcashRef?: string, tableId?: string) {
   const db = getKatuwangDb();
   let orderId = '';
   
@@ -41,8 +41,16 @@ export async function addFoodOrder(tenantId: string, tableNumber: string, items:
     // Read Phase for Ledger
     let masterAccountSnap: any = null;
     const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
-    if (finalAmount > 0) {
+    if (finalAmount > 0 && !tableId) {
       masterAccountSnap = await transaction.get(masterAccountRef);
+    }
+
+    // Read Phase for Table (must read before any writes in the transaction)
+    let tableSnap: any = null;
+    if (tableId) {
+      const tableRef = doc(db, 'tenants', tenantId, 'tables', tableId);
+      tableSnap = await transaction.get(tableRef);
+      if (!tableSnap.exists()) throw new Error("Table not found");
     }
 
     // Validate using Zod schema
@@ -56,21 +64,23 @@ export async function addFoodOrder(tenantId: string, tableNumber: string, items:
       totalAmount: finalAmount, // Secure server calculated total minus discount
       customerPhone,
       referrerCode,
+      tableId: tableId || null,
     });
 
     const ordersRef = collection(db, 'tenants', tenantId, 'food_orders');
     const newOrderRef = doc(ordersRef);
     orderId = newOrderRef.id;
 
-    transaction.set(newOrderRef, {
-      ...validated,
-      id: newOrderRef.id,
-      paymentMethod,
-      createdAt: serverTimestamp(),
-    });
+    // Strip undefined fields — Firestore rejects undefined values
+    const cleanedValidated = Object.fromEntries(
+      Object.entries({ ...validated, id: newOrderRef.id, paymentMethod, createdAt: serverTimestamp() })
+        .filter(([, v]) => v !== undefined)
+    );
 
-    // Write Phase for Ledger & Analytics
-    if (finalAmount > 0 && masterAccountSnap) {
+    transaction.set(newOrderRef, cleanedValidated);
+
+    // Write Phase for Ledger & Analytics (Skip if running table bill)
+    if (finalAmount > 0 && !tableId && masterAccountSnap) {
       if (!masterAccountSnap.exists()) {
         transaction.set(masterAccountRef, {
           id: 'master-cash',
@@ -115,6 +125,16 @@ export async function addFoodOrder(tenantId: string, tableNumber: string, items:
       };
       if (gcashRef) saleRecord.gcashRef = gcashRef;
       transaction.set(newSaleRef, saleRecord);
+    }
+    
+    // Write Phase for Table Order
+    if (tableId && tableSnap) {
+      transaction.update(tableSnap.ref, {
+        runningTotal: increment(finalAmount),
+        status: 'occupied',
+        currentOrderIds: arrayUnion(orderId),
+        updatedAt: serverTimestamp()
+      });
     }
   });
 

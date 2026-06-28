@@ -11,6 +11,15 @@ export const SalonAppointmentSchema = z.object({
   amountDue: z.number().min(0), // in cents
   paymentStatus: z.enum(['Unpaid', 'Paid']).default('Unpaid'),
   
+  // Chair tracking
+  chairId: z.string().nullable().optional(),
+  chairNumber: z.string().nullable().optional(),
+
+  // Loyalty
+  phoneNumber: z.string().nullable().optional(),
+
+  queueNumber: z.number().optional(),
+
   createdAt: z.any().optional(),
   updatedAt: z.any().optional(),
 });

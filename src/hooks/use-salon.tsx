@@ -26,7 +26,16 @@ export function useSalonAppointments() {
     );
   }, [currentTenant?.id, db]);
 
+  const chairsQuery = React.useMemo(() => {
+    if (!currentTenant || !db) return null;
+    return query(
+      collection(db, 'tenants', currentTenant.id, 'chairs'),
+      orderBy('createdAt', 'asc')
+    );
+  }, [currentTenant?.id, db]);
+
   const { data, loading, error } = useCollection<SalonAppointmentModel>(salonQuery);
+  const { data: chairs, loading: chairsLoading } = useCollection<any>(chairsQuery);
 
   const { waitingAppointments, inChairAppointments, doneAppointments } = React.useMemo(() => {
     return {
@@ -38,10 +47,11 @@ export function useSalonAppointments() {
 
   return { 
     appointments: data, 
+    chairs,
     waitingAppointments,
     inChairAppointments,
     doneAppointments,
-    loading, 
+    loading: loading || chairsLoading, 
     error 
   };
 }

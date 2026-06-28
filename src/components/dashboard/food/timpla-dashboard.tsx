@@ -6,6 +6,7 @@ import { useCollection } from 'react-firebase-hooks/firestore';
 import { collection, query, orderBy, doc, setDoc, serverTimestamp, limit, where } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { addFoodOrder, updateFoodOrderStatus, deleteFoodOrder } from '@/firebase/firestore/food-actions';
+import { setupTables, openTable, settleTable, resetTable } from '@/firebase/firestore/table-actions';
 import { useUser } from '@/firebase/auth/use-user';
 import { getCustomerPoints } from '@/firebase/firestore/loyalty-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -22,6 +23,9 @@ import { useIngredients } from '@/hooks/use-ingredients';
 import { useToast } from '@/hooks/use-toast';
 import { GCashQrModal } from '@/components/common/gcash-qr-modal';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
+import { TableSetupModal } from './table-setup-modal';
+import { TableGrid } from './table-grid';
+import { RunningBillDrawer } from './running-bill-drawer';
 import { PackageOpen, Coffee, Plus, Minus, Search, QrCode, Smartphone, Coins, CreditCard, ChefHat, CheckCircle2, Trash2, ArrowLeft, AlertCircle, ShoppingCart, Beaker } from "lucide-react";
 
 const PendingOrderCard = React.memo(({ order, isOwner, onDelete, onMove, theme, isProcessing }: any) => (
@@ -109,6 +113,15 @@ export function TimplaDashboard() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isVoiding, setIsVoiding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [activeTab, setActiveTab] = useState("pos");
+  
+  // Table Management State
+  const [showTableSetup, setShowTableSetup] = useState(false);
+  const [selectedTableObject, setSelectedTableObject] = useState<any | null>(null);
+  const [showStartTable, setShowStartTable] = useState(false);
+  const [guestCountInput, setGuestCountInput] = useState('');
+  const [activeTableIdForOrder, setActiveTableIdForOrder] = useState<string | null>(null);
   
   const { user } = useUser();
   const isOwner = currentTenant?.ownerUid === user?.uid || (currentTenant as any)?.role === 'owner';
@@ -192,6 +205,15 @@ export function TimplaDashboard() {
     id: doc.id,
     ...doc.data()
   })) || [];
+
+  const tablesQuery = React.useMemo(() => {
+    return currentTenant && db
+      ? query(collection(db, 'tenants', currentTenant.id, 'tables'), orderBy('createdAt', 'asc'))
+      : null;
+  }, [currentTenant?.id, db]);
+
+  const [tablesSnapshot] = useCollection(tablesQuery as any);
+  const tables = tablesSnapshot?.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })) || [];
 
   React.useEffect(() => {
     if (ordersError) {
@@ -308,7 +330,6 @@ export function TimplaDashboard() {
 
   const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-  // POS Checkout
   const handleCheckout = async (paymentMethod: string = 'cash', gcashRef?: string) => {
     if (!currentTenant || cart.length === 0) return;
     try {
@@ -319,33 +340,42 @@ export function TimplaDashboard() {
         await redeemPoints(currentTenant.id, customerPhone, 100);
       }
       
-      const tableName = selectedTable.trim() || `Takeout ${new Date().getTime().toString().slice(-4)}`;
+      const isTableOrder = !!activeTableIdForOrder;
+      const targetTable = tables.find((t: any) => t.id === activeTableIdForOrder);
+      const tableName = isTableOrder ? targetTable?.name : (selectedTable.trim() || `Takeout ${new Date().getTime().toString().slice(-4)}`);
       const discount = isRedeeming ? 5000 : 0;
       const saleTotal = cartTotal - discount;
       
       const orderId = await addFoodOrder(
         currentTenant.id, 
-        tableName,
+        tableName || 'Unknown',
         cart,
         discount,
         customerPhone || undefined,
         undefined, // referrerCode
         paymentMethod,
-        gcashRef
+        gcashRef,
+        activeTableIdForOrder || undefined
       );
 
-      setCompletedSale({
-        items: cart,
-        total: saleTotal,
-        paymentMethod,
-        saleId: orderId
-      });
-      setShowReceipt(true);
+      if (!isTableOrder) {
+        setCompletedSale({
+          items: cart,
+          total: saleTotal,
+          paymentMethod,
+          saleId: orderId
+        });
+        setShowReceipt(true);
+      } else {
+        toast({ title: 'Added to Table', description: `Items added to ${tableName}.` });
+        setActiveTab("tables");
+      }
 
       setCart([]);
       setSelectedTable('');
       setCustomerPhone('');
       setIsRedeeming(false);
+      setActiveTableIdForOrder(null);
       toast({ title: 'Order Submitted!', description: 'Sent to the Barista.' });
     } catch (e: any) {
       setError(e.message);
@@ -428,15 +458,64 @@ export function TimplaDashboard() {
           </div>
         )}
 
-        <Tabs defaultValue="pos" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-4 rounded-xl">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-4 mb-4 rounded-xl">
+            <TabsTrigger value="tables" className="rounded-lg text-xs md:text-sm font-bold">Tables</TabsTrigger>
             <TabsTrigger value="pos" className="rounded-lg text-xs md:text-sm font-bold">POS</TabsTrigger>
             <TabsTrigger value="kds" className="rounded-lg text-xs md:text-sm font-bold">Barista</TabsTrigger>
             <TabsTrigger value="recipes" className="rounded-lg text-xs md:text-sm font-bold">Recipes</TabsTrigger>
           </TabsList>
 
+          {/* TABLES TAB */}
+          <TabsContent value="tables" className="space-y-4 animate-in slide-in-from-bottom-4 duration-300">
+            <div className="flex justify-between items-center">
+              <h3 className="font-black uppercase tracking-widest text-slate-500 text-xs">Dine-In Tables</h3>
+              <Button size="sm" onClick={() => setShowTableSetup(true)} className="font-bold rounded-full">
+                {tables.length === 0 ? "Setup Tables" : "+ Add Tables"}
+              </Button>
+            </div>
+            
+            <TableGrid 
+              tables={tables} 
+              theme={theme} 
+              onTableClick={(table) => {
+                if (table.status === 'available') {
+                  setSelectedTableObject(table);
+                  setShowStartTable(true);
+                } else {
+                  setSelectedTableObject(table);
+                }
+              }}
+              onRename={async (table) => {
+                const newName = window.prompt("Enter new name for table:", table.name);
+                if (newName && newName.trim() !== table.name) {
+                  const { renameTable } = await import('@/firebase/firestore/table-actions');
+                  if (currentTenant) await renameTable(currentTenant.id, table.id, newName);
+                }
+              }}
+              onDelete={async (table) => {
+                if (window.confirm(`Are you sure you want to delete ${table.name}?`)) {
+                  const { deleteTable } = await import('@/firebase/firestore/table-actions');
+                  if (currentTenant) {
+                    try {
+                      await deleteTable(currentTenant.id, table.id);
+                    } catch (e: any) {
+                      toast({ title: "Error", description: e.message, variant: "destructive" });
+                    }
+                  }
+                }
+              }}
+            />
+          </TabsContent>
+
           {/* POS TAB */}
           <TabsContent value="pos" className="space-y-4 animate-in slide-in-from-bottom-4 duration-300">
+            {activeTableIdForOrder && (
+              <div className="bg-orange-100 border border-orange-300 p-3 rounded-xl flex justify-between items-center text-orange-800 font-bold text-sm mb-4">
+                <span>Currently adding to: {tables.find((t: any) => t.id === activeTableIdForOrder)?.name}</span>
+                <Button variant="ghost" size="sm" className="h-6 text-xs text-orange-600 hover:bg-orange-200" onClick={() => setActiveTableIdForOrder(null)}>Cancel</Button>
+              </div>
+            )}
             {menuLoading ? (
               <div className="text-center py-8 text-sm text-slate-400">Loading menu...</div>
             ) : availableItems.length === 0 ? (
@@ -498,18 +577,21 @@ export function TimplaDashboard() {
                     ))}
                   </div>
                 </CardContent>
-                <div className="p-3 bg-white border-t border-slate-100 space-y-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="table-name" className="text-xs text-slate-500 font-bold uppercase tracking-widest">Table Name / Number</Label>
-                    <Input 
-                      id="table-name"
-                      name="tableName"
-                      placeholder="e.g. Table 5, VIP A, or leave blank for Takeout" 
-                      value={selectedTable} 
-                      onChange={e => setSelectedTable(e.target.value)}
-                      className="h-9 text-sm"
-                    />
-                  </div>
+                <div className="p-3 bg-white space-y-3 rounded-b-xl">
+                  {/* Custom Table / Name Input (Only if not using table grid) */}
+                  {!activeTableIdForOrder && (
+                    <div className="space-y-1">
+                      <Label htmlFor="table-name" className="text-xs text-slate-500 font-bold uppercase tracking-widest">Table Name / Number</Label>
+                      <Input 
+                        id="table-name"
+                        name="tableName"
+                        placeholder="e.g. Takeout or Delivery" 
+                        value={selectedTable} 
+                        onChange={e => setSelectedTable(e.target.value)}
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                  )}
                   
                   <div className="space-y-1 mt-2">
                     <Label htmlFor="customer-phone" className="text-xs">Customer Phone (For Points)</Label>
@@ -772,6 +854,75 @@ export function TimplaDashboard() {
         />
 
       </main>
+      {/* Drawers and Modals */}
+      <TableSetupModal 
+        open={showTableSetup} 
+        onClose={() => setShowTableSetup(false)} 
+        theme={theme}
+        onSetup={async (names) => {
+          if (currentTenant) await setupTables(currentTenant.id, names);
+        }} 
+      />
+
+      <RunningBillDrawer 
+        open={!!selectedTableObject && selectedTableObject.status !== 'available'}
+        onClose={() => setSelectedTableObject(null)}
+        table={selectedTableObject}
+        orders={orders.filter((o: any) => selectedTableObject?.currentOrderIds?.includes(o.id))}
+        theme={theme}
+        tenantName={currentTenant?.name || "Katuwang Cafe"}
+        onAddItems={() => {
+          setActiveTableIdForOrder(selectedTableObject.id);
+          setActiveTab("pos");
+          setSelectedTableObject(null);
+        }}
+        onSettle={async (paymentMethod, gcashRef) => {
+          if (!currentTenant || !selectedTableObject) return;
+          const result = await settleTable(currentTenant.id, selectedTableObject.id, paymentMethod, gcashRef);
+          setCompletedSale({
+            items: result.items,
+            total: result.total,
+            paymentMethod,
+            saleId: `table-${selectedTableObject.id}`
+          });
+          setShowReceipt(true);
+        }}
+        onReset={async () => {
+          if (!currentTenant || !selectedTableObject) return;
+          await resetTable(currentTenant.id, selectedTableObject.id);
+        }}
+      />
+      
+      {/* Quick Start Table Dialog */}
+      {showStartTable && selectedTableObject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-4">
+            <h3 className="text-lg font-black">Start {selectedTableObject.name}</h3>
+            <div className="space-y-2">
+              <Label>Number of Guests</Label>
+              <Input type="number" value={guestCountInput} onChange={e => setGuestCountInput(e.target.value)} placeholder="e.g. 2" />
+            </div>
+            <div className="flex gap-2 justify-end pt-2">
+              <Button variant="outline" onClick={() => setShowStartTable(false)}>Cancel</Button>
+              <Button 
+                style={{ backgroundColor: theme.primary }} 
+                onClick={async () => {
+                  if (currentTenant) {
+                    await openTable(currentTenant.id, selectedTableObject.id, Number(guestCountInput) || 1);
+                    setActiveTableIdForOrder(selectedTableObject.id);
+                    setShowStartTable(false);
+                    setGuestCountInput('');
+                    setActiveTab("pos");
+                  }
+                }}
+              >
+                Open & Order
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
