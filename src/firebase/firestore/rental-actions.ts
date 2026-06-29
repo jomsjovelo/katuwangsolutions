@@ -101,14 +101,14 @@ export async function processRentalBooking(
             tenantId,
             name: 'Main Cash Register',
             type: 'asset',
-            balance: centavoAmount,
+            balance: finalCentavos,
             isActive: true,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp()
           });
         } else {
           transaction.update(masterAccountRef, {
-            balance: increment(centavoAmount),
+            balance: increment(finalCentavos),
             updatedAt: serverTimestamp()
           });
         }
@@ -120,7 +120,7 @@ export async function processRentalBooking(
           id: newTxRef.id,
           tenantId,
           accountId: 'master-cash',
-          amount: centavoAmount,
+          amount: finalCentavos,
           type: 'income',
           category: 'Rental',
           description: `Rental Booking (${paymentMethod || 'cash'})`,
@@ -204,14 +204,14 @@ export async function processRentalReturn(
             tenantId,
             name: 'Main Cash Register',
             type: 'asset',
-            balance: centavoAmount,
+            balance: finalCentavos,
             isActive: true,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp()
           });
         } else {
           transaction.update(masterAccountRef, {
-            balance: increment(centavoAmount),
+            balance: increment(finalCentavos),
             updatedAt: serverTimestamp()
           });
         }
@@ -223,7 +223,7 @@ export async function processRentalReturn(
           id: newTxRef.id,
           tenantId,
           accountId: 'master-cash',
-          amount: centavoAmount,
+          amount: finalCentavos,
           type: 'income',
           category: 'Rental',
           description: `Rental Return Payment (${paymentMethod || 'cash'})`,

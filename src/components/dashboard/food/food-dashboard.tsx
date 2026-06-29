@@ -694,7 +694,9 @@ export function FoodDashboard() {
             items: result.items,
             total: result.total,
             paymentMethod,
-            saleId: `table-${selectedTableObject.id}`
+            saleId: `table-${selectedTableObject.id}`,
+            discountCentavos: 0,
+            discountType: 'none'
           });
           setShowReceipt(true);
         }}

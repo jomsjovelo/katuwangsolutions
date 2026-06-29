@@ -190,6 +190,7 @@ export function SpinDashboard() {
           undefined,
           {},
           paymentMethod,
+          undefined,
           discountCentavos,
           discountType
         );

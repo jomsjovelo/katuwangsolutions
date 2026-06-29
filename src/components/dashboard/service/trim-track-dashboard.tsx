@@ -171,6 +171,7 @@ export function TrimTrackDashboard() {
           0,
           { stylistName: appt.stylistName },
           paymentMethod,
+          undefined,
           discountCentavos,
           discountType
         );

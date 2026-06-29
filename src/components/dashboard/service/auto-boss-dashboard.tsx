@@ -291,6 +291,7 @@ export function AutoBossDashboard() {
           commissionCentavos,
           { partsUsed: order.partsUsed || [] },
           paymentMethod,
+          undefined,
           discountCentavos,
           discountType
         );

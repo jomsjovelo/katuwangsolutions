@@ -1,20 +1,30 @@
 import { z } from 'zod';
 
+export const SaleItemSchema = z.object({
+  productId: z.string(),
+  name: z.string(),
+  price: z.number().int(),
+  quantity: z.number().int(),
+});
+
 export const SaleSchema = z.object({
   id: z.string().optional(),
   tenantId: z.string(),
-  productId: z.string(),
-  productName: z.string(),
+  module: z.string().optional(),
   
   // Amounts in centavos
-  unitPrice: z.number().int(),
-  quantity: z.number().int(),
+  subtotalAmount: z.number().int().optional(),
+  discountAmount: z.number().int().optional(),
+  discountType: z.string().optional(),
   totalAmount: z.number().int(),
   
-  paymentMethod: z.enum(['cash', 'gcash', 'credit']),
-  status: z.enum(['paid', 'pending', 'cancelled']),
+  items: z.array(SaleItemSchema).optional(),
   
-  performedBy: z.string(),
+  paymentMethod: z.string(),
+  status: z.string().optional(),
+  
+  performedBy: z.string().optional(),
+  gcashRef: z.string().optional(),
   createdAt: z.any().optional(),
 });
 

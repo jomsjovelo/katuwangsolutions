@@ -114,15 +114,16 @@ export async function processCheckout(
     const salesRef = collection(db, 'tenants', tenantId, 'sales');
     const newSaleRef = doc(salesRef);
     saleDocId = newSaleRef.id; // Capture the real Firestore ID before write
+    const finalAmount = Math.max(0, secureTotalAmount - discountCentavos);
     
     const saleRecord: Record<string, unknown> = {
       id: newSaleRef.id,
       tenantId,
       items: cart,
-      subtotalAmount: secureSubtotalAmount,
+      subtotalAmount: secureTotalAmount,
       discountAmount: discountCentavos,
       discountType: discountType || 'none',
-      totalAmount: secureTotalAmount,
+      totalAmount: finalAmount,
       paymentMethod,
       createdAt: serverTimestamp()
     };
@@ -135,21 +136,21 @@ export async function processCheckout(
     transaction.set(newSaleRef, saleRecord);
 
     // ERP INTEGRATION: Deposit the income into the Master Cash Ledger
-    if (secureTotalAmount > 0 && paymentMethod !== 'utang' && masterAccountSnap) {
+    if (finalAmount > 0 && paymentMethod !== 'utang' && masterAccountSnap) {
       if (!masterAccountSnap.exists()) {
         transaction.set(masterAccountRef, {
           id: 'master-cash',
           tenantId,
           name: 'Main Cash Register',
           type: 'asset',
-          balance: secureTotalAmount,
+          balance: finalAmount,
           isActive: true,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         });
       } else {
         transaction.set(masterAccountRef, {
-          balance: increment(secureTotalAmount),
+          balance: increment(finalAmount),
           updatedAt: serverTimestamp()
         }, { merge: true });
       }
@@ -160,7 +161,7 @@ export async function processCheckout(
         id: newTxRef.id,
         tenantId,
         accountId: 'master-cash',
-        amount: secureTotalAmount,
+        amount: finalAmount,
         type: 'income',
         category: 'Sales',
         description: `Retail Sale (${paymentMethod})`,
@@ -302,7 +303,9 @@ export async function processCreditCheckout(
   cart: CartItem[],
   totalAmountCentavos: number,
   palistaName: string,
-  palistaDate: Date
+  palistaDate: Date,
+  discountCentavos: number = 0,
+  discountType?: 'percentage' | 'fixed'
 ): Promise<string> {
   if (cart.length === 0) throw new Error('Cart is empty');
   if (!palistaName || palistaName.trim() === '') throw new Error('Customer name is required for credit.');
@@ -360,12 +363,20 @@ export async function processCreditCheckout(
     const newSaleRef = doc(salesRef);
     saleDocId = newSaleRef.id;
     
+    const finalAmount = Math.max(0, secureTotalAmount - discountCentavos);
+
     transaction.set(newSaleRef, {
       id: newSaleRef.id,
       tenantId,
+      module: 'retail',
       items: cart,
-      totalAmount: secureTotalAmount,
+      subtotalAmount: secureTotalAmount,
+      discountAmount: discountCentavos,
+      discountType: discountType || 'none',
+      totalAmount: finalAmount,
       paymentMethod: 'palista',
+      status: 'pending',
+      palistaName,
       createdAt: serverTimestamp()
     });
 
@@ -378,7 +389,7 @@ export async function processCreditCheckout(
       tenantId,
       type: 'receivable',
       name: palistaName,
-      amount: secureTotalAmount,
+      amount: finalAmount,
       paidAmount: 0,
       status: 'unpaid',
       creditDate: Timestamp.fromDate(palistaDate),

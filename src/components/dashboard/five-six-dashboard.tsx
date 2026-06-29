@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
+import { DiscountInput } from '@/components/ui/discount-input';
 import { 
   Users, 
   Banknote, 
@@ -372,7 +373,7 @@ export function FiveSixDashboard() {
   const setField = useCallback((field: keyof FormState, value: any) => dispatchForm({ type: 'SET_FIELD', field, value }), []);
   const setDiscountType = useCallback((val: 'percentage'|'fixed') => setField('discountType', val), [setField]);
   const setDiscountValue = useCallback((val: string) => setField('discountValue', val), [setField]);
-  const setPayAmount = useCallback((val: string) => setField('payAmount', val), [setField]);
+  const setEditNote = useCallback((val: string) => setField('editNote', val), [setField]);
   const setEditName = useCallback((val: string) => setField('editName', val), [setField]);
   const setEditPhone = useCallback((val: string) => setField('editPhone', val), [setField]);
   const setEditArea = useCallback((val: string) => setField('editArea', val), [setField]);

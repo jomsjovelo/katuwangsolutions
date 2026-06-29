@@ -232,6 +232,7 @@ export function WellnessDashboard() {
           commissionCentavos,
           {},
           paymentMethod,
+          undefined,
           discountCentavos,
           discountType
         );

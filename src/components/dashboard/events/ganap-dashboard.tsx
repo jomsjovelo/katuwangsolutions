@@ -19,7 +19,7 @@ import { useEvents } from '@/hooks/use-events';
 import { useToast } from '@/hooks/use-toast';
 import { GCashQrModal } from '@/components/common/gcash-qr-modal';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
-import { CalendarHeart, CheckCircle2, MapPin, Users, Phone, Wallet, Plus, Calendar as CalendarIcon, Clock, Edit2, Loader2, DollarSign, FileText, ChevronRight, CheckSquare, Sparkles, Building2, User, Coins, Briefcase, Trash2, Gift, Receipt } from "lucide-react";
+import { Link as LinkIcon, ClipboardList, Truck, ChefHat, UserCircle, ArrowLeft, CalendarHeart, CheckCircle2, MapPin, Users, Phone, Wallet, Plus, Calendar as CalendarIcon, Clock, Edit2, Loader2, DollarSign, FileText, ChevronRight, CheckSquare, Sparkles, Building2, User, Coins, Briefcase, Trash2, Gift, Receipt } from "lucide-react";
 import { DiscountInput } from '@/components/ui/discount-input';
 import { EventModel } from '@/lib/schemas/events';
 

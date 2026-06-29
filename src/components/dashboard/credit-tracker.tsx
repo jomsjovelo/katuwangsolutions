@@ -97,6 +97,7 @@ export function CreditTracker() {
   const [viewItemsCredit, setViewItemsCredit] = useState<RetailCreditEntry | null>(null);
 
   const [showPayModal, setShowPayModal] = useState(false);
+  const [selectedCredit, setSelectedCredit] = useState<RetailCreditEntry | null>(null);
   const [paymentAmountStr, setPaymentAmountStr] = useState('');
   const [discountType, setDiscountType] = useState<'percentage'|'fixed'>('percentage');
   const [discountValue, setDiscountValue] = useState('');

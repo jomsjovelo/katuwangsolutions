@@ -147,7 +147,6 @@ export function FarmDashboard() {
     }
   };
 
-  const [pendingPaymentHarvest, setPendingPaymentHarvest] = useState<any | null>(null);
 
   const updateStatus = async (harvest: any, status: string, paymentStatus?: string, paymentMethod: string = 'cash', discountCentavos: number = 0, discountType?: 'percentage' | 'fixed') => {
     if (!currentTenant || !db) return;
@@ -163,6 +162,7 @@ export function FarmDashboard() {
           undefined,
           {},
           paymentMethod,
+          undefined,
           discountCentavos,
           discountType
         );

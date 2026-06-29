@@ -63,6 +63,7 @@ export async function updateJobStatus(tenantId: string, jobId: string, newStatus
 
     // ERP INTEGRATION: If the job is completed, automatically deposit the money into the Master Cash Ledger!
     if (newStatus === 'completed' && amountCentavos && amountCentavos > 0 && masterAccountRef && masterAccountSnap) {
+      const finalAmount = Math.max(0, amountCentavos - discountCentavos);
       
       if (!masterAccountSnap.exists()) {
         transaction.set(masterAccountRef, {
@@ -70,7 +71,7 @@ export async function updateJobStatus(tenantId: string, jobId: string, newStatus
           tenantId,
           name: 'Main Cash Register',
           type: 'asset',
-          balance: amountCentavos,
+          balance: finalAmount,
           isActive: true,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
@@ -78,7 +79,7 @@ export async function updateJobStatus(tenantId: string, jobId: string, newStatus
       } else {
         // Add the income to the balance
         transaction.set(masterAccountRef, {
-          balance: increment(amountCentavos),
+          balance: increment(finalAmount),
           updatedAt: serverTimestamp()
         }, { merge: true });
       }
@@ -90,15 +91,13 @@ export async function updateJobStatus(tenantId: string, jobId: string, newStatus
         id: newTxRef.id,
         tenantId,
         accountId: 'master-cash',
-        amount: amountCentavos,
+        amount: finalAmount,
         type: 'income',
         category: 'Services',
         description: `Service Income: ${customerName || 'Customer'} (${paymentMethod})`,
         date: new Date(),
         createdAt: serverTimestamp()
       });
-
-      const finalAmount = Math.max(0, amountCentavos - discountCentavos);
 
       // Write to unified sales subcollection
       const salesRef = collection(db, 'tenants', tenantId, 'sales');
@@ -193,6 +192,7 @@ export async function completeServiceOrder(
 
     // ERP INTEGRATION: Deposit the money into the Master Cash Ledger!
     if (amountCentavos > 0 && masterAccountRef && masterAccountSnap) {
+      const finalAmount = Math.max(0, amountCentavos - discountCentavos);
       
       if (!masterAccountSnap.exists()) {
         transaction.set(masterAccountRef, {
@@ -200,14 +200,14 @@ export async function completeServiceOrder(
           tenantId,
           name: 'Main Cash Register',
           type: 'asset',
-          balance: amountCentavos,
+          balance: finalAmount,
           isActive: true,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         });
       } else {
         transaction.set(masterAccountRef, {
-          balance: increment(amountCentavos),
+          balance: increment(finalAmount),
           updatedAt: serverTimestamp()
         }, { merge: true });
       }
@@ -218,15 +218,13 @@ export async function completeServiceOrder(
         id: newTxRef.id,
         tenantId,
         accountId: 'master-cash',
-        amount: amountCentavos,
+        amount: finalAmount,
         type: 'income',
         category: 'Services',
         description,
         date: new Date(),
         createdAt: serverTimestamp()
       });
-
-      const finalAmount = Math.max(0, amountCentavos - discountCentavos);
 
       // Write to unified sales subcollection
       const salesRef = collection(db, 'tenants', tenantId, 'sales');

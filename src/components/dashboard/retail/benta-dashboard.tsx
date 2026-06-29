@@ -364,7 +364,7 @@ function BentaDashboardContent() {
       setError(null);
       
       const palistaDate = new Date();
-      const saleId = await processCreditCheckout(currentTenant.id, cart, finalTotalCentavos, palistaName, undefined, discountCentavos, discountType);
+      const saleId = await processCreditCheckout(currentTenant.id, cart, finalTotalCentavos, palistaName, palistaDate, discountCentavos, discountType);
       
       setCompletedSale({
         items: [...cart],

@@ -648,7 +648,7 @@ export function TimplaDashboard() {
                   <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-200">
                       <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Total</span>
                       <span className="text-3xl font-black font-headline tracking-tighter text-slate-900 leading-none">
-                        ₱{(currentSaleTotal / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                        ₱{(Math.max(0, cartTotal - (isRedeeming ? 5000 : 0) - (discountType === 'percentage' ? Math.round((cartTotal * (parseFloat(discountValue) || 0)) / 100) : Math.round((parseFloat(discountValue) || 0) * 100))) / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                       </span>
                   </div>
 
@@ -917,7 +917,9 @@ export function TimplaDashboard() {
             items: result.items,
             total: result.total,
             paymentMethod,
-            saleId: `table-${selectedTableObject.id}`
+            saleId: `table-${selectedTableObject.id}`,
+            discountCentavos: 0,
+            discountType: 'none'
           });
           setShowReceipt(true);
         }}
