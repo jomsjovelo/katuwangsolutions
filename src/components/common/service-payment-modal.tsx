@@ -8,6 +8,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
 import { Coins, Smartphone } from "lucide-react";
+import { DiscountInput } from '@/components/ui/discount-input';
+import { useState } from 'react';
 
 export function ServicePaymentModal({ 
   isOpen, 
@@ -17,34 +19,61 @@ export function ServicePaymentModal({
 }: { 
   isOpen: boolean, 
   onClose: () => void, 
-  onConfirm: (method: string) => void, 
+  onConfirm: (method: string, discountCentavos?: number, discountType?: 'percentage' | 'fixed') => void, 
   amountDue: number, 
 }) {
+  const [discountType, setDiscountType] = useState<'percentage'|'fixed'>('percentage');
+  const [discountValue, setDiscountValue] = useState('');
+
+  const parsedDiscount = parseFloat(discountValue) || 0;
+  let discountCentavos = 0;
+  if (discountType === 'percentage') {
+    discountCentavos = Math.round((amountDue * parsedDiscount) / 100);
+  } else {
+    discountCentavos = Math.round(parsedDiscount * 100);
+  }
+  if (discountCentavos > amountDue) discountCentavos = amountDue;
+
+  const finalTotalCentavos = Math.max(0, amountDue - discountCentavos);
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open) {
+        setDiscountValue('');
+        onClose();
+      }
+    }}>
       <DialogContent className="sm:max-w-[350px]">
         <DialogHeader>
           <DialogTitle className="font-headline font-black text-center text-xl">Payment Method</DialogTitle>
           <DialogDescription className="text-center">
             Total Amount Due
             <div className="text-3xl font-black text-slate-800 mt-2 mb-4">
-              ₱{(amountDue / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+              ₱{(finalTotalCentavos / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
             </div>
             Select payment method to complete the order.
           </DialogDescription>
         </DialogHeader>
         
-        <div className="grid grid-cols-2 gap-3 mt-2">
+        <DiscountInput 
+          discountType={discountType}
+          discountValue={discountValue}
+          onTypeChange={setDiscountType}
+          onValueChange={setDiscountValue}
+          subtotal={amountDue}
+        />
+        
+        <div className="grid grid-cols-2 gap-3 mt-4 border-t border-slate-100 pt-4">
           <Button 
             className="h-16 flex flex-col items-center justify-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-800 border-2 border-slate-200"
-            onClick={() => onConfirm('cash')}
+            onClick={() => onConfirm('cash', discountCentavos, discountType)}
           >
             <Coins className="h-6 w-6 text-amber-500" />
             <span className="font-bold text-xs uppercase">Cash</span>
           </Button>
           <Button 
             className="h-16 flex flex-col items-center justify-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-800 border-2 border-slate-200"
-            onClick={() => onConfirm('gcash')}
+            onClick={() => onConfirm('gcash', discountCentavos, discountType)}
           >
             <Smartphone className="h-6 w-6 text-blue-500" />
             <span className="font-bold text-xs uppercase">GCash</span>

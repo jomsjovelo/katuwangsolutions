@@ -19,24 +19,8 @@ import { useEvents } from '@/hooks/use-events';
 import { useToast } from '@/hooks/use-toast';
 import { GCashQrModal } from '@/components/common/gcash-qr-modal';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
-import { 
-  CalendarHeart, 
-  Plus, 
-  MapPin,
-  Clock,
-  UserCircle,
-  Truck,
-  CheckCircle2,
-  ChefHat,
-  ChevronRight,
-  ArrowLeft,
-  Users,
-  QrCode,
-  ClipboardList,
-  Link as LinkIcon,
-  Wallet,
-  Trash2
-} from "lucide-react";
+import { CalendarHeart, CheckCircle2, MapPin, Users, Phone, Wallet, Plus, Calendar as CalendarIcon, Clock, Edit2, Loader2, DollarSign, FileText, ChevronRight, CheckSquare, Sparkles, Building2, User, Coins, Briefcase, Trash2, Gift, Receipt } from "lucide-react";
+import { DiscountInput } from '@/components/ui/discount-input';
 import { EventModel } from '@/lib/schemas/events';
 
 
@@ -144,9 +128,14 @@ export function GanapDashboard() {
   const [completedSale, setCompletedSale] = useState<{
     items: any[];
     total: number;
+    discountCentavos: number;
+    discountType: string;
     paymentMethod: string;
     saleId?: string;
   } | null>(null);
+
+  const [discountType, setDiscountType] = useState<'percentage'|'fixed'>('percentage');
+  const [discountValue, setDiscountValue] = useState('');
 
   // Guest List State
   const [guests, setGuests] = useState<any[]>([]);
@@ -290,17 +279,37 @@ export function GanapDashboard() {
     
     setPaymentProcessing(true);
     try {
-      await recordEventPayment(currentTenant.id, selectedEvent.id, Math.round(amount * 100), `Client Payment for Event: ${selectedEvent.title}`);
-      setSelectedEvent({ ...selectedEvent, amountPaid: (selectedEvent.amountPaid || 0) + Math.round(amount * 100) });
+      const parsedDiscount = parseFloat(discountValue) || 0;
+      let discountCentavos = 0;
+      if (discountType === 'percentage') {
+        discountCentavos = Math.round((amount * 100 * parsedDiscount) / 100);
+      } else {
+        discountCentavos = Math.round(parsedDiscount * 100);
+      }
+
+      const finalAmountCentavos = Math.max(0, Math.round(amount * 100) - discountCentavos);
+
+      await recordEventPayment(
+        currentTenant.id, 
+        selectedEvent.id, 
+        Math.round(amount * 100), 
+        `Client Payment for Event: ${selectedEvent.title}`,
+        discountCentavos,
+        discountType
+      );
+      setSelectedEvent({ ...selectedEvent, amountPaid: (selectedEvent.amountPaid || 0) + finalAmountCentavos + discountCentavos });
       
       setCompletedSale({
         items: [{ name: `Payment for ${selectedEvent.title}`, quantity: 1, price: Math.round(amount * 100) }],
-        total: Math.round(amount * 100),
+        total: finalAmountCentavos,
+        discountCentavos,
+        discountType,
         paymentMethod: method,
         saleId: selectedEvent.id
       });
       
       setPaymentAmount('');
+      setDiscountValue('');
       setShowPaymentModal(false);
       setShowReceipt(true);
       toast({ title: 'Payment Received', description: `₱${amount.toLocaleString()} has been recorded.` });
@@ -442,6 +451,15 @@ export function GanapDashboard() {
                           onChange={e => setPaymentAmount(parseFloat(e.target.value) || '')} 
                         />
                       </div>
+
+                      <DiscountInput 
+                        discountType={discountType}
+                        discountValue={discountValue}
+                        onTypeChange={setDiscountType}
+                        onValueChange={setDiscountValue}
+                        subtotal={(typeof paymentAmount === 'number' ? paymentAmount : 0) * 100}
+                      />
+
                       <div className="flex gap-2">
                         <Button 
                           className="w-full text-white" 

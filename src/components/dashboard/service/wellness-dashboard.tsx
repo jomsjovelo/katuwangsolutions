@@ -207,7 +207,7 @@ export function WellnessDashboard() {
     }
   };
 
-  const updateStatus = async (appointment: any, status: string, paymentStatus?: string, roomName?: string, paymentMethod: string = 'cash', roomId?: string) => {
+  const updateStatus = async (appointment: any, status: string, paymentStatus?: string, roomName?: string, paymentMethod: string = 'cash', roomId?: string, discountCentavos: number = 0, discountType?: 'percentage' | 'fixed') => {
     if (!currentTenant || !db) return;
     try {
       if (paymentStatus === 'Paid') {
@@ -231,7 +231,9 @@ export function WellnessDashboard() {
           `Spa/Massage: ${appointment.clientName} (${appointment.serviceType})`,
           commissionCentavos,
           {},
-          paymentMethod
+          paymentMethod,
+          discountCentavos,
+          discountType
         );
         if (appointment.customerPhone && appointment.amountDue > 0) {
           try {
@@ -566,8 +568,8 @@ export function WellnessDashboard() {
             isOpen={!!selectedOrderForPayment}
             onClose={() => setSelectedOrderForPayment(null)}
             amountDue={selectedOrderForPayment.amountDue}
-            onConfirm={(method) => {
-              updateStatus(selectedOrderForPayment, 'Done', 'Paid', undefined, method);
+            onConfirm={(method, discountCentavos, discountType) => {
+              updateStatus(selectedOrderForPayment, 'Done', 'Paid', undefined, method, undefined, discountCentavos, discountType);
               setSelectedOrderForPayment(null);
             }}
           />

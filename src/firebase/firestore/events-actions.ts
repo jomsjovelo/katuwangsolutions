@@ -9,7 +9,9 @@ export async function completeEvent(
   tenantId: string,
   eventId: string,
   amountCentavos: number,
-  description: string
+  description: string,
+  discountCentavos: number = 0,
+  discountType?: 'percentage' | 'fixed'
 ) {
   if (amountCentavos < 0 || isNaN(amountCentavos)) {
     throw new Error('Invalid payment amount.');
@@ -29,7 +31,9 @@ export async function completeEvent(
     const contractPrice = eventData.contractPrice || 0;
     const alreadyPaid = eventData.amountPaid || 0;
     const remainingBalance = Math.max(0, contractPrice - alreadyPaid);
-    const finalAmount = remainingBalance > 0 ? remainingBalance : amountCentavos;
+    let finalAmount = remainingBalance > 0 ? remainingBalance : amountCentavos;
+    const subtotalAmount = finalAmount;
+    finalAmount = Math.max(0, finalAmount - discountCentavos);
 
     let masterAccountSnap = null;
     let masterAccountRef = null;
@@ -86,15 +90,13 @@ export async function completeEvent(
       transaction.set(newSaleRef, {
         id: newSaleRef.id,
         tenantId,
-        items: [{
-          name: description,
-          quantity: 1,
-          price: finalAmount,
-        }],
-        total: finalAmount,
+        module: 'events',
+        items: [{ productId: eventId, name: description, price: subtotalAmount, quantity: 1 }],
+        subtotalAmount: subtotalAmount,
+        discountAmount: discountCentavos,
+        discountType: discountType || 'none',
+        totalAmount: finalAmount,
         paymentMethod: 'cash',
-        customerName: eventData.clientName || 'Event Client',
-        date: new Date(),
         createdAt: serverTimestamp()
       });
     }
@@ -107,7 +109,9 @@ export async function recordEventPayment(
   tenantId: string,
   eventId: string,
   paymentCentavos: number,
-  description: string
+  description: string,
+  discountCentavos: number = 0,
+  discountType?: 'percentage' | 'fixed'
 ) {
   if (paymentCentavos <= 0 || isNaN(paymentCentavos)) {
     throw new Error('Invalid payment amount.');
@@ -128,7 +132,10 @@ export async function recordEventPayment(
     const alreadyPaid = eventData.amountPaid || 0;
     const remainingBalance = Math.max(0, contractPrice - alreadyPaid);
 
-    if (paymentCentavos > remainingBalance) {
+    const subtotalAmount = paymentCentavos;
+    const finalAmount = Math.max(0, paymentCentavos - discountCentavos);
+
+    if (finalAmount > remainingBalance) {
       throw new Error(`Sobra: Payment exceeds the remaining balance.`);
     }
 
@@ -137,43 +144,48 @@ export async function recordEventPayment(
 
     // 2. Perform writes
     transaction.update(eventRef, {
-      amountPaid: alreadyPaid + paymentCentavos,
-      updatedAt: serverTimestamp()
+      amountPaid: alreadyPaid + finalAmount + discountCentavos,
+      updatedAt: serverTimestamp(),
+      ...(finalAmount + discountCentavos >= remainingBalance ? { status: 'completed' as const } : {})
     });
 
     // Deposit to Master Cash
-    if (!masterAccountSnap.exists()) {
-      transaction.set(masterAccountRef, {
-        id: 'master-cash',
-        tenantId,
-        name: 'Main Cash Register',
-        type: 'asset',
-        balance: paymentCentavos,
-        isActive: true,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-    } else {
-      transaction.update(masterAccountRef, {
-        balance: increment(paymentCentavos),
-        updatedAt: serverTimestamp()
-      });
+    if (finalAmount > 0) {
+      if (!masterAccountSnap.exists()) {
+        transaction.set(masterAccountRef, {
+          id: 'master-cash',
+          tenantId,
+          name: 'Main Cash Register',
+          type: 'asset',
+          balance: finalAmount,
+          isActive: true,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        transaction.update(masterAccountRef, {
+          balance: increment(finalAmount),
+          updatedAt: serverTimestamp()
+        });
+      }
     }
 
     // Record Ledger Entry
-    const transactionsRef = collection(db, 'tenants', tenantId, 'transactions');
-    const newTxRef = doc(transactionsRef);
-    transaction.set(newTxRef, {
-      id: newTxRef.id,
-      tenantId,
-      accountId: 'master-cash',
-      amount: paymentCentavos,
-      type: 'income',
-      category: 'Events',
-      description,
-      date: new Date(),
-      createdAt: serverTimestamp()
-    });
+    if (finalAmount > 0) {
+      const transactionsRef = collection(db, 'tenants', tenantId, 'transactions');
+      const newTxRef = doc(transactionsRef);
+      transaction.set(newTxRef, {
+        id: newTxRef.id,
+        tenantId,
+        accountId: 'master-cash',
+        amount: finalAmount,
+        type: 'income',
+        category: 'Events',
+        description,
+        date: new Date(),
+        createdAt: serverTimestamp()
+      });
+    }
 
     // SYNC TO GLOBAL ANALYTICS
     const salesRef = collection(db, 'tenants', tenantId, 'sales');
@@ -181,15 +193,13 @@ export async function recordEventPayment(
     transaction.set(newSaleRef, {
       id: newSaleRef.id,
       tenantId,
-      items: [{
-        name: description,
-        quantity: 1,
-        price: paymentCentavos,
-      }],
-      total: paymentCentavos,
+      module: 'events',
+      items: [{ productId: eventId, name: description, price: subtotalAmount, quantity: 1 }],
+      subtotalAmount: subtotalAmount,
+      discountAmount: discountCentavos,
+      discountType: discountType || 'none',
+      totalAmount: finalAmount,
       paymentMethod: 'cash',
-      customerName: eventData.clientName || 'Event Client',
-      date: new Date(),
       createdAt: serverTimestamp()
     });
   });

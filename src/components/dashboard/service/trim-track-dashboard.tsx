@@ -151,7 +151,7 @@ export function TrimTrackDashboard() {
     }
   };
 
-  const updateStatus = async (appt: any, status: string, paymentStatus?: string, chairName?: string, paymentMethod: string = 'cash', chairId?: string) => {
+  const updateStatus = async (appt: any, status: string, paymentStatus?: string, chairName?: string, paymentMethod: string = 'cash', chairId?: string, discountCentavos: number = 0, discountType?: 'percentage' | 'fixed') => {
     if (!currentTenant || !db) return;
     try {
       if (status === 'Done' && paymentStatus === 'Paid') {
@@ -168,9 +168,11 @@ export function TrimTrackDashboard() {
           status, 
           appt.amountDue, 
           `Salon: ${appt.serviceType} for ${appt.customerName}`,
-          undefined,
-          {},
-          paymentMethod
+          0,
+          { stylistName: appt.stylistName },
+          paymentMethod,
+          discountCentavos,
+          discountType
         );
         
         // Loyalty Points
@@ -468,8 +470,8 @@ export function TrimTrackDashboard() {
             isOpen={!!selectedOrderForPayment}
             onClose={() => setSelectedOrderForPayment(null)}
             amountDue={selectedOrderForPayment.amountDue}
-            onConfirm={(method) => {
-              updateStatus(selectedOrderForPayment, 'Done', 'Paid', undefined, method);
+            onConfirm={(method, discountCentavos, discountType) => {
+              updateStatus(selectedOrderForPayment, 'Done', 'Paid', undefined, method, undefined, discountCentavos, discountType);
               setSelectedOrderForPayment(null);
             }}
           />

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DiscountInput } from '@/components/ui/discount-input';
 import { Badge } from "@/components/ui/badge";
 import { Truck, Package, CalendarDays, Plus, Loader2, CheckCircle2, AlertCircle, RotateCcw, Trash2 } from "lucide-react";
 import { useRental } from '@/hooks/use-rental';
@@ -152,9 +153,14 @@ export function RentalDashboard() {
   const [completedSale, setCompletedSale] = useState<{
     items: any[];
     total: number;
+    discountCentavos: number;
+    discountType: string;
     paymentMethod: string;
     saleId?: string;
   } | null>(null);
+
+  const [discountType, setDiscountType] = useState<'percentage'|'fixed'>('percentage');
+  const [discountValue, setDiscountValue] = useState('');
 
   const handleAddBooking = async (e?: React.FormEvent, paymentRef?: string) => {
     if (e) e.preventDefault();
@@ -165,29 +171,45 @@ export function RentalDashboard() {
       if (!selectedItem) throw new Error("Item not found in inventory.");
       if (selectedItem.availableQuantity <= 0) throw new Error(`${selectedItem.name} is currently fully rented out.`);
 
+      const parsedCost = Number(bookingCost) || 0;
+      const parsedDiscount = parseFloat(discountValue) || 0;
+      let discountCentavos = 0;
+      if (discountType === 'percentage') {
+        discountCentavos = Math.round((parsedCost * 100 * parsedDiscount) / 100);
+      } else {
+        discountCentavos = Math.round(parsedDiscount * 100);
+      }
+      if (discountCentavos > parsedCost * 100) discountCentavos = parsedCost * 100;
+
+      const finalTotalCentavos = Math.max(0, parsedCost * 100 - discountCentavos);
+
       const bookingId = await processRentalBooking(
         currentTenant.id,
         bookingItemId,
         selectedItem.name,
         bookingCustomer,
-        Number(bookingCost),
+        parsedCost * 100, // Pass centavos
         bookingPaymentTiming,
         bookingPaymentTiming === 'upfront' ? bookingPaymentMethod : undefined,
-        paymentRef
+        paymentRef,
+        discountCentavos,
+        discountType
       );
 
       setCompletedSale({
         items: [{
           name: selectedItem.name,
           quantity: 1,
-          price: Number(bookingCost) * 100
+          price: parsedCost * 100
         }],
-        total: Number(bookingCost) * 100,
+        total: finalTotalCentavos,
+        discountCentavos,
+        discountType,
         paymentMethod: bookingPaymentTiming === 'upfront' ? bookingPaymentMethod : 'Unpaid (Pay on Return)',
         saleId: bookingId
       });
 
-      setBookingItemId(''); setBookingCustomer(''); setBookingCost('');
+      setBookingItemId(''); setBookingCustomer(''); setBookingCost(''); setDiscountValue('');
       setShowNewBookingModal(false);
       setShowReceipt(true);
       showSuccess(`Booking para kay ${bookingCustomer} naitala!`);
@@ -344,9 +366,18 @@ export function RentalDashboard() {
                         <Input id="booking-customer" name="bookingCustomer" required type="text" value={bookingCustomer} onChange={e => setBookingCustomer(e.target.value)} className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 mt-1" placeholder="Juan Dela Cruz" />
                       </div>
                       <div>
-                        <label className="text-xs font-bold text-slate-500 uppercase">Total Cost (₱)</label>
+                        <label className="text-xs font-bold text-slate-500 uppercase">Total Cost Before Discount (₱)</label>
                         <Input id="booking-cost" name="bookingCost" required type="number" value={bookingCost} onChange={e => setBookingCost(e.target.value)} className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 mt-1" placeholder="5000" />
                       </div>
+
+                      <DiscountInput 
+                        discountType={discountType}
+                        discountValue={discountValue}
+                        onTypeChange={setDiscountType}
+                        onValueChange={setDiscountValue}
+                        subtotal={(parseFloat(bookingCost) || 0) * 100}
+                      />
+
                       <div className="pt-2 border-t border-slate-100">
                         <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Payment Timing</label>
                         <div className="flex gap-2">

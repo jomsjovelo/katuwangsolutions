@@ -5,7 +5,7 @@ import { runTransactionResilient } from './resilient-transaction';
 
 export const getKatuwangDb = () => initializeFirebase().db;
 
-export async function addFoodOrder(tenantId: string, tableNumber: string, items: any[], discountCentavos: number = 0, customerPhone?: string, referrerCode?: string, paymentMethod: string = 'cash', gcashRef?: string, tableId?: string) {
+export async function addFoodOrder(tenantId: string, tableNumber: string, items: any[], discountCentavos: number = 0, customerPhone?: string, referrerCode?: string, paymentMethod: string = 'cash', gcashRef?: string, tableId?: string, discountType?: 'percentage' | 'fixed') {
   const db = getKatuwangDb();
   let orderId = '';
   
@@ -119,6 +119,9 @@ export async function addFoodOrder(tenantId: string, tableNumber: string, items:
         tenantId,
         module: 'food',
         items: validatedItems,
+        subtotalAmount: secureTotalAmount,
+        discountAmount: discountCentavos,
+        discountType: discountType || 'none',
         totalAmount: finalAmount,
         paymentMethod: paymentMethod,
         createdAt: serverTimestamp()

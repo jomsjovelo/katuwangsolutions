@@ -273,7 +273,7 @@ export function AutoBossDashboard() {
     }
   };
 
-  const updateStatus = async (order: any, status: string, paymentStatus?: string, paymentMethod: string = 'cash') => {
+  const updateStatus = async (order: any, status: string, paymentStatus?: string, paymentMethod: string = 'cash', discountCentavos: number = 0, discountType?: 'percentage' | 'fixed') => {
     if (!currentTenant || !db) return;
     try {
       if (status === 'Completed' && paymentStatus === 'Paid') {
@@ -290,7 +290,9 @@ export function AutoBossDashboard() {
           `Auto Boss: ${order.plateNumber}`,
           commissionCentavos,
           { partsUsed: order.partsUsed || [] },
-          paymentMethod
+          paymentMethod,
+          discountCentavos,
+          discountType
         );
         if (order.customerPhone && order.amountDue > 0) {
           try {
@@ -644,8 +646,8 @@ export function AutoBossDashboard() {
             isOpen={!!selectedOrderForPayment}
             onClose={() => setSelectedOrderForPayment(null)}
             amountDue={selectedOrderForPayment.amountDue}
-            onConfirm={(method) => {
-              updateStatus(selectedOrderForPayment, 'Completed', 'Paid', method);
+            onConfirm={(method, discountCentavos, discountType) => {
+              updateStatus(selectedOrderForPayment, 'Completed', 'Paid', method, discountCentavos, discountType);
               setSelectedOrderForPayment(null);
             }}
           />

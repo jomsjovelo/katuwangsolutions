@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
+import { DiscountInput } from '@/components/ui/discount-input';
 import { GCashQrModal } from '@/components/common/gcash-qr-modal';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { TableSetupModal } from './table-setup-modal';
@@ -164,9 +165,14 @@ export function FoodDashboard() {
   const [completedSale, setCompletedSale] = useState<{
     items: any[];
     total: number;
+    discountCentavos: number;
+    discountType: string;
     paymentMethod: string;
     saleId?: string;
   } | null>(null);
+
+  const [discountType, setDiscountType] = useState<'percentage'|'fixed'>('percentage');
+  const [discountValue, setDiscountValue] = useState('');
 
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
@@ -256,6 +262,17 @@ export function FoodDashboard() {
 
   const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
+  const parsedDiscount = parseFloat(discountValue) || 0;
+  let discountCentavos = 0;
+  if (discountType === 'percentage') {
+    discountCentavos = Math.round((cartTotal * parsedDiscount) / 100);
+  } else {
+    discountCentavos = Math.round(parsedDiscount * 100);
+  }
+  if (discountCentavos > cartTotal) discountCentavos = cartTotal;
+
+  const finalTotalCentavos = Math.max(0, cartTotal - discountCentavos);
+
   const handleCheckout = async (paymentMethod: string = 'cash', gcashRef?: string) => {
     if (!currentTenant || cart.length === 0) return;
     try {
@@ -270,19 +287,22 @@ export function FoodDashboard() {
         currentTenant.id, 
         tableName || 'Unknown',
         cart,
-        0, // discount
+        discountCentavos, // discount
         undefined, // phone
         undefined, // referrer
         paymentMethod,
         gcashRef,
-        activeTableIdForOrder || undefined
+        activeTableIdForOrder || undefined,
+        discountType
       );
       
       if (!isTableOrder) {
         // Complete sale info only for non-table orders (table orders settle later)
         setCompletedSale({
           items: [...cart],
-          total: cartTotal,
+          total: finalTotalCentavos,
+          discountCentavos,
+          discountType,
           paymentMethod,
           saleId: orderId
         });
@@ -295,6 +315,7 @@ export function FoodDashboard() {
       setCart([]);
       setSelectedTable('');
       setActiveTableIdForOrder(null);
+      setDiscountValue('');
     } catch (e: any) {
       setError(e.message);
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
@@ -489,7 +510,6 @@ export function FoodDashboard() {
                   <CardTitle className="text-sm font-bold flex items-center gap-2">
                     <ShoppingCart className="h-4 w-4" /> Current Order
                   </CardTitle>
-                  <span className="font-black text-lg">₱{(cartTotal / 100).toLocaleString()}</span>
                 </CardHeader>
                 <CardContent className="p-0 max-h-40 overflow-y-auto">
                   <div className="divide-y divide-slate-100">
@@ -520,8 +540,18 @@ export function FoodDashboard() {
                     ))}
                   </div>
                 </CardContent>
-                <div className="p-3 bg-white">
-                  {/* Custom Table / Name Input (Only if not using table grid) */}
+                <div className="border-t border-slate-100 bg-slate-50/70 p-4 space-y-4">
+                  
+                  {cart.length > 0 && (
+                    <DiscountInput 
+                      discountType={discountType}
+                      discountValue={discountValue}
+                      onTypeChange={setDiscountType}
+                      onValueChange={setDiscountValue}
+                      subtotal={cartTotal}
+                    />
+                  )}
+
                   {!activeTableIdForOrder && (
                     <div className="space-y-1">
                       <Label htmlFor="table-name" className="text-xs text-slate-500 font-bold uppercase tracking-widest">Table Name / Number</Label>
@@ -534,6 +564,14 @@ export function FoodDashboard() {
                       />
                     </div>
                   )}
+
+                  <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Total</span>
+                      <span className="text-3xl font-black font-headline tracking-tighter text-slate-900 leading-none">
+                        ₱{(finalTotalCentavos / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                      </span>
+                  </div>
+
                   <div className="flex gap-2 mt-3">
                     <Button 
                       className="h-12 flex-1 font-bold text-white shadow-md active:scale-95 border-none" 

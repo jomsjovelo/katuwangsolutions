@@ -243,7 +243,9 @@ export async function recordLoan(
 export async function recordPayment(
   tenantId: string,
   borrowerId: string,
-  paymentAmountPesos: number
+  paymentAmountPesos: number,
+  discountCentavos: number = 0,
+  discountType?: 'percentage' | 'fixed'
 ) {
   if (isNaN(paymentAmountPesos) || paymentAmountPesos <= 0) throw new Error("Ang halaga ng bayad ay dapat valid at higit sa zero.");
 
@@ -261,16 +263,17 @@ export async function recordPayment(
       const data = bSnap.data();
       const currentOutstanding = data.outstanding || 0;
       const paymentCentavos = Math.round(paymentAmountPesos * 100);
+      const totalReductionCentavos = paymentCentavos + discountCentavos;
 
-      if (paymentCentavos > currentOutstanding) {
-        throw new Error(`Sobra: Ang ibinabayad na ₱${paymentAmountPesos} ay higit sa utang na ₱${(currentOutstanding / 100).toFixed(2)}.`);
+      if (totalReductionCentavos > currentOutstanding) {
+        throw new Error(`Sobra: Ang ibinabayad + discount ay higit sa utang na ₱${(currentOutstanding / 100).toFixed(2)}.`);
       }
 
       const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
       const masterAccountSnap = await transaction.get(masterAccountRef);
 
       // 2. Perform all writes
-      const newOutstanding = Math.max(0, currentOutstanding - paymentCentavos);
+      const newOutstanding = Math.max(0, currentOutstanding - totalReductionCentavos);
       const newStatus = newOutstanding === 0 ? 'fully_paid' : 'active';
 
       transaction.update(borrowerRef, {
@@ -285,6 +288,7 @@ export async function recordPayment(
       transaction.set(newTxDocRef, {
         type: 'payment',
         amount: paymentCentavos,
+        discount: discountCentavos,
         interest: 0,
         timestamp: serverTimestamp()
       });
@@ -328,7 +332,10 @@ export async function recordPayment(
         id: newSaleRef.id,
         tenantId,
         module: '5-6-tracker',
-        items: [{ name: `Loan Payment from ${data.name}`, quantity: 1, price: paymentCentavos }],
+        items: [{ productId: borrowerId, name: `Loan Payment: ${data.name || 'Borrower'}`, price: totalReductionCentavos, quantity: 1 }],
+        subtotalAmount: totalReductionCentavos,
+        discountAmount: discountCentavos,
+        discountType: discountType || 'none',
         totalAmount: paymentCentavos,
         paymentMethod: 'cash',
         createdAt: serverTimestamp()

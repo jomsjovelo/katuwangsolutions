@@ -23,6 +23,7 @@ import { useIngredients } from '@/hooks/use-ingredients';
 import { useToast } from '@/hooks/use-toast';
 import { GCashQrModal } from '@/components/common/gcash-qr-modal';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
+import { DiscountInput } from '@/components/ui/discount-input';
 import { TableSetupModal } from './table-setup-modal';
 import { TableGrid } from './table-grid';
 import { RunningBillDrawer } from './running-bill-drawer';
@@ -165,9 +166,14 @@ export function TimplaDashboard() {
   const [completedSale, setCompletedSale] = useState<{
     items: any[];
     total: number;
+    discountCentavos: number;
+    discountType: string;
     paymentMethod: string;
     saleId?: string;
   } | null>(null);
+
+  const [discountType, setDiscountType] = useState<'percentage'|'fixed'>('percentage');
+  const [discountValue, setDiscountValue] = useState('');
 
   React.useEffect(() => {
     const fetchPoints = async () => {
@@ -343,25 +349,39 @@ export function TimplaDashboard() {
       const isTableOrder = !!activeTableIdForOrder;
       const targetTable = tables.find((t: any) => t.id === activeTableIdForOrder);
       const tableName = isTableOrder ? targetTable?.name : (selectedTable.trim() || `Takeout ${new Date().getTime().toString().slice(-4)}`);
-      const discount = isRedeeming ? 5000 : 0;
-      const saleTotal = cartTotal - discount;
+      
+      const parsedDiscount = parseFloat(discountValue) || 0;
+      let uiDiscountCentavos = 0;
+      if (discountType === 'percentage') {
+        uiDiscountCentavos = Math.round((cartTotal * parsedDiscount) / 100);
+      } else {
+        uiDiscountCentavos = Math.round(parsedDiscount * 100);
+      }
+      
+      const loyaltyDiscount = isRedeeming ? 5000 : 0;
+      const totalDiscountCentavos = uiDiscountCentavos + loyaltyDiscount;
+
+      const finalTotalCentavos = Math.max(0, cartTotal - totalDiscountCentavos);
       
       const orderId = await addFoodOrder(
         currentTenant.id, 
         tableName || 'Unknown',
         cart,
-        discount,
+        totalDiscountCentavos,
         customerPhone || undefined,
         undefined, // referrerCode
         paymentMethod,
         gcashRef,
-        activeTableIdForOrder || undefined
+        activeTableIdForOrder || undefined,
+        discountType
       );
 
       if (!isTableOrder) {
         setCompletedSale({
           items: cart,
-          total: saleTotal,
+          total: finalTotalCentavos,
+          discountCentavos: totalDiscountCentavos,
+          discountType,
           paymentMethod,
           saleId: orderId
         });
@@ -376,6 +396,7 @@ export function TimplaDashboard() {
       setCustomerPhone('');
       setIsRedeeming(false);
       setActiveTableIdForOrder(null);
+      setDiscountValue('');
       toast({ title: 'Order Submitted!', description: 'Sent to the Barista.' });
     } catch (e: any) {
       setError(e.message);
@@ -577,46 +598,59 @@ export function TimplaDashboard() {
                     ))}
                   </div>
                 </CardContent>
-                <div className="p-3 bg-white space-y-3 rounded-b-xl">
-                  {/* Custom Table / Name Input (Only if not using table grid) */}
-                  {!activeTableIdForOrder && (
-                    <div className="space-y-1">
-                      <Label htmlFor="table-name" className="text-xs text-slate-500 font-bold uppercase tracking-widest">Table Name / Number</Label>
-                      <Input 
-                        id="table-name"
-                        name="tableName"
-                        placeholder="e.g. Takeout or Delivery" 
-                        value={selectedTable} 
-                        onChange={e => setSelectedTable(e.target.value)}
-                        className="h-9 text-sm"
-                      />
-                    </div>
+                <div className="p-3 bg-white space-y-3 rounded-b-xl border-t border-slate-100 bg-slate-50/70 p-4">
+
+                  {cart.length > 0 && (
+                    <DiscountInput 
+                      discountType={discountType}
+                      discountValue={discountValue}
+                      onTypeChange={setDiscountType}
+                      onValueChange={setDiscountValue}
+                      subtotal={cartTotal}
+                    />
                   )}
-                  
-                  <div className="space-y-1 mt-2">
-                    <Label htmlFor="customer-phone" className="text-xs">Customer Phone (For Points)</Label>
-                    <Input id="customer-phone" placeholder="e.g. 09171234567" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className="h-9" />
-                    {customerPhone && pointsBalance >= 100 && cartTotal >= 5000 && (
-                      <div className="flex items-center space-x-2 mt-2 bg-emerald-50 p-2 rounded-lg border border-emerald-100">
-                        <Switch 
-                          id="redeem-points-timpla" 
-                          checked={isRedeeming}
-                          onCheckedChange={setIsRedeeming}
-                          className="data-[state=checked]:bg-emerald-500"
+
+                  <div className="space-y-1 bg-white p-3 rounded-lg border border-slate-200">
+                    {/* Custom Table / Name Input (Only if not using table grid) */}
+                    {!activeTableIdForOrder && (
+                      <div className="space-y-1">
+                        <Label htmlFor="table-name" className="text-xs text-slate-500 font-bold uppercase tracking-widest">Table Name / Number</Label>
+                        <Input 
+                          id="table-name"
+                          name="tableName"
+                          placeholder="e.g. Takeout or Delivery" 
+                          value={selectedTable} 
+                          onChange={e => setSelectedTable(e.target.value)}
+                          className="h-9 text-sm"
                         />
-                        <Label htmlFor="redeem-points-timpla" className="text-xs font-bold text-emerald-800 cursor-pointer">
-                          Redeem 100 pts for ₱50 Off
-                        </Label>
                       </div>
                     )}
+                    
+                    <div className="space-y-1 mt-2">
+                      <Label htmlFor="customer-phone" className="text-xs">Customer Phone (For Points)</Label>
+                      <Input id="customer-phone" placeholder="e.g. 09171234567" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className="h-9" />
+                      {customerPhone && pointsBalance >= 100 && cartTotal >= 5000 && (
+                        <div className="flex items-center space-x-2 mt-2 bg-emerald-50 p-2 rounded-lg border border-emerald-100">
+                          <Switch 
+                            id="redeem-points-timpla" 
+                            checked={isRedeeming}
+                            onCheckedChange={setIsRedeeming}
+                            className="data-[state=checked]:bg-emerald-500"
+                          />
+                          <Label htmlFor="redeem-points-timpla" className="text-xs font-bold text-emerald-800 cursor-pointer">
+                            Redeem 100 pts for ₱50 Off
+                          </Label>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   
-                  {isRedeeming && (
-                    <div className="flex justify-between items-center text-sm font-bold border-t pt-2 mt-2">
-                      <span>Total after Discount:</span>
-                      <span className="text-emerald-600">₱{((cartTotal - 5000) / 100).toLocaleString()}</span>
-                    </div>
-                  )}
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-200">
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Total</span>
+                      <span className="text-3xl font-black font-headline tracking-tighter text-slate-900 leading-none">
+                        ₱{(currentSaleTotal / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                      </span>
+                  </div>
 
                   <div className="flex gap-2">
                     <Button 

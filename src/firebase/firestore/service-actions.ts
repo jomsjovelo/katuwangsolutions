@@ -30,7 +30,7 @@ export async function addJob(tenantId: string, customerName: string, serviceName
   return newJobRef.id;
 }
 
-export async function updateJobStatus(tenantId: string, jobId: string, newStatus: JobStatus, amountCentavos?: number, customerName?: string, paymentMethod: string = 'cash', gcashRef?: string) {
+export async function updateJobStatus(tenantId: string, jobId: string, newStatus: JobStatus, amountCentavos?: number, customerName?: string, paymentMethod: string = 'cash', gcashRef?: string, discountCentavos: number = 0, discountType?: 'percentage' | 'fixed') {
   const db = getKatuwangDb();
   
   await runTransactionResilient(db, async (transaction) => {
@@ -98,6 +98,8 @@ export async function updateJobStatus(tenantId: string, jobId: string, newStatus
         createdAt: serverTimestamp()
       });
 
+      const finalAmount = Math.max(0, amountCentavos - discountCentavos);
+
       // Write to unified sales subcollection
       const salesRef = collection(db, 'tenants', tenantId, 'sales');
       const newSaleRef = doc(salesRef);
@@ -108,7 +110,10 @@ export async function updateJobStatus(tenantId: string, jobId: string, newStatus
         tenantId,
         module: 'service',
         items: [{ productId: jobId, name: serviceName, price: amountCentavos, quantity: 1 }],
-        totalAmount: amountCentavos,
+        subtotalAmount: amountCentavos,
+        discountAmount: discountCentavos,
+        discountType: discountType || 'none',
+        totalAmount: finalAmount,
         paymentMethod: paymentMethod,
         createdAt: serverTimestamp()
       };
@@ -131,7 +136,9 @@ export async function completeServiceOrder(
   therapistCommissionCentavos?: number,
   extraUpdates: any = {},
   paymentMethod: string = 'cash',
-  gcashRef?: string
+  gcashRef?: string,
+  discountCentavos: number = 0,
+  discountType?: 'percentage' | 'fixed'
 ) {
   if (amountCentavos < 0 || isNaN(amountCentavos)) {
     throw new Error('Invalid payment amount.');
@@ -219,6 +226,8 @@ export async function completeServiceOrder(
         createdAt: serverTimestamp()
       });
 
+      const finalAmount = Math.max(0, amountCentavos - discountCentavos);
+
       // Write to unified sales subcollection
       const salesRef = collection(db, 'tenants', tenantId, 'sales');
       const newSaleRef = doc(salesRef);
@@ -228,7 +237,10 @@ export async function completeServiceOrder(
         tenantId,
         module: 'service',
         items: [{ productId: orderId, name: description, price: amountCentavos, quantity: 1, ...(extraUpdates.partsUsed && { partsUsed: extraUpdates.partsUsed }) }],
-        totalAmount: amountCentavos,
+        subtotalAmount: amountCentavos,
+        discountAmount: discountCentavos,
+        discountType: discountType || 'none',
+        totalAmount: finalAmount,
         paymentMethod: paymentMethod,
         createdAt: serverTimestamp()
       };

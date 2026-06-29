@@ -46,7 +46,7 @@ export async function openTable(tenantId: string, tableId: string, guestCount: n
   return true;
 }
 
-export async function settleTable(tenantId: string, tableId: string, paymentMethod: string, gcashRef?: string) {
+export async function settleTable(tenantId: string, tableId: string, paymentMethod: string, gcashRef?: string, discountCentavos: number = 0, discountType?: 'percentage' | 'fixed') {
   const db = getKatuwangDb();
   
   let completedSaleItems: any[] = [];
@@ -83,8 +83,10 @@ export async function settleTable(tenantId: string, tableId: string, paymentMeth
       }
     }
 
+    finalRunningTotal = Math.max(0, runningTotal - discountCentavos);
+
     // Ledger Writes
-    if (runningTotal > 0) {
+    if (finalRunningTotal > 0 && paymentMethod !== 'utang') {
       const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
       const masterAccountSnap = await transaction.get(masterAccountRef);
       
@@ -94,14 +96,14 @@ export async function settleTable(tenantId: string, tableId: string, paymentMeth
           tenantId,
           name: 'Main Cash Register',
           type: 'asset',
-          balance: runningTotal,
+          balance: finalRunningTotal,
           isActive: true,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         });
       } else {
         transaction.update(masterAccountRef, {
-          balance: increment(runningTotal),
+          balance: increment(finalRunningTotal),
           updatedAt: serverTimestamp()
         });
       }
@@ -112,7 +114,7 @@ export async function settleTable(tenantId: string, tableId: string, paymentMeth
         id: newTxRef.id,
         tenantId,
         accountId: 'master-cash',
-        amount: runningTotal,
+        amount: finalRunningTotal,
         type: 'income',
         description: `Table Settle: ${tableData.name} (${paymentMethod})`,
         date: new Date(),
@@ -126,7 +128,10 @@ export async function settleTable(tenantId: string, tableId: string, paymentMeth
         tenantId,
         module: 'food',
         items: completedSaleItems,
-        totalAmount: runningTotal,
+        subtotalAmount: runningTotal,
+        discountAmount: discountCentavos,
+        discountType: discountType || 'none',
+        totalAmount: finalRunningTotal,
         paymentMethod: paymentMethod,
         createdAt: serverTimestamp()
       };

@@ -175,7 +175,7 @@ export function SpinDashboard() {
     }
   };
 
-  const updateStatus = async (order: any, status: string, paymentStatus?: string, machineNumber?: string, paymentMethod: string = 'cash') => {
+  const updateStatus = async (order: any, status: string, paymentStatus?: string, machineNumber?: string, paymentMethod: string = 'cash', discountCentavos: number = 0, discountType?: 'percentage' | 'fixed') => {
     if (!currentTenant || !db) return;
     try {
       if (paymentStatus === 'Paid') {
@@ -189,7 +189,9 @@ export function SpinDashboard() {
           `Laundry: ${order.customerName} (${order.kilos}kg)`,
           undefined,
           {},
-          paymentMethod
+          paymentMethod,
+          discountCentavos,
+          discountType
         );
         
         // Loyalty Points
@@ -414,8 +416,8 @@ export function SpinDashboard() {
             isOpen={!!selectedOrderForPayment}
             onClose={() => setSelectedOrderForPayment(null)}
             amountDue={selectedOrderForPayment.amountDue}
-            onConfirm={(method) => {
-              updateStatus(selectedOrderForPayment, 'Claimed', 'Paid', undefined, method);
+            onConfirm={(method, discountCentavos, discountType) => {
+              updateStatus(selectedOrderForPayment, 'Claimed', 'Paid', undefined, method, discountCentavos, discountType);
               setSelectedOrderForPayment(null);
             }}
           />

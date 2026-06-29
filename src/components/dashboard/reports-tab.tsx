@@ -246,6 +246,11 @@ export function ReportsTab() {
   };
 
   const { start: rangeStart, end: rangeEnd } = React.useMemo(() => getRangeBounds(dateRangeStr), [dateRangeStr]);
+  
+  // Load unified sales for gross sales vs discounts visualization
+  const { sales } = useSales({ start: rangeStart, end: rangeEnd });
+  const totalDiscountsGivenPesos = sales.reduce((acc, sale) => acc + ((sale.discountAmount || 0) / 100), 0);
+  const grossSalesBeforeDiscountsPesos = sales.reduce((acc, sale) => acc + ((sale.subtotalAmount || sale.totalAmount || 0) / 100), 0);
 
   // Load unified master ledger transactions
   useEffect(() => {
@@ -643,6 +648,40 @@ export function ReportsTab() {
              </div>
           </CardHeader>
           <CardContent className="p-5 pt-4 space-y-4">
+             {/* Gross Sales vs Discounts Visualization */}
+             {grossSalesBeforeDiscountsPesos > 0 && (
+               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-4 space-y-3">
+                 <div className="flex justify-between items-center">
+                   <span className="text-xs font-black uppercase tracking-widest text-slate-500">Gross Sales (Pre-Discount)</span>
+                   <span className="text-sm font-black text-slate-800">₱{grossSalesBeforeDiscountsPesos.toLocaleString('en-PH', {minimumFractionDigits: 2})}</span>
+                 </div>
+                 
+                 <div className="flex items-center gap-3">
+                   <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden flex">
+                     <div 
+                       className="bg-emerald-500 h-full"
+                       style={{ width: `${Math.max(0, 100 - (totalDiscountsGivenPesos / grossSalesBeforeDiscountsPesos) * 100)}%` }}
+                     />
+                     <div 
+                       className="bg-rose-400 h-full"
+                       style={{ width: `${(totalDiscountsGivenPesos / grossSalesBeforeDiscountsPesos) * 100}%` }}
+                     />
+                   </div>
+                 </div>
+                 
+                 <div className="flex justify-between items-center text-xs font-bold">
+                   <span className="text-emerald-600 flex items-center gap-1">
+                     <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                     Net: ₱{(grossSalesBeforeDiscountsPesos - totalDiscountsGivenPesos).toLocaleString('en-PH', {minimumFractionDigits: 2})}
+                   </span>
+                   <span className="text-rose-500 flex items-center gap-1">
+                     Total Discounts Given: ₱{totalDiscountsGivenPesos.toLocaleString('en-PH', {minimumFractionDigits: 2})}
+                     <div className="w-2 h-2 rounded-full bg-rose-400" />
+                   </span>
+                 </div>
+               </div>
+             )}
+
              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
                <span className="text-xs font-bold text-slate-500">Gross Revenue</span>
                <span className="text-sm font-black text-slate-800">₱{grossIncomePesos.toLocaleString('en-PH', {minimumFractionDigits: 2})}</span>

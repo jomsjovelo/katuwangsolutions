@@ -16,6 +16,7 @@ import { useFarmHarvests } from '@/hooks/use-farm';
 import { useToast } from '@/hooks/use-toast';
 import { GCashQrModal } from '@/components/common/gcash-qr-modal';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
+import { ServicePaymentModal } from '@/components/common/service-payment-modal';
 import { 
   Tractor, 
   Plus, 
@@ -146,7 +147,9 @@ export function FarmDashboard() {
     }
   };
 
-  const updateStatus = async (harvest: any, status: string, paymentStatus?: string, paymentMethod: string = 'cash') => {
+  const [pendingPaymentHarvest, setPendingPaymentHarvest] = useState<any | null>(null);
+
+  const updateStatus = async (harvest: any, status: string, paymentStatus?: string, paymentMethod: string = 'cash', discountCentavos: number = 0, discountType?: 'percentage' | 'fixed') => {
     if (!currentTenant || !db) return;
     try {
       if (status === 'Dispatched' && paymentStatus === 'Paid') {
@@ -159,7 +162,9 @@ export function FarmDashboard() {
           `Agriculture: Sold ${harvest.quantity} ${harvest.unit} of ${harvest.cropType}`,
           undefined,
           {},
-          paymentMethod
+          paymentMethod,
+          discountCentavos,
+          discountType
         );
         
         setCompletedSale({
@@ -316,14 +321,8 @@ export function FarmDashboard() {
                     handleDeleteHarvest={handleDeleteHarvest}
                     actions={
                       <div className="flex gap-2 w-full">
-                        <Button size="sm" className="flex-1 h-7 text-[10px] font-bold text-white border-none" style={{ backgroundColor: theme.primary }} onClick={() => updateStatus(harvest, 'Dispatched', 'Paid', 'cash')}>
-                          <Coins className="h-3 w-3 mr-1" /> Cash
-                        </Button>
-                        <Button size="sm" className="flex-1 h-7 text-[10px] font-bold text-white border-none" style={{ backgroundColor: '#007aff' }} onClick={() => {
-                          setPendingPaymentHarvest(harvest);
-                          setShowGCashQr(true);
-                        }}>
-                          <Receipt className="h-3 w-3 mr-1" /> GCash
+                        <Button size="sm" className="flex-1 h-7 text-[10px] font-bold text-white border-none" style={{ backgroundColor: theme.primary }} onClick={() => setPendingPaymentHarvest(harvest)}>
+                          <Coins className="h-3 w-3 mr-1" /> Pay / Dispatch
                         </Button>
                       </div>
                     } 
@@ -361,6 +360,22 @@ export function FarmDashboard() {
 
       </main>
 
+      {pendingPaymentHarvest && !showGCashQr && (
+        <ServicePaymentModal
+          isOpen={!!pendingPaymentHarvest}
+          onClose={() => setPendingPaymentHarvest(null)}
+          amountDue={pendingPaymentHarvest.expectedValue * 100}
+          onConfirm={(method, discountCentavos, discountType) => {
+            if (method === 'gcash') {
+              setShowGCashQr(true);
+            } else {
+              updateStatus(pendingPaymentHarvest, 'Dispatched', 'Paid', method, discountCentavos, discountType);
+              setPendingPaymentHarvest(null);
+            }
+          }}
+        />
+      )}
+
       <GCashQrModal
         open={showGCashQr}
         onClose={() => {
@@ -370,10 +385,10 @@ export function FarmDashboard() {
         totalAmount={(pendingPaymentHarvest?.expectedValue || 0) * 100}
         tenantName={currentTenant?.name || "Katuwang Farm"}
         paymentType="gcash"
-        onPaymentVerified={async (paymentMethod, gcashRef) => {
-          setShowGCashQr(false);
+        onPaymentVerified={async (paymentMethod) => {
           if (pendingPaymentHarvest) {
             await updateStatus(pendingPaymentHarvest, 'Dispatched', 'Paid', paymentMethod);
+            setShowGCashQr(false);
             setPendingPaymentHarvest(null);
           }
         }}

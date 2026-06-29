@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { GCashQrModal } from '@/components/common/gcash-qr-modal';
 import { BarcodeScannerModal } from './barcode-scanner-modal';
+import { DiscountInput } from '@/components/ui/discount-input';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { 
   Sheet, 
@@ -228,15 +229,29 @@ function BentaDashboardContent() {
   const [completedSale, setCompletedSale] = useState<{
     items: CartItem[];
     total: number;
+    discountCentavos?: number;
+    discountType?: string;
     paymentMethod: string;
     saleId?: string;
     pointsEarned?: number;
   } | null>(null);
 
+  const [discountType, setDiscountType] = useState<'percentage'|'fixed'>('percentage');
+  const [discountValue, setDiscountValue] = useState('');
+
   // Dynamically resolve Katuwang industry theme based on active tenant's moduleType
   const theme = getModuleTheme(currentTenant?.moduleType);
 
-  const finalTotalCentavos = totalCentavos;
+  const parsedDiscount = parseFloat(discountValue) || 0;
+  let discountCentavos = 0;
+  if (discountType === 'percentage') {
+    discountCentavos = Math.round((totalCentavos * parsedDiscount) / 100);
+  } else {
+    discountCentavos = Math.round(parsedDiscount * 100);
+  }
+  if (discountCentavos > totalCentavos) discountCentavos = totalCentavos;
+
+  const finalTotalCentavos = Math.max(0, totalCentavos - discountCentavos);
   const finalTotalPesos = finalTotalCentavos / 100;
   
   // Immersive dynamic status bar viewport tracking for PWA Android/iOS notch
@@ -288,12 +303,14 @@ function BentaDashboardContent() {
       setError(null);
       
       // Execute safe atomic transaction in Firestore — returns real Firestore document ID
-      const saleId = await processCheckout(currentTenant.id, cart, finalTotalCentavos, paymentMethod, gcashRef);
+      const saleId = await processCheckout(currentTenant.id, cart, finalTotalCentavos, paymentMethod, gcashRef, discountCentavos, discountType);
       
       // Store transaction data for receipt representation with the REAL Firestore ID
       setCompletedSale({
         items: [...cart],
         total: finalTotalCentavos,
+        discountCentavos,
+        discountType,
         paymentMethod,
         saleId, // Always the real Firestore document ID — never Math.random()
         pointsEarned: 0,
@@ -347,11 +364,13 @@ function BentaDashboardContent() {
       setError(null);
       
       const palistaDate = new Date();
-      const saleId = await processCreditCheckout(currentTenant.id, cart, finalTotalCentavos, palistaName, palistaDate);
+      const saleId = await processCreditCheckout(currentTenant.id, cart, finalTotalCentavos, palistaName, undefined, discountCentavos, discountType);
       
       setCompletedSale({
         items: [...cart],
         total: finalTotalCentavos,
+        discountCentavos,
+        discountType,
         paymentMethod: 'palista',
         saleId,
         pointsEarned: 0,
@@ -623,6 +642,15 @@ function BentaDashboardContent() {
 
                 {/* Checkout pricing details block */}
                 <div className="border-t border-slate-100 bg-slate-50/70 p-4 space-y-4">
+                  {cart.length > 0 && (
+                    <DiscountInput 
+                      discountType={discountType}
+                      discountValue={discountValue}
+                      onTypeChange={setDiscountType}
+                      onValueChange={setDiscountValue}
+                      subtotal={totalCentavos}
+                    />
+                  )}
                   
                   <div className="flex flex-col gap-1">
                     <div className="flex justify-between items-end">
@@ -756,6 +784,16 @@ function BentaDashboardContent() {
           {/* Bottom Total & Actions */}
           <div className="border-t border-slate-100 pt-4 mt-4 space-y-4">
             
+            {cart.length > 0 && (
+              <DiscountInput 
+                discountType={discountType}
+                discountValue={discountValue}
+                onTypeChange={setDiscountType}
+                onValueChange={setDiscountValue}
+                subtotal={totalCentavos}
+              />
+            )}
+
             <div className="flex flex-col gap-1">
               <div className="flex justify-between items-end">
                 <span className="text-xs font-black uppercase text-slate-500">Kabuuang Halaga</span>

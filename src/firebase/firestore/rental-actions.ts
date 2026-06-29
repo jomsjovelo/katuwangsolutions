@@ -12,7 +12,9 @@ export async function processRentalBooking(
   totalCost: number,
   paymentTiming: 'upfront' | 'return',
   paymentMethod?: string,
-  gcashRef?: string
+  gcashRef?: string,
+  discountCentavos: number = 0,
+  discountType?: 'percentage' | 'fixed'
 ): Promise<string> {
   const db = getKatuwangDb();
   let bookingId = '';
@@ -50,10 +52,13 @@ export async function processRentalBooking(
       startDate: new Date(),
       endDate: new Date(Date.now() + 86400000), // Default 1 day for now
       status: 'active',
-      totalCost,
       depositStatus: 'pending',
       paymentStatus: paymentTiming === 'upfront' ? 'paid' : 'unpaid',
-      paymentMethod: paymentTiming === 'upfront' ? paymentMethod : undefined,
+      paymentMethod: paymentTiming === 'upfront' ? paymentMethod || 'cash' : null,
+      totalCost,
+      discountAmount: discountCentavos,
+      discountType: discountType || 'none',
+      finalCost: Math.max(0, totalCost - (discountCentavos/100)),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -66,7 +71,8 @@ export async function processRentalBooking(
 
     // 4. Write Phase: Record Sale & Ledger IF paying upfront
     if (paymentTiming === 'upfront' && totalCost > 0) {
-      const centavoAmount = totalCost * 100;
+      const subtotalCentavos = totalCost * 100;
+      const finalCentavos = Math.max(0, subtotalCentavos - discountCentavos);
       
       const salesRef = collection(db, 'tenants', tenantId, 'sales');
       const newSaleRef = doc(salesRef);
@@ -75,8 +81,11 @@ export async function processRentalBooking(
         id: newSaleRef.id,
         tenantId,
         module: 'rental',
-        items: [{ productId: itemId, name: `Rental: ${itemName}`, price: centavoAmount, quantity: 1 }],
-        totalAmount: centavoAmount,
+        items: [{ productId: itemId, name: `Rental: ${itemName}`, price: subtotalCentavos, quantity: 1 }],
+        subtotalAmount: subtotalCentavos,
+        discountAmount: discountCentavos,
+        discountType: discountType || 'none',
+        totalAmount: finalCentavos,
         paymentMethod: paymentMethod || 'cash',
         createdAt: serverTimestamp()
       };
@@ -129,7 +138,9 @@ export async function processRentalReturn(
   tenantId: string,
   booking: any,
   paymentMethod?: string,
-  gcashRef?: string
+  gcashRef?: string,
+  discountCentavos: number = 0,
+  discountType?: 'percentage' | 'fixed'
 ): Promise<void> {
   const db = getKatuwangDb();
   
@@ -163,7 +174,8 @@ export async function processRentalReturn(
 
     // 4. Write Phase: Record Sale & Ledger IF paying on return
     if (booking.paymentStatus === 'unpaid' && booking.totalCost > 0) {
-      const centavoAmount = booking.totalCost * 100;
+      const subtotalCentavos = booking.totalCost * 100;
+      const finalCentavos = Math.max(0, subtotalCentavos - discountCentavos);
       
       const salesRef = collection(db, 'tenants', tenantId, 'sales');
       const newSaleRef = doc(salesRef);
@@ -172,8 +184,11 @@ export async function processRentalReturn(
         id: newSaleRef.id,
         tenantId,
         module: 'rental',
-        items: [{ productId: booking.itemId, name: `Rental Return: ${booking.itemName}`, price: centavoAmount, quantity: 1 }],
-        totalAmount: centavoAmount,
+        items: [{ productId: booking.itemId, name: `Rental Return: ${booking.itemName}`, price: subtotalCentavos, quantity: 1 }],
+        subtotalAmount: subtotalCentavos,
+        discountAmount: discountCentavos,
+        discountType: discountType || 'none',
+        totalAmount: finalCentavos,
         paymentMethod: paymentMethod || 'cash',
         createdAt: serverTimestamp()
       };

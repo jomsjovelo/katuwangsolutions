@@ -53,7 +53,7 @@ export async function updateTripExpenses(tenantId: string, tripId: string, addit
   });
 }
 
-export async function updateTripStatus(tenantId: string, tripId: string, newStatus: 'planned' | 'loading' | 'in_transit' | 'arrived' | 'completed' | 'cancelled', signatureData?: string, paymentMethod: string = 'cash') {
+export async function updateTripStatus(tenantId: string, tripId: string, newStatus: 'planned' | 'loading' | 'in_transit' | 'arrived' | 'completed' | 'cancelled', signatureData?: string, paymentMethod: string = 'cash', discountCentavos: number = 0, discountType?: 'percentage' | 'fixed') {
   const db = getKatuwangDb();
   
   await runTransactionResilient(db, async (transaction) => {
@@ -88,7 +88,9 @@ export async function updateTripStatus(tenantId: string, tripId: string, newStat
     // ERP INTEGRATION: If the trip is completed, deposit the delivery fee into the Ledger
     // AND deduct the trip expenses (Gas/Toll)
     if (newStatus === 'completed' && masterAccountRef && masterAccountSnap) {
-      const revenue = deliveryFee;
+      const rawRevenue = deliveryFee;
+      const subtotalAmount = rawRevenue;
+      const revenue = Math.max(0, rawRevenue - discountCentavos);
       const netImpact = revenue - tripExpenses;
 
       if (!masterAccountSnap.exists()) {
@@ -133,7 +135,10 @@ export async function updateTripStatus(tenantId: string, tripId: string, newStat
           id: newSaleRef.id,
           tenantId,
           module: 'trucking',
-          items: [{ name: `Hauling: ${tripData.origin} to ${tripData.destination}`, quantity: 1, price: revenue }],
+          items: [{ name: `Hauling: ${tripData.origin} to ${tripData.destination}`, quantity: 1, price: subtotalAmount }],
+          subtotalAmount: subtotalAmount,
+          discountAmount: discountCentavos,
+          discountType: discountType || 'none',
           totalAmount: revenue,
           paymentMethod: paymentMethod,
           createdAt: serverTimestamp()

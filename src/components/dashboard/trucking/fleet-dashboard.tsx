@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DiscountInput } from '@/components/ui/discount-input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
@@ -206,9 +207,14 @@ export function FleetDashboard() {
   const [completedSale, setCompletedSale] = useState<{
     items: any[];
     total: number;
+    discountCentavos: number;
+    discountType: string;
     paymentMethod: string;
     saleId?: string;
   } | null>(null);
+
+  const [discountType, setDiscountType] = useState<'percentage'|'fixed'>('percentage');
+  const [discountValue, setDiscountValue] = useState('');
 
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
@@ -264,11 +270,11 @@ export function FleetDashboard() {
     }
   };
 
-  const moveTrip = async (id: string, newStatus: 'loading' | 'in_transit' | 'completed', signatureData?: string, paymentMethod?: string) => {
+  const moveTrip = async (id: string, newStatus: 'loading' | 'in_transit' | 'completed', signatureData?: string, paymentMethod?: string, overrideDiscountCentavos?: number, overrideDiscountType?: 'percentage'|'fixed') => {
     if (!currentTenant) return;
     try {
       setIsProcessing(true);
-      await updateTripStatus(currentTenant.id, id, newStatus, signatureData, paymentMethod);
+      await updateTripStatus(currentTenant.id, id, newStatus, signatureData, paymentMethod, overrideDiscountCentavos, overrideDiscountType);
       if (newStatus === 'completed') {
         setShowSignatureModal(null);
         toast({ title: 'Trip Completed', description: 'Fee, expenses, and ePOD saved.' });
@@ -381,15 +387,28 @@ export function FleetDashboard() {
       setIsProcessing(true);
       const trip = trips.find((t: any) => t.id === tripIdToUse);
       
-      await moveTrip(tripIdToUse, 'completed', signatureDataToUse, paymentMethod);
+      const parsedDiscount = parseFloat(discountValue) || 0;
+      let discountCentavos = 0;
+      if (discountType === 'percentage') {
+        discountCentavos = Math.round((trip.deliveryFee * parsedDiscount) / 100);
+      } else {
+        discountCentavos = Math.round(parsedDiscount * 100);
+      }
+      
+      const finalTotalCentavos = Math.max(0, trip.deliveryFee - discountCentavos);
+
+      await moveTrip(tripIdToUse, 'completed', signatureDataToUse, paymentMethod, discountCentavos, discountType);
       
       if (trip && trip.deliveryFee > 0) {
         setCompletedSale({
           items: [{ name: `Hauling: ${trip.origin} to ${trip.destination}`, quantity: 1, price: trip.deliveryFee }],
-          total: trip.deliveryFee,
+          total: finalTotalCentavos,
+          discountCentavos,
+          discountType,
           paymentMethod,
           saleId: trip.id
         });
+        setDiscountValue('');
         setShowReceipt(true);
       }
     } catch (e: any) {
@@ -588,6 +607,16 @@ export function FleetDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-4 space-y-4">
+                {showSignatureModal && trips.find((t: any) => t.id === showSignatureModal) && (
+                  <DiscountInput 
+                    discountType={discountType}
+                    discountValue={discountValue}
+                    onTypeChange={setDiscountType}
+                    onValueChange={setDiscountValue}
+                    subtotal={trips.find((t: any) => t.id === showSignatureModal)?.deliveryFee || 0}
+                  />
+                )}
+                
                 <div className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl overflow-hidden relative">
                   <canvas
                     ref={canvasRef}

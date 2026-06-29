@@ -41,7 +41,9 @@ export async function processCheckout(
   cart: CartItem[],
   totalAmountCentavos: number,
   paymentMethod: string = 'cash',
-  gcashRef?: string
+  gcashRef?: string,
+  discountCentavos: number = 0,
+  discountType?: 'percentage' | 'fixed'
 ): Promise<string> {
   if (cart.length === 0) throw new Error('Cart is empty');
 
@@ -117,6 +119,9 @@ export async function processCheckout(
       id: newSaleRef.id,
       tenantId,
       items: cart,
+      subtotalAmount: secureSubtotalAmount,
+      discountAmount: discountCentavos,
+      discountType: discountType || 'none',
       totalAmount: secureTotalAmount,
       paymentMethod,
       createdAt: serverTimestamp()

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useReducer, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
+import { Label } from "@/components/ui/label";
 // FIX S2-3: Static ES imports replace dynamic require() calls inside useEffect
 import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
@@ -279,6 +280,8 @@ type FormState = {
   loanTermDays: string;
   loanDateStr: string;
   payAmount: string;
+  discountType: 'percentage' | 'fixed';
+  discountValue: string;
   collectTodayMode: boolean;
   capitalAmount: string;
   capitalNote: string;
@@ -301,11 +304,13 @@ const initialFormState: FormState = {
   loanIntervalDays: '3',
   loanDailyDue: '100',
   loanTermDays: '24',
-  loanDateStr: new Date().toISOString().split('T')[0],
-  payAmount: '500',
+  loanDateStr: '',
+  payAmount: '',
+  discountType: 'percentage',
+  discountValue: '',
   collectTodayMode: false,
-  capitalAmount: '10000',
-  capitalNote: 'Initial Capital',
+  capitalAmount: '',
+  capitalNote: ''
 };
 
 type FormAction = 
@@ -359,13 +364,15 @@ export function FiveSixDashboard() {
     editNote, editName, editPhone, editArea, editLimit, editDailyDue,
     newName, newPhone, newArea,
     loanPrincipal, loanInterest, interestMode, loanSchedule, loanIntervalDays, loanDailyDue, loanTermDays, loanDateStr,
-    payAmount, collectTodayMode,
+    payAmount, discountType, discountValue, collectTodayMode,
     capitalAmount, capitalNote
   } = formState;
 
   // Setters for backward compatibility (reduces refactoring churn)
   const setField = useCallback((field: keyof FormState, value: any) => dispatchForm({ type: 'SET_FIELD', field, value }), []);
-  const setEditNote = useCallback((val: string) => setField('editNote', val), [setField]);
+  const setDiscountType = useCallback((val: 'percentage'|'fixed') => setField('discountType', val), [setField]);
+  const setDiscountValue = useCallback((val: string) => setField('discountValue', val), [setField]);
+  const setPayAmount = useCallback((val: string) => setField('payAmount', val), [setField]);
   const setEditName = useCallback((val: string) => setField('editName', val), [setField]);
   const setEditPhone = useCallback((val: string) => setField('editPhone', val), [setField]);
   const setEditArea = useCallback((val: string) => setField('editArea', val), [setField]);
@@ -683,10 +690,20 @@ export function FiveSixDashboard() {
         throw new Error("Ang halaga ng ibabayad ay dapat higit sa zero at valid na numero.");
       }
 
+      const parsedDiscount = parseFloat(discountValue) || 0;
+      let discountCentavos = 0;
+      if (discountType === 'percentage') {
+        discountCentavos = Math.round((payParsed * 100 * parsedDiscount) / 100);
+      } else {
+        discountCentavos = Math.round(parsedDiscount * 100);
+      }
+
       await recordPayment(
         currentTenant.id,
         selectedBorrower.id,
-        payParsed
+        payParsed,
+        discountCentavos,
+        discountType
       );
 
       try { playPaymentSound(); } catch (err) { /* ignore autoplay blocks */ }
@@ -1503,6 +1520,15 @@ export function FiveSixDashboard() {
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800"
                     />
                   </div>
+
+                  <DiscountInput 
+                    discountType={discountType}
+                    discountValue={discountValue}
+                    onTypeChange={setDiscountType}
+                    onValueChange={setDiscountValue}
+                    subtotal={(parseFloat(payAmount) || 0) * 100}
+                  />
+
                   <div className="pt-4 pb-2">
                     <Button 
                       type="submit"

@@ -71,7 +71,9 @@ export async function addRetailCredit(
 export async function recordRetailCreditPayment(
   tenantId: string, 
   creditId: string, 
-  paymentAmount: number // in centavos
+  paymentAmount: number, // in centavos
+  discountCentavos: number = 0,
+  discountType?: 'percentage' | 'fixed'
 ) {
   const db = getKatuwangDb();
   
@@ -85,8 +87,8 @@ export async function recordRetailCreditPayment(
     
     const credit = creditSnap.data() as RetailCreditEntry;
     
-    // Calculate new paid amount and status
-    const newPaidAmount = (credit.paidAmount || 0) + paymentAmount;
+    // Calculate new paid amount and status.
+    const newPaidAmount = (credit.paidAmount || 0) + paymentAmount + discountCentavos;
     let newStatus: 'unpaid' | 'partial' | 'paid' = 'unpaid';
     
     if (newPaidAmount >= credit.amount) {
@@ -110,6 +112,7 @@ export async function recordRetailCreditPayment(
     // Receivable payment = Income (Cash in)
     // Payable payment = Expense (Cash out)
     const isIncome = credit.type === 'receivable';
+    // Discount is NOT cash flow, so we only track the actual paymentAmount as cash movement.
     const cashFlowAmount = isIncome ? paymentAmount : -paymentAmount;
 
     if (!masterAccountSnap.exists()) {

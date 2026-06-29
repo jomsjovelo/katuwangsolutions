@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Loader2, Plus, Users, Store, Banknote, History, ExternalLink, Calendar as CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getModuleTheme } from '@/lib/theme-utils';
+import { DiscountInput } from '@/components/ui/discount-input';
 import { addRetailCredit, recordRetailCreditPayment, RetailCreditEntry } from '@/firebase/firestore/retail-credit-actions';
 import { Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -96,8 +97,9 @@ export function CreditTracker() {
   const [viewItemsCredit, setViewItemsCredit] = useState<RetailCreditEntry | null>(null);
 
   const [showPayModal, setShowPayModal] = useState(false);
-  const [selectedCredit, setSelectedCredit] = useState<RetailCreditEntry | null>(null);
   const [paymentAmountStr, setPaymentAmountStr] = useState('');
+  const [discountType, setDiscountType] = useState<'percentage'|'fixed'>('percentage');
+  const [discountValue, setDiscountValue] = useState('');
 
   useEffect(() => {
     if (!currentTenant) return;
@@ -179,17 +181,23 @@ export function CreditTracker() {
     if (!currentTenant || !selectedCredit || !paymentAmountStr) return;
     setIsSubmitting(true);
     try {
-      const paymentCentavos = Math.round(parseFloat(paymentAmountStr) * 100);
-      if (isNaN(paymentCentavos) || paymentCentavos <= 0) throw new Error("Invalid amount");
+      const payCentavos = Math.round(parseFloat(paymentAmountStr) * 100);
+      if (isNaN(payCentavos) || payCentavos <= 0) throw new Error("Invalid payment amount");
       
-      const remaining = selectedCredit.amount - (selectedCredit.paidAmount || 0);
-      if (paymentCentavos > remaining) throw new Error("Mas malaki ang bayad kaysa sa utang.");
+      const parsedDiscount = parseFloat(discountValue) || 0;
+      let discountCentavos = 0;
+      if (discountType === 'percentage') {
+        discountCentavos = Math.round((payCentavos * parsedDiscount) / 100);
+      } else {
+        discountCentavos = Math.round(parsedDiscount * 100);
+      }
 
-      await recordRetailCreditPayment(currentTenant.id, selectedCredit.id!, paymentCentavos);
+      await recordRetailCreditPayment(currentTenant.id, selectedCredit.id!, payCentavos, discountCentavos, discountType);
       
-      toast({ title: "Tagumpay!", description: "Ang bayad ay naitala na." });
+      toast({ title: 'Success', description: 'Payment recorded successfully' });
       setShowPayModal(false);
       setPaymentAmountStr('');
+      setDiscountValue('');
       setSelectedCredit(null);
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: 'destructive' });
@@ -468,6 +476,15 @@ export function CreditTracker() {
                 autoFocus
               />
             </div>
+            
+            <DiscountInput 
+              discountType={discountType}
+              discountValue={discountValue}
+              onTypeChange={setDiscountType}
+              onValueChange={setDiscountValue}
+              subtotal={(parseFloat(paymentAmountStr) || 0) * 100}
+            />
+
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPayModal(false)} className="rounded-xl font-bold">Kanselahin</Button>
