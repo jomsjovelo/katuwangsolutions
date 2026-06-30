@@ -418,7 +418,7 @@ export async function processCreditCheckout(
         productId: c.productId,
         name: c.name,
         quantity: c.quantity,
-        price: Math.round(c.price * 100) // stored in centavos
+        price: c.price // Already stored in centavos from the CartItem interface
       })),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()

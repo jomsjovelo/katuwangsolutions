@@ -1,7 +1,7 @@
 'use client';
 import { useMemo, useState, useEffect } from 'react';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, Timestamp, limit } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { useTenant } from '@/app/lib/tenant-context';
 import { useInventory } from '@/hooks/use-inventory';
@@ -37,7 +37,8 @@ export function useActivityLogs() {
           collection(db, 'tenants', currentTenant.id, collectionName),
           where(isTracker ? 'timestamp' : 'createdAt', '>=', start),
           where(isTracker ? 'timestamp' : 'createdAt', '<=', end),
-          orderBy(isTracker ? 'timestamp' : 'createdAt', 'desc')
+          orderBy(isTracker ? 'timestamp' : 'createdAt', 'desc'),
+          limit(100)
         )
       : null;
   }, [currentTenant?.id, db, isTracker, start.seconds, end.seconds]);

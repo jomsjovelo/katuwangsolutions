@@ -243,20 +243,29 @@ export async function deleteFoodOrder(
     
     // Reverse ingredients if served
     if (orderData.status === 'served' && orderData.items && Array.isArray(orderData.items)) {
+      // 1. READ PHASE
+      const menuSnaps: Record<string, any> = {};
       for (const item of orderData.items) {
-        const menuRef = doc(db, 'tenants', tenantId, 'menu_items', item.menuItemId);
-        const menuSnap = await transaction.get(menuRef);
-        if (menuSnap.exists()) {
-          const menuData = menuSnap.data();
-          if (menuData.recipe && Array.isArray(menuData.recipe)) {
-            for (const req of menuData.recipe) {
-              const ingRef = doc(db, 'tenants', tenantId, 'ingredients', req.ingredientId);
-              const deductAmount = req.amount * item.quantity;
-              transaction.update(ingRef, {
-                currentStock: increment(deductAmount),
-                updatedAt: serverTimestamp()
-              });
-            }
+        if (!menuSnaps[item.menuItemId]) {
+          const menuRef = doc(db, 'tenants', tenantId, 'menu_items', item.menuItemId);
+          const snap = await transaction.get(menuRef);
+          if (snap.exists()) {
+            menuSnaps[item.menuItemId] = snap.data();
+          }
+        }
+      }
+
+      // 2. WRITE PHASE
+      for (const item of orderData.items) {
+        const menuData = menuSnaps[item.menuItemId];
+        if (menuData && menuData.recipe && Array.isArray(menuData.recipe)) {
+          for (const req of menuData.recipe) {
+            const ingRef = doc(db, 'tenants', tenantId, 'ingredients', req.ingredientId);
+            const addAmount = req.amount * item.quantity;
+            transaction.update(ingRef, {
+              currentStock: increment(addAmount),
+              updatedAt: serverTimestamp()
+            });
           }
         }
       }

@@ -67,6 +67,7 @@ export async function settleTable(tenantId: string, tableId: string, paymentMeth
     finalRunningTotal = runningTotal;
 
     // Read all orders to combine items for the receipt and sale record
+    const orderRefsToUpdate: ReturnType<typeof doc>[] = [];
     for (const orderId of orderIds) {
       const orderRef = doc(db, 'tenants', tenantId, 'food_orders', orderId);
       const orderSnap = await transaction.get(orderRef);
@@ -75,21 +76,29 @@ export async function settleTable(tenantId: string, tableId: string, paymentMeth
         if (orderData.items) {
           completedSaleItems = [...completedSaleItems, ...orderData.items];
         }
-        // Mark order as paid
-        transaction.update(orderRef, {
-          status: 'paid',
-          updatedAt: serverTimestamp()
-        });
+        orderRefsToUpdate.push(orderRef);
       }
     }
 
     finalRunningTotal = Math.max(0, runningTotal - discountCentavos);
 
-    // Ledger Writes
+    // READ PHASE: Must read master cash BEFORE any writes occur
+    let masterAccountSnap: any = null;
+    const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
     if (finalRunningTotal > 0 && paymentMethod !== 'utang') {
-      const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
-      const masterAccountSnap = await transaction.get(masterAccountRef);
-      
+      masterAccountSnap = await transaction.get(masterAccountRef);
+    }
+
+    // WRITE PHASE: Now it is safe to do writes
+    for (const orderRef of orderRefsToUpdate) {
+      transaction.update(orderRef, {
+        status: 'paid',
+        updatedAt: serverTimestamp()
+      });
+    }
+
+    // Ledger Writes
+    if (finalRunningTotal > 0 && paymentMethod !== 'utang' && masterAccountSnap) {
       if (!masterAccountSnap.exists()) {
         transaction.set(masterAccountRef, {
           id: 'master-cash',

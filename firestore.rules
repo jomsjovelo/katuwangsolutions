@@ -58,8 +58,11 @@ service cloud.firestore {
       ) && (
         // Block businessCode changes by non-admins once it is set
         isMasterAdmin() ||
-        !('businessCode' in resource.data) ||
-        request.resource.data.businessCode == resource.data.businessCode
+        (!('businessCode' in resource.data) || request.resource.data.businessCode == resource.data.businessCode)
+      ) && (
+        // Block ownerUid transfer unless MasterAdmin
+        isMasterAdmin() ||
+        (!('ownerUid' in request.resource.data) || request.resource.data.ownerUid == resource.data.ownerUid)
       );
       allow delete: if isAuthenticated() && (
         request.auth.uid == resource.data.ownerUid || 

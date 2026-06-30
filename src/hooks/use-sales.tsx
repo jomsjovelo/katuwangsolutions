@@ -1,7 +1,7 @@
 'use client';
 import { useMemo } from 'react';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, Timestamp, limit } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { useTenant } from '@/app/lib/tenant-context';
 import { Sale } from '@/lib/schemas/sales';
@@ -26,7 +26,8 @@ export function useSales(selectedDate: DateRangeOrDate = new Date()) {
           collection(db, 'tenants', currentTenant.id, 'sales'),
           where('createdAt', '>=', start),
           where('createdAt', '<=', end),
-          orderBy('createdAt', 'desc')
+          orderBy('createdAt', 'desc'),
+          limit(200)
         )
       : null;
   }, [currentTenant?.id, db, start.seconds, end.seconds]);
