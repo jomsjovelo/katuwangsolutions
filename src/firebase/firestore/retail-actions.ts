@@ -278,6 +278,9 @@ export async function deleteDispatch(
     
     const projectRef = doc(db, 'tenants', tenantId, 'projects', txData.projectId);
     
+    // Reverse project total cost
+    const projectSnap = await transaction.get(projectRef);
+
     // Reverse product stock
     if (productSnap.exists()) {
       transaction.update(productRef, {
@@ -286,8 +289,6 @@ export async function deleteDispatch(
       });
     }
     
-    // Reverse project total cost
-    const projectSnap = await transaction.get(projectRef);
     if (projectSnap.exists()) {
       transaction.update(projectRef, {
         totalMaterialCost: increment(-totalCost),

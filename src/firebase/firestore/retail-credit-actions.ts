@@ -113,6 +113,10 @@ export async function recordRetailCreditPayment(
       newStatus = 'partial';
     }
 
+    // Handle Master Cash Ledger integration
+    const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+    const masterAccountSnap = await transaction.get(masterAccountRef);
+
     // Update the credit record
     transaction.update(creditRef, {
       paidAmount: newPaidAmount,
@@ -120,10 +124,6 @@ export async function recordRetailCreditPayment(
       updatedAt: serverTimestamp()
     });
 
-    // Handle Master Cash Ledger integration
-    const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
-    const masterAccountSnap = await transaction.get(masterAccountRef);
-    
     // Determine cash flow direction
     // Receivable payment = Income (Cash in)
     // Payable payment = Expense (Cash out)
