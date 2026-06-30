@@ -206,9 +206,7 @@ export function RentalDashboard() {
     saleId?: string;
   } | null>(null);
 
-  const [discountType, setDiscountType] = useState<'percentage'|'fixed'>('percentage');
-  const [discountValue, setDiscountValue] = useState('');
-  const [discountReason, setDiscountReason] = useState('');
+
 
   const handleAddBooking = async (e?: React.FormEvent, paymentRef?: string) => {
     if (e) e.preventDefault();

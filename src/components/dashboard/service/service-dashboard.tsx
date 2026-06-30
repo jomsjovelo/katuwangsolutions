@@ -129,14 +129,10 @@ const JobCard = ({ job, moveJob, theme, isProcessing, isOwner, handleDeleteJob, 
       {job.status === 'completed_unpaid' && (
         <div className="flex flex-col gap-2 w-full">
           <div className="flex gap-2 w-full">
-            <Button 
-              disabled={isProcessing} 
-              size="sm" 
-              onClick={() => {
-                setPendingJobPayment(job);
-            <Button size="sm" className="w-full bg-emerald-500 hover:bg-emerald-600 font-bold" onClick={() => setPendingJobPayment(job)}>
+            <Button size="sm" className="w-full h-8 text-[10px] font-bold uppercase tracking-widest text-white border-none bg-emerald-500 hover:bg-emerald-600" onClick={() => setPendingJobPayment(job)}>
               <Coins className="h-4 w-4 mr-1" /> Pay Order
             </Button>
+          </div>
           <Button 
             disabled={isProcessing} 
             size="sm" 

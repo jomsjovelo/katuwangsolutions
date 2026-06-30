@@ -159,9 +159,6 @@ function FreshTallyDashboardContent() {
   const [discountValue, setDiscountValue] = useState<string>('');
   const [discountReason, setDiscountReason] = useState<string>('');
 
-  const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const totalCentavos = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  
   let discountCentavos = 0;
   if (discountValue && !isNaN(parseFloat(discountValue))) {
     if (discountType === 'fixed') {
@@ -171,7 +168,7 @@ function FreshTallyDashboardContent() {
     }
   }
   const finalTotalCentavos = Math.max(0, totalCentavos - discountCentavos);
-  const totalPesos = finalTotalCentavos / 100;
+  const finalTotalPesos = finalTotalCentavos / 100;
   
   const theme = getModuleTheme('fresh-tally');
 
@@ -338,7 +335,7 @@ function FreshTallyDashboardContent() {
           <div className="flex items-center justify-between mb-4">
             <span className="text-slate-500 font-bold uppercase tracking-widest text-xs">Total</span>
             <span className="text-3xl font-black text-slate-800" style={{ color: theme.primary }}>
-              ₱{totalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+              ₱{finalTotalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
             </span>
           </div>
 
@@ -404,7 +401,7 @@ function FreshTallyDashboardContent() {
             <div className="text-right">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total</span>
               <span className="text-lg font-black" style={{ color: theme.primary }}>
-                ₱{totalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                ₱{finalTotalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
               </span>
             </div>
           </div>
@@ -454,7 +451,7 @@ function FreshTallyDashboardContent() {
             <div className="flex items-center justify-between mb-4 px-1 mt-2">
               <span className="text-slate-500 font-bold uppercase tracking-widest text-xs">Total</span>
               <span className="text-3xl font-black text-slate-800" style={{ color: theme.primary }}>
-                ₱{totalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                ₱{finalTotalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
               </span>
             </div>
             <div className="grid grid-cols-2 gap-2 mt-4">

@@ -314,7 +314,7 @@ export function GanapDashboard() {
       
       setCompletedSale({
         items: [{ name: `Payment for ${selectedEvent.title}`, quantity: 1, price: Math.round(amount * 100) }],
-        total: finalAmountCentavos,
+        total: finalTotalCentavos,
         discountCentavos,
         discountType,
         paymentMethod: method,
