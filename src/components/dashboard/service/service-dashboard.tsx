@@ -345,7 +345,7 @@ export function ServiceDashboard() {
     }
   };
 
-  const handlePaymentConfirm = async (job: any, method: string, discountCentavos: number, discountType: string, discountReason: string) => {
+  const handlePaymentConfirm = async (job: any, method: string, discountCentavos: number, discountType?: 'percentage' | 'fixed', discountReason?: string) => {
     const finalAmount = (job.amount || 0) - discountCentavos;
     await moveJob(job, 'completed', method, finalAmount);
     setPendingJobPayment(null);
@@ -620,7 +620,7 @@ export function ServiceDashboard() {
         isOpen={!!pendingJobPayment}
         onClose={() => setPendingJobPayment(null)}
         amountDue={(pendingJobPayment?.amount || 0) / 100}
-        onConfirm={(method, discountCentavos, discountType, discountReason) => handlePaymentConfirm(pendingJobPayment, method, discountCentavos, discountType, discountReason)}
+        onConfirm={(method, discountCentavos, discountType, discountReason) => handlePaymentConfirm(pendingJobPayment, method, discountCentavos || 0, discountType, discountReason)}
       />
       
       <ThermalReceiptPreview

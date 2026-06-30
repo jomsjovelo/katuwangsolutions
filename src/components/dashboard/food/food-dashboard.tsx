@@ -172,7 +172,7 @@ export function FoodDashboard() {
     items: any[];
     total: number;
     discountCentavos: number;
-    discountType: string;
+    discountType?: string;
     paymentMethod: string;
     saleId?: string;
   } | null>(null);
@@ -723,7 +723,7 @@ export function FoodDashboard() {
             paymentMethod,
             saleId: `table-${selectedTableObject.id}`,
             discountCentavos: 0,
-            discountType: 'none'
+            discountType: undefined
           });
           setShowReceipt(true);
         }}

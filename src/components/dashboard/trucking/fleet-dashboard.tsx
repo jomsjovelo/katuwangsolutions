@@ -11,6 +11,7 @@ import { useUser } from '@/firebase/auth/use-user';
 import { useShift } from '@/hooks/use-shift';
 import { chargeRetailSaleToCredit } from '@/firebase/firestore/credit-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -639,6 +640,7 @@ export function FleetDashboard() {
         {/* Signature Modal */}
         {showSignatureModal && (
           <Dialog open={!!showSignatureModal} onOpenChange={() => setShowSignatureModal(null)}>
+            <DialogContent className="p-0 border-none bg-transparent shadow-none outline-none sm:max-w-[400px]">
             <Card className="w-full max-w-sm bg-white shadow-2xl border-none">
               <CardHeader className="pb-3 border-b">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
@@ -720,6 +722,7 @@ export function FleetDashboard() {
                 </div>
               </CardContent>
             </Card>
+            </DialogContent>
           </Dialog>
         )}
 

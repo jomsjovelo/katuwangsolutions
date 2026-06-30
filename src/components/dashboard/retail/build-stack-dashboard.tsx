@@ -209,7 +209,7 @@ function BuildStackDashboardContent() {
          price: c.price,
          subtotal: c.price * c.quantity
       }));
-      const saleId = await processCheckout(currentTenant.id, items, totalCentavos, paymentMethod, gcashRef, 0, 'none', '');
+      const saleId = await processCheckout(currentTenant.id, items, totalCentavos, paymentMethod, gcashRef, 0, undefined, '');
       toast({ title: "Sale Completed", description: "Hardware items sold directly." });
       setCompletedSale({ saleId, items, total: totalCentavos, paymentMethod });
       clearCart();

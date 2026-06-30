@@ -244,7 +244,7 @@ export function HydroDashboard() {
     }
   };
 
-  const handleSettleAndDeliver = async (paymentMethod: string, discountCentavos: number, discountType: string, discountReason: string) => {
+  const handleSettleAndDeliver = async (paymentMethod: string, discountCentavos: number, discountType?: 'percentage' | 'fixed', discountReason?: string) => {
     if (!settleOrderId || !currentTenant || !db) return;
     setIsProcessing(true);
     try {
@@ -558,7 +558,7 @@ export function HydroDashboard() {
         amountDue={selectedOrderForStatus?.amountDue || 0}
         onConfirm={(method, discountCentavos, discountType, discountReason) => {
           setShowPaymentModal(false);
-          handleSettleAndDeliver(method, discountCentavos || 0, discountType || 'none', discountReason || '');
+          handleSettleAndDeliver(method, discountCentavos || 0, discountType || undefined, discountReason || '');
         }}
       />
       
