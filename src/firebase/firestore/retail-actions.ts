@@ -85,7 +85,7 @@ export async function processCheckout(
       const secureDbPrice = productData.salePrice || 0;
 
       if (currentStock < item.quantity) {
-        throw new Error(`Not enough stock for ${item.name}. Available: ${currentStock}`);
+        throw new Error(`Hindi sapat ang stock para sa ${item.name} (Available lang: ${currentStock}).`);
       }
       
       // Calculate total entirely on the server using secure DB prices and round to avoid fractional centavos
@@ -357,7 +357,7 @@ export async function processCreditCheckout(
       const secureDbPrice = productData.salePrice || 0;
 
       if (currentStock < item.quantity) {
-        throw new Error(`Not enough stock for ${item.name}. Available: ${currentStock}`);
+        throw new Error(`Hindi sapat ang stock para sa ${item.name} (Available lang: ${currentStock}).`);
       }
       
       secureTotalAmount += Math.round(secureDbPrice * item.quantity);

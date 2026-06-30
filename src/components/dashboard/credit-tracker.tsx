@@ -162,7 +162,7 @@ export function CreditTracker() {
         description: addForm.description,
         creditDate: Timestamp.fromDate(dateVal),
         items: itemsToSave
-      }, addForm.type === 'payable' ? addForm.updateStock : false);
+      }, addForm.updateStock);
       
       toast({ title: "Tagumpay!", description: "Ang credit ay naitala na." });
       setShowAddModal(false);
@@ -347,12 +347,20 @@ export function CreditTracker() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {addForm.type === 'payable' && (
-                    <div className="flex items-center gap-2 p-2 bg-amber-50 text-amber-700 rounded-lg border border-amber-200 cursor-pointer" onClick={() => setAddForm({...addForm, updateStock: !addForm.updateStock})}>
-                      <CheckSquare className={cn("h-4 w-4", !addForm.updateStock && "opacity-30")} />
-                      <span className="text-xs font-bold">Awtomatikong idagdag sa Inventory Stock (Auto-Stock Update)</span>
-                    </div>
-                  )}
+                  <div 
+                    className={cn(
+                      "flex items-center gap-2 p-2 rounded-lg border cursor-pointer",
+                      addForm.type === 'payable' ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    )} 
+                    onClick={() => setAddForm({...addForm, updateStock: !addForm.updateStock})}
+                  >
+                    <CheckSquare className={cn("h-4 w-4", !addForm.updateStock && "opacity-30")} />
+                    <span className="text-xs font-bold">
+                      {addForm.type === 'payable' 
+                        ? "Awtomatikong idagdag sa Inventory Stock (Auto-Stock Add)" 
+                        : "Awtomatikong ibawas sa Inventory Stock (Auto-Stock Deduct)"}
+                    </span>
+                  </div>
                   {addForm.items.map((item, i) => (
                     <div key={i} className="flex gap-2 items-center bg-white p-2 border border-slate-200 rounded-lg shadow-sm">
                       <div className="flex-1 space-y-1">

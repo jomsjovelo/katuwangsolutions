@@ -1,337 +1,433 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle,
-  CardDescription
-} from "@/components/ui/card";
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { HardHat, Users, CheckCircle2, TrendingUp, AlertTriangle, Truck, Plus, Package } from "lucide-react";
-
-const ProjectListItem = React.memo(({ project }: { project: any }) => (
-  <div className="p-4 hover:bg-slate-50">
-    <div className="flex justify-between items-start mb-2">
-      <div>
-        <h4 className="font-bold text-slate-800">{project.name}</h4>
-        <p className="text-xs text-slate-500">{project.contractor}</p>
-      </div>
-      <div className="text-right">
-        <p className="text-xs font-black uppercase tracking-widest text-slate-500">Unpaid Bill</p>
-        <p className="font-bold text-red-500">
-          ₱{((project.totalMaterialCost - project.totalPaymentsCollected) / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-        </p>
-      </div>
-    </div>
-  </div>
-));
-ProjectListItem.displayName = 'ProjectListItem';
-
-const InventoryListItem = React.memo(({ product }: { product: any }) => (
-  <div className="p-4 hover:bg-slate-50 flex justify-between items-center">
-    <div>
-      <h4 className="font-bold text-slate-800">{product.name}</h4>
-      <p className="text-xs text-slate-500">Selling Price: ₱{(product.salePrice / 100).toLocaleString()}</p>
-    </div>
-    <div className="text-right">
-      <div className="text-sm font-bold">
-        {product.currentStock} {product.unit}
-      </div>
-      {product.currentStock <= product.minStock && (
-        <div className="text-[10px] text-red-500 font-bold uppercase tracking-widest mt-1">Low Stock</div>
-      )}
-    </div>
-  </div>
-));
-InventoryListItem.displayName = 'InventoryListItem';
-
-import { useProjects } from '@/hooks/use-projects';
 import { useInventory } from '@/hooks/use-inventory';
-import { useFirestore } from '@/firebase/provider';
-import { doc, collection, serverTimestamp, increment } from 'firebase/firestore';
-import { runTransactionResilient } from '@/firebase/firestore/resilient-transaction';
+import { useCart } from '@/hooks/use-cart';
+import { useProjects } from '@/hooks/use-projects';
+import { processBatchDispatch } from '@/firebase/firestore/build-stack-actions';
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from '@/components/ui/button';
+import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
+import { cn } from '@/lib/utils';
+import { getModuleTheme } from '@/lib/theme-utils';
 import { useToast } from '@/hooks/use-toast';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { 
+  Package, Plus, Minus, Loader2, Search, Tag, ShoppingCart, Send
+} from "lucide-react";
+import { KatuwangErrorBoundary } from '@/components/common/error-boundary';
 
 export function BuildStackDashboard() {
+  return (
+    <KatuwangErrorBoundary>
+      <BuildStackDashboardContent />
+    </KatuwangErrorBoundary>
+  );
+}
+
+const ProductCard = React.memo(({ product, cartQty, theme, addToCart }: any) => {
+  const outOfStock = product.currentStock <= 0;
+  const isLowStock = !outOfStock && product.currentStock <= product.minStock;
+
+  return (
+    <div 
+      onClick={() => addToCart(product)}
+      className={cn(
+        "bg-white border-2 rounded-2xl p-4 flex flex-col items-center text-center transition-all cursor-pointer relative select-none tap-target",
+        outOfStock 
+          ? "opacity-40 border-slate-100 grayscale cursor-not-allowed" 
+          : "border-slate-100 hover:border-slate-200 shadow-sm"
+      )}
+      style={(!outOfStock && cartQty > 0) ? { borderColor: `${theme.primary}60` } : {}}
+    >
+      {cartQty > 0 && (
+        <span 
+          className="absolute top-2 right-2 text-[10px] font-black h-5 min-w-5 px-1.5 rounded-full flex items-center justify-center border-2 border-white animate-in scale-in"
+          style={{ backgroundColor: theme.secondary, color: theme.secondaryText }}
+        >
+          {cartQty}
+        </span>
+      )}
+
+      <div 
+        className={cn(
+          "h-12 w-12 rounded-2xl flex items-center justify-center mb-3 transition-colors duration-300"
+        )}
+        style={outOfStock ? { backgroundColor: '#f1f5f9', color: '#94a3b8' } : { 
+          backgroundColor: `${theme.primary}15`, 
+          color: theme.primary 
+        }}
+      >
+        <Package className="h-6 w-6" />
+      </div>
+      
+      <h4 className="font-extrabold text-xs text-slate-800 leading-tight mb-0.5 line-clamp-2 min-h-[2rem]">
+        {product.name}
+      </h4>
+      
+      <div className="flex items-center gap-1.5 mt-1 mb-3">
+        <Tag className="h-3 w-3 text-slate-400" />
+        <span className="text-[10px] font-black uppercase text-slate-400">
+          {product.category || 'Materials'}
+        </span>
+      </div>
+
+      <div className="w-full border-t border-slate-50 pt-2 flex items-center justify-between mt-auto">
+        <div className="text-left">
+          <p className="text-[9px] font-bold text-slate-400 leading-none">Presyo</p>
+          <span className="text-xs font-black text-slate-800">
+            ₱{(product.salePrice / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+          </span>
+        </div>
+        <Badge 
+          variant={outOfStock ? "secondary" : "default"} 
+          className={cn(
+            "text-[8px] font-black px-1.5 py-0.5 uppercase tracking-wide border-transparent", 
+            outOfStock ? "bg-slate-100 text-slate-500" : isLowStock ? "bg-amber-100 text-amber-700" : ""
+          )}
+          style={(outOfStock || isLowStock) ? {} : {
+            backgroundColor: `${theme.primary}15`,
+            color: theme.primary
+          }}
+        >
+          {outOfStock ? 'Ubos' : isLowStock ? `Paubos: ${product.currentStock}` : `${product.currentStock} ${product.unit}`}
+        </Badge>
+      </div>
+    </div>
+  );
+});
+
+const CartItemCard = React.memo(({ item, theme, products, removeFromCart, addToCart }: any) => {
+  return (
+    <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+      <div className="flex-1 pr-2">
+        <h4 className="font-extrabold text-xs text-slate-800 line-clamp-1">{item.name}</h4>
+        <p className="text-[10px] text-slate-400 font-bold">₱{(item.price / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })} each</p>
+      </div>
+      
+      <div className="flex items-center gap-2">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="h-7 w-7 p-0 rounded-lg hover:bg-slate-100 border-slate-200"
+          onClick={() => removeFromCart(item.productId)}
+        >
+          <Minus className="h-3.5 w-3.5" />
+        </Button>
+        <span className="font-extrabold text-xs w-5 text-center text-slate-800">{item.quantity}</span>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="h-7 w-7 p-0 rounded-lg text-white border-transparent"
+          style={{ backgroundColor: theme.primary }}
+          onClick={() => {
+            const realProduct = products.find((p: any) => p.id === item.productId);
+            if (realProduct) addToCart(realProduct);
+          }}
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+});
+
+function BuildStackDashboardContent() {
   const { currentTenant } = useTenant();
   const { products, loading: inventoryLoading } = useInventory();
   const { activeProjects, loading: projectsLoading } = useProjects();
-  const db = useFirestore();
+  const { cart, addToCart, removeFromCart, clearCart, totalCentavos, totalPesos, cartItemCount } = useCart();
   const { toast } = useToast();
 
-  const [selectedProductId, setSelectedProductId] = useState<string>('');
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
-  const [dispatchQty, setDispatchQty] = useState<number | ''>('');
-  const [isDispatching, setIsDispatching] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [categories, setCategories] = useState<string[]>(['All']);
+  const [showMobileCart, setShowMobileCart] = useState(false);
   
+  const theme = getModuleTheme('build-stack');
+
+  useEffect(() => {
+    if (products && products.length > 0) {
+      const cats = Array.from(new Set(products.map((p: any) => p.category || 'Materials'))) as string[];
+      setCategories(['All', ...cats]);
+    }
+  }, [products]);
+
+  const filteredProducts = products.filter((p: any) => {
+    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
   const handleDispatch = async () => {
-    if (!selectedProductId || !selectedProjectId || !dispatchQty || dispatchQty <= 0) return;
-    if (!currentTenant || !db) return;
+    if (cart.length === 0 || !currentTenant) return;
+    if (!selectedProjectId) {
+      toast({ title: "Error", description: "Pakipili kung anong proyekto ipadadala (Select a Project)", variant: "destructive" });
+      return;
+    }
 
-    setIsDispatching(true);
+    const project = activeProjects.find((p: any) => p.id === selectedProjectId);
+    if (!project) return;
+
+    setIsProcessing(true);
     try {
-      const product = products.find((p: any) => p.id === selectedProductId);
-      const project = activeProjects.find((p: any) => p.id === selectedProjectId);
-      if (!product || !project) throw new Error("Invalid selection");
-      
-      if (product.currentStock < dispatchQty) {
-        throw new Error(`Insufficient stock. Only ${product.currentStock} ${product.unit} available.`);
-      }
-
-      await runTransactionResilient(db, async (transaction) => {
-        const productRef = doc(db, 'tenants', currentTenant.id, 'products', product.id!);
-        const projectRef = doc(db, 'tenants', currentTenant.id, 'projects', project.id!);
-        const txRef = doc(collection(db, 'tenants', currentTenant.id, 'inventory_transactions'));
-
-        const totalCost = Math.round(product.salePrice * dispatchQty); // Bill the project using the sale price and round to avoid fractional centavos
-
-        // Update product stock
-        transaction.update(productRef, {
-          currentStock: increment(-dispatchQty),
-          updatedAt: serverTimestamp()
-        });
-
-        // Update project total cost
-        transaction.update(projectRef, {
-          totalMaterialCost: increment(totalCost),
-          updatedAt: serverTimestamp()
-        });
-
-        // Record transaction
-        transaction.set(txRef, {
-          tenantId: currentTenant.id,
-          productId: product.id,
-          type: 'dispatch',
-          quantity: -dispatchQty, // negative because it's going out
-          projectId: project.id,
-          balanceAfter: product.currentStock - dispatchQty,
-          performedBy: 'admin',
-          createdAt: serverTimestamp()
-        });
-
-        // Add Global Analytics Sync (B2B Sale on Credit)
-        const salesRef = collection(db, 'tenants', currentTenant.id, 'sales');
-        const newSaleRef = doc(salesRef);
-        transaction.set(newSaleRef, {
-          id: newSaleRef.id,
-          tenantId: currentTenant.id,
-          module: 'build-stack',
-          items: [{ name: `${dispatchQty}x ${product.name} to ${project.name}`, quantity: dispatchQty, price: product.salePrice }],
-          totalAmount: totalCost,
-          paymentMethod: 'palista', // It's a credit sale
-          createdAt: serverTimestamp()
-        });
-
-        // Record it in the unified Credit Tracker
-        const creditsRef = collection(db, 'tenants', currentTenant.id, 'retail_credits');
-        const newCreditRef = doc(creditsRef);
-        transaction.set(newCreditRef, {
-          id: newCreditRef.id,
-          tenantId: currentTenant.id,
-          type: 'receivable',
-          name: `Project: ${project.name}`,
-          amount: totalCost,
-          paidAmount: 0,
-          status: 'unpaid',
-          creditDate: serverTimestamp(),
-          relatedSaleId: newSaleRef.id,
-          description: `Build Stack Dispatch: ${dispatchQty}x ${product.name}`,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-      });
-
-      toast({
-        title: "Material Dispatched!",
-        description: `Successfully dispatched ${dispatchQty} ${product.unit} of ${product.name} to ${project.name}.`
-      });
-
-      setDispatchQty('');
-      setSelectedProductId('');
-    } catch (e) {
-      const err = e as Error & { code?: string };
-      toast({
-        title: "Error Dispatching",
-        description: err.message || "An unknown error occurred.",
-        variant: "destructive"
-      });
+      await processBatchDispatch(currentTenant.id, selectedProjectId, project.name, cart);
+      toast({ title: "Materials Dispatched!", description: `Successfully dispatched to ${project.name}.` });
+      clearCart();
+      setSelectedProjectId('');
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
-      setIsDispatching(false);
+      setIsProcessing(false);
     }
   };
-  
+
   if (inventoryLoading || projectsLoading) {
     return <div className="p-6 text-center text-muted-foreground animate-pulse">Naglo-load ng materyales at proyekto...</div>;
   }
 
   return (
-    <div className="flex-1 flex flex-col p-4 md:p-6 bg-slate-50 space-y-6 pb-24 overflow-y-auto min-h-screen">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-headline font-black uppercase tracking-tighter text-slate-800">
-            Build Stack
-          </h1>
-          <p className="text-sm text-slate-500 font-medium">Hardware & Construction Supply Tracker</p>
+    <div className="flex-1 flex flex-col md:flex-row h-full overflow-hidden bg-slate-50">
+      
+      {/* LEFT PANEL - Product Grid */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden pb-24 md:pb-0">
+        <div className="p-4 bg-white border-b border-slate-100 flex-shrink-0 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-headline font-black uppercase tracking-tighter" style={{ color: theme.primary }}>
+              Build Stack
+            </h1>
+            <p className="text-xs text-slate-500 font-medium">Hardware & Construction POS</p>
+          </div>
+          <div className="relative w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input 
+              placeholder="Search materials..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-10 bg-slate-50 border-slate-200 rounded-xl"
+            />
+          </div>
+        </div>
+
+        {/* Categories Pill Bar */}
+        <div className="bg-white px-4 py-2 border-b border-slate-100 flex-shrink-0 flex items-center gap-2 overflow-x-auto no-scrollbar">
+          {categories.map((cat) => {
+            const isSelected = selectedCategory === cat;
+            return (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={cn(
+                  "px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border tap-target duration-150",
+                  isSelected
+                    ? "text-white shadow-md border-transparent"
+                    : "bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200"
+                )}
+                style={isSelected ? { backgroundColor: theme.primary, borderColor: theme.primary } : {}}
+              >
+                {cat === 'All' ? 'All Categories' : cat}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            {filteredProducts.map((product: any) => {
+              const cartItem = cart.find(c => c.productId === product.id);
+              return (
+                <ProductCard 
+                  key={product.id} 
+                  product={product} 
+                  cartQty={cartItem?.quantity || 0}
+                  theme={theme}
+                  addToCart={addToCart}
+                />
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Card className="shadow-sm border-slate-200">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-1">Active Projects</p>
-              <h3 className="text-2xl font-bold">{activeProjects.length}</h3>
+      {/* RIGHT PANEL - Cart & Actions (Desktop) */}
+      <div className="hidden md:flex w-96 bg-white border-l border-slate-100 flex-col h-full shadow-xl z-10 flex-shrink-0">
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div className="flex items-center gap-2">
+            <ShoppingCart className="h-5 w-5 text-slate-700" />
+            <h2 className="font-black text-slate-800">Dispatch Cart</h2>
+            <Badge variant="secondary" className="ml-2 bg-slate-200">{cartItemCount}</Badge>
+          </div>
+          {cart.length > 0 && (
+            <Button variant="ghost" size="sm" onClick={clearCart} className="text-red-500 hover:text-red-600 hover:bg-red-50">
+              Clear
+            </Button>
+          )}
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {cart.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-4">
+              <Package className="h-12 w-12 opacity-20" />
+              <p className="text-sm font-bold">Pumili ng materyales na ipapadala</p>
             </div>
-            <div className="h-10 w-10 bg-amber-100 rounded-full flex items-center justify-center text-amber-600">
-              <HardHat className="h-5 w-5" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="shadow-sm border-slate-200">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-1">Materyales</p>
-              <h3 className="text-2xl font-bold">{products.length}</h3>
-            </div>
-            <div className="h-10 w-10 bg-cyan-100 rounded-full flex items-center justify-center text-cyan-600">
-              <Package className="h-5 w-5" />
-            </div>
-          </CardContent>
-        </Card>
+          ) : (
+            cart.map(item => (
+              <CartItemCard 
+                key={item.productId}
+                item={item}
+                theme={theme}
+                products={products}
+                removeFromCart={removeFromCart}
+                addToCart={addToCart}
+              />
+            ))
+          )}
+        </div>
+
+        <div className="p-4 bg-white border-t border-slate-100 space-y-4">
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-slate-500 font-bold uppercase tracking-widest text-xs">Total Bill to Project</span>
+            <span className="text-3xl font-black text-slate-800" style={{ color: theme.primary }}>
+              ₱{totalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+            </span>
+          </div>
+          
+          <div className="space-y-2">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Select Active Project:</span>
+            <select
+              value={selectedProjectId}
+              onChange={(e) => setSelectedProjectId(e.target.value)}
+              className="w-full h-12 bg-slate-50 border border-slate-200 rounded-lg px-3 text-sm font-bold outline-none focus:border-slate-400"
+            >
+              <option value="">-- Pumili ng Proyekto --</option>
+              {activeProjects.map((proj: any) => (
+                <option key={proj.id} value={proj.id}>{proj.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <Button 
+            className="w-full h-14 rounded-xl text-lg font-black tracking-wide shadow-lg transition-transform active:scale-[0.98]"
+            style={{ backgroundColor: theme.primary, color: theme.primaryText }}
+            disabled={cart.length === 0 || !selectedProjectId || isProcessing}
+            onClick={handleDispatch}
+          >
+            {isProcessing ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Send className="mr-2 h-5 w-5" />}
+            DISPATCH TO PROJECT
+          </Button>
+        </div>
       </div>
 
-      <Tabs defaultValue="dispatch" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-4 rounded-xl">
-          <TabsTrigger value="dispatch" className="rounded-lg text-xs md:text-sm">I-Release</TabsTrigger>
-          <TabsTrigger value="projects" className="rounded-lg text-xs md:text-sm">Mga Proyekto</TabsTrigger>
-          <TabsTrigger value="inventory" className="rounded-lg text-xs md:text-sm">Imbentaryo</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="dispatch" className="space-y-4 animate-in slide-in-from-bottom-4 duration-300">
-          <Card className="shadow-sm border-slate-200 overflow-hidden">
-            <CardHeader className="bg-white border-b border-slate-100 pb-4">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Truck className="h-5 w-5 text-cyan-500" />
-                Dispatch Slip
-              </CardTitle>
-              <CardDescription>Pumili ng materyales na idadala sa site.</CardDescription>
-            </CardHeader>
-            <CardContent className="p-6 text-center space-y-4">
-              <div className="space-y-4 text-left">
-                <div className="space-y-2">
-                  <Label>Project</Label>
-                  <select 
-                    className="w-full border-slate-200 rounded-md border p-2 text-sm"
-                    value={selectedProjectId}
-                    onChange={(e) => setSelectedProjectId(e.target.value)}
-                  >
-                    <option value="">-- Select Project --</option>
-                    {activeProjects.map((p: any) => (
-                      <option key={p.id} value={p.id}>{p.name} ({p.contractor})</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Material</Label>
-                  <select 
-                    className="w-full border-slate-200 rounded-md border p-2 text-sm"
-                    value={selectedProductId}
-                    onChange={(e) => setSelectedProductId(e.target.value)}
-                  >
-                    <option value="">-- Select Material --</option>
-                    {products.map((p: any) => (
-                      <option key={p.id} value={p.id}>{p.name} ({p.currentStock} {p.unit} available)</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Quantity</Label>
-                  <Input 
-                    type="number" 
-                    min="1"
-                    placeholder="Enter quantity to dispatch"
-                    value={dispatchQty}
-                    onChange={(e) => setDispatchQty(parseInt(e.target.value) || '')}
-                  />
-                </div>
-
-                <Button 
-                  className="w-full bg-cyan-500 hover:bg-cyan-600 text-white mt-4"
-                  onClick={handleDispatch}
-                  disabled={!selectedProductId || !selectedProjectId || !dispatchQty || isDispatching}
+      {/* Floating Bottom Bar (Mobile Only) */}
+      <div className="md:hidden fixed bottom-[72px] left-4 right-4 z-40 animate-in slide-in-from-bottom-6 duration-300">
+        <div 
+          onClick={() => cart.length > 0 && setShowMobileCart(true)}
+          className={cn(
+            "bg-gradient-to-r from-slate-900 to-slate-800 text-white px-5 py-4 rounded-[20px] shadow-2xl flex items-center justify-between cursor-pointer border border-slate-700/50 active:scale-98 transition-all duration-100"
+          )}
+        >
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <ShoppingCart className="h-6 w-6 text-slate-300" />
+              {cartItemCount > 0 && (
+                <span 
+                  className="absolute -top-2 -right-2 h-5 min-w-5 px-1.5 flex items-center justify-center rounded-full text-[10px] font-black border-2 border-slate-800"
+                  style={{ backgroundColor: theme.primary, color: theme.primaryText }}
                 >
-                  {isDispatching ? "Dispatching..." : "Confirm Dispatch"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="projects" className="space-y-4 animate-in slide-in-from-bottom-4 duration-300">
-          <Card className="shadow-sm border-slate-200 overflow-hidden">
-            <CardHeader className="bg-white border-b border-slate-100 pb-4 flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <HardHat className="h-5 w-5 text-amber-500" />
-                  Mga Proyekto
-                </CardTitle>
-              </div>
-              <Button size="sm" className="gap-1 bg-amber-500 hover:bg-amber-600 text-white rounded-full">
-                <Plus className="h-4 w-4" /> Add Project
-              </Button>
-            </CardHeader>
-            <CardContent className="p-0">
-              {activeProjects.length === 0 ? (
-                <div className="p-8 text-center text-slate-500">
-                  Wala pang active na proyekto.
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-100">
-                  {activeProjects.map((project: any) => (
-                    <ProjectListItem key={project.id} project={project} />
-                  ))}
-                </div>
+                  {cartItemCount}
+                </span>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Mga Item sa Cart</span>
+              <span className="text-sm font-black text-white leading-tight">
+                {cart.length === 0 ? 'Walang Laman' : `${cart.length} Iba't ibang Materyales`}
+              </span>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Bill</span>
+              <span className="text-lg font-black" style={{ color: theme.primary }}>
+                ₱{totalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
 
-        <TabsContent value="inventory" className="space-y-4 animate-in slide-in-from-bottom-4 duration-300">
-          <Card className="shadow-sm border-slate-200 overflow-hidden">
-            <CardHeader className="bg-white border-b border-slate-100 pb-4 flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Package className="h-5 w-5 text-cyan-500" />
-                Listahan ng Materyales
-              </CardTitle>
-              <Button size="sm" className="gap-1 bg-cyan-500 hover:bg-cyan-600 text-white rounded-full">
-                <Plus className="h-4 w-4" /> Add Item
+      {/* Mobile Drawer Slide Sheet */}
+      <Sheet open={showMobileCart} onOpenChange={setShowMobileCart}>
+        <SheetContent side="bottom" className="rounded-t-[32px] p-6 max-h-[85vh] flex flex-col">
+          <SheetHeader className="flex flex-row justify-between items-center border-b border-slate-100 pb-4 mb-4 flex-shrink-0">
+            <div>
+              <h2 className="text-xl font-black font-headline text-slate-800">Dispatch Cart</h2>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-1">{cartItemCount} items total</p>
+            </div>
+            {cart.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={clearCart} className="text-red-500 hover:text-red-600 hover:bg-red-50 rounded-xl h-10 px-4">
+                Clear
               </Button>
-            </CardHeader>
-            <CardContent className="p-0">
-              {products.length === 0 ? (
-                <div className="p-8 text-center text-slate-500">
-                  Wala pang materyales sa imbentaryo.
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-100">
-                  {products.map((product: any) => (
-                    <InventoryListItem key={product.id} product={product} />
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            )}
+          </SheetHeader>
+          
+          <div className="flex-1 overflow-y-auto space-y-3 pb-4">
+            {cart.map((item: any) => (
+              <CartItemCard 
+                key={item.productId}
+                item={item}
+                theme={theme}
+                products={products}
+                removeFromCart={removeFromCart}
+                addToCart={addToCart}
+              />
+            ))}
+          </div>
+          
+          <div className="pt-4 border-t border-slate-100 flex-shrink-0 space-y-3">
+            <div className="flex items-center justify-between mb-4 px-1">
+              <span className="text-slate-500 font-bold uppercase tracking-widest text-xs">Total Bill to Project</span>
+              <span className="text-3xl font-black text-slate-800" style={{ color: theme.primary }}>
+                ₱{totalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+
+            <div className="space-y-2 mb-2">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Select Active Project:</span>
+              <select
+                value={selectedProjectId}
+                onChange={(e) => setSelectedProjectId(e.target.value)}
+                className="w-full h-12 bg-slate-50 border border-slate-200 rounded-lg px-3 text-sm font-bold outline-none focus:border-slate-400"
+              >
+                <option value="">-- Pumili ng Proyekto --</option>
+                {activeProjects.map((proj: any) => (
+                  <option key={proj.id} value={proj.id}>{proj.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <Button 
+              onClick={() => {
+                setShowMobileCart(false);
+                handleDispatch();
+              }} 
+              disabled={cart.length === 0 || !selectedProjectId || isProcessing}
+              className="w-full h-14 rounded-[16px] text-lg font-black shadow-lg"
+              style={{ backgroundColor: theme.primary, color: theme.primaryText }}
+            >
+              {isProcessing ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Send className="mr-2 h-5 w-5" />}
+              DISPATCH TO PROJECT
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
     </div>
   );
 }

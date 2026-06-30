@@ -69,12 +69,37 @@ const HarvestCard = React.memo(({ harvest, actions, isOwner, handleDeleteHarvest
               {harvest.paymentStatus}
             </Badge>
           )}
-          {harvest.expectedValue > 0 && (
-            <p className="text-sm font-bold text-slate-700 mt-1">₱{(harvest.expectedValue).toLocaleString()}</p>
-          )}
+          <div className="flex flex-col items-end text-right mt-1">
+            {harvest.capitalInvested > 0 && (
+              <span className="text-[10px] text-slate-500 font-medium">Cap: ₱{harvest.capitalInvested.toLocaleString()}</span>
+            )}
+            
+            {harvest.status === 'Dispatched' ? (
+               <div className="flex flex-col items-end">
+                 <span className="text-[10px] text-slate-500 font-medium line-through">Est: ₱{(harvest.expectedValue || 0).toLocaleString()}</span>
+                 <span className="text-sm font-black text-slate-800">Sold: ₱{(harvest.actualValue || 0).toLocaleString()}</span>
+                 {harvest.capitalInvested > 0 && (
+                   <span className={`text-xs font-bold ${(harvest.actualValue || 0) - harvest.capitalInvested >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                     {(harvest.actualValue || 0) - harvest.capitalInvested >= 0 ? 'Tubo' : 'Lugi'}: ₱{Math.abs((harvest.actualValue || 0) - harvest.capitalInvested).toLocaleString()}
+                   </span>
+                 )}
+               </div>
+            ) : (
+              <div className="flex flex-col items-end">
+                {harvest.expectedValue > 0 && (
+                  <span className="text-sm font-bold text-slate-700">Est: ₱{(harvest.expectedValue || 0).toLocaleString()}</span>
+                )}
+                {harvest.capitalInvested > 0 && harvest.expectedValue > 0 && (
+                  <span className={`text-[10px] font-bold ${(harvest.expectedValue || 0) - harvest.capitalInvested >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    Est. {(harvest.expectedValue || 0) - harvest.capitalInvested >= 0 ? 'Tubo' : 'Lugi'}: ₱{Math.abs((harvest.expectedValue || 0) - harvest.capitalInvested).toLocaleString()}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-      <div className="flex gap-2">
+      <div className="flex gap-2 mt-2 pt-3 border-t border-slate-100">
         {actions}
       </div>
     </CardContent>
@@ -134,10 +159,15 @@ export function FarmDashboard() {
   const [fieldLocation, setFieldLocation] = useState('');
   const [expectedValue, setExpectedValue] = useState<number | ''>('');
   const [expectedHarvestDate, setExpectedHarvestDate] = useState('');
+  const [capitalInvested, setCapitalInvested] = useState<number | ''>('');
   
   // Harvest Confirmation Form State
   const [harvestingCrop, setHarvestingCrop] = useState<any | null>(null);
   const [actualQuantity, setActualQuantity] = useState<number | ''>('');
+
+  // Selling Confirmation Form State
+  const [sellingCrop, setSellingCrop] = useState<any | null>(null);
+  const [actualValue, setActualValue] = useState<number | ''>('');
 
   const handleAddHarvest = async () => {
     if (!currentTenant || !db || !cropType || !quantity) return;
@@ -150,6 +180,7 @@ export function FarmDashboard() {
         quantity,
         unit,
         fieldLocation,
+        capitalInvested: capitalInvested || 0,
         expectedValue: expectedValue || 0,
         expectedHarvestDate: expectedHarvestDate || null,
         status: 'Planted',
@@ -160,6 +191,7 @@ export function FarmDashboard() {
       setQuantity('');
       setUnit('Sacks');
       setFieldLocation('');
+      setCapitalInvested('');
       setExpectedValue('');
       setExpectedHarvestDate('');
       setShowAddForm(false);
@@ -176,15 +208,16 @@ export function FarmDashboard() {
     if (!currentTenant || !db) return;
     try {
       if (status === 'Dispatched' && paymentStatus === 'Paid') {
+        const finalValue = harvest.actualValue || harvest.expectedValue || 0;
         await completeServiceOrder(
           currentTenant.id, 
           'farm_harvests', 
           harvest.id, 
           status, 
-          harvest.expectedValue * 100, // stored in expectedValue as whole peso
+          finalValue * 100, 
           `Agriculture: Sold ${harvest.quantity} ${harvest.unit} of ${harvest.cropType}`,
           undefined,
-          {},
+          { actualValue: finalValue }, // Additional updates
           paymentMethod,
           undefined,
           discountCentavos,
@@ -193,8 +226,8 @@ export function FarmDashboard() {
         );
         
         setCompletedSale({
-          items: [{ name: `Harvest Sold: ${harvest.quantity} ${harvest.unit} ${harvest.cropType}`, quantity: 1, price: harvest.expectedValue * 100 }],
-          total: harvest.expectedValue * 100,
+          items: [{ name: `Harvest Sold: ${harvest.quantity} ${harvest.unit} ${harvest.cropType}`, quantity: 1, price: finalValue * 100 }],
+          total: finalValue * 100,
           paymentMethod,
           saleId: harvest.id
         });
@@ -242,6 +275,15 @@ export function FarmDashboard() {
       setHarvestingCrop(null);
       setActualQuantity('');
       setIsProcessing(false);
+  }
+
+  const handleConfirmSell = () => {
+      if(!sellingCrop || actualValue === '') return;
+      // Pass the selling crop with updated actualValue to the payment modal flow
+      const updatedCrop = { ...sellingCrop, actualValue: actualValue };
+      setPendingPaymentHarvest(updatedCrop);
+      setSellingCrop(null);
+      setActualValue('');
   }
 
   return (
@@ -324,15 +366,19 @@ export function FarmDashboard() {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2 mt-2">
                 <div className="space-y-1">
-                  <Label htmlFor="expected-date" className="text-xs">Expected Harvest</Label>
-                  <Input id="expected-date" type="date" value={expectedHarvestDate} onChange={e => setExpectedHarvestDate(e.target.value)} />
+                  <Label htmlFor="capital-invested" className="text-xs">Puhunan (Cap. Invested)</Label>
+                  <Input id="capital-invested" type="number" placeholder="₱ 0" value={capitalInvested} onChange={e => setCapitalInvested(parseFloat(e.target.value) || '')} />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="expected-value" className="text-xs">Est. Value (₱)</Label>
-                  <Input id="expected-value" type="number" placeholder="0" value={expectedValue} onChange={e => setExpectedValue(parseFloat(e.target.value) || '')} />
+                  <Label htmlFor="expected-value" className="text-xs">Est. Revenue (₱)</Label>
+                  <Input id="expected-value" type="number" placeholder="₱ 0" value={expectedValue} onChange={e => setExpectedValue(parseFloat(e.target.value) || '')} />
                 </div>
+              </div>
+              <div className="space-y-1 mt-2">
+                <Label htmlFor="expected-date" className="text-xs">Expected Harvest Date</Label>
+                <Input id="expected-date" type="date" value={expectedHarvestDate} onChange={e => setExpectedHarvestDate(e.target.value)} />
               </div>
               <Button 
                 className="w-full h-8 text-xs font-bold text-white mt-2" 
@@ -362,6 +408,27 @@ export function FarmDashboard() {
                 <div className="flex gap-2 pt-2">
                     <Button variant="outline" className="flex-1 h-8 text-xs" onClick={() => { setHarvestingCrop(null); setActualQuantity(''); }}>Cancel</Button>
                     <Button className="flex-1 h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white" disabled={isProcessing || actualQuantity === ''} onClick={handleConfirmHarvest}>Confirm Harvest</Button>
+                </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {sellingCrop && (
+            <Card className="shadow-sm border-emerald-200 bg-emerald-50 border-l-4 animate-in slide-in-from-top-2" style={{ borderLeftColor: '#10b981' }}>
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-sm font-bold flex items-center gap-2"><Coins className="h-4 w-4 text-emerald-600" /> Sell {sellingCrop.cropType}</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 space-y-3 pt-0">
+                <p className="text-xs text-slate-600">Enter the actual selling price for {sellingCrop.quantity} {sellingCrop.unit}. (Est. Value: ₱{sellingCrop.expectedValue?.toLocaleString()})</p>
+                <div className="flex gap-2">
+                    <div className="flex-1 space-y-1">
+                        <Label className="text-xs">Actual Selling Price (₱)</Label>
+                        <Input type="number" placeholder="₱ 0" value={actualValue} onChange={e => setActualValue(parseFloat(e.target.value) || '')} autoFocus />
+                    </div>
+                </div>
+                <div className="flex gap-2 pt-2">
+                    <Button variant="outline" className="flex-1 h-8 text-xs bg-white" onClick={() => { setSellingCrop(null); setActualValue(''); }}>Cancel</Button>
+                    <Button className="flex-1 h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" disabled={actualValue === ''} onClick={handleConfirmSell}>Proceed to Payment</Button>
                 </div>
             </CardContent>
           </Card>
@@ -424,8 +491,8 @@ export function FarmDashboard() {
                                 handleDeleteHarvest={handleDeleteHarvest}
                                 actions={
                                 <div className="flex gap-2 w-full">
-                                    <Button size="sm" className="flex-1 h-7 text-[10px] font-bold text-white border-none" style={{ backgroundColor: theme.primary }} onClick={() => setPendingPaymentHarvest(harvest)}>
-                                    <Coins className="h-3 w-3 mr-1" /> Pay / Dispatch
+                                    <Button size="sm" className="flex-1 h-7 text-[10px] font-bold text-white border-none" style={{ backgroundColor: theme.primary }} onClick={() => { setSellingCrop(harvest); setActualValue(harvest.expectedValue || ''); }}>
+                                    <Coins className="h-3 w-3 mr-1" /> Sell / Dispatch
                                     </Button>
                                 </div>
                                 } 
@@ -471,7 +538,7 @@ export function FarmDashboard() {
         <ServicePaymentModal
           isOpen={!!pendingPaymentHarvest}
           onClose={() => setPendingPaymentHarvest(null)}
-          amountDue={pendingPaymentHarvest.expectedValue * 100}
+          amountDue={(pendingPaymentHarvest.actualValue || pendingPaymentHarvest.expectedValue || 0) * 100}
         onConfirm={(method, discountCentavos, discountType, discountReason) => {
             if (method === 'gcash') {
               setPendingDiscountCentavos(discountCentavos || 0);
@@ -492,7 +559,7 @@ export function FarmDashboard() {
           setShowGCashQr(false);
           setPendingPaymentHarvest(null);
         }}
-        totalAmount={((pendingPaymentHarvest?.expectedValue || 0) * 100) - pendingDiscountCentavos}
+        totalAmount={(((pendingPaymentHarvest?.actualValue || pendingPaymentHarvest?.expectedValue || 0) * 100) - pendingDiscountCentavos)}
         tenantName={currentTenant?.name || "Katuwang Farm"}
         paymentType="gcash"
         onPaymentVerified={async (paymentMethod) => {

@@ -29,7 +29,7 @@ export async function addRetailCredit(
     // Stage 1: Perform all GETs
     const productDocsToUpdate: { ref: ReturnType<typeof doc>; newStock: number }[] = [];
 
-    if (updateStock && data.type === 'payable' && data.items && data.items.length > 0) {
+    if (updateStock && data.items && data.items.length > 0) {
       for (const item of data.items) {
         if (item.productId && !item.productId.startsWith('misc-')) {
           const productRef = doc(db, 'tenants', data.tenantId, 'products', item.productId);
@@ -38,9 +38,20 @@ export async function addRetailCredit(
           if (productSnap.exists()) {
             const productData = productSnap.data();
             const currentStock = productData.currentStock || 0;
+            
+            let newStock = currentStock;
+            if (data.type === 'payable') {
+              newStock = currentStock + item.quantity;
+            } else if (data.type === 'receivable') {
+              newStock = currentStock - item.quantity;
+              if (newStock < 0) {
+                throw new Error(`Hindi sapat ang stock para sa ${item.name} (Kulang ng ${Math.abs(newStock)}).`);
+              }
+            }
+
             productDocsToUpdate.push({
               ref: productRef,
-              newStock: currentStock + item.quantity
+              newStock
             });
           }
         }
