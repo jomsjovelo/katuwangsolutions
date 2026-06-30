@@ -1,4 +1,5 @@
 "use client"
+import { usePinApproval } from '@/hooks/use-pin-approval';
 
 import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
@@ -7,7 +8,8 @@ import { useUser } from '@/firebase/auth/use-user';
 import { doc, updateDoc, serverTimestamp, collection, query, orderBy, limit } from 'firebase/firestore';
 import { useCollection } from 'react-firebase-hooks/firestore';
 import { useFirestore } from '@/firebase/provider';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useShift } from '@/hooks/use-shift';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,11 +34,13 @@ export function PayrollDashboard() {
   const { currentTenant } = useTenant();
   const db = useFirestore();
   const { toast } = useToast();
+  const { requireApproval } = usePinApproval();
   
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
   
   const { user } = useUser();
+  const { activeShift } = useShift();
   const isOwner = currentTenant?.ownerUid === user?.uid || (currentTenant as any)?.role === 'owner';
 
   // --- Employee List ---
@@ -140,7 +144,10 @@ export function PayrollDashboard() {
         grossCentavos,
         valeCentavos,
         govtDeductionsCentavos,
-        netCentavos
+        netCentavos,
+        user?.uid,
+        user?.displayName || user?.email || 'Unknown',
+        activeShift?.id
       );
       // Reset local inputs
       setDaysInputs(prev => ({ ...prev, [emp.id]: '' }));
@@ -202,6 +209,10 @@ export function PayrollDashboard() {
               <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:text-red-500 rounded-full" onClick={async (e) => {
                 e.stopPropagation();
                 if (!currentTenant || !user) return;
+    // Phase 2: Require Manager PIN for Deletions
+    const approved = await requireApproval("Deleting a record requires Manager authorization.");
+    if (!approved) return;
+
                 if (!window.confirm("Sigurado ka bang gusto mong i-delete ang empleyadong ito?")) return;
                 try {
                   await deleteEmployee(currentTenant.id, emp.id, user.uid, user.displayName || user.email || 'Unknown User');

@@ -19,11 +19,12 @@ export function ServicePaymentModal({
 }: { 
   isOpen: boolean, 
   onClose: () => void, 
-  onConfirm: (method: string, discountCentavos?: number, discountType?: 'percentage' | 'fixed') => void, 
+  onConfirm: (method: string, discountCentavos?: number, discountType?: 'percentage' | 'fixed', discountReason?: string) => void, 
   amountDue: number, 
 }) {
   const [discountType, setDiscountType] = useState<'percentage'|'fixed'>('percentage');
   const [discountValue, setDiscountValue] = useState('');
+  const [discountReason, setDiscountReason] = useState('');
 
   const parsedDiscount = parseFloat(discountValue) || 0;
   let discountCentavos = 0;
@@ -40,6 +41,7 @@ export function ServicePaymentModal({
     <Dialog open={isOpen} onOpenChange={(open) => {
       if (!open) {
         setDiscountValue('');
+        setDiscountReason('');
         onClose();
       }
     }}>
@@ -61,19 +63,21 @@ export function ServicePaymentModal({
           onTypeChange={setDiscountType}
           onValueChange={setDiscountValue}
           subtotal={amountDue}
+          discountReason={discountReason}
+          onReasonChange={setDiscountReason}
         />
         
         <div className="grid grid-cols-2 gap-3 mt-4 border-t border-slate-100 pt-4">
           <Button 
             className="h-16 flex flex-col items-center justify-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-800 border-2 border-slate-200"
-            onClick={() => onConfirm('cash', discountCentavos, discountType)}
+            onClick={() => onConfirm('cash', discountCentavos, discountType, discountReason)}
           >
             <Coins className="h-6 w-6 text-amber-500" />
             <span className="font-bold text-xs uppercase">Cash</span>
           </Button>
           <Button 
             className="h-16 flex flex-col items-center justify-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-800 border-2 border-slate-200"
-            onClick={() => onConfirm('gcash', discountCentavos, discountType)}
+            onClick={() => onConfirm('gcash', discountCentavos, discountType, discountReason)}
           >
             <Smartphone className="h-6 w-6 text-blue-500" />
             <span className="font-bold text-xs uppercase">GCash</span>

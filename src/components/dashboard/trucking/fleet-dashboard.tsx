@@ -1,4 +1,5 @@
 "use client"
+import { usePinApproval } from '@/hooks/use-pin-approval';
 
 import React, { useState, useRef } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
@@ -7,6 +8,7 @@ import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { addTrip, updateTripStatus, updateTripExpenses, deleteTrip } from '@/firebase/firestore/trucking-actions';
 import { useUser } from '@/firebase/auth/use-user';
+import { useShift } from '@/hooks/use-shift';
 import { chargeRetailSaleToCredit } from '@/firebase/firestore/credit-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -179,6 +181,7 @@ export function FleetDashboard() {
   const { currentTenant } = useTenant();
   const db = useFirestore();
   const { toast } = useToast();
+  const { requireApproval } = usePinApproval();
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [showDispatchForm, setShowDispatchForm] = useState(false);
@@ -215,11 +218,13 @@ export function FleetDashboard() {
 
   const [discountType, setDiscountType] = useState<'percentage'|'fixed'>('percentage');
   const [discountValue, setDiscountValue] = useState('');
+  const [discountReason, setDiscountReason] = useState('');
 
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
 
   const { user } = useUser();
+  const { activeShift } = useShift();
   const isOwner = currentTenant?.ownerUid === user?.uid || (currentTenant as any)?.role === 'owner';
 
   const tripsQuery = React.useMemo(() => {
@@ -248,7 +253,7 @@ export function FleetDashboard() {
 
   const [showArchive, setShowArchive] = useState(false);
 
-  const isFarm = currentTenant?.moduleType === 'ani-grow';
+  const isFarm = currentTenant?.moduleType === 'farm-master';
 
   const handleDispatch = async () => {
     if (!currentTenant || !origin || !destination) return;
@@ -270,14 +275,36 @@ export function FleetDashboard() {
     }
   };
 
-  const moveTrip = async (id: string, newStatus: 'loading' | 'in_transit' | 'completed', signatureData?: string, paymentMethod?: string, overrideDiscountCentavos?: number, overrideDiscountType?: 'percentage'|'fixed') => {
+  const moveTrip = async (
+    tripId: string, 
+    newStatus: 'loading' | 'in_transit' | 'completed' | 'cancelled', 
+    signatureData?: string,
+    paymentMethod: string = 'cash',
+    gcashRef?: string,
+    discountCentavos: number = 0,
+    discountType?: 'percentage' | 'fixed',
+    discountReason?: string
+  ) => {
     if (!currentTenant) return;
     try {
       setIsProcessing(true);
-      await updateTripStatus(currentTenant.id, id, newStatus, signatureData, paymentMethod, overrideDiscountCentavos, overrideDiscountType);
+      await updateTripStatus(
+        currentTenant.id, 
+        tripId, 
+        newStatus, 
+        signatureData, 
+        paymentMethod, 
+        gcashRef,
+        discountCentavos,
+        discountType,
+        discountReason,
+        user?.uid,
+        user?.displayName || user?.email || 'Unknown',
+        activeShift?.id
+      );
       if (newStatus === 'completed') {
         setShowSignatureModal(null);
-        toast({ title: 'Trip Completed', description: 'Fee, expenses, and ePOD saved.' });
+        toast({ title: 'Trip Updated', description: `Status changed to ${newStatus}` });
       }
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
@@ -288,6 +315,10 @@ export function FleetDashboard() {
 
   const handleDeleteTrip = async (tripId: string) => {
     if (!currentTenant || !user) return;
+    // Phase 2: Require Manager PIN for Deletions
+    const approved = await requireApproval("Deleting a record requires Manager authorization.");
+    if (!approved) return;
+
     if (!window.confirm("Sigurado ka bang gusto mong i-delete o i-void ang trip na ito? Ire-revert nito ang lahat ng expenses at delivery fee kung completed na.")) return;
     try {
       setIsProcessing(true);
@@ -397,7 +428,16 @@ export function FleetDashboard() {
       
       const finalTotalCentavos = Math.max(0, trip.deliveryFee - discountCentavos);
 
-      await moveTrip(tripIdToUse, 'completed', signatureDataToUse, paymentMethod, discountCentavos, discountType);
+      await moveTrip(
+        tripIdToUse, 
+        'completed', 
+        signatureDataToUse, 
+        paymentMethod, 
+        undefined,
+        discountCentavos, 
+        discountType, 
+        discountReason
+      );
       
       if (trip && trip.deliveryFee > 0) {
         setCompletedSale({
@@ -611,8 +651,10 @@ export function FleetDashboard() {
                   <DiscountInput 
                     discountType={discountType}
                     discountValue={discountValue}
+                    discountReason={discountReason}
                     onTypeChange={setDiscountType}
                     onValueChange={setDiscountValue}
+                    onReasonChange={setDiscountReason}
                     subtotal={trips.find((t: any) => t.id === showSignatureModal)?.deliveryFee || 0}
                   />
                 )}

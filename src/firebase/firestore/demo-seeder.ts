@@ -52,7 +52,7 @@ const MODULE_SEED_DATA: Record<string, SeedProduct[]> = {
     { name: 'Passenger Ticket (Regular)', price: 50000, cost: 25000, stock: 999, minStock: 0 },
     { name: 'Cargo Fee (per kg)', price: 5000, cost: 2000, stock: 999, minStock: 0 },
   ],
-  'ani-grow': [
+  'farm-master': [
     { name: 'Urea Fertilizer (50kg)', price: 180000, cost: 160000, stock: 40, minStock: 10 },
     { name: 'Hybrid Corn Seeds (5kg)', price: 350000, cost: 300000, stock: 20, minStock: 5 },
     { name: 'Pesticide (1L)', price: 85000, cost: 70000, stock: 30, minStock: 10 },

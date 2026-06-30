@@ -14,6 +14,7 @@ import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis, Legend, BarChart,
 import { useSales } from '@/hooks/use-sales';
 import { startOfDay, endOfDay, subDays, format } from 'date-fns';
 import { useInventory } from '@/hooks/use-inventory';
+import { StaffShiftsReport } from './staff-shifts-report';
 
 // Specialized Retail Metrics for benta-snap
 function RetailMetrics({ selectedDate }: { selectedDate: Date | { start: Date, end: Date } }) {
@@ -879,6 +880,9 @@ export function ReportsTab() {
             </CardContent>
           </Card>
         </section>
+
+        {/* Staff Shifts Report */}
+        <StaffShiftsReport />
 
         {/* Cooperative Franchise Dashboard (Multi-store aggregate statistics) */}
         <section className="space-y-3.5">

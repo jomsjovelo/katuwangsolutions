@@ -1,4 +1,5 @@
 "use client"
+import { usePinApproval } from '@/hooks/use-pin-approval';
 
 import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
@@ -6,6 +7,7 @@ import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/fi
 import { useFirestore } from '@/firebase/provider';
 import { completeEvent, payEventVendor, addGuestToEvent, toggleGuestCheckIn, recordEventPayment, deleteEvent } from '@/firebase/firestore/events-actions';
 import { useUser } from '@/firebase/auth/use-user';
+import { useShift } from '@/hooks/use-shift';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -89,10 +91,12 @@ export function GanapDashboard() {
   const { currentTenant } = useTenant();
   const db = useFirestore();
   const { toast } = useToast();
+  const { requireApproval } = usePinApproval();
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const { user } = useUser();
+  const { activeShift } = useShift();
   const isOwner = currentTenant?.ownerUid === user?.uid || (currentTenant as any)?.role === 'owner';
 
   const theme = getModuleTheme(currentTenant?.moduleType);
@@ -136,6 +140,7 @@ export function GanapDashboard() {
 
   const [discountType, setDiscountType] = useState<'percentage'|'fixed'>('percentage');
   const [discountValue, setDiscountValue] = useState('');
+  const [discountReason, setDiscountReason] = useState('');
 
   // Guest List State
   const [guests, setGuests] = useState<any[]>([]);
@@ -186,7 +191,7 @@ export function GanapDashboard() {
     if (!currentTenant || !db) return;
     try {
       if (status === 'Done') {
-        await completeEvent(currentTenant.id, id, selectedEvent?.contractPrice || 0, `Event: ${selectedEvent?.title}`);
+        await completeEvent(currentTenant.id, id, selectedEvent?.contractPrice || 0, `Event: ${selectedEvent?.title}`, 0, undefined, '', user?.uid, user?.displayName || user?.email || 'Unknown', activeShift?.id);
       } else {
         const eventRef = doc(db, 'tenants', currentTenant.id, 'events', id);
         await updateDoc(eventRef, { status, updatedAt: serverTimestamp() });
@@ -202,6 +207,10 @@ export function GanapDashboard() {
 
   const handleDeleteEvent = async () => {
     if (!currentTenant || !user || !selectedEvent?.id) return;
+    // Phase 2: Require Manager PIN for Deletions
+    const approved = await requireApproval("Deleting a record requires Manager authorization.");
+    if (!approved) return;
+
     if (!window.confirm("Sigurado ka bang gusto mong i-delete ang event na ito? Babalik ang ibinayad sa Master Cash kung mayroon man.")) return;
     try {
       setIsDeleting(true);
@@ -295,7 +304,11 @@ export function GanapDashboard() {
         Math.round(amount * 100), 
         `Client Payment for Event: ${selectedEvent.title}`,
         discountCentavos,
-        discountType
+        discountType,
+        discountReason,
+        user?.uid,
+        user?.displayName || user?.email || 'Unknown',
+        activeShift?.id
       );
       setSelectedEvent({ ...selectedEvent, amountPaid: (selectedEvent.amountPaid || 0) + finalAmountCentavos + discountCentavos });
       
@@ -393,11 +406,9 @@ export function GanapDashboard() {
                   selectedEvent.status === 'Upcoming' ? 'bg-amber-100 text-amber-700' :
                   selectedEvent.status === 'Ongoing' ? 'bg-cyan-100 text-cyan-700' : 'bg-emerald-100 text-emerald-700'
                 }>{selectedEvent.status}</Badge>
-                {isOwner && (
-                  <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 rounded-full bg-red-50" onClick={handleDeleteEvent} disabled={isDeleting}>
+                <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 rounded-full bg-red-50" onClick={handleDeleteEvent} disabled={isDeleting}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
-                )}
               </div>
             </CardHeader>
 
@@ -455,8 +466,10 @@ export function GanapDashboard() {
                       <DiscountInput 
                         discountType={discountType}
                         discountValue={discountValue}
+                        discountReason={discountReason}
                         onTypeChange={setDiscountType}
                         onValueChange={setDiscountValue}
+                        onReasonChange={setDiscountReason}
                         subtotal={(typeof paymentAmount === 'number' ? paymentAmount : 0) * 100}
                       />
 

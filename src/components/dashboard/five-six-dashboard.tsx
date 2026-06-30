@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { DiscountInput } from '@/components/ui/discount-input';
+import { useUser } from '@/firebase/auth/use-user';
+import { useShift } from '@/hooks/use-shift';
 import { 
   Users, 
   Banknote, 
@@ -53,7 +55,6 @@ import {
   Borrower,
   CreditTransaction
 } from '@/firebase/firestore/credit-actions';
-import { useUser } from '@/firebase/auth/use-user';
 import { useCreditStats } from '@/hooks/use-credit-stats';
 import { playSuccessBeep } from '@/components/common/gcash-qr-modal';
 
@@ -283,6 +284,7 @@ type FormState = {
   payAmount: string;
   discountType: 'percentage' | 'fixed';
   discountValue: string;
+  discountReason: string;
   collectTodayMode: boolean;
   capitalAmount: string;
   capitalNote: string;
@@ -309,6 +311,7 @@ const initialFormState: FormState = {
   payAmount: '',
   discountType: 'percentage',
   discountValue: '',
+  discountReason: '',
   collectTodayMode: false,
   capitalAmount: '',
   capitalNote: ''
@@ -334,6 +337,9 @@ function formReducer(state: FormState, action: FormAction): FormState {
 
 export function FiveSixDashboard() {
   const { currentTenant } = useTenant();
+  const { user } = useUser();
+  const { activeShift } = useShift();
+  const isOwner = currentTenant?.ownerUid === user?.uid || (currentTenant as any)?.role === 'owner';
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
 
@@ -351,8 +357,6 @@ export function FiveSixDashboard() {
   const [ledgerHistory, setLedgerHistory] = useState<CreditTransaction[]>([]);
   const [loadingLedger, setLoadingLedger] = useState(false);
   const [editingTx, setEditingTx] = useState<CreditTransaction | null>(null);
-  
-  const { user } = useUser();
 
   // Notification overlays
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -365,7 +369,7 @@ export function FiveSixDashboard() {
     editNote, editName, editPhone, editArea, editLimit, editDailyDue,
     newName, newPhone, newArea,
     loanPrincipal, loanInterest, interestMode, loanSchedule, loanIntervalDays, loanDailyDue, loanTermDays, loanDateStr,
-    payAmount, discountType, discountValue, collectTodayMode,
+    payAmount, discountType, discountValue, discountReason, collectTodayMode,
     capitalAmount, capitalNote
   } = formState;
 
@@ -373,6 +377,7 @@ export function FiveSixDashboard() {
   const setField = useCallback((field: keyof FormState, value: any) => dispatchForm({ type: 'SET_FIELD', field, value }), []);
   const setDiscountType = useCallback((val: 'percentage'|'fixed') => setField('discountType', val), [setField]);
   const setDiscountValue = useCallback((val: string) => setField('discountValue', val), [setField]);
+  const setDiscountReason = useCallback((val: string) => setField('discountReason', val), [setField]);
   const setEditNote = useCallback((val: string) => setField('editNote', val), [setField]);
   const setEditName = useCallback((val: string) => setField('editName', val), [setField]);
   const setEditPhone = useCallback((val: string) => setField('editPhone', val), [setField]);
@@ -704,7 +709,11 @@ export function FiveSixDashboard() {
         selectedBorrower.id,
         payParsed,
         discountCentavos,
-        discountType
+        discountType,
+        discountReason,
+        user?.uid,
+        user?.displayName || user?.email || 'Unknown',
+        activeShift?.id
       );
 
       try { playPaymentSound(); } catch (err) { /* ignore autoplay blocks */ }
@@ -727,7 +736,21 @@ export function FiveSixDashboard() {
       const amount = (borrower.dailyDue || 0) / 100;
       if (amount <= 0) throw new Error("Arawang singil ay 0.");
       
-      await recordPayment(currentTenant.id, borrower.id, amount);
+      const parsedDiscount = 0;
+      const discountType = 'fixed';
+      const discountReason = 'None';
+      
+      await recordPayment(
+        currentTenant.id, 
+        borrower.id, 
+        amount, 
+        0, 
+        discountType, 
+        discountReason,
+        user?.uid,
+        user?.displayName || user?.email || 'Unknown',
+        activeShift?.id
+      );
       
       try { playPaymentSound(); } catch (err) { /* ignore autoplay blocks */ }
       setSuccessMsg(`1-Tap Bayad na ₱${amount} kay ${borrower.name}!`);
@@ -1525,8 +1548,10 @@ export function FiveSixDashboard() {
                   <DiscountInput 
                     discountType={discountType}
                     discountValue={discountValue}
+                    discountReason={discountReason}
                     onTypeChange={setDiscountType}
                     onValueChange={setDiscountValue}
+                    onReasonChange={setDiscountReason}
                     subtotal={(parseFloat(payAmount) || 0) * 100}
                   />
 

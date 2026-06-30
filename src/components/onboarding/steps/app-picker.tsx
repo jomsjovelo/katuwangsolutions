@@ -15,7 +15,7 @@ const apps = [
       { id: 'benta-snap', name: 'Benta Snap', icon: ShoppingCart, desc: 'Lightning-fast retail checkout to maximize your daily sales.' },
       { id: 'fresh-tally', name: 'Fresh Tally', icon: Leaf, desc: 'Smart inventory tracking to keep your fresh produce moving.' },
       { id: 'build-stack', name: 'Build Stack', icon: Hammer, desc: 'Precision material tracking for seamless construction supply.' },
-      { id: 'ani-grow', name: 'Ani Grow', icon: Sprout, desc: 'End-to-end farm-to-warehouse tracking for agriculture.' },
+      { id: 'farm-master', name: 'Farm Master', icon: Sprout, desc: 'End-to-end farm-to-warehouse tracking for agriculture.' },
     ]
   },
   { 

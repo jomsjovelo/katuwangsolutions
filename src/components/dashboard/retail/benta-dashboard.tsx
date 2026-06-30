@@ -9,6 +9,8 @@ import { useInventory } from '@/hooks/use-inventory';
 import { useSyncStatus } from '@/hooks/use-sync-status';
 import { useCart } from '@/hooks/use-cart';
 import { processCheckout, processCreditCheckout, addProduct, deleteSale, CartItem } from '@/firebase/firestore/retail-actions';
+import { usePinApproval } from '@/hooks/use-pin-approval';
+import { useShift } from '@/hooks/use-shift';
 import { Card, CardContent } from "@/components/ui/card";
 import { useUser } from '@/firebase/auth/use-user';
 import { Badge } from "@/components/ui/badge";
@@ -238,9 +240,12 @@ function BentaDashboardContent() {
 
   const [discountType, setDiscountType] = useState<'percentage'|'fixed'>('percentage');
   const [discountValue, setDiscountValue] = useState('');
+  const [discountReason, setDiscountReason] = useState('');
 
   // Dynamically resolve Katuwang industry theme based on active tenant's moduleType
   const theme = getModuleTheme(currentTenant?.moduleType);
+  const { requireApproval } = usePinApproval();
+  const { activeShift } = useShift();
 
   const parsedDiscount = parseFloat(discountValue) || 0;
   let discountCentavos = 0;
@@ -297,13 +302,25 @@ function BentaDashboardContent() {
   };
 
   const handleCheckout = async (paymentMethod: string = 'cash', gcashRef?: string) => {
-    if (!currentTenant || cart.length === 0) return;
+    if (!currentTenant || !user || cart.length === 0) return;
     try {
       setIsProcessing(true);
       setError(null);
       
       // Execute safe atomic transaction in Firestore — returns real Firestore document ID
-      const saleId = await processCheckout(currentTenant.id, cart, finalTotalCentavos, paymentMethod, gcashRef, discountCentavos, discountType);
+      const saleId = await processCheckout(
+        currentTenant.id, 
+        cart, 
+        finalTotalCentavos, 
+        paymentMethod, 
+        gcashRef, 
+        discountCentavos, 
+        discountType,
+        discountReason,
+        user.uid,
+        user.displayName || user.email || 'Unknown',
+        activeShift?.id
+      );
       
       // Store transaction data for receipt representation with the REAL Firestore ID
       setCompletedSale({
@@ -331,6 +348,11 @@ function BentaDashboardContent() {
 
   const handleVoidSale = async () => {
     if (!currentTenant || !completedSale?.saleId || !user) return;
+    
+    // Phase 2: Require Manager PIN for Voids
+    const approved = await requireApproval("Voiding a sale requires Manager authorization.");
+    if (!approved) return;
+
     if (!window.confirm("Sigurado ka bang gusto mong i-void ang sale na ito? Ang stock ng items ay babalik sa inventory.")) return;
     
     try {
@@ -354,7 +376,7 @@ function BentaDashboardContent() {
   };
 
   const handlePalistaCheckout = async () => {
-    if (!currentTenant || cart.length === 0) return;
+    if (!currentTenant || !user || cart.length === 0) return;
     if (!palistaName || palistaName.trim() === '') {
       setError("Ilagay ang pangalan ng Customer.");
       return;
@@ -364,7 +386,19 @@ function BentaDashboardContent() {
       setError(null);
       
       const palistaDate = new Date();
-      const saleId = await processCreditCheckout(currentTenant.id, cart, finalTotalCentavos, palistaName, palistaDate, discountCentavos, discountType);
+      const saleId = await processCreditCheckout(
+        currentTenant.id, 
+        cart, 
+        finalTotalCentavos, 
+        palistaName, 
+        palistaDate, 
+        discountCentavos, 
+        discountType,
+        discountReason,
+        user.uid,
+        user.displayName || user.email || 'Unknown',
+        activeShift?.id
+      );
       
       setCompletedSale({
         items: [...cart],
@@ -646,8 +680,10 @@ function BentaDashboardContent() {
                     <DiscountInput 
                       discountType={discountType}
                       discountValue={discountValue}
+                      discountReason={discountReason}
                       onTypeChange={setDiscountType}
                       onValueChange={setDiscountValue}
+                      onReasonChange={setDiscountReason}
                       subtotal={totalCentavos}
                     />
                   )}
@@ -788,8 +824,10 @@ function BentaDashboardContent() {
               <DiscountInput 
                 discountType={discountType}
                 discountValue={discountValue}
+                discountReason={discountReason}
                 onTypeChange={setDiscountType}
                 onValueChange={setDiscountValue}
+                onReasonChange={setDiscountReason}
                 subtotal={totalCentavos}
               />
             )}

@@ -1,11 +1,19 @@
-import { getFirestore, doc, collection, serverTimestamp, setDoc, increment } from 'firebase/firestore';
+import { getFirestore, doc, collection, serverTimestamp, setDoc, updateDoc, increment } from 'firebase/firestore';
 import { initializeFirebase } from '../index';
 import { JobSchema, JobStatus } from '@/lib/schemas/services';
 import { runTransactionResilient } from './resilient-transaction';
+import { logAuditEvent } from './audit-actions';
 
 export const getKatuwangDb = () => initializeFirebase().db;
 
-export async function addJob(tenantId: string, customerName: string, serviceName: string, amountCentavos: number, phoneNumber?: string) {
+export async function addJob(
+  tenantId: string, 
+  customerName: string, 
+  serviceName: string, 
+  amountCentavos: number, 
+  phoneNumber?: string,
+  extra?: { deviceModel?: string, laborCost?: number, partsCost?: number, technicianName?: string }
+) {
   const db = getKatuwangDb();
   
   // Validate using Zod schema
@@ -15,6 +23,7 @@ export async function addJob(tenantId: string, customerName: string, serviceName
     customerName,
     amount: amountCentavos,
     status: 'pending',
+    ...(extra || {})
   });
 
   const jobsRef = collection(db, 'tenants', tenantId, 'jobs');
@@ -30,7 +39,21 @@ export async function addJob(tenantId: string, customerName: string, serviceName
   return newJobRef.id;
 }
 
-export async function updateJobStatus(tenantId: string, jobId: string, newStatus: JobStatus, amountCentavos?: number, customerName?: string, paymentMethod: string = 'cash', gcashRef?: string, discountCentavos: number = 0, discountType?: 'percentage' | 'fixed') {
+export async function updateJobStatus(
+  tenantId: string, 
+  jobId: string, 
+  newStatus: JobStatus, 
+  amountCentavos?: number, 
+  customerName?: string, 
+  paymentMethod: string = 'cash', 
+  gcashRef?: string, 
+  discountCentavos: number = 0, 
+  discountType?: 'percentage' | 'fixed', 
+  discountReason?: string,
+  userId?: string,
+  userName?: string,
+  shiftId?: string
+) {
   const db = getKatuwangDb();
   
   await runTransactionResilient(db, async (transaction) => {
@@ -58,6 +81,7 @@ export async function updateJobStatus(tenantId: string, jobId: string, newStatus
     
     if (newStatus === 'in_progress') updateData.startedAt = serverTimestamp();
     if (newStatus === 'completed') updateData.completedAt = serverTimestamp();
+    if (discountReason) updateData.discountReason = discountReason;
     
     transaction.update(jobRef, updateData);
 
@@ -99,6 +123,15 @@ export async function updateJobStatus(tenantId: string, jobId: string, newStatus
         createdAt: serverTimestamp()
       });
 
+      // Log discount audit
+      if (discountCentavos > 0 && userId && userName) {
+        logAuditEvent(tenantId, userId, userName, {
+          type: 'apply_discount',
+          description: `Applied ${discountType === 'percentage' ? 'percentage' : 'fixed'} discount of ₱${(discountCentavos / 100).toFixed(2)} to service job. Reason: ${discountReason || 'None'}`,
+          meta: { jobId, discountCentavos, discountType, discountReason, shiftId }
+        });
+      }
+
       // Write to unified sales subcollection
       const salesRef = collection(db, 'tenants', tenantId, 'sales');
       const newSaleRef = doc(salesRef);
@@ -112,6 +145,7 @@ export async function updateJobStatus(tenantId: string, jobId: string, newStatus
         subtotalAmount: amountCentavos,
         discountAmount: discountCentavos,
         discountType: discountType || 'none',
+        discountReason,
         totalAmount: finalAmount,
         paymentMethod: paymentMethod,
         createdAt: serverTimestamp()
@@ -137,7 +171,11 @@ export async function completeServiceOrder(
   paymentMethod: string = 'cash',
   gcashRef?: string,
   discountCentavos: number = 0,
-  discountType?: 'percentage' | 'fixed'
+  discountType?: 'percentage' | 'fixed',
+  discountReason?: string,
+  userId?: string,
+  userName?: string,
+  shiftId?: string
 ) {
   if (amountCentavos < 0 || isNaN(amountCentavos)) {
     throw new Error('Invalid payment amount.');
@@ -169,6 +207,7 @@ export async function completeServiceOrder(
       updatedAt: serverTimestamp(),
       ...extraUpdates
     };
+    if (discountReason) updateData.discountReason = discountReason;
     
     // Auto-deduct parts from inventory if they were passed
     if (extraUpdates && extraUpdates.partsUsed && Array.isArray(extraUpdates.partsUsed)) {
@@ -238,6 +277,7 @@ export async function completeServiceOrder(
         subtotalAmount: amountCentavos,
         discountAmount: discountCentavos,
         discountType: discountType || 'none',
+        discountReason,
         totalAmount: finalAmount,
         paymentMethod: paymentMethod,
         createdAt: serverTimestamp()
@@ -247,6 +287,14 @@ export async function completeServiceOrder(
       transaction.set(newSaleRef, saleRecord);
     }
   });
+
+  if (discountCentavos > 0 && userId && userName) {
+    await logAuditEvent(tenantId, userId, userName, {
+      type: 'apply_discount',
+      description: `Applied ${discountType === 'percentage' ? 'percentage' : 'fixed'} discount of ₱${(discountCentavos / 100).toFixed(2)} to service order. Reason: ${discountReason || 'None'}`,
+      meta: { orderId, collectionName, discountCentavos, discountType, discountReason, shiftId }
+    });
+  }
 
   return true;
 }

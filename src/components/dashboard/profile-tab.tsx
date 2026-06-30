@@ -32,6 +32,8 @@ import { Badge } from "@/components/ui/badge";
 import { useTenantStore } from '@/store/use-tenant-store';
 import { WithdrawReferralSheet } from '@/components/common/withdraw-referral-sheet';
 import { ReferralHistorySheet } from '@/components/dashboard/referral-history-sheet';
+import { StaffShiftCard } from './staff-shift-card';
+import { ManagerPinSetup } from './manager-pin-setup';
 import { ActivityOrganizer } from './activity-organizer';
 import { 
   User, 
@@ -65,7 +67,10 @@ import {
   RefreshCw,
   Activity,
   ArrowRight,
-  Lock
+  Lock,
+  Tag,
+  Zap,
+  Edit2
 } from 'lucide-react';
 import { EscPosBluetoothDriver } from '@/lib/hardware/print-driver';
 import { HelpGuideDrawer } from '@/components/shell/help-guide-drawer';
@@ -925,12 +930,18 @@ export function ProfileTab() {
                       const date = log.createdAt?.toDate ? log.createdAt.toDate() : new Date();
                       
                       let icon = <Activity className="h-3.5 w-3.5 text-slate-400" />;
-                      if (log.type === 'delete_transaction' || log.type === 'void_sale') {
+                      if (log.type === 'delete_transaction' || log.type === 'void_sale' || log.type === 'delete_record') {
                         icon = <Trash2 className="h-3.5 w-3.5 text-red-500" />;
-                      } else if (log.type === 'edit_transaction') {
-                        icon = <RefreshCw className="h-3.5 w-3.5 text-blue-500" />;
+                      } else if (log.type === 'edit_transaction' || log.type === 'price_override') {
+                        icon = <Edit2 className="h-3.5 w-3.5 text-amber-500" />;
                       } else if (log.type === 'add_staff' || log.type === 'remove_staff') {
-                        icon = <Users className="h-3.5 w-3.5 text-amber-500" />;
+                        icon = <Users className="h-3.5 w-3.5 text-indigo-500" />;
+                      } else if (log.type === 'apply_discount') {
+                        icon = <Tag className="h-3.5 w-3.5 text-emerald-500" />;
+                      } else if (log.type === 'payout_expense') {
+                        icon = <Banknote className="h-3.5 w-3.5 text-rose-500" />;
+                      } else if (log.type === 'status_change') {
+                        icon = <Zap className="h-3.5 w-3.5 text-blue-500" />;
                       }
 
                       return (
@@ -942,10 +953,18 @@ export function ProfileTab() {
                             <p className="text-xs font-bold text-slate-700 leading-tight">
                               {log.description}
                             </p>
-                            <div className="flex items-center gap-2 mt-1 text-[9px] font-semibold text-slate-400">
+                            <div className="flex flex-wrap items-center gap-2 mt-1 text-[9px] font-semibold text-slate-400">
                               <span className="truncate">{log.userName || 'Unknown'}</span>
                               <span>&bull;</span>
                               <span>{date.toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                              {log.meta?.shiftId && (
+                                <>
+                                  <span>&bull;</span>
+                                  <span className="text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-100">
+                                    Shift {log.meta.shiftId.slice(-4)}
+                                  </span>
+                                </>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1027,6 +1046,11 @@ export function ProfileTab() {
           </section>
         )}
 
+        {/* Manager PIN Setup for Owners */}
+        {isOwner && (
+          <ManagerPinSetup />
+        )}
+
         {/* Staff Dashboard Informational Banner */}
         {!isOwner && (
           <Card className="bg-white border-slate-200 shadow-sm rounded-[24px] overflow-hidden">
@@ -1046,6 +1070,9 @@ export function ProfileTab() {
             </div>
           </Card>
         )}
+
+        {/* Staff Shift Card */}
+        <StaffShiftCard />
 
 
 

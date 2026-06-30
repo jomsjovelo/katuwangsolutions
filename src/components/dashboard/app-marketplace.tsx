@@ -26,7 +26,7 @@ const APPS = [
   { id: 'sahod-flow', name: 'Sahod Flow', category: 'Corporate', desc: 'Automated staff payroll and timesheets', price: 249 },
   
   { id: 'biyahe-sync', name: 'Biyahe Sync', category: 'Trucking', desc: 'Trucking service and hauling fee tracker', price: 349 },
-  { id: 'ani-grow', name: 'Ani Grow', category: 'Agriculture', desc: 'Farm harvest and bodega crop tracking', price: 199 },
+  { id: 'farm-master', name: 'Farm Master', category: 'Agriculture', desc: 'Farm harvest and bodega crop tracking', price: 199 },
 
   { id: 'bite-snap', name: 'Bite Snap', category: 'Food', desc: 'Eatery POS with Kitchen Display (KDS)', price: 299 },
   { id: 'timpla-track', name: 'Timpla Track', category: 'Food', desc: 'Cafe operations and counter orders', price: 199 },
@@ -38,6 +38,7 @@ const APPS = [
   { id: 'wellness-pro', name: 'Wellness', category: 'Service', desc: 'Spa and wellness booking center', price: 199 },
   { id: 'trim-track', name: 'Trim Track', category: 'Service', desc: 'Salon and barbershop chair tracking', price: 149 },
   { id: 'rep-sync', name: 'Rep Sync', category: 'Service', desc: 'Gym membership and daily walk-ins', price: 299 },
+  { id: 'service-master', name: 'Service Master', category: 'Service', desc: 'General repair and handyman tracking', price: 199 },
   
   { id: 'rental', name: 'Rental', category: 'Service', desc: 'Equipment and vehicle rentals', price: 249 },
 ];

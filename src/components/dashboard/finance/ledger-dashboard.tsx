@@ -1,9 +1,11 @@
 "use client"
+import { usePinApproval } from '@/hooks/use-pin-approval';
 
 import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { addTransaction, deleteTransaction } from '@/firebase/firestore/finance-actions';
 import { useUser } from '@/firebase/auth/use-user';
+import { useShift } from '@/hooks/use-shift';
 import { useCollection, useDocument } from 'react-firebase-hooks/firestore';
 import { collection, query, orderBy, limit, doc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
@@ -89,8 +91,10 @@ export function LedgerDashboard() {
   const { currentTenant } = useTenant();
   const db = useFirestore();
   const { toast } = useToast();
+  const { requireApproval } = usePinApproval();
   
   const { user } = useUser();
+  const { activeShift } = useShift();
   const isOwner = currentTenant?.ownerUid === user?.uid || (currentTenant as any)?.role === 'owner';
 
   const theme = getModuleTheme(currentTenant?.moduleType);
@@ -163,7 +167,10 @@ export function LedgerDashboard() {
         Math.round(Number(amount) * 100), // pesos to centavos safely
         entryType,
         description.trim() || category || (entryType === 'income' ? 'Income' : 'Expense'),
-        category
+        category,
+        user?.uid,
+        user?.displayName || user?.email || 'Unknown',
+        activeShift?.id
       );
       setAmount('');
       setCategory('');
@@ -182,6 +189,10 @@ export function LedgerDashboard() {
 
   const handleDelete = async (txId: string) => {
     if (!currentTenant || !user) return;
+    // Phase 2: Require Manager PIN for Deletions
+    const approved = await requireApproval("Deleting a record requires Manager authorization.");
+    if (!approved) return;
+
     if (!window.confirm("Sigurado ka bang gusto mong i-delete o i-void ang transaction na ito? Ibabalik nito ang Master Cash balance.")) return;
     try {
       await deleteTransaction(currentTenant.id, txId, user.uid, user.displayName || user.email || 'Unknown User');

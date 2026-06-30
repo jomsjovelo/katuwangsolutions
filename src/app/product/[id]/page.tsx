@@ -205,9 +205,6 @@ export default async function ProductPage({ params }: Props) {
                     </div>
                     <div>
                       <h4 className="text-sm font-bold text-slate-900 mb-1">{feature}</h4>
-                      <p className="text-xs text-slate-500 leading-snug">
-                        Purpose-built for {foundGroup.label.toLowerCase()} workflows to save you time.
-                      </p>
                     </div>
                   </div>
                 );

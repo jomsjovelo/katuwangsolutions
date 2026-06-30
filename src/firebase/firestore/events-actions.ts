@@ -4,6 +4,7 @@ import { initializeFirebase } from '../index';
 export const getKatuwangDb = () => initializeFirebase().db;
 import { runTransactionResilient } from './resilient-transaction';
 import { EventModel } from '@/lib/schemas/events';
+import { logAuditEvent } from './audit-actions';
 
 export async function completeEvent(
   tenantId: string,
@@ -11,7 +12,11 @@ export async function completeEvent(
   amountCentavos: number,
   description: string,
   discountCentavos: number = 0,
-  discountType?: 'percentage' | 'fixed'
+  discountType?: 'percentage' | 'fixed',
+  discountReason?: string,
+  userId?: string,
+  userName?: string,
+  shiftId?: string
 ) {
   if (amountCentavos < 0 || isNaN(amountCentavos)) {
     throw new Error('Invalid payment amount.');
@@ -91,13 +96,22 @@ export async function completeEvent(
         id: newSaleRef.id,
         tenantId,
         module: 'events',
-        items: [{ productId: eventId, name: description, price: subtotalAmount, quantity: 1 }],
-        subtotalAmount: subtotalAmount,
+        items: [{ productId: eventId, name: description, price: finalAmount, quantity: 1 }],
+        subtotalAmount: amountCentavos,
         discountAmount: discountCentavos,
         discountType: discountType || 'none',
+        discountReason,
         totalAmount: finalAmount,
         paymentMethod: 'cash',
         createdAt: serverTimestamp()
+      });
+    }
+
+    if (discountCentavos > 0 && userId && userName) {
+      logAuditEvent(tenantId, userId, userName, {
+        type: 'apply_discount',
+        description: `Applied ${discountType === 'percentage' ? 'percentage' : 'fixed'} discount of ₱${(discountCentavos / 100).toFixed(2)} to event completion. Reason: ${discountReason || 'None'}`,
+        meta: { eventId, discountCentavos, discountType, discountReason, shiftId }
       });
     }
   });
@@ -111,7 +125,11 @@ export async function recordEventPayment(
   paymentCentavos: number,
   description: string,
   discountCentavos: number = 0,
-  discountType?: 'percentage' | 'fixed'
+  discountType?: 'percentage' | 'fixed',
+  discountReason?: string,
+  userId?: string,
+  userName?: string,
+  shiftId?: string
 ) {
   if (paymentCentavos <= 0 || isNaN(paymentCentavos)) {
     throw new Error('Invalid payment amount.');
@@ -198,10 +216,19 @@ export async function recordEventPayment(
       subtotalAmount: subtotalAmount,
       discountAmount: discountCentavos,
       discountType: discountType || 'none',
+      discountReason,
       totalAmount: finalAmount,
       paymentMethod: 'cash',
       createdAt: serverTimestamp()
     });
+
+    if (discountCentavos > 0 && userId && userName) {
+      logAuditEvent(tenantId, userId, userName, {
+        type: 'apply_discount',
+        description: `Applied ${discountType === 'percentage' ? 'percentage' : 'fixed'} discount of ₱${(discountCentavos / 100).toFixed(2)} to event payment. Reason: ${discountReason || 'None'}`,
+        meta: { eventId, discountCentavos, discountType, discountReason, shiftId }
+      });
+    }
   });
 
   return true;

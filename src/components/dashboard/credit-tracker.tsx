@@ -14,6 +14,8 @@ import { cn } from '@/lib/utils';
 import { getModuleTheme } from '@/lib/theme-utils';
 import { DiscountInput } from '@/components/ui/discount-input';
 import { addRetailCredit, recordRetailCreditPayment, RetailCreditEntry } from '@/firebase/firestore/retail-credit-actions';
+import { useUser } from '@/firebase/auth/use-user';
+import { useShift } from '@/hooks/use-shift';
 import { Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useInventory } from '@/hooks/use-inventory';
@@ -73,6 +75,8 @@ const CreditListItem = React.memo(({ credit, idx, setSelectedCredit, setShowPayM
 
 export function CreditTracker() {
   const { currentTenant } = useTenant();
+  const { user } = useUser();
+  const { activeShift } = useShift();
   const theme = getModuleTheme(currentTenant?.moduleType);
   const { toast } = useToast();
 
@@ -101,6 +105,7 @@ export function CreditTracker() {
   const [paymentAmountStr, setPaymentAmountStr] = useState('');
   const [discountType, setDiscountType] = useState<'percentage'|'fixed'>('percentage');
   const [discountValue, setDiscountValue] = useState('');
+  const [discountReason, setDiscountReason] = useState('');
 
   useEffect(() => {
     if (!currentTenant) return;
@@ -193,12 +198,23 @@ export function CreditTracker() {
         discountCentavos = Math.round(parsedDiscount * 100);
       }
 
-      await recordRetailCreditPayment(currentTenant.id, selectedCredit.id!, payCentavos, discountCentavos, discountType);
+      await recordRetailCreditPayment(
+        currentTenant.id, 
+        selectedCredit.id!, 
+        payCentavos, 
+        discountCentavos, 
+        discountType, 
+        discountReason,
+        user?.uid,
+        user?.displayName || user?.email || 'Unknown',
+        activeShift?.id
+      );
       
-      toast({ title: 'Success', description: 'Payment recorded successfully' });
+      toast({ title: 'Payment Recorded', description: 'Credit balance has been updated.' });
       setShowPayModal(false);
       setPaymentAmountStr('');
       setDiscountValue('');
+      setDiscountReason('');
       setSelectedCredit(null);
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: 'destructive' });
@@ -481,8 +497,10 @@ export function CreditTracker() {
             <DiscountInput 
               discountType={discountType}
               discountValue={discountValue}
+              discountReason={discountReason}
               onTypeChange={setDiscountType}
               onValueChange={setDiscountValue}
+              onReasonChange={setDiscountReason}
               subtotal={(parseFloat(paymentAmountStr) || 0) * 100}
             />
 

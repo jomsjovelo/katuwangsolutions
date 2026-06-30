@@ -1,4 +1,5 @@
 "use client"
+import { usePinApproval } from '@/hooks/use-pin-approval';
 
 import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
@@ -6,6 +7,7 @@ import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/fi
 import { useFirestore } from '@/firebase/provider';
 import { completeServiceOrder, deleteServiceOrder, addSalonAppointment } from '@/firebase/firestore/service-actions';
 import { useUser } from '@/firebase/auth/use-user';
+import { useShift } from '@/hooks/use-shift';
 import { awardPoints } from '@/firebase/firestore/loyalty-actions';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -87,6 +89,7 @@ export function TrimTrackDashboard() {
   const { currentTenant } = useTenant();
   const db = useFirestore();
   const { toast } = useToast();
+  const { requireApproval } = usePinApproval();
   
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -94,6 +97,7 @@ export function TrimTrackDashboard() {
   useDynamicThemeColor(theme);
 
   const { user } = useUser();
+  const { activeShift } = useShift();
   const isOwner = currentTenant?.ownerUid === user?.uid || (currentTenant as any)?.role === 'owner';
 
   // Salon State
@@ -151,7 +155,17 @@ export function TrimTrackDashboard() {
     }
   };
 
-  const updateStatus = async (appt: any, status: string, paymentStatus?: string, chairName?: string, paymentMethod: string = 'cash', chairId?: string, discountCentavos: number = 0, discountType?: 'percentage' | 'fixed') => {
+  const updateStatus = async (
+    appt: any, 
+    status: string, 
+    paymentStatus?: string, 
+    chairName?: string, 
+    paymentMethod: string = 'cash', 
+    chairId?: string, 
+    discountCentavos: number = 0, 
+    discountType?: 'percentage' | 'fixed', 
+    discountReason?: string
+  ) => {
     if (!currentTenant || !db) return;
     try {
       if (status === 'Done' && paymentStatus === 'Paid') {
@@ -173,7 +187,11 @@ export function TrimTrackDashboard() {
           paymentMethod,
           undefined,
           discountCentavos,
-          discountType
+          discountType,
+          discountReason,
+          user?.uid,
+          user?.displayName || user?.email || 'Unknown',
+          activeShift?.id
         );
         
         // Loyalty Points
@@ -202,6 +220,10 @@ export function TrimTrackDashboard() {
 
   const handleDeleteAppointment = async (apptId: string) => {
     if (!currentTenant || !user) return;
+    // Phase 2: Require Manager PIN for Deletions
+    const approved = await requireApproval("Deleting a record requires Manager authorization.");
+    if (!approved) return;
+
     if (!window.confirm("Sigurado ka bang gusto mong i-delete o i-void ang appointment na ito? Ibabalik nito ang bayad kung applicable.")) return;
     try {
       await deleteServiceOrder(currentTenant.id, 'salon_appointments', apptId, user.uid, user.displayName || user.email || 'Unknown User');
@@ -471,8 +493,8 @@ export function TrimTrackDashboard() {
             isOpen={!!selectedOrderForPayment}
             onClose={() => setSelectedOrderForPayment(null)}
             amountDue={selectedOrderForPayment.amountDue}
-            onConfirm={(method, discountCentavos, discountType) => {
-              updateStatus(selectedOrderForPayment, 'Done', 'Paid', undefined, method, undefined, discountCentavos, discountType);
+            onConfirm={(method, discountCentavos, discountType, discountReason) => {
+              updateStatus(selectedOrderForPayment, 'Done', 'Paid', undefined, method, undefined, discountCentavos, discountType, discountReason);
               setSelectedOrderForPayment(null);
             }}
           />

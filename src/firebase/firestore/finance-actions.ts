@@ -2,10 +2,20 @@ import { getFirestore, doc, collection, serverTimestamp, setDoc, updateDoc, incr
 import { initializeFirebase } from '../index';
 import { TransactionSchema, EmployeeSchema, PayoutRecordSchema } from '@/lib/schemas/finance';
 import { runTransactionResilient } from './resilient-transaction';
+import { logAuditEvent } from './audit-actions';
 
 export const getKatuwangDb = () => initializeFirebase().db;
 
-export async function addTransaction(tenantId: string, amountCentavos: number, type: 'income' | 'expense', description: string, category?: string) {
+export async function addTransaction(
+  tenantId: string, 
+  amountCentavos: number, 
+  type: 'income' | 'expense', 
+  description: string, 
+  category?: string,
+  userId?: string,
+  userName?: string,
+  shiftId?: string
+) {
   const db = getKatuwangDb();
   
   if (amountCentavos <= 0 || !Number.isInteger(amountCentavos)) {
@@ -74,6 +84,14 @@ export async function addTransaction(tenantId: string, amountCentavos: number, t
       });
     }
   });
+
+  if (type === 'expense' && userId && userName) {
+    await logAuditEvent(tenantId, userId, userName, {
+      type: 'payout_expense',
+      description: `Recorded expense of ₱${(amountCentavos / 100).toFixed(2)} for ${category || 'Uncategorized'}: ${description}`,
+      meta: { amountCentavos, category, description, shiftId }
+    });
+  }
 
   return true;
 }
@@ -145,7 +163,10 @@ export async function recordPayout(
   grossPayCentavos: number,
   valeDeductedCentavos: number,
   govtDeductionsCentavos: number,
-  netPayCentavos: number
+  netPayCentavos: number,
+  userId?: string,
+  userName?: string,
+  shiftId?: string
 ) {
   // Server-side recompute to prevent client-side manipulation
   const serverNetPay = grossPayCentavos - valeDeductedCentavos - govtDeductionsCentavos;
@@ -229,6 +250,17 @@ export async function recordPayout(
       createdAt: serverTimestamp()
     });
   });
+
+  if (userId && userName) {
+    // We already computed finalNetPay, so let's recalculate it outside or log inside?
+    // We can just compute it again for the log.
+    const finalNetPay = Math.max(0, grossPayCentavos - valeDeductedCentavos - govtDeductionsCentavos);
+    await logAuditEvent(tenantId, userId, userName, {
+      type: 'payout_expense',
+      description: `Payroll payout for ${employeeName}: ₱${(finalNetPay / 100).toFixed(2)}`,
+      meta: { employeeId, employeeName, grossPayCentavos, finalNetPay, shiftId }
+    });
+  }
 
   return payoutId;
 }

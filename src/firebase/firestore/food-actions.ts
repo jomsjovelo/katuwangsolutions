@@ -5,7 +5,24 @@ import { runTransactionResilient } from './resilient-transaction';
 
 export const getKatuwangDb = () => initializeFirebase().db;
 
-export async function addFoodOrder(tenantId: string, tableNumber: string, items: any[], discountCentavos: number = 0, customerPhone?: string, referrerCode?: string, paymentMethod: string = 'cash', gcashRef?: string, tableId?: string, discountType?: 'percentage' | 'fixed') {
+import { logAuditEvent } from './audit-actions';
+
+export async function addFoodOrder(
+  tenantId: string, 
+  tableNumber: string, 
+  items: any[], 
+  discountCentavos: number = 0, 
+  customerPhone?: string, 
+  referrerCode?: string, 
+  paymentMethod: string = 'cash', 
+  gcashRef?: string, 
+  tableId?: string, 
+  discountType?: 'percentage' | 'fixed', 
+  discountReason?: string,
+  userId?: string,
+  userName?: string,
+  shiftId?: string
+) {
   const db = getKatuwangDb();
   let orderId = '';
   
@@ -122,6 +139,7 @@ export async function addFoodOrder(tenantId: string, tableNumber: string, items:
         subtotalAmount: secureTotalAmount,
         discountAmount: discountCentavos,
         discountType: discountType || 'none',
+        discountReason,
         totalAmount: finalAmount,
         paymentMethod: paymentMethod,
         createdAt: serverTimestamp()
@@ -140,6 +158,14 @@ export async function addFoodOrder(tenantId: string, tableNumber: string, items:
       });
     }
   });
+
+  if (discountCentavos > 0 && userId && userName) {
+    await logAuditEvent(tenantId, userId, userName, {
+      type: 'apply_discount',
+      description: `Applied ${discountType === 'percentage' ? 'percentage' : 'fixed'} discount of ₱${(discountCentavos / 100).toFixed(2)} to food order. Reason: ${discountReason || 'None'}`,
+      meta: { orderId, discountCentavos, discountType, discountReason, shiftId }
+    });
+  }
 
   return orderId;
 }

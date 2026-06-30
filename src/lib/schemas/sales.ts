@@ -16,6 +16,7 @@ export const SaleSchema = z.object({
   subtotalAmount: z.number().int().optional(),
   discountAmount: z.number().int().optional(),
   discountType: z.string().optional(),
+  discountReason: z.string().optional(),
   totalAmount: z.number().int(),
   
   items: z.array(SaleItemSchema).optional(),

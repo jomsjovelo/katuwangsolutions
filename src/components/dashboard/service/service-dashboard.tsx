@@ -1,6 +1,7 @@
 "use client"
+import { usePinApproval } from '@/hooks/use-pin-approval';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { useCollection } from 'react-firebase-hooks/firestore';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
@@ -31,7 +32,9 @@ import {
   MessageSquare,
   Receipt,
   Coins,
-  Trash2
+  Trash2,
+  UserCog,
+  Wrench
 } from "lucide-react";
 
 const ColumnHeader = React.memo(({ title, count, icon: Icon, colorClass }: any) => (
@@ -62,6 +65,16 @@ const JobCard = React.memo(({
         <div>
           <div className="font-bold text-sm text-slate-900">{job.customerName}</div>
           <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{job.serviceId}</div>
+          {job.deviceModel && (
+              <div className="flex items-center gap-1 mt-1 text-[10px] font-medium text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded w-fit">
+                  <Wrench className="h-3 w-3" /> {job.deviceModel}
+              </div>
+          )}
+          {job.technicianName && (
+              <div className="flex items-center gap-1 mt-1 text-[10px] font-medium text-slate-500">
+                  <UserCog className="h-3 w-3" /> Tech: {job.technicianName}
+              </div>
+          )}
         </div>
         {isOwner && (
           <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0" onClick={() => handleDeleteJob(job.id)}>
@@ -71,11 +84,17 @@ const JobCard = React.memo(({
       </div>
       <div className="text-right">
         <Badge 
-          className="text-[9px] font-black uppercase border-transparent"
+          className="text-[9px] font-black uppercase border-transparent mb-1"
           style={{ backgroundColor: `${theme.primary}15`, color: theme.primary }}
         >
           ₱{(job.amount / 100).toLocaleString()}
         </Badge>
+        {((job.laborCost || 0) > 0 || (job.partsCost || 0) > 0) && (
+            <div className="text-[9px] text-slate-500 flex flex-col items-end">
+                <span>Labor: ₱{((job.laborCost || 0)/100).toLocaleString()}</span>
+                <span>Parts: ₱{((job.partsCost || 0)/100).toLocaleString()}</span>
+            </div>
+        )}
       </div>
     </div>
     
@@ -145,6 +164,7 @@ export function ServiceDashboard() {
   const { currentTenant } = useTenant();
   const db = useFirestore();
   const { toast } = useToast();
+  const { requireApproval } = usePinApproval();
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -187,14 +207,29 @@ export function ServiceDashboard() {
   const [customerName, setCustomerName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [serviceDesc, setServiceDesc] = useState('');
+  
+  // Appliance/Repair specific fields
+  const [deviceModel, setDeviceModel] = useState('');
+  const [technicianName, setTechnicianName] = useState('');
+  const [laborCost, setLaborCost] = useState<number | ''>('');
+  const [partsCost, setPartsCost] = useState<number | ''>('');
   const [price, setPrice] = useState<number | ''>('');
   
+  // Auto-calculate total price
+  useEffect(() => {
+      const l = typeof laborCost === 'number' ? laborCost : 0;
+      const p = typeof partsCost === 'number' ? partsCost : 0;
+      if (l > 0 || p > 0) {
+          setPrice(l + p);
+      }
+  }, [laborCost, partsCost]);
+
   const commonServices = [
-    { name: 'Change Oil', price: 1500 },
-    { name: 'Tire Rotation', price: 500 },
-    { name: 'Brake Pads', price: 2500 },
-    { name: 'Diagnostic', price: 1000 },
-    { name: 'Car Wash', price: 250 }
+    { name: 'Diagnosis/Checkup' },
+    { name: 'General Cleaning' },
+    { name: 'Part Replacement' },
+    { name: 'Home Service' },
+    { name: 'General Repair' }
   ];
   
   const [smsText, setSmsText] = useState('');
@@ -216,11 +251,27 @@ export function ServiceDashboard() {
     try {
       setIsProcessing(true);
       setError(null);
-      await addJob(currentTenant.id, customerName, serviceDesc, Math.round(Number(price) * 100), phoneNumber);
+      await addJob(
+          currentTenant.id, 
+          customerName, 
+          serviceDesc, 
+          Math.round(Number(price) * 100), 
+          phoneNumber,
+          {
+              deviceModel,
+              technicianName,
+              laborCost: typeof laborCost === 'number' ? laborCost * 100 : 0,
+              partsCost: typeof partsCost === 'number' ? partsCost * 100 : 0
+          }
+      );
       
       setCustomerName('');
       setPhoneNumber('');
       setServiceDesc('');
+      setDeviceModel('');
+      setTechnicianName('');
+      setLaborCost('');
+      setPartsCost('');
       setPrice('');
       setShowAddForm(false);
     } catch (e: any) {
@@ -267,6 +318,10 @@ export function ServiceDashboard() {
 
   const handleDeleteJob = async (jobId: string) => {
     if (!currentTenant || !user) return;
+    // Phase 2: Require Manager PIN for Deletions
+    const approved = await requireApproval("Deleting a record requires Manager authorization.");
+    if (!approved) return;
+
     if (!window.confirm("Sigurado ka bang gusto mong i-delete o i-void ang order na ito? Ibabalik nito ang bayad kung applicable.")) return;
     try {
       await deleteServiceOrder(currentTenant.id, 'jobs', jobId, user.uid, user.displayName || user.email || 'Unknown User');
@@ -287,7 +342,7 @@ export function ServiceDashboard() {
 
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-50">
+    <div className="flex-1 flex flex-col bg-slate-50 min-h-screen">
       <main className="p-4 space-y-6 pb-20">
         {/* Header Section */}
         <section className="space-y-4">
@@ -314,7 +369,9 @@ export function ServiceDashboard() {
         {showAddForm && (
           <Card className="shadow-sm bg-white border-l-4 animate-in slide-in-from-top-2" style={{ borderLeftColor: theme.primary }}>
             <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm font-bold">New Service Job</CardTitle>
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <Wrench className="h-4 w-4" style={{ color: theme.primary }} /> New Repair / Service Job
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-3">
               <div className="grid grid-cols-2 gap-2">
@@ -329,7 +386,7 @@ export function ServiceDashboard() {
               </div>
               
               <div className="space-y-2">
-                <Label className="text-xs">Quick Select Service</Label>
+                <Label className="text-xs">Quick Select Category</Label>
                 <div className="flex flex-wrap gap-2">
                   {commonServices.map(svc => (
                     <Badge 
@@ -338,7 +395,6 @@ export function ServiceDashboard() {
                       className="cursor-pointer hover:bg-slate-100 text-[10px] py-1 border-slate-200"
                       onClick={() => {
                         setServiceDesc(svc.name);
-                        setPrice(svc.price);
                       }}
                     >
                       {svc.name}
@@ -348,12 +404,33 @@ export function ServiceDashboard() {
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="service-desc" className="text-xs">Service Description</Label>
-                <Input id="service-desc" name="serviceDesc" placeholder="e.g. Premium Wash & Wax" value={serviceDesc} onChange={e => setServiceDesc(e.target.value)} />
+                <Label htmlFor="service-desc" className="text-xs">Issue / Description</Label>
+                <Input id="service-desc" name="serviceDesc" placeholder="e.g. No power, needs checkup" value={serviceDesc} onChange={e => setServiceDesc(e.target.value)} />
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="service-price" className="text-xs">Total Price (₱)</Label>
-                <Input id="service-price" name="servicePrice" type="number" placeholder="e.g. 500" value={price} onChange={e => setPrice(parseFloat(e.target.value) || '')} />
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="device-model" className="text-xs">Device / Appliance</Label>
+                  <Input id="device-model" name="deviceModel" placeholder='e.g. Samsung TV 42"' value={deviceModel} onChange={e => setDeviceModel(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="technician" className="text-xs">Technician</Label>
+                  <Input id="technician" name="technician" placeholder="e.g. Kuya Boy" value={technicianName} onChange={e => setTechnicianName(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                <div className="space-y-1">
+                  <Label htmlFor="labor-cost" className="text-xs">Labor (₱)</Label>
+                  <Input id="labor-cost" name="laborCost" type="number" placeholder="0" value={laborCost} onChange={e => setLaborCost(parseFloat(e.target.value) || '')} className="h-8 text-xs" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="parts-cost" className="text-xs">Parts (₱)</Label>
+                  <Input id="parts-cost" name="partsCost" type="number" placeholder="0" value={partsCost} onChange={e => setPartsCost(parseFloat(e.target.value) || '')} className="h-8 text-xs" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="service-price" className="text-xs font-bold">Total (₱)</Label>
+                  <Input id="service-price" name="servicePrice" type="number" placeholder="0" value={price} onChange={e => setPrice(parseFloat(e.target.value) || '')} className="h-8 text-xs font-bold border-indigo-200 focus-visible:ring-indigo-500" />
+                </div>
               </div>
               <Button 
                 className="w-full h-8 text-xs font-bold text-white mt-2" 

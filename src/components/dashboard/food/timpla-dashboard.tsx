@@ -1,4 +1,5 @@
 "use client"
+import { usePinApproval } from '@/hooks/use-pin-approval';
 
 import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
@@ -8,6 +9,7 @@ import { useFirestore } from '@/firebase/provider';
 import { addFoodOrder, updateFoodOrderStatus, deleteFoodOrder } from '@/firebase/firestore/food-actions';
 import { setupTables, openTable, settleTable, resetTable } from '@/firebase/firestore/table-actions';
 import { useUser } from '@/firebase/auth/use-user';
+import { useShift } from '@/hooks/use-shift';
 import { getCustomerPoints } from '@/firebase/firestore/loyalty-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -110,6 +112,7 @@ export function TimplaDashboard() {
   const { currentTenant } = useTenant();
   const db = useFirestore();
   const { toast } = useToast();
+  const { requireApproval } = usePinApproval();
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [isVoiding, setIsVoiding] = useState(false);
@@ -126,7 +129,8 @@ export function TimplaDashboard() {
   
   const { user } = useUser();
   const isOwner = currentTenant?.ownerUid === user?.uid || (currentTenant as any)?.role === 'owner';
-
+  
+  const { activeShift } = useShift();
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
 
@@ -174,6 +178,7 @@ export function TimplaDashboard() {
 
   const [discountType, setDiscountType] = useState<'percentage'|'fixed'>('percentage');
   const [discountValue, setDiscountValue] = useState('');
+  const [discountReason, setDiscountReason] = useState('');
 
   React.useEffect(() => {
     const fetchPoints = async () => {
@@ -373,7 +378,11 @@ export function TimplaDashboard() {
         paymentMethod,
         gcashRef,
         activeTableIdForOrder || undefined,
-        discountType
+        discountType,
+        discountReason,
+        user?.uid,
+        user?.displayName || user?.email || 'Unknown',
+        activeShift?.id
       );
 
       if (!isTableOrder) {
@@ -408,6 +417,10 @@ export function TimplaDashboard() {
 
   const handleDeleteOrder = async (orderId: string) => {
     if (!currentTenant || !user) return;
+    // Phase 2: Require Manager PIN for Deletions
+    const approved = await requireApproval("Deleting a record requires Manager authorization.");
+    if (!approved) return;
+
     if (!window.confirm("Sigurado ka bang gusto mong i-delete/void ang order na ito?")) return;
     try {
       setIsVoiding(true);
@@ -604,8 +617,10 @@ export function TimplaDashboard() {
                     <DiscountInput 
                       discountType={discountType}
                       discountValue={discountValue}
+                      discountReason={discountReason}
                       onTypeChange={setDiscountType}
                       onValueChange={setDiscountValue}
+                      onReasonChange={setDiscountReason}
                       subtotal={cartTotal}
                     />
                   )}

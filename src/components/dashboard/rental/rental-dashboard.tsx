@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { collection, addDoc, serverTimestamp, doc, runTransaction, increment } from 'firebase/firestore';
 import { processRentalBooking, processRentalReturn, deleteRentalBooking } from '@/firebase/firestore/rental-actions';
 import { useUser } from '@/firebase/auth/use-user';
+import { useShift } from '@/hooks/use-shift';
 import { GCashQrModal } from '@/components/common/gcash-qr-modal';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { useFirestore } from '@/firebase/provider';
@@ -85,6 +86,7 @@ export function RentalDashboard() {
   useDynamicThemeColor(theme);
 
   const { user } = useUser();
+  const { activeShift } = useShift();
   const isOwner = currentTenant?.ownerUid === user?.uid || (currentTenant as any)?.role === 'owner';
 
   React.useEffect(() => {
@@ -161,6 +163,7 @@ export function RentalDashboard() {
 
   const [discountType, setDiscountType] = useState<'percentage'|'fixed'>('percentage');
   const [discountValue, setDiscountValue] = useState('');
+  const [discountReason, setDiscountReason] = useState('');
 
   const handleAddBooking = async (e?: React.FormEvent, paymentRef?: string) => {
     if (e) e.preventDefault();
@@ -193,7 +196,8 @@ export function RentalDashboard() {
         bookingPaymentTiming === 'upfront' ? bookingPaymentMethod : undefined,
         paymentRef,
         discountCentavos,
-        discountType
+        discountType,
+        discountReason
       );
 
       setCompletedSale({
@@ -232,7 +236,18 @@ export function RentalDashboard() {
       if (booking.paymentStatus === 'unpaid') {
          method = 'cash'; // TODO: add a modal for return payment if needed, but for now default to cash
       }
-      await processRentalReturn(currentTenant.id, booking, method);
+      await processRentalReturn(
+        currentTenant.id, 
+        booking, 
+        method, 
+        undefined, // gcashRef
+        0, // discountCentavos
+        undefined, // discountType
+        undefined, // discountReason
+        user?.uid,
+        user?.displayName || user?.email || 'Unknown',
+        activeShift?.id
+      );
       showSuccess(`${booking.itemName} na-return ni ${booking.customerName}!`);
     } catch (e) {
       const error = e as Error & { code?: string };
@@ -373,8 +388,10 @@ export function RentalDashboard() {
                       <DiscountInput 
                         discountType={discountType}
                         discountValue={discountValue}
+                        discountReason={discountReason}
                         onTypeChange={setDiscountType}
                         onValueChange={setDiscountValue}
+                        onReasonChange={setDiscountReason}
                         subtotal={(parseFloat(bookingCost) || 0) * 100}
                       />
 

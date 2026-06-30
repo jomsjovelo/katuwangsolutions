@@ -245,7 +245,11 @@ export async function recordPayment(
   borrowerId: string,
   paymentAmountPesos: number,
   discountCentavos: number = 0,
-  discountType?: 'percentage' | 'fixed'
+  discountType?: 'percentage' | 'fixed',
+  discountReason?: string,
+  userId?: string,
+  userName?: string,
+  shiftId?: string
 ) {
   if (isNaN(paymentAmountPesos) || paymentAmountPesos <= 0) throw new Error("Ang halaga ng bayad ay dapat valid at higit sa zero.");
 
@@ -336,10 +340,19 @@ export async function recordPayment(
         subtotalAmount: totalReductionCentavos,
         discountAmount: discountCentavos,
         discountType: discountType || 'none',
+        discountReason,
         totalAmount: paymentCentavos,
         paymentMethod: 'cash',
         createdAt: serverTimestamp()
       });
+
+      if (discountCentavos > 0 && userId && userName) {
+        logAuditEvent(tenantId, userId, userName, {
+          type: 'apply_discount',
+          description: `Applied ${discountType === 'percentage' ? 'percentage' : 'fixed'} discount of ₱${(discountCentavos / 100).toFixed(2)} to loan payment. Reason: ${discountReason || 'None'}`,
+          meta: { borrowerId, discountCentavos, discountType, discountReason, shiftId }
+        });
+      }
     });
     return true;
   } catch (e: any) {

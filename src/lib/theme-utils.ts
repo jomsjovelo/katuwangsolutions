@@ -109,7 +109,7 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
   },
   
   // 6. Agriculture (Ani)
-  'ani-grow': {
+  'farm-master': {
     primary: '#D97706',
     primaryBg: 'from-amber-600 to-amber-700',
     primaryText: 'text-amber-600',
@@ -118,7 +118,7 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
     secondaryBg: 'bg-emerald-500 hover:bg-emerald-600',
     secondaryText: 'text-white',
     glowClass: 'joy-glow-amber',
-    name: 'Ani Grow',
+    name: 'Farm Master',
     tagline: 'Maayos na logistics at ani monitoring'
   },
   
@@ -246,6 +246,20 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
     glowClass: 'joy-glow-violet',
     name: 'Rep Sync',
     tagline: 'Mabilis na serbisyo sa gym at katuwang sa fitness'
+  },
+  
+  // 15. General Repair/Handyman
+  'service-master': {
+    primary: '#3B82F6', // Blue 500
+    primaryBg: 'from-blue-500 to-blue-600',
+    primaryText: 'text-blue-600',
+    primaryBorder: 'border-blue-200',
+    secondary: '#F59E0B', // Amber 500
+    secondaryBg: 'bg-amber-400 hover:bg-amber-500',
+    secondaryText: 'text-slate-900',
+    glowClass: 'joy-glow-blue',
+    name: 'Service Master',
+    tagline: 'Mabilis na serbisyo at general repairs sa trabaho'
   },
   
   // 15. Rental Module

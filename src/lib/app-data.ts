@@ -1,21 +1,23 @@
 import {
-  ShoppingCart, Leaf, Hammer,
-  Utensils, Coffee, CalendarHeart, RotateCcw, Droplets,
-  Sparkles, Sun, Banknote, BookText, Truck, Scissors, Dumbbell, LucideIcon
+  ShoppingCart, Hammer, Leaf,
+  Utensils, Coffee, CalendarHeart, 
+  RotateCcw, Droplets, Sparkles, Sun, Scissors, Dumbbell, Wrench,
+  Truck, Car, Tractor, 
+  Banknote, BookText, HandCoins, LucideIcon
 } from 'lucide-react';
 
 export interface AppModule {
-  id: string; // e.g. benta-snap
+  id: string; 
   name: string;
   icon: LucideIcon;
   tagline: string;
   imageSrc: string;
   features: string[];
-  description: string;       // 2–3 sentence sales narrative
-  benefits: string[];        // 3–4 "why it matters" bullets
-  stats: { value: string; label: string }[]; // 2–3 impact metrics
-  howItWorks: { step: string; detail: string }[]; // 3-step workflow
-  targetUsers: string[];     // Target audience tags
+  description: string;       
+  benefits: string[];        
+  stats: { value: string; label: string }[]; 
+  howItWorks: { step: string; detail: string }[]; 
+  targetUsers: string[];     
 }
 
 export interface AppGroup {
@@ -37,25 +39,25 @@ export const appGroups: AppGroup[] = [
         icon: ShoppingCart,
         tagline: 'Lightning-fast retail checkout to maximize your daily sales.',
         imageSrc: '/apps/benta-snap.png',
-        features: ['Real-time inventory sync', 'Barcode scanning', 'Daily sales reports', 'Low stock alerts', 'Multi-payment support'],
-        description: 'Run your sari-sari store or retail shop like a seasoned pro. Benta Snap delivers lightning-fast checkout, automatic stock deductions, and end-of-day sales summaries — all from a single smartphone. Stop losing sales to slow queues and manual counting errors.',
+        features: ['1-Tap Checkout', 'Auto-Stock Deduction', 'GCash & Cash Support', 'Shift Auditing', 'Shift Summary'],
+        description: 'Run your sari-sari store or retail shop like a seasoned pro. Benta Snap delivers lightning-fast checkout, automatic stock deductions, and strict shift logging so cash shortages become a thing of the past. Stop losing sales to manual counting errors.',
         benefits: [
-          'Process transactions in under 5 seconds — even offline',
-          'Get instant alerts when stock drops below your set threshold',
-          'See your top-selling products at a glance every morning',
-          'Accept cash, GCash, and e-wallets in one unified flow',
+          'Process transactions in under 5 seconds',
+          'Inventory automatically deducts when items are checked out',
+          'Audit logs strictly record cash declarations vs. actual drawer cash',
+          'Accept cash or GCash effortlessly in one unified flow',
         ],
         stats: [
-          { value: '100%', label: 'Stock accuracy' },
+          { value: '100%', label: 'Cash Drawer Accuracy' },
           { value: '₱0', label: 'Setup fee' },
-          { value: '99.9%', label: 'Uptime guarantee' },
+          { value: '5 sec', label: 'Avg. Checkout' },
         ],
         howItWorks: [
-          { step: 'Scan or tap a product', detail: 'Use barcode scanner or search by name — even without internet.' },
-          { step: 'Customer pays any way', detail: 'Accept cash, GCash, Maya, and e-wallets in one tap.' },
-          { step: 'Stock updates automatically', detail: 'No manual counting — inventory deducts itself after every sale.' }
+          { step: 'Add to Cart', detail: 'Tap products on the screen to instantly add them to the customer cart.' },
+          { step: 'Select Payment', detail: 'Choose Cash or GCash and quickly process the transaction.' },
+          { step: 'Close Shift', detail: 'Declare drawer cash; the system automatically calculates shortages or overages.' }
         ],
-        targetUsers: ['Sari-sari Stores', 'Retail Shops', 'Market Stalls']
+        targetUsers: ['Sari-sari Stores', 'Retail Shops', 'Pharmacies']
       },
       {
         id: 'fresh-tally',
@@ -87,25 +89,25 @@ export const appGroups: AppGroup[] = [
         id: 'build-stack',
         name: 'Build Stack',
         icon: Hammer,
-        tagline: 'Precision material tracking for seamless construction supply.',
+        tagline: 'Precision hardware tracking for seamless construction supply.',
         imageSrc: '/apps/build-stack.png',
-        features: ['Bulk item management', 'Delivery scheduling', 'Contractor pricing', 'Credit limits', 'Unit conversion'],
-        description: 'Construction supply is complex — thousands of SKUs, bulk orders, and contractor credit lines. Build Stack brings it all under control with a purpose-built system for hardware and building material retailers. Win more contractor accounts and deliver on time, every time.',
+        features: ['Retail Credit (Utang)', 'Quick Checkout', 'Shift Tracking', 'Discount Authorization', 'Inventory Sync'],
+        description: 'Construction supply is complex — high-value orders and contractor credit lines. Build Stack brings it all under control with a purpose-built system for hardware retailers. Handle walk-ins quickly while easily extending and tracking credit for your loyal contractors.',
         benefits: [
-          'Manage thousands of SKUs including bundle and unit pricing',
-          'Schedule deliveries and track driver ETAs in real time',
-          'Set unique price tiers for walk-in, wholesale, and contractor clients',
-          'Generate delivery receipts and charge slips on the spot',
+          'Track contractor "utang" explicitly inside the retail flow',
+          'Require Manager PIN for authorizing manual discounts',
+          'Strict shift tracking ensures cash accountability across cashiers',
+          'Keep your hardware inventory perfectly synced automatically',
         ],
         stats: [
-          { value: '5,000+', label: 'SKUs supported' },
-          { value: '60%', label: 'Less manual paperwork' },
-          { value: '2 min', label: 'To create a delivery order' },
+          { value: '100%', label: 'Credit Accountability' },
+          { value: '0', label: 'Lost Utang Records' },
+          { value: '1 min', label: 'Checkout Time' },
         ],
         howItWorks: [
-          { step: 'Manage bulk & units', detail: 'Set pricing for pieces, boxes, or truckloads with ease.' },
-          { step: 'Track contractor lines', detail: 'Keep a running credit line for trusted contractors and builders.' },
-          { step: 'Dispatch deliveries', detail: 'Generate delivery receipts and track driver routes in real-time.' }
+          { step: 'Cart & Authorize', detail: 'Select hardware items and request Manager PIN if giving bulk discounts.' },
+          { step: 'Charge to Credit', detail: 'Checkout normally or easily charge the entire transaction to a contractor\'s ledger.' },
+          { step: 'Track Shift Cash', detail: 'All hardware sales are safely locked into the active employee\'s shift log.' }
         ],
         targetUsers: ['Hardware Stores', 'Construction Supply', 'Lumber Yards']
       },
@@ -113,7 +115,7 @@ export const appGroups: AppGroup[] = [
   },
   {
     id: 'food',
-    label: 'Food',
+    label: 'Food & Events',
     accentColor: '#F97316',
     apps: [
       {
@@ -122,25 +124,25 @@ export const appGroups: AppGroup[] = [
         icon: Utensils,
         tagline: 'Rapid order-to-kitchen flow for hungry diners.',
         imageSrc: '/apps/bite-snap.png',
-        features: ['Kitchen Display System', 'Table management', 'Split bills', 'Menu modifiers', 'Waiter tablets'],
-        description: 'From the moment a customer sits down to the second they pay, Bite Snap keeps your restaurant running at full speed. Orders fly instantly to the kitchen display, tables are tracked in real time, and split bills take seconds — not minutes. Give your diners an experience worth coming back for.',
+        features: ['Table Assignment', 'Kitchen Prep Queue', 'Order Status Tracking', 'Checkout Flow', 'Shift Audit'],
+        description: 'From the moment a customer sits down to the second they pay, Bite Snap keeps your restaurant running at full speed. Orders go to a prep queue, tables are tracked in real-time, and shift-based payments ensure every centavo is accounted for.',
         benefits: [
-          'Orders appear on the kitchen display the instant they are placed',
-          'Color-coded table map shows status at a glance across the floor',
-          'Split bills by seat, item, or percentage with one tap',
-          'Built-in menu modifiers handle customizations without confusion',
+          'Assign specific tables and track exactly who is waiting for food',
+          'Kitchen view lets chefs update items to "Cooking" and "Ready"',
+          'Cashiers process payments with exact change calculation and GCash support',
+          'Every discount and payment is tied to the active cashier\'s shift',
         ],
         stats: [
-          { value: '2×', label: 'Faster table turnaround' },
-          { value: '0', label: 'Lost orders reported' },
-          { value: '15 sec', label: 'Avg. order entry' },
+          { value: '2×', label: 'Faster Kitchen Flow' },
+          { value: '0', label: 'Lost Orders' },
+          { value: '100%', label: 'Cash Accountability' },
         ],
         howItWorks: [
-          { step: 'Punch in orders fast', detail: 'Waitstaff tap in orders that instantly appear on the kitchen display.' },
-          { step: 'Track table status', detail: 'Color-coded map shows who is eating, waiting, or ready to pay.' },
-          { step: 'Split bills instantly', detail: 'Divide the check by seat, item, or equally without the math headache.' }
+          { step: 'Assign Table & Order', detail: 'Waitstaff punch in orders and assign a specific table number.' },
+          { step: 'Kitchen Prepares', detail: 'The kitchen updates the order status until the food is served.' },
+          { step: 'Cashier Checkout', detail: 'Process the payment via Cash or GCash and close the table.' }
         ],
-        targetUsers: ['Restaurants', 'Diners', 'Food Parks']
+        targetUsers: ['Restaurants', 'Diners', 'Eateries (Carinderia)']
       },
       {
         id: 'timpla-track',
@@ -148,23 +150,23 @@ export const appGroups: AppGroup[] = [
         icon: Coffee,
         tagline: 'Crafted cafe operations for the perfect brew every time.',
         imageSrc: '/apps/timpla-track.png',
-        features: ['Recipe costing', 'Loyalty cards', 'Order queue', 'Ingredient deduction', 'Barista displays'],
-        description: 'Your cafe deserves more than a generic POS. Timpla Track is built for coffee shops, milk tea bars, and artisan beverages — with recipe-level costing, a loyal customer program, and a smooth order queue that keeps baristas in their rhythm. Grow your regulars, protect your margins.',
+        features: ['Order Queue', 'Beverage Prep Status', 'Quick Checkout', 'Shift Integrity', 'Manager Discounts'],
+        description: 'Your cafe deserves more than a generic POS. Timpla Track is built for coffee shops and milk tea bars with a rapid order queue that keeps baristas in their rhythm. Serve drinks faster while protecting your margins with strict discount tracking.',
         benefits: [
-          'Know the exact cost and profit of every cup you serve',
-          'Digital loyalty stamps that customers redeem automatically',
-          'Real-time order queue visible to baristas and front-of-house',
-          'Ingredient deduction per recipe keeps stock accurate automatically',
+          'Real-time order queue visible to both cashiers and baristas',
+          'Status tracking ensures drinks are served in exactly the right order',
+          'Require Manager PIN for staff discounts or complimentary drinks',
+          'Shift logging ensures your morning and afternoon cashiers are balanced',
         ],
         stats: [
-          { value: '25%', label: 'Avg. margin improvement' },
-          { value: '3×', label: 'Loyalty redemption rate' },
-          { value: '8 sec', label: 'Avg. order entry time' },
+          { value: '10 sec', label: 'Order Entry' },
+          { value: '100%', label: 'Discount Auditing' },
+          { value: '2×', label: 'Queue Efficiency' },
         ],
         howItWorks: [
-          { step: 'Take custom orders', detail: 'Easily handle sugar levels, add-ons, and sizes in the queue.' },
-          { step: 'Deduct ingredients', detail: 'Every cup sold automatically updates your milk, syrup, and bean inventory.' },
-          { step: 'Reward regulars', detail: 'Digital loyalty stamps automatically apply to their phone number.' }
+          { step: 'Punch Order', detail: 'Quickly select beverages and checkout to add to the queue.' },
+          { step: 'Barista Prep', detail: 'The barista updates the drink to "Preparing" then "Served".' },
+          { step: 'Audit Cash', detail: 'All payments and discounts are securely logged under the shift.' }
         ],
         targetUsers: ['Coffee Shops', 'Milk Tea Bars', 'Kiosks']
       },
@@ -172,25 +174,25 @@ export const appGroups: AppGroup[] = [
         id: 'ganap-master',
         name: 'Ganap Master',
         icon: CalendarHeart,
-        tagline: 'Orchestrate unforgettable events with flawless planning.',
+        tagline: 'Orchestrate unforgettable events with flawless budget planning.',
         imageSrc: '/apps/ganap-master.png',
-        features: ['Vendor payments', 'Guest RSVP', 'Timeline builder', 'Conflict detection', 'Day-of checklist'],
-        description: 'Weddings, debut parties, corporate dinners — every event has a hundred moving parts. Ganap Master is your all-in-one event command center: track vendor payments, manage guest RSVPs, and build a precise program timeline so nothing falls through the cracks on the big day.',
+        features: ['Contract Pricing', 'Client Payments', 'Vendor Tracking', 'Guest Check-in', 'Discount Auditing'],
+        description: 'Every event has a hundred moving financial parts. Ganap Master is your all-in-one event command center: track vendor payments, record client deposits, manage guest RSVPs, and finalize contract pricing with full audit trails.',
         benefits: [
-          'Centralized vendor list with payment schedules and due-date alerts',
-          'Digital RSVP links your guests can confirm from their phones',
-          'Drag-and-drop program timeline with time-block conflict detection',
-          'Day-of checklist shared live with your entire event team',
+          'Track the exact contract price and client payments over time',
+          'Manage vendor costs and track who has been paid and who is pending',
+          'Check-in guests digitally on the day of the event',
+          'All discounts and financial adjustments are strictly audited',
         ],
         stats: [
-          { value: '200+', label: 'Events managed' },
-          { value: '50%', label: 'Less coordinator stress' },
-          { value: '1 app', label: 'Replaces 5 spreadsheets' },
+          { value: '100%', label: 'Budget Clarity' },
+          { value: '0', label: 'Missed Vendor Dues' },
+          { value: '1 app', label: 'Replaces 5 Spreadsheets' },
         ],
         howItWorks: [
-          { step: 'Build the timeline', detail: 'Drag and drop program blocks and assign vendors to each step.' },
-          { step: 'Manage the guestlist', detail: 'Send digital RSVPs and track dietary restrictions in one place.' },
-          { step: 'Track payments', detail: 'Know exactly when the caterer, photographer, and venue deposits are due.' }
+          { step: 'Create Event & Vendors', detail: 'Setup the contract price and list all expected vendor costs.' },
+          { step: 'Track Finances', detail: 'Record client deposits and execute vendor payouts from your ledger.' },
+          { step: 'Manage Guests', detail: 'Track RSVPs and check them in as they arrive at the venue.' }
         ],
         targetUsers: ['Event Planners', 'Wedding Coordinators', 'Caterers']
       },
@@ -207,23 +209,23 @@ export const appGroups: AppGroup[] = [
         icon: RotateCcw,
         tagline: 'Automated laundry tracking from drop-off to pickup.',
         imageSrc: '/apps/spin-snap.png',
-        features: ['Machine scheduling', 'Weigh-in ticketing', 'SMS alerts', 'Service type tracking', 'Lost-item prevention'],
-        description: 'Never lose a customer\'s clothes again. Spin Snap tracks every batch from the moment it\'s weighed in to the second it\'s picked up — with automated SMS updates that keep your customers informed and your front desk stress-free. Run a cleaner, smarter laundry shop.',
+        features: ['Job Tracking', 'Service Status Flow', 'Quick Checkout', 'Shift Accountability', 'GCash Support'],
+        description: 'Never lose a customer\'s clothes again. Spin Snap tracks every batch from the moment it\'s received to the second it\'s picked up. Keep your front desk stress-free and run a cleaner, more profitable laundry shop.',
         benefits: [
-          'Digital tickets replace hand-written tags — no more mismatched loads',
-          'Automatic SMS tells customers when their laundry is ready',
-          'Machine schedule board prevents double-booking and idle time',
-          'Track daily revenue by service type (wash, dry, fold, press)',
+          'Track jobs through Received, Washing, Folding, and Ready statuses',
+          'Easily apply and audit discounts for loyal customers or bulk wash',
+          'No more mismatched loads or forgotten payments',
+          'Cashier shifts ensure total accountability for all laundry payments',
         ],
         stats: [
-          { value: '0', label: 'Lost items' },
-          { value: '30%', label: 'Fewer call-ins' },
-          { value: '5 sec', label: 'To print a ticket' },
+          { value: '0', label: 'Lost Batches' },
+          { value: '100%', label: 'Status Visibility' },
+          { value: '5 sec', label: 'To checkout' },
         ],
         howItWorks: [
-          { step: 'Weigh and tag', detail: 'Log the laundry weight, service type, and generate a digital claim stub.' },
-          { step: 'Assign machines', detail: 'Slot the batch into a washer/dryer schedule to maximize throughput.' },
-          { step: 'Notify customer', detail: 'System sends an automatic SMS the moment the laundry is folded and ready.' }
+          { step: 'Create Laundry Job', detail: 'Log the weight and price, assigning it to the customer.' },
+          { step: 'Update Status', detail: 'Move the job through the washing and folding workflow.' },
+          { step: 'Checkout & Pickup', detail: 'Process payment securely and mark the clothes as picked up.' }
         ],
         targetUsers: ['Laundromats', 'Dry Cleaners', 'Self-Service Laundry']
       },
@@ -231,51 +233,51 @@ export const appGroups: AppGroup[] = [
         id: 'hydro-sync',
         name: 'Hydro Sync',
         icon: Droplets,
-        tagline: 'Streamlined water delivery logistics for thirsty neighborhoods.',
+        tagline: 'Streamlined water delivery and refill tracking.',
         imageSrc: '/apps/hydro-sync.png',
-        features: ['Jug tracking', 'Route optimization', 'Subscription billing', 'Driver notes', 'Empty jug counts'],
-        description: 'Water delivery is a logistics game — and Hydro Sync lets you win it. Track every gallon jug across multiple routes, automate subscription billing, and give your drivers turn-by-turn optimized routes so they deliver more in less time. Grow your subscriber base without growing your headaches.',
+        features: ['Refill Jobs', 'Delivery Status', 'Payment Processing', 'Discount Audits', 'Shift Logs'],
+        description: 'Water refilling is a high-volume business that needs precision. Hydro Sync lets you track walk-in refills and deliveries seamlessly. Accept payments instantly and ensure every drop of water translates to accounted revenue.',
         benefits: [
-          'Know exactly how many jugs are out, returned, or missing at any time',
-          'Optimized daily routes cut fuel costs and delivery time',
-          'Auto-billing for subscribers — no more chasing monthly payments',
-          'Driver app with customer notes and delivery confirmation',
+          'Track jobs from Pending to Out for Delivery to Completed',
+          'Easily apply manager-approved discounts for bulk orders',
+          'Protect your cash drawer with strict shift-based accounting',
+          'Never lose track of unpaid water deliveries again',
         ],
         stats: [
-          { value: '20%', label: 'Fuel savings' },
-          { value: '2×', label: 'More deliveries' },
-          { value: '₱0', label: 'Missed billing' },
+          { value: '100%', label: 'Delivery Tracking' },
+          { value: '₱0', label: 'Missing Cash' },
+          { value: '2×', label: 'Order Clarity' },
         ],
         howItWorks: [
-          { step: 'Load the truck', detail: 'Log how many full jugs are assigned to each driver for the day.' },
-          { step: 'Route deliveries', detail: 'Drivers follow an optimized map to drop off water and collect empties.' },
-          { step: 'Auto-bill subscribers', detail: 'Monthly recurring payments are handled automatically.' }
+          { step: 'Log Water Order', detail: 'Create a job for either walk-in refill or neighborhood delivery.' },
+          { step: 'Track Delivery', detail: 'Update the job status when the water leaves the station.' },
+          { step: 'Complete Payment', detail: 'Process cash or GCash upon delivery or pickup.' }
         ],
-        targetUsers: ['Water Refilling Stations', 'Ice Plants', 'Beverage Distributors']
+        targetUsers: ['Water Refilling Stations', 'Ice Plants']
       },
       {
         id: 'auto-boss',
         name: 'Auto Boss',
         icon: Sparkles,
-        tagline: 'Rev up your shop with automated slot and payment tracking.',
+        tagline: 'Rev up your shop with accurate job and payment tracking.',
         imageSrc: '/apps/auto-boss.png',
-        features: ['Service history', 'Mechanic assignment', 'Parts inventory', 'Digital invoices', 'Labor costing'],
-        description: 'Your auto shop runs on trust — and Auto Boss helps you build it. Every vehicle gets a complete service history, every mechanic is assigned clear jobs, and your parts inventory is always accounted for. Show customers a professional, transparent experience that keeps them coming back.',
+        features: ['Repair Jobs', 'Status Workflow', 'Discount Control', 'Shift Accountability', 'GCash & Cash'],
+        description: 'Your auto shop runs on trust — and Auto Boss helps you build it. Every vehicle gets a clear job order and status flow. Process payments transparently and ensure your mechanics and cashiers are perfectly synced.',
         benefits: [
-          'Full service history per vehicle — searchable by plate or owner',
-          'Mechanic job cards with time tracking and labor costing',
-          'Parts inventory with low-stock alerts and supplier reorder list',
-          'Professional digital invoices customers can save and share',
+          'Track jobs from Diagnosing to Repairing to Ready',
+          'Safely apply discounts to expensive repairs with full audit trails',
+          'Shift logging ensures cash accountability across your front desk',
+          'Deliver a professional, organized experience to every customer',
         ],
         stats: [
-          { value: '4.9★', label: 'Customer trust' },
-          { value: '35%', label: 'More repeat visits' },
-          { value: '10 min', label: 'To close a record' },
+          { value: '100%', label: 'Job Tracking' },
+          { value: '0', label: 'Lost Vehicles' },
+          { value: '100%', label: 'Audit Compliance' },
         ],
         howItWorks: [
-          { step: 'Log vehicle issue', detail: 'Search by plate number to pull up full service history and add new complaints.' },
-          { step: 'Assign mechanic & parts', detail: 'Allocate a bay, assign a mechanic, and pull parts from inventory.' },
-          { step: 'Invoice transparently', detail: 'Generate a professional digital invoice with labor and parts breakdown.' }
+          { step: 'Create Job Order', detail: 'Log the vehicle issue and provide a price estimate.' },
+          { step: 'Update Workflow', detail: 'Move the vehicle through diagnostics and active repair.' },
+          { step: 'Invoice & Release', detail: 'Process the final payment and release the vehicle to the customer.' }
         ],
         targetUsers: ['Auto Repair Shops', 'Car Washes', 'Detailing Centers']
       },
@@ -285,221 +287,280 @@ export const appGroups: AppGroup[] = [
         icon: Sun,
         tagline: 'Elevate your spa experience with seamless booking and billing.',
         imageSrc: '/apps/wellness-pro.png',
-        features: ['Appointment calendar', 'Staff commissions', 'Package sales', 'Client notes', 'Room scheduling'],
-        description: 'Your spa is a sanctuary — your software should feel the same way. Wellness gives you a beautiful appointment calendar, automated staff commission tracking, and flexible package deals that keep clients coming back again and again. Deliver premium service with zero administrative chaos.',
+        features: ['Service Jobs', 'Client Tracking', 'Payment Flow', 'Discount Logs', 'Shift Auditing'],
+        description: 'Your spa is a sanctuary — your software should feel the same way. Wellness gives you a beautiful way to track ongoing client sessions and process payments effortlessly. Deliver premium service with zero administrative chaos.',
         benefits: [
-          'Online booking calendar synced across all therapists and rooms',
-          'Automatic commission calculation per staff member per service',
-          'Sell and redeem prepaid session packages with ease',
-          'Client preference notes so every visit feels personal',
+          'Track client sessions from Waiting to In Session to Completed',
+          'Easily apply promotional discounts with strict audit logging',
+          'Keep your front desk cash perfectly balanced across shifts',
+          'Provide a calm, professional checkout experience',
         ],
         stats: [
-          { value: '45%', label: 'More repeat bookings' },
-          { value: '100%', label: 'Commission accuracy' },
-          { value: '5 min', label: 'To onboard staff' },
+          { value: '100%', label: 'Session Tracking' },
+          { value: '0', label: 'Cash Discrepancies' },
+          { value: '10 sec', label: 'Checkout Time' },
         ],
         howItWorks: [
-          { step: 'Book appointments', detail: 'Manage the calendar for all therapists and rooms in one view.' },
-          { step: 'Track commissions', detail: 'System automatically calculates each therapist’s cut per service.' },
-          { step: 'Sell packages', detail: 'Clients buy 10-session passes that digitally deduct upon every visit.' }
+          { step: 'Log Session', detail: 'Create a job for the requested massage or wellness service.' },
+          { step: 'Track Status', detail: 'Update the status while the client is in their session.' },
+          { step: 'Checkout', detail: 'Process their payment smoothly as they prepare to leave.' }
         ],
-        targetUsers: ['Spas', 'Massage Clinics', 'Aesthetic Centers']
+        targetUsers: ['Spas', 'Massage Clinics', 'Wellness Centers']
       },
       {
         id: 'trim-track',
         name: 'Trim Track',
         icon: Scissors,
-        tagline: 'Keep your barber chairs full and your payments tracked.',
+        tagline: 'Stay sharp with easy salon and barbershop management.',
         imageSrc: '/apps/trim-track.png',
-        features: ['Walk-in queue', 'Barber tips', 'Inventory of hair products', 'Service duration estimates', 'Weekly payouts'],
-        description: 'A great barber shop lives and dies by the queue. Trim Track puts your walk-in flow on autopilot — customers see their wait time, barbers see their next client, and tips are tracked automatically so payouts are always fair. Run a tighter shop and happier team.',
+        features: ['Queue Tracking', 'Service Flow', 'Quick Payment', 'Manager Discounts', 'Shift Logs'],
+        description: 'Keep your chairs full and your cash drawer accurate. Trim Track lets you manage walk-in customers seamlessly, moving them from the waiting area to the chair and straight through to payment with full financial auditing.',
         benefits: [
-          'Digital walk-in queue displayed on a TV or tablet in the shop',
-          'Tip tracking per barber with weekly payout summary',
-          'Hair product inventory with revenue tracking for retail sales',
-          'Service menu with duration estimates for accurate queue times',
+          'Visually track who is waiting, who is seated, and who is done',
+          'Apply loyalty discounts safely with comprehensive audit trails',
+          'Eliminate cash shortages with strict employee shift accounting',
+          'Accept modern payment methods like GCash effortlessly',
         ],
         stats: [
-          { value: '30%', label: 'Less idle time' },
-          { value: '₱0', label: 'Tip disputes' },
-          { value: '2×', label: 'Retail sales' },
+          { value: '100%', label: 'Queue Visibility' },
+          { value: '₱0', label: 'Lost Payments' },
+          { value: '10 sec', label: 'Checkout Flow' },
         ],
         howItWorks: [
-          { step: 'Queue walk-ins', detail: 'Customers see their exact wait time on a digital display board.' },
-          { step: 'Complete service', detail: 'Barber finishes the cut and taps the service menu to finalize pricing.' },
-          { step: 'Track tips & payouts', detail: 'Daily tips and service commissions are tracked for weekly payout.' }
+          { step: 'Add to Queue', detail: 'Create a job when a customer walks in.' },
+          { step: 'Seat Customer', detail: 'Update the status to In Progress when they hit the chair.' },
+          { step: 'Finish & Pay', detail: 'Mark the cut as complete and process their payment.' }
         ],
-        targetUsers: ['Barber Shops', 'Salons', 'Nail Bars']
+        targetUsers: ['Barbershops', 'Salons', 'Beauty Parlors']
       },
       {
         id: 'rep-sync',
         name: 'Rep Sync',
         icon: Dumbbell,
-        tagline: 'Automate gym memberships, attendance, and renewals effortlessly.',
+        tagline: 'Power up your gym with smooth session tracking.',
         imageSrc: '/apps/rep-sync.png',
-        features: ['Member check-in', 'Trainer booking', 'Supplement sales', 'Renewal SMS', 'RFID integration'],
-        description: 'Growing a gym means managing hundreds of members, trainers, and schedules simultaneously. Rep Sync handles member check-ins, sends renewal reminders before memberships lapse, tracks trainer bookings, and even logs your supplement counter sales — all in one powerful platform.',
+        features: ['Session Tracking', 'Payment Processing', 'Discount Auditing', 'Status Workflow', 'Shift Integrity'],
+        description: 'Rep Sync helps you run your fitness center effortlessly. Track walk-in sessions, personal training jobs, and process payments instantly. Keep your focus on your clients, not on complicated paperwork.',
         benefits: [
-          'QR code or biometric check-in with automatic attendance logging',
-          'Renewal reminders sent via SMS 7 days before expiry',
-          'Trainer session scheduling with booking confirmation for members',
-          'Supplement and merchandise POS built right in',
+          'Track active gym goers from Pending to In Session to Completed',
+          'Easily offer student or promotional discounts safely',
+          'Every transaction is strictly tied to the active desk employee',
+          'Lightning-fast checkout keeps the front desk moving',
         ],
         stats: [
-          { value: '90%', label: 'Renewal rate' },
-          { value: '3 sec', label: 'Check-in time' },
-          { value: '₱0', label: 'Manual follow-ups' },
+          { value: '100%', label: 'Session Clarity' },
+          { value: '100%', label: 'Shift Accuracy' },
+          { value: '1 App', label: 'Total Control' },
         ],
         howItWorks: [
-          { step: 'Scan to enter', detail: 'Members use their phone or RFID to log attendance instantly.' },
-          { step: 'Track renewals', detail: 'System texts members 7 days before their monthly pass expires.' },
-          { step: 'Sell merch & supplements', detail: 'Built-in POS for protein shakes, water, and gym gear.' }
+          { step: 'Log Session', detail: 'Create a job when a client arrives for a workout.' },
+          { step: 'Track Activity', detail: 'Keep the session active while they are in the gym.' },
+          { step: 'Complete Payment', detail: 'Process their fee when their session concludes.' }
         ],
-        targetUsers: ['Gyms', 'Fitness Studios', 'Boxing Clubs']
+        targetUsers: ['Gyms', 'CrossFit Boxes', 'Fitness Studios']
       },
       {
-        id: 'rental',
-        name: 'Rental',
-        icon: CalendarHeart, // Reusing icon for now
-        tagline: 'Track your rental equipment and bookings effortlessly.',
-        imageSrc: '/apps/rental.png',
-        features: ['Inventory tracking', 'Booking calendar', 'Deposit management', 'Overdue alerts', 'Digital contracts'],
-        description: 'Managing rental equipment doesn\'t have to be a headache of spreadsheets and lost deposits. The Rental app provides a unified calendar, inventory availability checker, and clear payment tracking so you know exactly who has your equipment and when it\'s coming back.',
+        id: 'service-master',
+        name: 'Service Master',
+        icon: Wrench,
+        tagline: 'The ultimate tool for tracking general repairs and services.',
+        imageSrc: '/apps/service-master.png',
+        features: ['General Jobs', 'Status Updates', 'Discount Support', 'Shift Audits', 'Payment Processing'],
+        description: 'Whether you fix appliances, repair electronics, or provide general handyman services, Service Master keeps your jobs organized. Track exactly what needs fixing and ensure you get paid securely for every job.',
         benefits: [
-          'Prevent double-bookings with a real-time availability calendar',
-          'Track security deposits and automate late fee calculations',
-          'Generate professional digital rental contracts for clients',
-          'Get instantly notified of overdue returns',
+          'Universal workflow fits any repair or service industry',
+          'Apply discounts cleanly with full manager audit trails',
+          'Ensure your cash drawer always matches your daily jobs',
+          'Provide transparent pricing and rapid checkout for customers',
         ],
         stats: [
-          { value: '100%', label: 'Booking clarity' },
-          { value: '₱0', label: 'Lost inventory' },
-          { value: '2×', label: 'Faster checkouts' },
+          { value: '100%', label: 'Job Accountability' },
+          { value: '0', label: 'Missed Invoices' },
+          { value: '100%', label: 'Secure Audits' },
         ],
         howItWorks: [
-          { step: 'Add your inventory', detail: 'List all items with their daily or hourly rental rates.' },
-          { step: 'Book the dates', detail: 'Select dates on the calendar to instantly check item availability.' },
-          { step: 'Track returns', detail: 'System alerts you when an item is due back or overdue.' }
+          { step: 'Log the Repair', detail: 'Create a job detailing the service needed and the price.' },
+          { step: 'Work in Progress', detail: 'Update the job to reflect active repair status.' },
+          { step: 'Invoice Customer', detail: 'Process the payment via cash or GCash when the job is done.' }
         ],
-        targetUsers: ['Equipment Rentals', 'Car Rentals', 'Party Supplies']
+        targetUsers: ['Appliance Repair', 'Electronics Shops', 'Handyman Services']
       },
     ],
   },
   {
-    id: 'business',
-    label: 'Negosyo',
+    id: 'logistics',
+    label: 'Logistics & Rental',
     accentColor: '#10B981',
+    apps: [
+      {
+        id: 'fleet-sync',
+        name: 'Biyahe Sync',
+        icon: Truck,
+        tagline: 'Track your fleet, trips, and trucking revenue effortlessly.',
+        imageSrc: '/apps/biyahe-sync.png',
+        features: ['Trip Tracking', 'Status Flow', 'Expense Logging', 'Revenue Processing', 'Shift Audits'],
+        description: 'Biyahe Sync brings total clarity to your trucking and hauling business. Track every trip from preparation to completion, safely record client payments, and instantly log operational expenses against your master ledger.',
+        benefits: [
+          'Move trips from Preparing to In Transit to Completed',
+          'Safely process client payments with audited discount capabilities',
+          'Instantly record fuel and toll expenses right from the dashboard',
+          'Shift logs ensure dispatcher accountability for all cash handled',
+        ],
+        stats: [
+          { value: '100%', label: 'Trip Visibility' },
+          { value: '100%', label: 'Expense Tracking' },
+          { value: '0', label: 'Lost Revenue' },
+        ],
+        howItWorks: [
+          { step: 'Schedule Trip', detail: 'Log the destination, expected revenue, and assigned driver.' },
+          { step: 'Track Logistics', detail: 'Update the status as the truck moves and completes the haul.' },
+          { step: 'Record Finances', detail: 'Log client payments and deduct fuel expenses from the ledger.' }
+        ],
+        targetUsers: ['Trucking Companies', 'Haulers', 'Moving Services']
+      },
+      {
+        id: 'rental-track',
+        name: 'Rental Master',
+        icon: Car,
+        tagline: 'Complete control over your equipment and vehicle rentals.',
+        imageSrc: '/apps/rental.png',
+        features: ['Active Rentals', 'Inventory Tracking', 'Calendar View', 'Return Processing', 'Discount Audits'],
+        description: 'Stop guessing what equipment is available. Rental Master tracks all active bookings, manages your total inventory pool, and handles payment processing upon return—ensuring you never double-book or lose an asset.',
+        benefits: [
+          'Visual calendar helps you schedule future rentals without conflicts',
+          'Track exactly how many items are available vs currently rented out',
+          'Safely process return payments and apply audited discounts',
+          'Strict shift logging protects your business from cash discrepancies',
+        ],
+        stats: [
+          { value: '0', label: 'Double Bookings' },
+          { value: '100%', label: 'Asset Visibility' },
+          { value: '100%', label: 'Audit Trail' },
+        ],
+        howItWorks: [
+          { step: 'Check Availability', detail: 'View the inventory or calendar to see what items are free.' },
+          { step: 'Create Booking', detail: 'Log the customer details and dispatch the rental item.' },
+          { step: 'Process Return', detail: 'Receive the item back into inventory and collect the final payment.' }
+        ],
+        targetUsers: ['Equipment Rentals', 'Vehicle Rentals', 'Gown Rentals']
+      },
+    ]
+  },
+  {
+    id: 'agri',
+    label: 'Agrikultura',
+    accentColor: '#84CC16',
+    apps: [
+      {
+        id: 'farm-master',
+        name: 'Farm Master',
+        icon: Tractor,
+        tagline: 'Modern management for traditional farming operations.',
+        imageSrc: '/apps/farm-master.png',
+        features: ['Crop Cycle Tracking', 'Livestock Management', 'Harvest Logs', 'Expense Tracking', 'Revenue Recording'],
+        description: 'Farming is a complex business that needs precise record keeping. Farm Master allows you to track planting cycles, monitor livestock inventory, log harvest yields, and record daily operational expenses all in one place.',
+        benefits: [
+          'Track crops from planting to harvest with clear status indicators',
+          'Manage livestock counts and record feed or medicine expenses',
+          'Safely record harvest sales and instantly update your financial ledger',
+          'Make data-driven decisions on which crops are most profitable',
+        ],
+        stats: [
+          { value: '100%', label: 'Cycle Visibility' },
+          { value: '0', label: 'Lost Expenses' },
+          { value: '1 App', label: 'Total Farm Control' },
+        ],
+        howItWorks: [
+          { step: 'Start a Cycle', detail: 'Log a new crop planting or livestock acquisition.' },
+          { step: 'Track Expenses', detail: 'Record fertilizers, feeds, and labor costs as they happen.' },
+          { step: 'Harvest & Sell', detail: 'Log the final yield and record the sales revenue into the ledger.' }
+        ],
+        targetUsers: ['Farms', 'Poultries', 'Piggeries']
+      }
+    ]
+  },
+  {
+    id: 'financial',
+    label: 'Pinansyal & HR',
+    accentColor: '#3B82F6',
     apps: [
       {
         id: 'sahod-flow',
         name: 'Sahod Flow',
         icon: Banknote,
-        tagline: 'Effortless payroll management for a happy, on-time team.',
+        tagline: 'Simplified payroll distribution for MSMEs.',
         imageSrc: '/apps/sahod-flow.png',
-        features: ['Attendance tracking', 'Payslip generation', 'Deduction management', 'Overtime calculation', 'Holiday pay'],
-        description: 'Payroll day should be a celebration, not a nightmare. Sahod Flow automates attendance tallying, deduction calculations, and payslip generation so your team gets paid accurately and on time — every time. Keep your people happy and your books clean.',
+        features: ['Employee Roster', 'Salary Tracking', 'Cash Advances (Bale)', 'Direct Ledger Integration', '1-Tap Payout'],
+        description: 'Payroll doesn\'t have to be a headache. Sahod Flow tracks your employee base, manages their daily or weekly salaries, and handles cash advances (bale) automatically. Payouts instantly deduct from your Master Cash ledger.',
         benefits: [
-          'Daily attendance logs feed directly into payroll — no reentry',
-          'SSS, PhilHealth, Pag-IBIG deductions computed automatically',
-          'Digital payslips sent straight to each employee\'s phone',
-          'Overtime, holiday pay, and night differential handled correctly',
+          'Automatically deduct cash advances from an employee\'s final salary',
+          '1-Tap Payout securely logs the expense into your business ledger',
+          'Clear visibility into who has been paid and who is pending',
+          'Eliminate manual math errors and lost paper records',
         ],
         stats: [
-          { value: '4 hrs', label: 'Saved per cycle' },
-          { value: '100%', label: 'Deduction accuracy' },
-          { value: '0', label: 'Payroll disputes' },
+          { value: '100%', label: 'Ledger Accuracy' },
+          { value: '0', label: 'Math Errors' },
+          { value: '1 Min', label: 'Payroll Processing' },
         ],
         howItWorks: [
-          { step: 'Log daily time', detail: 'Employees clock in/out using a secure PIN or biometric scan.' },
-          { step: 'Auto-compute deductions', detail: 'System calculates SSS, PhilHealth, late penalties, and overtime.' },
-          { step: 'Generate payslips', detail: 'One tap creates digital payslips sent straight to employee phones.' }
+          { step: 'Add Employees', detail: 'Register your staff and set their expected salary and cycle.' },
+          { step: 'Log Advances', detail: 'Record any "bale" which will be auto-deducted later.' },
+          { step: 'Execute Payout', detail: 'Approve payroll and instantly deduct the funds from your Master Cash.' }
         ],
-        targetUsers: ['Small Businesses', 'Franchisees', 'BPO Branches']
+        targetUsers: ['SMEs', 'Contractors', 'Retail Owners']
       },
       {
         id: 'ledger-flow',
         name: 'Ledger Flow',
         icon: BookText,
-        tagline: 'Crystal-clear financial insights to watch your profits soar.',
+        tagline: 'Your business\'s central financial nervous system.',
         imageSrc: '/apps/ledger-flow.png',
-        features: ['Expense categorization', 'Profit & Loss statements', 'Tax ready reports', 'Auto-sync sales', 'Dashboard metrics'],
-        description: 'You cannot grow what you cannot see. Ledger Flow gives you a real-time view of every peso in and out of your business — categorized, totaled, and presented in clean Profit & Loss statements that are ready for your accountant or BIR filing. Financial clarity, finally.',
+        features: ['Master Cash Account', 'Income Tracking', 'Expense Logging', 'Automated Integration', 'Financial Overview'],
+        description: 'Ledger Flow is the beating heart of your business. Every single transaction from every other module—sales, payroll, vendor payouts, and loans—automatically flows into this master ledger. Total financial clarity at your fingertips.',
         benefits: [
-          'Categorize every expense with one tap — no accounting degree needed',
-          'Live dashboard shows your running profit margin at all times',
-          'Monthly P&L and cash flow reports generated automatically',
-          'Export tax-ready summaries in BIR-compliant format',
+          'No manual entry needed for transactions originating from other modules',
+          'Manually log ad-hoc income and expenses with precise categorization',
+          'Real-time view of your true Master Cash balance',
+          'Bulletproof financial tracking protects you against hidden losses',
         ],
         stats: [
-          { value: '80%', label: 'Faster book close' },
-          { value: '100%', label: 'BIR-ready' },
-          { value: '₱0', label: 'Accountant OT fees' },
+          { value: '100%', label: 'Automated Sync' },
+          { value: 'Real-time', label: 'Balance Updates' },
+          { value: '0', label: 'Lost Records' },
         ],
         howItWorks: [
-          { step: 'Log every expense', detail: 'Categorize daily operational costs with a few simple taps.' },
-          { step: 'Sync with sales', detail: 'Automatically pulls daily revenue from your Katuwang POS apps.' },
-          { step: 'View the bottom line', detail: 'Instantly generate P&L reports to see your true monthly profit.' }
+          { step: 'Automatic Sync', detail: 'Sales and expenses from other apps flow here instantly.' },
+          { step: 'Manual Entry', detail: 'Log custom utility bills or random income easily.' },
+          { step: 'Review Balance', detail: 'Always know exactly how much cash your business truly holds.' }
         ],
-        targetUsers: ['Business Owners', 'Accountants', 'Bookkeepers']
+        targetUsers: ['Business Owners', 'Accountants', 'Managers']
       },
-      {
-        id: 'biyahe-sync',
-        name: 'Biyahe Sync',
-        icon: Truck,
-        tagline: 'Real-time trucking dispatching to keep your fleet moving.',
-        imageSrc: '/apps/biyahe-sync.png',
-        features: ['Driver tracking', 'ePOD signatures', 'Fuel expense logs', 'Route performance', 'GPS map'],
-        description: 'Every hauling trip is a promise to your client. Biyahe Sync keeps that promise by putting you in full control of your trucking service — track drivers in real time, capture digital proof of delivery, and log fuel expenses automatically. Haul faster, dispute less, and cut operating costs.',
-        benefits: [
-          'Live GPS map of all drivers and trucks from one screen',
-          'Electronic Proof of Delivery with customer signature on phone',
-          'Fuel expense log tied to each trip for accurate costing',
-          'Trucking performance reports by driver, route, and vehicle',
-        ],
-        stats: [
-          { value: '15%', label: 'Fuel cost reduction' },
-          { value: '0', label: 'Hauling disputes' },
-          { value: '2×', label: 'Dispatcher efficiency' },
-        ],
-        howItWorks: [
-          { step: 'Dispatch fleet', detail: 'Assign trucks, drivers, and hauling routes for the day.' },
-          { step: 'Capture signatures', detail: 'Drivers get digital Proof of Delivery right on their phones.' },
-          { step: 'Log fuel & tolls', detail: 'Drivers log on-road expenses that sync directly to your dashboard.' }
-        ],
-        targetUsers: ['Trucking Services', 'Haulers', 'Freight Operators']
-      },
-    ],
-  },
-  {
-    id: 'financial',
-    label: 'Pinansyal',
-    accentColor: '#3B82F6',
-    apps: [
       {
         id: '5-6-tracker',
         name: '5-6 Tracker',
-        icon: BookText,
-        tagline: 'Secure, automated lending lists for faster collections.',
+        icon: HandCoins,
+        tagline: 'Professional lending management with strict accountability.',
         imageSrc: '/apps/5-6-tracker.png',
-        features: ['Interest calculator', 'Due date reminders', 'Partial payment tracking', 'Audit trails', 'Daily reports'],
-        description: 'Managing a lending list in your head — or on scattered notebooks — is a recipe for missed payments and disputes. 5-6 Tracker digitizes your entire book: automatic interest calculations, due-date SMS reminders to borrowers, and a crystal-clear payment history for every account. Collect with confidence.',
+        features: ['Borrower Profiles', 'Loan Issuance', 'Payment Tracking', 'Discount Auditing', 'Shift Logs'],
+        description: 'Running a micro-lending business requires flawless record keeping. The 5-6 Tracker manages borrower limits, outstanding balances, and tracks daily payments with strict audit trails so your capital is always protected.',
         benefits: [
-          'Automatic interest computation based on your custom rate and term',
-          'SMS reminders sent to borrowers 1 day before their due date',
-          'Log partial payments instantly with running balance updates',
-          'Full payment history per borrower — audit-ready at any time',
+          'Enforce strict credit limits per borrower to prevent over-exposure',
+          'Record daily payments with audited discount capabilities',
+          'Loans and payments immediately sync with your Master Cash ledger',
+          'Employee shifts strictly protect the cash drawer from discrepancies',
         ],
         stats: [
-          { value: '95%', label: 'On-time collection' },
-          { value: '0', label: 'Calculation errors' },
-          { value: '10×', label: 'More accounts managed' },
+          { value: '100%', label: 'Capital Tracking' },
+          { value: '0', label: 'Lost Balances' },
+          { value: '100%', label: 'Shift Security' },
         ],
         howItWorks: [
-          { step: 'Set loan terms', detail: 'Enter the principal, interest rate, and daily/weekly payment schedule.' },
-          { step: 'Send reminders', detail: 'System automatically texts borrowers when their payment is due.' },
-          { step: 'Log collections', detail: 'Record full or partial payments while the balance auto-updates.' }
+          { step: 'Create Borrower', detail: 'Setup the client profile and assign a maximum credit limit.' },
+          { step: 'Issue Loan', detail: 'Release capital which instantly deducts from your Master Ledger.' },
+          { step: 'Track Payments', detail: 'Log daily collections securely under your active employee shift.' }
         ],
-        targetUsers: ['Micro-Lenders', 'Cooperatives', 'Bumbay Operators']
+        targetUsers: ['Micro-Lenders', 'Financiers', 'Co-ops']
       },
     ],
   },

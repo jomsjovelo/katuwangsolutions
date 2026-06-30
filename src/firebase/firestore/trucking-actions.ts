@@ -2,6 +2,7 @@ import { getFirestore, doc, collection, serverTimestamp, setDoc, increment } fro
 import { initializeFirebase } from '../index';
 import { TripSchema } from '@/lib/schemas/trucking';
 import { runTransactionResilient } from './resilient-transaction';
+import { logAuditEvent } from './audit-actions';
 
 export const getKatuwangDb = () => initializeFirebase().db;
 
@@ -53,7 +54,20 @@ export async function updateTripExpenses(tenantId: string, tripId: string, addit
   });
 }
 
-export async function updateTripStatus(tenantId: string, tripId: string, newStatus: 'planned' | 'loading' | 'in_transit' | 'arrived' | 'completed' | 'cancelled', signatureData?: string, paymentMethod: string = 'cash', discountCentavos: number = 0, discountType?: 'percentage' | 'fixed') {
+export async function updateTripStatus(
+  tenantId: string, 
+  tripId: string, 
+  newStatus: string, 
+  signatureData?: string, 
+  paymentMethod: string = 'cash', 
+  gcashRef?: string, 
+  discountCentavos: number = 0, 
+  discountType?: 'percentage' | 'fixed', 
+  discountReason?: string,
+  userId?: string,
+  userName?: string,
+  shiftId?: string
+) {
   const db = getKatuwangDb();
   
   await runTransactionResilient(db, async (transaction) => {
@@ -131,7 +145,7 @@ export async function updateTripStatus(tenantId: string, tripId: string, newStat
 
         const salesRef = collection(db, 'tenants', tenantId, 'sales');
         const newSaleRef = doc(salesRef);
-        transaction.set(newSaleRef, {
+        const saleRecord: any = {
           id: newSaleRef.id,
           tenantId,
           module: 'trucking',
@@ -139,10 +153,13 @@ export async function updateTripStatus(tenantId: string, tripId: string, newStat
           subtotalAmount: subtotalAmount,
           discountAmount: discountCentavos,
           discountType: discountType || 'none',
+          discountReason,
           totalAmount: revenue,
           paymentMethod: paymentMethod,
           createdAt: serverTimestamp()
-        });
+        };
+        if (gcashRef) saleRecord.gcashRef = gcashRef;
+        transaction.set(newSaleRef, saleRecord);
       }
 
       // Record the Expense
@@ -162,6 +179,14 @@ export async function updateTripStatus(tenantId: string, tripId: string, newStat
       }
     }
   });
+
+  if (discountCentavos > 0 && userId && userName) {
+    await logAuditEvent(tenantId, userId, userName, {
+      type: 'apply_discount',
+      description: `Applied ${discountType === 'percentage' ? 'percentage' : 'fixed'} discount of ₱${(discountCentavos / 100).toFixed(2)} to trucking trip. Reason: ${discountReason || 'None'}`,
+      meta: { tripId, discountCentavos, discountType, discountReason, shiftId }
+    });
+  }
 
   return true;
 }

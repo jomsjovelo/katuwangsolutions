@@ -1,6 +1,7 @@
 import { getFirestore, doc, collection, serverTimestamp, setDoc, increment, Timestamp } from 'firebase/firestore';
 import { initializeFirebase } from '../index';
 import { runTransactionResilient } from './resilient-transaction';
+import { logAuditEvent } from './audit-actions';
 
 const getKatuwangDb = () => initializeFirebase().db;
 
@@ -73,7 +74,11 @@ export async function recordRetailCreditPayment(
   creditId: string, 
   paymentAmount: number, // in centavos
   discountCentavos: number = 0,
-  discountType?: 'percentage' | 'fixed'
+  discountType?: 'percentage' | 'fixed',
+  discountReason?: string,
+  userId?: string,
+  userName?: string,
+  shiftId?: string
 ) {
   const db = getKatuwangDb();
   
@@ -146,7 +151,18 @@ export async function recordRetailCreditPayment(
       category: isIncome ? 'Accounts Receivable Payment' : 'Accounts Payable Settlement',
       description: `Payment for ${credit.name} - ${credit.description || 'Credit Settlement'}`,
       date: new Date(),
-      createdAt: serverTimestamp()
+      createdAt: serverTimestamp(),
+      discountCentavos,
+      discountType,
+      discountReason
     });
+
+    if (discountCentavos > 0 && userId && userName) {
+      logAuditEvent(tenantId, userId, userName, {
+        type: 'apply_discount',
+        description: `Applied ${discountType === 'percentage' ? 'percentage' : 'fixed'} discount of ₱${(discountCentavos / 100).toFixed(2)} to credit payment. Reason: ${discountReason || 'None'}`,
+        meta: { creditId, discountCentavos, discountType, discountReason, shiftId }
+      });
+    }
   });
 }

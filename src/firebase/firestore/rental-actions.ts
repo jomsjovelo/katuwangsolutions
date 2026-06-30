@@ -1,6 +1,7 @@
 import { getFirestore, doc, collection, serverTimestamp, setDoc, increment } from 'firebase/firestore';
 import { initializeFirebase } from '../index';
 import { runTransactionResilient } from './resilient-transaction';
+import { logAuditEvent } from './audit-actions';
 
 export const getKatuwangDb = () => initializeFirebase().db;
 
@@ -14,7 +15,8 @@ export async function processRentalBooking(
   paymentMethod?: string,
   gcashRef?: string,
   discountCentavos: number = 0,
-  discountType?: 'percentage' | 'fixed'
+  discountType?: 'percentage' | 'fixed',
+  discountReason?: string
 ): Promise<string> {
   const db = getKatuwangDb();
   let bookingId = '';
@@ -58,6 +60,7 @@ export async function processRentalBooking(
       totalCost,
       discountAmount: discountCentavos,
       discountType: discountType || 'none',
+      discountReason,
       finalCost: Math.max(0, totalCost - (discountCentavos/100)),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -85,6 +88,7 @@ export async function processRentalBooking(
         subtotalAmount: subtotalCentavos,
         discountAmount: discountCentavos,
         discountType: discountType || 'none',
+        discountReason,
         totalAmount: finalCentavos,
         paymentMethod: paymentMethod || 'cash',
         createdAt: serverTimestamp()
@@ -140,7 +144,11 @@ export async function processRentalReturn(
   paymentMethod?: string,
   gcashRef?: string,
   discountCentavos: number = 0,
-  discountType?: 'percentage' | 'fixed'
+  discountType?: 'percentage' | 'fixed',
+  discountReason?: string,
+  userId?: string,
+  userName?: string,
+  shiftId?: string
 ): Promise<void> {
   const db = getKatuwangDb();
   
@@ -188,6 +196,7 @@ export async function processRentalReturn(
         subtotalAmount: subtotalCentavos,
         discountAmount: discountCentavos,
         discountType: discountType || 'none',
+        discountReason,
         totalAmount: finalCentavos,
         paymentMethod: paymentMethod || 'cash',
         createdAt: serverTimestamp()
@@ -233,6 +242,14 @@ export async function processRentalReturn(
       }
     }
   });
+
+  if (discountCentavos > 0 && userId && userName) {
+    await logAuditEvent(tenantId, userId, userName, {
+      type: 'apply_discount',
+      description: `Applied ${discountType === 'percentage' ? 'percentage' : 'fixed'} discount of ₱${(discountCentavos / 100).toFixed(2)} to rental return. Reason: ${discountReason || 'None'}`,
+      meta: { bookingId: booking.id, discountCentavos, discountType, discountReason, shiftId }
+    });
+  }
 }
 
 export async function deleteRentalBooking(

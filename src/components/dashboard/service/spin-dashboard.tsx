@@ -6,6 +6,7 @@ import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/fi
 import { useFirestore } from '@/firebase/provider';
 import { completeServiceOrder, deleteServiceOrder } from '@/firebase/firestore/service-actions';
 import { useUser } from '@/firebase/auth/use-user';
+import { useShift } from '@/hooks/use-shift';
 import { awardPoints } from '@/firebase/firestore/loyalty-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,18 +17,8 @@ import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useLaundry } from '@/hooks/use-laundry';
 import { useToast } from '@/hooks/use-toast';
 import { ServicePaymentModal } from '@/components/common/service-payment-modal';
-import { 
-  Shirt, 
-  Plus, 
-  WashingMachine,
-  CheckCircle2,
-  Package,
-  CircleDollarSign,
-  Droplets,
-  MessageSquare,
-  Clock,
-  Trash2
-} from "lucide-react";
+import { Delete, Smartphone, Loader2, DollarSign, Shirt, CheckCircle2, History, RotateCcw, Clock, Share, Plus, WashingMachine, Package, CircleDollarSign, Droplets, MessageSquare, Trash2 } from 'lucide-react';
+import { usePinApproval } from '@/hooks/use-pin-approval';
 
 const RATES: Record<string, number> = {
   'Wash & Fold': 30,
@@ -88,11 +79,9 @@ const OrderCard = React.memo(({ order, actions, isOwner, onDelete }: { order: an
             )}
           </div>
           </div>
-          {isOwner && (
-            <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0" onClick={() => onDelete(order.id)}>
-              <Trash2 className="h-3 w-3" />
-            </Button>
-          )}
+          <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0" onClick={() => onDelete(order.id)}>
+            <Trash2 className="h-3 w-3" />
+          </Button>
         </div>
         <div className="text-right">
           <Badge variant="outline" className={order.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}>
@@ -113,6 +102,7 @@ export function SpinDashboard() {
   const { currentTenant } = useTenant();
   const db = useFirestore();
   const { toast } = useToast();
+  const { requireApproval } = usePinApproval();
   
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -120,6 +110,7 @@ export function SpinDashboard() {
   useDynamicThemeColor(theme);
 
   const { user } = useUser();
+  const { activeShift } = useShift();
   const isOwner = currentTenant?.ownerUid === user?.uid || (currentTenant as any)?.role === 'owner';
 
   // Laundry State
@@ -175,7 +166,16 @@ export function SpinDashboard() {
     }
   };
 
-  const updateStatus = async (order: any, status: string, paymentStatus?: string, machineNumber?: string, paymentMethod: string = 'cash', discountCentavos: number = 0, discountType?: 'percentage' | 'fixed') => {
+  const updateStatus = async (
+    order: any, 
+    status: string, 
+    paymentStatus?: string, 
+    machineNumber?: string, 
+    paymentMethod: string = 'cash', 
+    discountCentavos: number = 0, 
+    discountType?: 'percentage' | 'fixed', 
+    discountReason?: string
+  ) => {
     if (!currentTenant || !db) return;
     try {
       if (paymentStatus === 'Paid') {
@@ -190,9 +190,13 @@ export function SpinDashboard() {
           undefined,
           {},
           paymentMethod,
-          undefined,
+          undefined, // gcashRef
           discountCentavos,
-          discountType
+          discountType,
+          discountReason,
+          user?.uid,
+          user?.displayName || user?.email || 'Unknown',
+          activeShift?.id
         );
         
         // Loyalty Points
@@ -221,6 +225,11 @@ export function SpinDashboard() {
 
   const handleDeleteOrder = async (orderId: string) => {
     if (!currentTenant || !user) return;
+    
+    // Phase 2: Require Manager PIN for Deletions
+    const approved = await requireApproval("Deleting a Laundry Order requires Manager authorization.");
+    if (!approved) return;
+
     if (!window.confirm("Sigurado ka bang gusto mong i-delete o i-void ang order na ito? Ibabalik nito ang bayad kung applicable.")) return;
     try {
       await deleteServiceOrder(currentTenant.id, 'laundry_orders', orderId, user.uid, user.displayName || user.email || 'Unknown User');
@@ -417,8 +426,8 @@ export function SpinDashboard() {
             isOpen={!!selectedOrderForPayment}
             onClose={() => setSelectedOrderForPayment(null)}
             amountDue={selectedOrderForPayment.amountDue}
-            onConfirm={(method, discountCentavos, discountType) => {
-              updateStatus(selectedOrderForPayment, 'Claimed', 'Paid', undefined, method, discountCentavos, discountType);
+            onConfirm={(method, discountCentavos, discountType, discountReason) => {
+              updateStatus(selectedOrderForPayment, 'Claimed', 'Paid', undefined, method, discountCentavos, discountType, discountReason);
               setSelectedOrderForPayment(null);
             }}
           />

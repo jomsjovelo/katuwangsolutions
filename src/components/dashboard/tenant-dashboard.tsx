@@ -9,9 +9,12 @@ import { useTenant } from '@/app/lib/tenant-context';
 import dynamic from 'next/dynamic';
 import { useFirestoreDocument } from '@/hooks/use-firestore-subscription';
 import { getModuleTheme } from '@/lib/theme-utils';
+import { ShiftGate } from './shift-gate';
+import { PinApprovalModal } from '@/components/common/pin-approval-modal';
 
 // Phase 2: Lazy Load heavy module components to drastically shrink initial JS bundle
 const BentaDashboard = dynamic(() => import('@/components/dashboard/retail/benta-dashboard').then(m => m.BentaDashboard));
+const FreshTallyDashboard = dynamic(() => import('@/components/dashboard/retail/fresh-tally-dashboard').then(m => m.FreshTallyDashboard));
 const BuildStackDashboard = dynamic(() => import('@/components/dashboard/retail/build-stack-dashboard').then(m => m.BuildStackDashboard));
 const FiveSixDashboard = dynamic(() => import('@/components/dashboard/five-six-dashboard').then(m => m.FiveSixDashboard));
 const ReportsTab = dynamic(() => import('@/components/dashboard/reports-tab').then(m => m.ReportsTab));
@@ -168,7 +171,7 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
     if (activeModule === 'trim-track') return <TrimTrackDashboard />;
     if (activeModule === 'rep-sync') return <RepSyncDashboard />;
     
-    const serviceModules = ['unknown'];
+    const serviceModules = ['unknown', 'service-master'];
     if (serviceModules.includes(activeModule || '')) return <ServiceDashboard />;
     
     if (activeModule === 'ledger-flow') return <LedgerDashboard />;
@@ -179,7 +182,7 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
     const foodModules = ['bite-snap'];
     if (foodModules.includes(activeModule || '')) return <FoodDashboard />;
     
-    if (activeModule === 'ani-grow') return <FarmDashboard />;
+    if (activeModule === 'farm-master') return <FarmDashboard />;
     
     const fleetModules = ['biyahe-sync'];
     if (fleetModules.includes(activeModule || '')) return <FleetDashboard />;
@@ -187,6 +190,7 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
     if (activeModule === 'rental') return <RentalDashboard />;
     
     if (activeModule === 'build-stack') return <BuildStackDashboard />;
+    if (activeModule === 'fresh-tally') return <FreshTallyDashboard />;
     
     return <BentaDashboard />;
   };
@@ -194,60 +198,63 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
   const isIndustryTab = !['profile', 'stock', 'ulat', 'home', 'kita'].includes(activeTab || 'home');
 
   return (
-    <KatuwangErrorBoundary>
-      {(!isOnline || pendingCount > 0) && (
-        <div className={cn(
-          "px-4 py-2.5 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 sticky top-0 z-50 animate-in slide-in-from-top",
-          isOnline && pendingCount > 0 ? "bg-amber-500 text-white shadow-md" : "bg-destructive text-destructive-foreground"
-        )}>
-          {isOnline ? <TrendingUp className="h-4 w-4 shrink-0 animate-bounce" /> : <WifiOff className="h-4 w-4 shrink-0" />}
-          <span>{syncMessage}</span>
+    <ShiftGate activeTab={activeTab} onGoToProfile={() => onTabChange?.('profile')}>
+      <KatuwangErrorBoundary>
+        {(!isOnline || pendingCount > 0) && (
+          <div className={cn(
+            "px-4 py-2.5 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 sticky top-0 z-50 animate-in slide-in-from-top",
+            isOnline && pendingCount > 0 ? "bg-amber-500 text-white shadow-md" : "bg-destructive text-destructive-foreground"
+          )}>
+            {isOnline ? <TrendingUp className="h-4 w-4 shrink-0 animate-bounce" /> : <WifiOff className="h-4 w-4 shrink-0" />}
+            <span>{syncMessage}</span>
+          </div>
+        )}
+        
+        <EmailVerificationBanner />
+        <div className={activeTab === 'home' || !activeTab ? 'block' : 'hidden'}>
+          <HomeTab setTab={onTabChange} />
         </div>
-      )}
-      
-      <EmailVerificationBanner />
-      <div className={activeTab === 'home' || !activeTab ? 'block' : 'hidden'}>
-        <HomeTab setTab={onTabChange} />
-      </div>
-      
-      <div className={activeTab === 'profile' ? 'block' : 'hidden'}>
-        <ProfileTab />
-      </div>
+        
+        <div className={activeTab === 'profile' ? 'block' : 'hidden'}>
+          <ProfileTab />
+        </div>
 
-      <div className={activeTab === 'kita' ? 'block' : 'hidden'}>
-        <ReferralDashboard />
-      </div>
-      
-      <div className={activeTab === 'stock' ? 'block' : 'hidden'}>
-        <StockTab />
-      </div>
+        <div className={activeTab === 'kita' ? 'block' : 'hidden'}>
+          <ReferralDashboard />
+        </div>
+        
+        <div className={activeTab === 'stock' ? 'block' : 'hidden'}>
+          <StockTab />
+        </div>
 
-      <div className={activeTab === 'ulat' ? 'block' : 'hidden'}>
-        {profile?.role === 'staff' ? (
-          <div className="flex-1 flex items-center justify-center p-6 bg-slate-50 min-h-screen">
-            <div className="text-center space-y-4 max-w-xs bg-white rounded-3xl p-6 border border-slate-200 shadow-sm animate-in fade-in">
-              <div className="h-12 w-12 rounded-full bg-amber-50 mx-auto flex items-center justify-center">
-                <AlertTriangle className="h-6 w-6 text-amber-500" />
-              </div>
-              <div>
-                <h4 className="font-headline font-black text-sm text-slate-800">Akses Limitado</h4>
-                <p className="text-xs text-slate-400 leading-relaxed mt-1">
-                  Pasensya na po, Ate/Kuya. Ang mga ulat at profit reports ay maaari lamang makita ng Store Owner.
-                </p>
+        <div className={activeTab === 'ulat' ? 'block' : 'hidden'}>
+          {profile?.role === 'staff' ? (
+            <div className="flex-1 flex items-center justify-center p-6 bg-slate-50 min-h-screen">
+              <div className="text-center space-y-4 max-w-xs bg-white rounded-3xl p-6 border border-slate-200 shadow-sm animate-in fade-in">
+                <div className="h-12 w-12 rounded-full bg-amber-50 mx-auto flex items-center justify-center">
+                  <AlertTriangle className="h-6 w-6 text-amber-500" />
+                </div>
+                <div>
+                  <h4 className="font-headline font-black text-sm text-slate-800">Akses Limitado</h4>
+                  <p className="text-xs text-slate-400 leading-relaxed mt-1">
+                    Pasensya na po, Ate/Kuya. Ang mga ulat at profit reports ay maaari lamang makita ng Store Owner.
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        ) : (
-          <ReportsTab />
-        )}
-      </div>
+          ) : (
+            <ReportsTab />
+          )}
+        </div>
 
-      <div className={isIndustryTab ? 'block' : 'hidden'}>
-        {renderIndustryDashboard()}
-      </div>
-      
-      {/* Global Context-Aware Help Manual */}
-      <HelpGuideDrawer activeModule={activeModuleOverride || currentTenant.moduleType} />
-    </KatuwangErrorBoundary>
+        <div className={isIndustryTab ? 'block' : 'hidden'}>
+          {renderIndustryDashboard()}
+        </div>
+        
+        {/* Global Context-Aware Help Manual */}
+        <HelpGuideDrawer activeModule={activeModuleOverride || currentTenant.moduleType} />
+      </KatuwangErrorBoundary>
+      <PinApprovalModal />
+    </ShiftGate>
   );
 }

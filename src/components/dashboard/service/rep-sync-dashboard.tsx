@@ -1,4 +1,5 @@
 "use client"
+import { usePinApproval } from '@/hooks/use-pin-approval';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
@@ -86,6 +87,7 @@ export function RepSyncDashboard() {
   const { currentTenant } = useTenant();
   const db = useFirestore();
   const { toast } = useToast();
+  const { requireApproval } = usePinApproval();
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
@@ -163,6 +165,10 @@ export function RepSyncDashboard() {
 
   const handleDeleteMember = async (memberId: string) => {
     if (!currentTenant || !user) return;
+    // Phase 2: Require Manager PIN for Deletions
+    const approved = await requireApproval("Deleting a record requires Manager authorization.");
+    if (!approved) return;
+
     if (!window.confirm("Sigurado ka bang gusto mong i-delete o i-void ang member na ito? Ibabalik nito ang bayad kung applicable.")) return;
     try {
       await deleteServiceOrder(currentTenant.id, 'gym_memberships', memberId, user.uid, user.displayName || user.email || 'Unknown User');

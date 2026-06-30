@@ -9,7 +9,11 @@ export type AuditEventType =
   | 'module_changed'
   | 'void_sale'
   | 'delete_record'
-  | 'void_transaction';
+  | 'void_transaction'
+  | 'apply_discount'
+  | 'price_override'
+  | 'payout_expense'
+  | 'status_change';
 
 export interface AuditEventPayload {
   type: AuditEventType;

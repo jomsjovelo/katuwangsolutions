@@ -165,7 +165,7 @@ export const MODULE_GUIDES: Record<string, GuideContent> = {
       result: 'Maa-update ang status ni Truck #1 to "On Transit", at naka-pending ang ₱8k collectible.'
     }
   },
-  'ani-grow': {
+  'farm-master': {
     tagline: 'Mula sa bukid hanggang bodega. Subaybayan ang ani.',
     steps: [
       'Itala ang nadiskargang ani o karga mula sa biyahe sa bodegang destinasyon.',

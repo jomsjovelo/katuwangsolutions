@@ -1,4 +1,5 @@
 "use client"
+import { usePinApproval } from '@/hooks/use-pin-approval';
 
 import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
@@ -6,6 +7,7 @@ import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/fi
 import { useFirestore } from '@/firebase/provider';
 import { completeServiceOrder, deleteServiceOrder } from '@/firebase/firestore/service-actions';
 import { useUser } from '@/firebase/auth/use-user';
+import { useShift } from '@/hooks/use-shift';
 import { getCustomerPoints } from '@/firebase/firestore/loyalty-actions';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -127,6 +129,7 @@ export function AutoBossDashboard() {
   const { currentTenant } = useTenant();
   const db = useFirestore();
   const { toast } = useToast();
+  const { requireApproval } = usePinApproval();
   const { products, loading: inventoryLoading } = useInventory();
   
   const [isProcessing, setIsProcessing] = useState(false);
@@ -135,6 +138,7 @@ export function AutoBossDashboard() {
   useDynamicThemeColor(theme);
   
   const { user } = useUser();
+  const { activeShift } = useShift();
   const isOwner = currentTenant?.ownerUid === user?.uid || (currentTenant as any)?.role === 'owner';
 
   // Carwash State
@@ -273,7 +277,15 @@ export function AutoBossDashboard() {
     }
   };
 
-  const updateStatus = async (order: any, status: string, paymentStatus?: string, paymentMethod: string = 'cash', discountCentavos: number = 0, discountType?: 'percentage' | 'fixed') => {
+  const updateStatus = async (
+    order: any, 
+    status: string, 
+    paymentStatus?: string, 
+    paymentMethod: string = 'cash', 
+    discountCentavos: number = 0, 
+    discountType?: 'percentage' | 'fixed', 
+    discountReason?: string
+  ) => {
     if (!currentTenant || !db) return;
     try {
       if (status === 'Completed' && paymentStatus === 'Paid') {
@@ -291,9 +303,13 @@ export function AutoBossDashboard() {
           commissionCentavos,
           { partsUsed: order.partsUsed || [] },
           paymentMethod,
-          undefined,
+          undefined, // gcashRef
           discountCentavos,
-          discountType
+          discountType,
+          discountReason,
+          user?.uid,
+          user?.displayName || user?.email || 'Unknown',
+          activeShift?.id
         );
         if (order.customerPhone && order.amountDue > 0) {
           try {
@@ -317,6 +333,10 @@ export function AutoBossDashboard() {
 
   const handleDeleteOrder = async (orderId: string) => {
     if (!currentTenant || !user) return;
+    // Phase 2: Require Manager PIN for Deletions
+    const approved = await requireApproval("Deleting a record requires Manager authorization.");
+    if (!approved) return;
+
     if (!window.confirm("Sigurado ka bang gusto mong i-delete o i-void ang order na ito? Ibabalik nito ang bayad kung applicable.")) return;
     try {
       await deleteServiceOrder(currentTenant.id, 'carwash_orders', orderId, user.uid, user.displayName || user.email || 'Unknown User');
@@ -647,8 +667,8 @@ export function AutoBossDashboard() {
             isOpen={!!selectedOrderForPayment}
             onClose={() => setSelectedOrderForPayment(null)}
             amountDue={selectedOrderForPayment.amountDue}
-            onConfirm={(method, discountCentavos, discountType) => {
-              updateStatus(selectedOrderForPayment, 'Completed', 'Paid', method, discountCentavos, discountType);
+            onConfirm={(method, discountCentavos, discountType, discountReason) => {
+              updateStatus(selectedOrderForPayment, 'Completed', 'Paid', method, discountCentavos, discountType, discountReason);
               setSelectedOrderForPayment(null);
             }}
           />

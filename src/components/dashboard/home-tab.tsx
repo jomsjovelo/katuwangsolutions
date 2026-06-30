@@ -82,7 +82,7 @@ const getMockActivity = (module: string = 'benta-snap') => {
       { id: 2, type: 'stock', title: 'Package Received at Hub', amount: null, time: '1 hour ago', icon: Package, color: 'text-orange-500', bg: 'bg-orange-50' },
       { id: 3, type: 'alert', title: 'Delayed: Route B', amount: null, time: '2 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
     ],
-    'ani-grow': [
+    'farm-master': [
       { id: 1, type: 'sale', title: 'Sold: 10 Sacks Rice', amount: 12000, time: '1 hour ago', icon: Banknote, color: 'text-amber-600', bg: 'bg-amber-50' },
       { id: 2, type: 'stock', title: 'Harvest Logged: Corn', amount: null, time: '3 hours ago', icon: Tractor, color: 'text-emerald-600', bg: 'bg-emerald-50' },
       { id: 3, type: 'alert', title: 'Low Stock: Fertilizer', amount: null, time: '1 day ago', icon: Sprout, color: 'text-orange-500', bg: 'bg-orange-50' },

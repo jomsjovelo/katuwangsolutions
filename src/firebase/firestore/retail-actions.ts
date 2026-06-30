@@ -36,6 +36,7 @@ export async function addProduct(tenantId: string, productData: any) {
   return newProductRef.id;
 }
 
+
 export async function processCheckout(
   tenantId: string,
   cart: CartItem[],
@@ -43,7 +44,11 @@ export async function processCheckout(
   paymentMethod: string = 'cash',
   gcashRef?: string,
   discountCentavos: number = 0,
-  discountType?: 'percentage' | 'fixed'
+  discountType?: 'percentage' | 'fixed',
+  discountReason?: string,
+  userId?: string,
+  userName?: string,
+  shiftId?: string
 ): Promise<string> {
   if (cart.length === 0) throw new Error('Cart is empty');
 
@@ -123,6 +128,7 @@ export async function processCheckout(
       subtotalAmount: secureTotalAmount,
       discountAmount: discountCentavos,
       discountType: discountType || 'none',
+      discountReason,
       totalAmount: finalAmount,
       paymentMethod,
       createdAt: serverTimestamp()
@@ -170,6 +176,14 @@ export async function processCheckout(
       });
     }
   });
+
+  if (discountCentavos > 0 && userId && userName) {
+    await logAuditEvent(tenantId, userId, userName, {
+      type: 'apply_discount',
+      description: `Applied ${discountType === 'percentage' ? 'percentage' : 'fixed'} discount of ₱${(discountCentavos / 100).toFixed(2)}. Reason: ${discountReason || 'None'}`,
+      meta: { saleId: saleDocId, discountCentavos, discountType, discountReason, shiftId }
+    });
+  }
 
   return saleDocId; // Return the real Firestore document ID
 }
@@ -305,7 +319,11 @@ export async function processCreditCheckout(
   palistaName: string,
   palistaDate: Date,
   discountCentavos: number = 0,
-  discountType?: 'percentage' | 'fixed'
+  discountType?: 'percentage' | 'fixed',
+  discountReason?: string,
+  userId?: string,
+  userName?: string,
+  shiftId?: string
 ): Promise<string> {
   if (cart.length === 0) throw new Error('Cart is empty');
   if (!palistaName || palistaName.trim() === '') throw new Error('Customer name is required for credit.');
@@ -373,6 +391,7 @@ export async function processCreditCheckout(
       subtotalAmount: secureTotalAmount,
       discountAmount: discountCentavos,
       discountType: discountType || 'none',
+      discountReason,
       totalAmount: finalAmount,
       paymentMethod: 'palista',
       status: 'pending',
@@ -405,6 +424,14 @@ export async function processCreditCheckout(
       updatedAt: serverTimestamp()
     });
   });
+
+  if (discountCentavos > 0 && userId && userName) {
+    await logAuditEvent(tenantId, userId, userName, {
+      type: 'apply_discount',
+      description: `Applied credit discount of ₱${(discountCentavos / 100).toFixed(2)}. Reason: ${discountReason || 'None'}`,
+      meta: { saleId: saleDocId, discountCentavos, discountType, discountReason, shiftId }
+    });
+  }
 
   return saleDocId;
 }

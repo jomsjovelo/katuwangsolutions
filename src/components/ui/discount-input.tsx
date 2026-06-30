@@ -12,6 +12,8 @@ export interface DiscountInputProps {
   subtotal?: number; // In centavos
   className?: string;
   label?: string;
+  discountReason?: string;
+  onReasonChange?: (reason: string) => void;
 }
 
 export function DiscountInput({
@@ -21,7 +23,9 @@ export function DiscountInput({
   onValueChange,
   subtotal = 0,
   className,
-  label = 'Discount'
+  label = 'Discount',
+  discountReason,
+  onReasonChange
 }: DiscountInputProps) {
   // Calculate preview
   const val = parseFloat(discountValue) || 0;
@@ -110,6 +114,14 @@ export function DiscountInput({
           />
         </div>
       </div>
+      {onReasonChange && (
+        <Input
+          placeholder="Reason for discount (e.g., Senior, Promo)"
+          value={discountReason || ''}
+          onChange={(e) => onReasonChange(e.target.value)}
+          className="h-9 text-sm"
+        />
+      )}
     </div>
   );
 }

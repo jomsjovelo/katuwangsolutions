@@ -23,6 +23,10 @@ export const JobSchema = z.object({
   status: JobStatusEnum.default('pending'),
   amount: z.coerce.number(), // Locked in at time of booking
   assignedStaffId: z.string().optional(),
+  technicianName: z.string().optional(), // For Service Master assigned technician
+  deviceModel: z.string().optional(), // For appliance/electronics model
+  laborCost: z.coerce.number().optional(), // In centavos
+  partsCost: z.coerce.number().optional(), // In centavos
   createdAt: z.any().optional(),
   startedAt: z.any().optional(),
   completedAt: z.any().optional(),

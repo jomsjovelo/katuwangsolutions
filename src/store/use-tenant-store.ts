@@ -26,6 +26,7 @@ export interface Tenant {
   branchName?: string;
   therapistCommissionRate?: number;
   mechanicCommissionRate?: number;
+  managerPin?: string; // Phase 2: Manager Override PIN
 }
 
 export interface UserProfile {
