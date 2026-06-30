@@ -13,7 +13,8 @@ export const WaterDeliverySchema = z.object({
   roundReturned: z.number().int().min(0).default(0),
   slimReturned: z.number().int().min(0).default(0),
   
-  status: z.enum(['Pending', 'Out for Delivery', 'Delivered']).default('Pending'),
+  orderType: z.enum(['Walk-in', 'Delivery']).default('Delivery'),
+  status: z.enum(['Empty Received', 'Washing', 'Refilled', 'Out for Delivery', 'Completed']).default('Empty Received'),
   amountDue: z.number().min(0), // in cents
   paymentStatus: z.enum(['Unpaid', 'Paid']).default('Unpaid'),
   

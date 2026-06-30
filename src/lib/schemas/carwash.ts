@@ -12,6 +12,9 @@ export const CarwashOrderSchema = z.object({
   paymentStatus: z.enum(['Unpaid', 'Paid']).default('Unpaid'),
   customerPhone: z.string().optional(),
   appointmentDate: z.any().optional(),
+  mechanicName: z.string().optional(),
+  washerCommission: z.number().optional(), // in cents
+  bayNumber: z.string().optional(),
   
   createdAt: z.any().optional(),
   updatedAt: z.any().optional(),

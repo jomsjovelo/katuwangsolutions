@@ -23,6 +23,7 @@ import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useMenu } from '@/hooks/use-menu';
 import { useIngredients } from '@/hooks/use-ingredients';
 import { useToast } from '@/hooks/use-toast';
+import { CashModal } from '@/components/common/cash-modal';
 import { GCashQrModal } from '@/components/common/gcash-qr-modal';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { DiscountInput } from '@/components/ui/discount-input';
@@ -165,6 +166,8 @@ export function TimplaDashboard() {
   const [isFetchingPoints, setIsFetchingPoints] = useState(false);
 
   // Hardware & Digital Payments
+  const [showCashModal, setShowCashModal] = useState(false);
+  const [cashTendered, setCashTendered] = useState('');
   const [showGCashQr, setShowGCashQr] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
   const [completedSale, setCompletedSale] = useState<{
@@ -669,9 +672,9 @@ export function TimplaDashboard() {
 
                   <div className="flex gap-2">
                     <Button 
-                      className="flex-1 font-bold text-white shadow-md active:scale-95" 
+                      className="h-12 flex-1 font-bold text-white shadow-md active:scale-95 border-none" 
                       style={{ backgroundColor: theme.primary }}
-                      onClick={() => handleCheckout('cash')}
+                      onClick={() => setShowCashModal(true)}
                       disabled={isProcessing}
                     >
                       {isProcessing ? "Processing..." : "Cash"}
@@ -875,7 +878,17 @@ export function TimplaDashboard() {
           </TabsContent>
         </Tabs>
 
-        <GCashQrModal
+      <CashModal 
+        open={showCashModal}
+        onClose={() => { setShowCashModal(false); setCashTendered(''); }}
+        totalAmount={Math.max(0, cartTotal - (isRedeeming ? 5000 : 0) - (discountType === 'percentage' ? Math.round((cartTotal * (parseFloat(discountValue) || 0)) / 100) : Math.round((parseFloat(discountValue) || 0) * 100)))}
+        cashTendered={cashTendered}
+        onCashTenderedChange={setCashTendered}
+        onConfirm={() => { setShowCashModal(false); handleCheckout('cash'); }}
+        theme={theme}
+      />
+
+      <GCashQrModal
           open={showGCashQr}
           onClose={() => setShowGCashQr(false)}
           totalAmount={cartTotal - (isRedeeming ? 5000 : 0)}

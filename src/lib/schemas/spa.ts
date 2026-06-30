@@ -13,6 +13,9 @@ export const SpaAppointmentSchema = z.object({
   customerPhone: z.string().nullable().optional(),
   appointmentDate: z.any().optional(),
 
+  sessionStartTime: z.any().optional(),
+  sessionEndTime: z.any().optional(),
+
   // Room tracking
   roomId: z.string().nullable().optional(),
   roomNumber: z.string().nullable().optional(),

@@ -7,7 +7,7 @@ export const EventSchema = z.object({
   clientName: z.string().min(2, 'Client name is required'),
   eventDate: z.string(), // ISO date string or formatted date
   venue: z.string().default(''),
-  status: z.enum(['Upcoming', 'Ongoing', 'Done']).default('Upcoming'),
+  status: z.enum(['Inquiry', 'Deposited', 'Preparation', 'Event Day', 'Completed']).default('Inquiry'),
   contractPrice: z.coerce.number().default(0), // Revenue from client (centavos)
   amountPaid: z.coerce.number().default(0), // DP or fully paid amount (centavos)
   

@@ -104,6 +104,10 @@ export function TrimTrackDashboard() {
   const { waitingAppointments, inChairAppointments, doneAppointments, loading, error: salonError, chairs } = useSalonAppointments();
   const [chairAssignments, setChairAssignments] = useState<Record<string, string>>({});
   const [showChairSetup, setShowChairSetup] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'stylist'>('list');
+
+  const activeAppointments = React.useMemo(() => [...waitingAppointments, ...inChairAppointments], [waitingAppointments, inChairAppointments]);
+  const activeStylists = React.useMemo(() => Array.from(new Set(activeAppointments.map((a: any) => a.stylistName).filter(Boolean))), [activeAppointments]);
 
   React.useEffect(() => {
     if (salonError) {
@@ -249,23 +253,39 @@ export function TrimTrackDashboard() {
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-screen">
       <main className="p-4 space-y-4 pb-24">
-        
-        <section className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+               <section className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
           <div className="flex items-center gap-3">
-            <div 
-              className="p-2 rounded-xl transition-colors duration-300"
-              style={{ backgroundColor: `${theme.primary}15`, color: theme.primary }}
-            >
-              <Scissors className="h-6 w-6" />
+            <div className="h-10 w-10 rounded-xl flex items-center justify-center text-white shadow-sm" style={{ backgroundColor: theme.primary }}>
+              <Scissors className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-lg font-headline font-bold">{currentTenant?.name || 'Salon & Barbershop'}</h3>
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">{theme.name}</p>
+              <h2 className="font-black text-lg text-slate-800 tracking-tight leading-tight">Trim Track</h2>
+              <p className="text-xs font-medium text-slate-500">Salon & Barbershop Manager</p>
             </div>
           </div>
-          <Button size="sm" className="h-8 w-8 rounded-full p-0" onClick={() => setShowAddForm(!showAddForm)} style={{ backgroundColor: theme.primary }}>
-            <Plus className="h-4 w-4" />
-          </Button>
+          <div className="flex gap-2">
+            <div className="flex bg-slate-100 p-1 rounded-lg">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className={`h-8 px-3 text-xs font-bold rounded-md ${viewMode === 'list' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500'}`}
+                onClick={() => setViewMode('list')}
+              >
+                List View
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className={`h-8 px-3 text-xs font-bold rounded-md ${viewMode === 'stylist' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500'}`}
+                onClick={() => setViewMode('stylist')}
+              >
+                Stylist Board
+              </Button>
+            </div>
+            <Button size="sm" className="h-10 px-4 font-bold rounded-xl text-white shadow-sm transition-all hover:-translate-y-0.5" style={{ backgroundColor: theme.primary }} onClick={() => setShowAddForm(!showAddForm)}>
+              {showAddForm ? 'Cancel' : '+ Walk-In'}
+            </Button>
+          </div>
         </section>
 
         {/* Now Serving Banner */}
@@ -375,7 +395,7 @@ export function TrimTrackDashboard() {
         <div className="mt-6">
         {loading ? (
           <div className="text-center py-8 text-sm text-slate-400">Loading shop floor...</div>
-        ) : (
+        ) : viewMode === 'list' ? (
           <div className="flex flex-col md:flex-row gap-4 overflow-x-auto pb-4">
             
             {/* Waiting Column */}
@@ -453,6 +473,60 @@ export function TrimTrackDashboard() {
               </div>
             </div>
 
+          </div>
+        ) : (
+          <div className="flex flex-col md:flex-row gap-4 overflow-x-auto pb-4">
+            {activeStylists.length === 0 ? (
+              <div className="w-full text-center py-8 text-sm text-slate-400">No active stylists currently.</div>
+            ) : (
+              activeStylists.map((stylistName) => (
+                <div key={stylistName as string} className="flex-1 min-w-[280px] bg-white rounded-xl p-3 border border-slate-200 shadow-sm">
+                  <div className="flex items-center gap-2 mb-3 px-1 border-b border-slate-100 pb-2">
+                    <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center">
+                      <Scissors className="h-3 w-3 text-slate-500" />
+                    </div>
+                    <h4 className="font-bold text-sm text-slate-700">{stylistName as string}</h4>
+                    <Badge variant="secondary" className="bg-slate-50 ml-auto">{activeAppointments.filter((a: any) => a.stylistName === stylistName).length}</Badge>
+                  </div>
+                  <div className="space-y-2">
+                    {activeAppointments.filter((a: any) => a.stylistName === stylistName).map((appt: any) => (
+                      <AppointmentCard key={appt.id} appointment={appt} isOwner={isOwner} onDelete={handleDeleteAppointment} actions={
+                        appt.status === 'Waiting' ? (
+                          <div className="w-full flex gap-1">
+                            <select 
+                              className="border border-slate-200 text-[10px] rounded px-1 max-w-[90px]"
+                              value={chairAssignments[appt.id as string] || ''}
+                              onChange={e => setChairAssignments(prev => ({...prev, [appt.id as string]: e.target.value}))}
+                            >
+                              <option value="">Chair</option>
+                              {(chairs || []).filter((c: any) => c.status === 'available').map((chair: any) => (
+                                <option key={chair.id} value={chair.id}>{chair.name}</option>
+                              ))}
+                            </select>
+                            <Button 
+                              size="sm" 
+                              className="flex-1 h-7 text-[10px] bg-rose-600 hover:bg-rose-700 disabled:opacity-50" 
+                              disabled={!chairAssignments[appt.id as string]}
+                              onClick={() => {
+                                const chairId = chairAssignments[appt.id as string];
+                                const chairObj = (chairs || []).find((c: any) => c.id === chairId);
+                                updateStatus(appt, 'In Chair', undefined, chairObj?.name, 'cash', chairId);
+                              }}
+                            >
+                              <Armchair className="h-3 w-3 mr-1 text-rose-200" /> Sit In Chair
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white" onClick={() => setSelectedOrderForPayment(appt)}>
+                            <CircleDollarSign className="h-3 w-3 mr-1" /> Finish & Checkout
+                          </Button>
+                        )
+                      } />
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         )}
         </div>

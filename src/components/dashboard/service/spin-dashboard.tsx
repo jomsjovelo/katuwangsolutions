@@ -20,11 +20,13 @@ import { ServicePaymentModal } from '@/components/common/service-payment-modal';
 import { Delete, Smartphone, Loader2, DollarSign, Shirt, CheckCircle2, History, RotateCcw, Clock, Share, Plus, WashingMachine, Package, CircleDollarSign, Droplets, MessageSquare, Trash2 } from 'lucide-react';
 import { usePinApproval } from '@/hooks/use-pin-approval';
 
-const RATES: Record<string, number> = {
-  'Wash & Fold': 30,
-  'Wash, Dry, Fold': 40,
-  'Dry Clean': 100,
-  'Ironing': 50,
+const RATES: Record<string, { type: 'weight' | 'piece', price: number }> = {
+  'Wash & Fold': { type: 'weight', price: 30 },
+  'Wash, Dry, Fold': { type: 'weight', price: 40 },
+  'Dry Clean': { type: 'weight', price: 100 },
+  'Ironing': { type: 'weight', price: 50 },
+  'Comforter (Single)': { type: 'piece', price: 150 },
+  'Comforter (Double)': { type: 'piece', price: 200 },
 };
 
 let sharedInterval: NodeJS.Timeout | null = null;
@@ -114,7 +116,7 @@ export function SpinDashboard() {
   const isOwner = currentTenant?.ownerUid === user?.uid || (currentTenant as any)?.role === 'owner';
 
   // Laundry State
-  const { queuedOrders, washingOrders, readyOrders, claimedOrders, loading, error: laundryError } = useLaundry();
+  const { queuedOrders, washingOrders, dryingOrders, foldingOrders, readyOrders, claimedOrders, loading, error: laundryError } = useLaundry();
   const [machineAssignments, setMachineAssignments] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -134,7 +136,8 @@ export function SpinDashboard() {
   const [selectedOrderForPayment, setSelectedOrderForPayment] = useState<any>(null);
 
   // Auto-calculate suggested price
-  const suggestedPrice = typeof kilos === 'number' ? kilos * RATES[serviceType] : 0;
+  const selectedRate = RATES[serviceType] || { type: 'weight', price: 40 };
+  const suggestedPrice = typeof kilos === 'number' ? kilos * selectedRate.price : 0;
   const finalPrice = typeof priceOverride === 'number' ? priceOverride : suggestedPrice;
 
   const handleAddDropoff = async () => {
@@ -281,7 +284,9 @@ export function SpinDashboard() {
               </div>
               <div className="flex gap-2">
                 <div className="flex-1 space-y-1">
-                  <Label htmlFor="laundry-weight" className="text-xs">Weight (Kilos)</Label>
+                  <Label htmlFor="laundry-weight" className="text-xs">
+                    {RATES[serviceType]?.type === 'piece' ? 'Quantity (Pieces)' : 'Weight (Kilos)'}
+                  </Label>
                   <Input id="laundry-weight" name="laundryWeight" type="number" placeholder="0" value={kilos} onChange={e => setKilos(parseFloat(e.target.value) || '')} />
                 </div>
                 <div className="flex-1 space-y-1">
@@ -294,7 +299,7 @@ export function SpinDashboard() {
                     onChange={(e) => setServiceType(e.target.value)}
                   >
                     {Object.keys(RATES).map(type => (
-                      <option key={type} value={type}>{type} (₱{RATES[type]}/kg)</option>
+                      <option key={type} value={type}>{type} (₱{RATES[type].price}/{RATES[type].type === 'piece' ? 'pc' : 'kg'})</option>
                     ))}
                   </select>
                 </div>
@@ -363,11 +368,47 @@ export function SpinDashboard() {
             <div className="flex-1 min-w-[300px]">
               <div className="flex items-center gap-2 mb-3 px-1">
                 <Droplets className="h-4 w-4 text-cyan-500" />
-                <h4 className="font-bold text-sm text-slate-700">Washing / Drying</h4>
+                <h4 className="font-bold text-sm text-slate-700">Washing</h4>
                 <Badge variant="secondary" className="bg-white ml-auto">{washingOrders.length}</Badge>
               </div>
               <div className="space-y-2">
                 {washingOrders.map(order => (
+                  <OrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} actions={
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-cyan-500 hover:bg-cyan-600" onClick={() => updateStatus(order, 'Drying')}>
+                      <Droplets className="h-3 w-3 mr-1" /> Move to Drying
+                    </Button>
+                  } />
+                ))}
+              </div>
+            </div>
+
+            {/* Drying Column */}
+            <div className="flex-1 min-w-[300px]">
+              <div className="flex items-center gap-2 mb-3 px-1">
+                <WashingMachine className="h-4 w-4 text-orange-500" />
+                <h4 className="font-bold text-sm text-slate-700">Drying</h4>
+                <Badge variant="secondary" className="bg-white ml-auto">{dryingOrders.length}</Badge>
+              </div>
+              <div className="space-y-2">
+                {dryingOrders.map(order => (
+                  <OrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} actions={
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-orange-500 hover:bg-orange-600" onClick={() => updateStatus(order, 'Folding')}>
+                      <Shirt className="h-3 w-3 mr-1" /> Move to Folding
+                    </Button>
+                  } />
+                ))}
+              </div>
+            </div>
+
+            {/* Folding Column */}
+            <div className="flex-1 min-w-[300px]">
+              <div className="flex items-center gap-2 mb-3 px-1">
+                <Shirt className="h-4 w-4 text-indigo-500" />
+                <h4 className="font-bold text-sm text-slate-700">Folding</h4>
+                <Badge variant="secondary" className="bg-white ml-auto">{foldingOrders.length}</Badge>
+              </div>
+              <div className="space-y-2">
+                {foldingOrders.map(order => (
                   <OrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} actions={
                     <Button size="sm" className="w-full h-7 text-[10px] bg-indigo-500 hover:bg-indigo-600" onClick={() => updateStatus(order, 'Ready')}>
                       <CheckCircle2 className="h-3 w-3 mr-1" /> Mark Ready

@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Coins, Smartphone } from "lucide-react";
 import { DiscountInput } from '@/components/ui/discount-input';
 import { useState } from 'react';
+import { CashModal } from './cash-modal';
+import { GCashQrModal } from './gcash-qr-modal';
 
 export function ServicePaymentModal({ 
   isOpen, 
@@ -25,6 +27,9 @@ export function ServicePaymentModal({
   const [discountType, setDiscountType] = useState<'percentage'|'fixed'>('percentage');
   const [discountValue, setDiscountValue] = useState('');
   const [discountReason, setDiscountReason] = useState('');
+  const [showCashModal, setShowCashModal] = useState(false);
+  const [cashTendered, setCashTendered] = useState('');
+  const [showGCashQr, setShowGCashQr] = useState(false);
 
   const parsedDiscount = parseFloat(discountValue) || 0;
   let discountCentavos = 0;
@@ -70,20 +75,45 @@ export function ServicePaymentModal({
         <div className="grid grid-cols-2 gap-3 mt-4 border-t border-slate-100 pt-4">
           <Button 
             className="h-16 flex flex-col items-center justify-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-800 border-2 border-slate-200"
-            onClick={() => onConfirm('cash', discountCentavos, discountType, discountReason)}
+            onClick={() => setShowCashModal(true)}
           >
             <Coins className="h-6 w-6 text-amber-500" />
             <span className="font-bold text-xs uppercase">Cash</span>
           </Button>
           <Button 
             className="h-16 flex flex-col items-center justify-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-800 border-2 border-slate-200"
-            onClick={() => onConfirm('gcash', discountCentavos, discountType, discountReason)}
+            onClick={() => setShowGCashQr(true)}
           >
             <Smartphone className="h-6 w-6 text-blue-500" />
             <span className="font-bold text-xs uppercase">GCash</span>
           </Button>
         </div>
       </DialogContent>
+
+      <CashModal 
+        open={showCashModal}
+        onClose={() => { setShowCashModal(false); setCashTendered(''); }}
+        totalAmount={finalTotalCentavos}
+        cashTendered={cashTendered}
+        onCashTenderedChange={setCashTendered}
+        onConfirm={() => {
+          setShowCashModal(false);
+          onConfirm('cash', discountCentavos, discountType, discountReason);
+        }}
+        theme={{ primary: '#10b981', primaryText: '#ffffff' }}
+      />
+      <GCashQrModal
+        open={showGCashQr}
+        onClose={() => setShowGCashQr(false)}
+        totalAmount={finalTotalCentavos}
+        tenantName="Katuwang Service"
+        paymentType="gcash"
+        onPaymentVerified={async (method, ref) => {
+          setShowGCashQr(false);
+          onConfirm(method, discountCentavos, discountType, discountReason);
+        }}
+        theme={{ primary: '#007aff', primaryText: '#ffffff' }}
+      />
     </Dialog>
   );
 }

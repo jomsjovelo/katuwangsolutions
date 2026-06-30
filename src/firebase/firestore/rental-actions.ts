@@ -12,6 +12,8 @@ export async function processRentalBooking(
   customerName: string,
   totalCost: number,
   paymentTiming: 'upfront' | 'return',
+  startDate: Date,
+  endDate: Date,
   paymentMethod?: string,
   gcashRef?: string,
   discountCentavos: number = 0,
@@ -51,8 +53,8 @@ export async function processRentalBooking(
       itemName,
       customerId: 'guest',
       customerName,
-      startDate: new Date(),
-      endDate: new Date(Date.now() + 86400000), // Default 1 day for now
+      startDate: startDate,
+      endDate: endDate,
       status: 'active',
       depositStatus: 'pending',
       paymentStatus: paymentTiming === 'upfront' ? 'paid' : 'unpaid',
@@ -148,7 +150,8 @@ export async function processRentalReturn(
   discountReason?: string,
   userId?: string,
   userName?: string,
-  shiftId?: string
+  shiftId?: string,
+  penaltyCentavos: number = 0
 ): Promise<void> {
   const db = getKatuwangDb();
   
@@ -161,15 +164,18 @@ export async function processRentalReturn(
     let masterAccountSnap = null;
     
     // Only fetch ledger if payment is being settled on return
-    if (booking.paymentStatus === 'unpaid' && booking.totalCost > 0) {
+    if (booking.paymentStatus === 'unpaid' && (booking.totalCost > 0 || penaltyCentavos > 0)) {
       masterAccountSnap = await transaction.get(masterAccountRef);
     }
 
     // 2. Write Phase: Update Booking
+    const newTotalCost = booking.totalCost + (penaltyCentavos / 100);
     transaction.update(bookingRef, { 
       status: 'returned', 
       paymentStatus: 'paid', // Mark as paid if it was unpaid
       paymentMethod: booking.paymentStatus === 'unpaid' ? paymentMethod : booking.paymentMethod,
+      totalCost: newTotalCost,
+      penaltyAmount: penaltyCentavos / 100,
       returnedAt: serverTimestamp(), 
       updatedAt: serverTimestamp() 
     });
@@ -180,9 +186,10 @@ export async function processRentalReturn(
       updatedAt: serverTimestamp() 
     });
 
-    // 4. Write Phase: Record Sale & Ledger IF paying on return
-    if (booking.paymentStatus === 'unpaid' && booking.totalCost > 0) {
-      const subtotalCentavos = booking.totalCost * 100;
+    // 4. Write Phase: Record Sale & Ledger IF paying on return OR penalty exists
+    if ((booking.paymentStatus === 'unpaid' && newTotalCost > 0) || penaltyCentavos > 0) {
+      // If it was unpaid, we collect the full newTotalCost. If it was paid, we only collect the penalty.
+      const subtotalCentavos = booking.paymentStatus === 'unpaid' ? (newTotalCost * 100) : penaltyCentavos;
       const finalCentavos = Math.max(0, subtotalCentavos - discountCentavos);
       
       const salesRef = collection(db, 'tenants', tenantId, 'sales');
@@ -192,7 +199,14 @@ export async function processRentalReturn(
         id: newSaleRef.id,
         tenantId,
         module: 'rental',
-        items: [{ productId: booking.itemId, name: `Rental Return: ${booking.itemName}`, price: subtotalCentavos, quantity: 1 }],
+        items: booking.paymentStatus === 'unpaid' 
+          ? [
+              { productId: booking.itemId, name: `Rental Return: ${booking.itemName}`, price: booking.totalCost * 100, quantity: 1 },
+              ...(penaltyCentavos > 0 ? [{ productId: 'PENALTY', name: 'Late Return Penalty', price: penaltyCentavos, quantity: 1 }] : [])
+            ]
+          : [
+              { productId: 'PENALTY', name: 'Late Return Penalty', price: penaltyCentavos, quantity: 1 }
+            ],
         subtotalAmount: subtotalCentavos,
         discountAmount: discountCentavos,
         discountType: discountType || 'none',

@@ -12,7 +12,7 @@ export const ServiceSchema = z.object({
   updatedAt: z.any().optional(),
 });
 
-export const JobStatusEnum = z.enum(['pending', 'in_progress', 'completed', 'cancelled']);
+export const JobStatusEnum = z.enum(['pending', 'in_progress', 'completed_unpaid', 'completed', 'cancelled']);
 
 export const JobSchema = z.object({
   id: z.string().optional(),
@@ -27,6 +27,7 @@ export const JobSchema = z.object({
   deviceModel: z.string().optional(), // For appliance/electronics model
   laborCost: z.coerce.number().optional(), // In centavos
   partsCost: z.coerce.number().optional(), // In centavos
+  targetDate: z.string().optional(), // Expected completion date
   createdAt: z.any().optional(),
   startedAt: z.any().optional(),
   completedAt: z.any().optional(),

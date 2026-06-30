@@ -21,6 +21,8 @@ import { cn } from '@/lib/utils';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useToast } from '@/hooks/use-toast';
 import { GCashQrModal } from '@/components/common/gcash-qr-modal';
+import { CashModal } from '@/components/common/cash-modal';
+import { ServicePaymentModal } from '@/components/common/service-payment-modal';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { 
   Plus, 
@@ -34,7 +36,8 @@ import {
   Coins,
   Trash2,
   UserCog,
-  Wrench
+  Wrench,
+  CalendarDays
 } from "lucide-react";
 
 const ColumnHeader = React.memo(({ title, count, icon: Icon, colorClass }: any) => (
@@ -47,10 +50,7 @@ const ColumnHeader = React.memo(({ title, count, icon: Icon, colorClass }: any) 
   </div>
 ));
 
-const JobCard = React.memo(({ 
-  job, theme, isProcessing, isOwner, handleDeleteJob, moveJob, 
-  setPendingJobPayment, setShowGCashQr, handleCopySMS, activeSmsJob, smsText 
-}: any) => (
+const JobCard = ({ job, moveJob, theme, isProcessing, isOwner, handleDeleteJob, setPendingJobPayment, setShowGCashQr, setShowCashModal, handleCopySMS, activeSmsJob, smsText }: any) => (
   <div 
     className="bg-white p-3 rounded-xl border shadow-sm space-y-3 cursor-pointer transition-all duration-200 active:scale-95 relative overflow-hidden"
     style={{ borderLeft: `4px solid ${theme.primary}` }}
@@ -73,6 +73,11 @@ const JobCard = React.memo(({
           {job.technicianName && (
               <div className="flex items-center gap-1 mt-1 text-[10px] font-medium text-slate-500">
                   <UserCog className="h-3 w-3" /> Tech: {job.technicianName}
+              </div>
+          )}
+          {job.targetDate && (
+              <div className="flex items-center gap-1 mt-1 text-[10px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded w-fit">
+                  <CalendarDays className="h-3 w-3" /> Target: {job.targetDate}
               </div>
           )}
         </div>
@@ -112,27 +117,43 @@ const JobCard = React.memo(({
         </Button>
       )}
       {job.status === 'in_progress' && (
-        <div className="flex gap-2 w-full">
+        <Button 
+          disabled={isProcessing} 
+          size="sm" 
+          onClick={() => moveJob(job, 'completed_unpaid')} 
+          className="w-full h-8 text-[10px] font-bold uppercase tracking-widest text-emerald-600 border-emerald-200 bg-emerald-50"
+        >
+          Mark Completed
+        </Button>
+      )}
+      {job.status === 'completed_unpaid' && (
+        <div className="flex flex-col gap-2 w-full">
+          <div className="flex gap-2 w-full">
+            <Button 
+              disabled={isProcessing} 
+              size="sm" 
+              onClick={() => {
+                setPendingJobPayment(job);
+            <Button size="sm" className="w-full bg-emerald-500 hover:bg-emerald-600 font-bold" onClick={() => setPendingJobPayment(job)}>
+              <Coins className="h-4 w-4 mr-1" /> Pay Order
+            </Button>
           <Button 
             disabled={isProcessing} 
             size="sm" 
-            onClick={() => moveJob(job, 'completed', 'cash')} 
-            className="w-full h-8 text-[10px] font-bold uppercase tracking-widest text-white border-none"
-            style={{ backgroundColor: theme.primary }}
-          >
-            <Coins className="h-3 w-3 mr-1" /> Cash
-          </Button>
-          <Button 
-            disabled={isProcessing} 
-            size="sm" 
+            variant="outline"
             onClick={() => {
-              setPendingJobPayment(job);
-              setShowGCashQr(true);
+              const newLabor = window.prompt("Update Labor Cost (,) if needed:", ((job.laborCost || 0)/100).toString());
+              const newParts = window.prompt("Update Parts Cost (,) if needed:", ((job.partsCost || 0)/100).toString());
+              
+              if (newLabor !== null && newParts !== null && !isNaN(Number(newLabor)) && !isNaN(Number(newParts))) {
+                 const labor = Number(newLabor) * 100;
+                 const parts = Number(newParts) * 100;
+                 moveJob({ ...job, amount: labor + parts, laborCost: labor, partsCost: parts }, 'completed_unpaid', 'cash', labor + parts);
+              }
             }} 
-            className="w-full h-8 text-[10px] font-bold uppercase tracking-widest text-white border-none"
-            style={{ backgroundColor: '#007aff' }}
+            className="w-full h-7 text-[9px] font-bold uppercase text-slate-500"
           >
-            <Receipt className="h-3 w-3 mr-1" /> GCash
+            Update Pricing
           </Button>
         </div>
       )}
@@ -158,7 +179,7 @@ const JobCard = React.memo(({
       </div>
     )}
   </div>
-));
+);
 
 export function ServiceDashboard() {
   const { currentTenant } = useTenant();
@@ -201,6 +222,7 @@ export function ServiceDashboard() {
 
   const pendingJobs = jobs.filter((j: any) => j.status === 'pending');
   const activeJobs = jobs.filter((j: any) => j.status === 'in_progress');
+  const completedUnpaidJobs = jobs.filter((j: any) => j.status === 'completed_unpaid');
   const completedJobs = jobs.filter((j: any) => j.status === 'completed');
 
   const [showAddForm, setShowAddForm] = useState(false);
@@ -211,6 +233,7 @@ export function ServiceDashboard() {
   // Appliance/Repair specific fields
   const [deviceModel, setDeviceModel] = useState('');
   const [technicianName, setTechnicianName] = useState('');
+  const [targetDate, setTargetDate] = useState('');
   const [laborCost, setLaborCost] = useState<number | ''>('');
   const [partsCost, setPartsCost] = useState<number | ''>('');
   const [price, setPrice] = useState<number | ''>('');
@@ -235,7 +258,6 @@ export function ServiceDashboard() {
   const [smsText, setSmsText] = useState('');
   const [activeSmsJob, setActiveSmsJob] = useState<string | null>(null);
 
-  const [showGCashQr, setShowGCashQr] = useState(false);
   const [pendingJobPayment, setPendingJobPayment] = useState<any | null>(null);
 
   const [showReceipt, setShowReceipt] = useState(false);
@@ -260,6 +282,7 @@ export function ServiceDashboard() {
           {
               deviceModel,
               technicianName,
+              targetDate,
               laborCost: typeof laborCost === 'number' ? laborCost * 100 : 0,
               partsCost: typeof partsCost === 'number' ? partsCost * 100 : 0
           }
@@ -270,6 +293,7 @@ export function ServiceDashboard() {
       setServiceDesc('');
       setDeviceModel('');
       setTechnicianName('');
+      setTargetDate('');
       setLaborCost('');
       setPartsCost('');
       setPrice('');
@@ -281,23 +305,32 @@ export function ServiceDashboard() {
     }
   };
 
-  const moveJob = async (job: any, newStatus: JobStatus, paymentMethod: string = 'cash') => {
+  const moveJob = async (job: any, newStatus: JobStatus, paymentMethod: string = 'cash', overrideAmount?: number) => {
     if (!currentTenant) return;
     const isSensitive = newStatus === 'completed';
     try {
       if (isSensitive) setIsProcessing(true);
       setError(null);
       
-      const updatePromise = updateJobStatus(currentTenant.id, job.id, newStatus, job.amount, job.customerName);
+      const finalAmount = overrideAmount ?? job.amount;
+      const updatePromise = updateJobStatus(
+        currentTenant.id, 
+        job.id, 
+        newStatus, 
+        finalAmount, 
+        job.customerName,
+        job.laborCost,
+        job.partsCost
+      );
       
       if (isSensitive) {
         await updatePromise;
         if (job.phoneNumber) {
-          await awardPoints(currentTenant.id, job.phoneNumber, job.amount || 0);
+          await awardPoints(currentTenant.id, job.phoneNumber, finalAmount || 0);
         }
         setCompletedSale({
-          items: [{ name: job.serviceId, quantity: 1, price: job.amount }],
-          total: job.amount,
+          items: [{ name: job.serviceId, quantity: 1, price: finalAmount }],
+          total: finalAmount,
           paymentMethod,
           saleId: job.id
         });
@@ -316,13 +349,19 @@ export function ServiceDashboard() {
     }
   };
 
+  const handlePaymentConfirm = async (job: any, method: string, discountCentavos: number, discountType: string, discountReason: string) => {
+    const finalAmount = (job.amount || 0) - discountCentavos;
+    await moveJob(job, 'completed', method, finalAmount);
+    setPendingJobPayment(null);
+  };
+
   const handleDeleteJob = async (jobId: string) => {
     if (!currentTenant || !user) return;
     // Phase 2: Require Manager PIN for Deletions
     const approved = await requireApproval("Deleting a record requires Manager authorization.");
     if (!approved) return;
 
-    if (!window.confirm("Sigurado ka bang gusto mong i-delete o i-void ang order na ito? Ibabalik nito ang bayad kung applicable.")) return;
+    if (!window.confirm("Sigurado ka bang gusto mong i-delete o i-void ang order na ito? Ibabalik nito the bayad kung applicable.")) return;
     try {
       await deleteServiceOrder(currentTenant.id, 'jobs', jobId, user.uid, user.displayName || user.email || 'Unknown User');
       toast({ title: 'Order Deleted', description: 'Order has been successfully reversed.' });
@@ -412,9 +451,15 @@ export function ServiceDashboard() {
                   <Label htmlFor="device-model" className="text-xs">Device / Appliance</Label>
                   <Input id="device-model" name="deviceModel" placeholder='e.g. Samsung TV 42"' value={deviceModel} onChange={e => setDeviceModel(e.target.value)} />
                 </div>
-                <div className="space-y-1">
-                  <Label htmlFor="technician" className="text-xs">Technician</Label>
-                  <Input id="technician" name="technician" placeholder="e.g. Kuya Boy" value={technicianName} onChange={e => setTechnicianName(e.target.value)} />
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="technician" className="text-xs">Technician</Label>
+                    <Input id="technician" name="technician" placeholder="e.g. Kuya Boy" value={technicianName} onChange={e => setTechnicianName(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="target-date" className="text-xs">Target Date</Label>
+                    <Input id="target-date" type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} className="h-9 text-xs" />
+                  </div>
                 </div>
               </div>
 
@@ -476,103 +521,110 @@ export function ServiceDashboard() {
               Done Today
             </CardContent>
           </Card>
-        </div>
 
-        {/* Kanban Board (Vertical scrollable columns on mobile) */}
-        <div className="flex flex-col gap-6">
-          {/* Pending Column */}
-          <div className="bg-slate-100/50 p-3 rounded-2xl border border-slate-200">
-            <ColumnHeader title="Waiting" count={pendingJobs.length} icon={Clock} colorClass="text-amber-500" />
-            <div className="grid gap-2">
-              {loading && <div className="text-center py-4 text-xs text-slate-400">Loading DB...</div>}
-              {pendingJobs.map((job: any) => (
-              <JobCard 
-                key={job.id} 
-                job={job}
-                theme={theme}
-                isProcessing={isProcessing}
-                isOwner={isOwner}
-                handleDeleteJob={handleDeleteJob}
-                moveJob={moveJob}
-                setPendingJobPayment={setPendingJobPayment}
-                setShowGCashQr={setShowGCashQr}
-                handleCopySMS={handleCopySMS}
-                activeSmsJob={activeSmsJob}
-                smsText={smsText}
-              />
-            ))}  {!loading && pendingJobs.length === 0 && <p className="text-xs text-center py-4 text-slate-400 font-medium">No waiting jobs</p>}
+          {/* Kanban Board (Vertical scrollable columns on mobile) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Pending Column */}
+            <div className="bg-slate-100/50 p-3 rounded-2xl border border-slate-200">
+              <ColumnHeader title="Pending / Quotation" count={pendingJobs.length} icon={Clock} colorClass="text-amber-500" />
+              <div className="grid gap-2">
+                {loading && <div className="text-center py-4 text-xs text-slate-400">Loading DB...</div>}
+                {pendingJobs.map((job: any) => (
+                <JobCard 
+                  key={job.id} 
+                  job={job}
+                  theme={theme}
+                  isProcessing={isProcessing}
+                  isOwner={isOwner}
+                  handleDeleteJob={handleDeleteJob}
+                  moveJob={moveJob}
+                  setPendingJobPayment={setPendingJobPayment}
+                  handleCopySMS={handleCopySMS}
+                  activeSmsJob={activeSmsJob}
+                  smsText={smsText}
+                />
+              ))}  {!loading && pendingJobs.length === 0 && <p className="text-xs text-center py-4 text-slate-400 font-medium">No waiting jobs</p>}
+              </div>
             </div>
-          </div>
 
-          {/* In Progress Column */}
-          <div 
-            className="p-3 rounded-2xl border transition-colors duration-300"
-            style={{ backgroundColor: `${theme.primary}05`, borderColor: `${theme.primary}20` }}
-          >
-            <ColumnHeader title="In Progress" count={activeJobs.length} icon={PlayCircle} colorClass="text-slate-700" style={{ color: theme.primary }} />
-            <div className="grid gap-2">
-              {activeJobs.map((job: any) => (
-              <JobCard 
-                key={job.id} 
-                job={job}
-                theme={theme}
-                isProcessing={isProcessing}
-                isOwner={isOwner}
-                handleDeleteJob={handleDeleteJob}
-                moveJob={moveJob}
-                setPendingJobPayment={setPendingJobPayment}
-                setShowGCashQr={setShowGCashQr}
-                handleCopySMS={handleCopySMS}
-                activeSmsJob={activeSmsJob}
-                smsText={smsText}
-              />
-            ))}  {!loading && activeJobs.length === 0 && <p className="text-xs text-center py-4 font-medium" style={{ color: theme.primary }}>No active jobs</p>}
+            {/* In Progress Column */}
+            <div 
+              className="p-3 rounded-2xl border transition-colors duration-300"
+              style={{ backgroundColor: `${theme.primary}05`, borderColor: `${theme.primary}20` }}
+            >
+              <ColumnHeader title="In Progress" count={activeJobs.length} icon={PlayCircle} colorClass="text-slate-700" style={{ color: theme.primary }} />
+              <div className="grid gap-2">
+                {activeJobs.map((job: any) => (
+                <JobCard 
+                  key={job.id} 
+                  job={job}
+                  theme={theme}
+                  isProcessing={isProcessing}
+                  isOwner={isOwner}
+                  handleDeleteJob={handleDeleteJob}
+                  moveJob={moveJob}
+                  setPendingJobPayment={setPendingJobPayment}
+                  handleCopySMS={handleCopySMS}
+                  activeSmsJob={activeSmsJob}
+                  smsText={smsText}
+                />
+              ))}  {!loading && activeJobs.length === 0 && <p className="text-xs text-center py-4 font-medium" style={{ color: theme.primary }}>No active jobs</p>}
+              </div>
             </div>
-          </div>
 
-          {/* Completed Column */}
-          <div className="bg-emerald-50/50 p-3 rounded-2xl border border-emerald-100">
-            <ColumnHeader title="Done Today" count={completedJobs.length} icon={CheckCircle2} colorClass="text-emerald-500" />
-            <div className="grid gap-2 opacity-75">
-              {completedJobs.slice(0, 10).map((job: any) => (
-              <JobCard 
-                key={job.id} 
-                job={job}
-                theme={theme}
-                isProcessing={isProcessing}
-                isOwner={isOwner}
-                handleDeleteJob={handleDeleteJob}
-                moveJob={moveJob}
-                setPendingJobPayment={setPendingJobPayment}
-                setShowGCashQr={setShowGCashQr}
-                handleCopySMS={handleCopySMS}
-                activeSmsJob={activeSmsJob}
-                smsText={smsText}
-              />
-            ))}  {!loading && completedJobs.length === 0 && <p className="text-xs text-center py-4 text-emerald-300 font-medium">No completed jobs yet</p>}
+            {/* Completed Unpaid Column */}
+            <div className="bg-amber-50/50 p-3 rounded-2xl border border-amber-100">
+              <ColumnHeader title="Resolved (Unpaid)" count={completedUnpaidJobs.length} icon={CheckCircle2} colorClass="text-amber-600" />
+              <div className="grid gap-2">
+                {completedUnpaidJobs.map((job: any) => (
+                <JobCard 
+                  key={job.id} 
+                  job={job}
+                  theme={theme}
+                  isProcessing={isProcessing}
+                  isOwner={isOwner}
+                  handleDeleteJob={handleDeleteJob}
+                  moveJob={moveJob}
+                  setPendingJobPayment={setPendingJobPayment}
+                  handleCopySMS={handleCopySMS}
+                  activeSmsJob={activeSmsJob}
+                  smsText={smsText}
+                />
+              ))}  {!loading && completedUnpaidJobs.length === 0 && <p className="text-xs text-center py-4 text-amber-500/50 font-medium">No unpaid jobs</p>}
+              </div>
+            </div>
+
+            {/* Completed Paid Column */}
+            <div className="bg-emerald-50/50 p-3 rounded-2xl border border-emerald-100">
+              <ColumnHeader title="Completed (Paid)" count={completedJobs.length} icon={CheckCircle2} colorClass="text-emerald-500" />
+              <div className="grid gap-2 opacity-75">
+                {completedJobs.slice(0, 10).map((job: any) => (
+                <JobCard 
+                  key={job.id} 
+                  job={job}
+                  theme={theme}
+                  isProcessing={isProcessing}
+                  isOwner={isOwner}
+                  handleDeleteJob={handleDeleteJob}
+                  moveJob={moveJob}
+                  setPendingJobPayment={setPendingJobPayment}
+                  handleCopySMS={handleCopySMS}
+                  activeSmsJob={activeSmsJob}
+                  smsText={smsText}
+                />
+              ))}  {!loading && completedJobs.length === 0 && <p className="text-xs text-center py-4 text-emerald-300 font-medium">No paid jobs yet</p>}
+              </div>
             </div>
           </div>
         </div>
 
       </main>
 
-      <GCashQrModal
-        open={showGCashQr}
-        onClose={() => {
-          setShowGCashQr(false);
-          setPendingJobPayment(null);
-        }}
-        totalAmount={pendingJobPayment?.amount || 0}
-        tenantName={currentTenant?.name || "Katuwang Service"}
-        paymentType="gcash"
-        onPaymentVerified={async (paymentMethod, gcashRef) => {
-          setShowGCashQr(false);
-          if (pendingJobPayment) {
-            await moveJob(pendingJobPayment, 'completed', paymentMethod);
-            setPendingJobPayment(null);
-          }
-        }}
-        theme={theme}
+      <ServicePaymentModal
+        isOpen={!!pendingJobPayment}
+        onClose={() => setPendingJobPayment(null)}
+        amountDue={(pendingJobPayment?.amount || 0) / 100}
+        onConfirm={(method, discountCentavos, discountType, discountReason) => handlePaymentConfirm(pendingJobPayment, method, discountCentavos, discountType, discountReason)}
       />
       
       <ThermalReceiptPreview

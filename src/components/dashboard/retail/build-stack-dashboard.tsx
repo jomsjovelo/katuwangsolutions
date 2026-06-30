@@ -6,16 +6,21 @@ import { useInventory } from '@/hooks/use-inventory';
 import { useCart } from '@/hooks/use-cart';
 import { useProjects } from '@/hooks/use-projects';
 import { processBatchDispatch } from '@/firebase/firestore/build-stack-actions';
+import { processCheckout } from '@/firebase/firestore/retail-actions';
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
 import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { GCashQrModal } from '@/components/common/gcash-qr-modal';
+import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { cn } from '@/lib/utils';
 import { getModuleTheme } from '@/lib/theme-utils';
 import { useToast } from '@/hooks/use-toast';
 import { 
-  Package, Plus, Minus, Loader2, Search, Tag, ShoppingCart, Send
+  Package, Plus, Minus, Loader2, Search, Tag, ShoppingCart, Send, Coins, Receipt
 } from "lucide-react";
 import { KatuwangErrorBoundary } from '@/components/common/error-boundary';
 
@@ -147,6 +152,11 @@ function BuildStackDashboardContent() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [categories, setCategories] = useState<string[]>(['All']);
   const [showMobileCart, setShowMobileCart] = useState(false);
+  const [showCashModal, setShowCashModal] = useState(false);
+  const [cashTendered, setCashTendered] = useState('');
+  const [showGCashQr, setShowGCashQr] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [completedSale, setCompletedSale] = useState<any>(null);
   
   const theme = getModuleTheme('build-stack');
 
@@ -186,6 +196,31 @@ function BuildStackDashboardContent() {
       setIsProcessing(false);
     }
   };
+
+  const handleCheckout = async (paymentMethod: string, gcashRef?: string) => {
+    if (cart.length === 0 || !currentTenant) return;
+    
+    setIsProcessing(true);
+    try {
+      const items = cart.map(c => ({
+         productId: c.productId,
+         name: c.name,
+         quantity: c.quantity,
+         price: c.price,
+         subtotal: c.price * c.quantity
+      }));
+      const saleId = await processCheckout(currentTenant.id, items, totalCentavos, paymentMethod, gcashRef, 0, 'none', '');
+      toast({ title: "Sale Completed", description: "Hardware items sold directly." });
+      setCompletedSale({ saleId, items, total: totalCentavos, paymentMethod });
+      clearCart();
+      setShowReceipt(true);
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
 
   if (inventoryLoading || projectsLoading) {
     return <div className="p-6 text-center text-muted-foreground animate-pulse">Naglo-load ng materyales at proyekto...</div>;
@@ -311,6 +346,27 @@ function BuildStackDashboardContent() {
             </select>
           </div>
 
+          <div className="space-y-2 mb-4 mt-2">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Direct Sale (Benta):</span>
+            <div className="grid grid-cols-2 gap-2">
+              <Button 
+                onClick={() => setShowCashModal(true)}
+                disabled={cart.length === 0 || isProcessing}
+                className="h-12 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl gap-1.5 flex items-center justify-center text-xs shadow-lg transition-transform active:scale-[0.98]"
+              >
+                <Coins className="h-4 w-4" /> Cash
+              </Button>
+              <Button 
+                onClick={() => setShowGCashQr(true)}
+                disabled={cart.length === 0 || isProcessing}
+                className="h-12 text-white font-bold rounded-xl gap-1.5 flex items-center justify-center text-xs border-none cursor-pointer shadow-lg transition-transform active:scale-[0.98]"
+                style={{ backgroundColor: '#007aff', boxShadow: '0 8px 16px -4px #007aff40' }}
+              >
+                <Receipt className="h-4 w-4" /> GCash
+              </Button>
+            </div>
+          </div>
+
           <Button 
             className="w-full h-14 rounded-xl text-lg font-black tracking-wide shadow-lg transition-transform active:scale-[0.98]"
             style={{ backgroundColor: theme.primary, color: theme.primaryText }}
@@ -367,7 +423,7 @@ function BuildStackDashboardContent() {
         <SheetContent side="bottom" className="rounded-t-[32px] p-6 max-h-[85vh] flex flex-col">
           <SheetHeader className="flex flex-row justify-between items-center border-b border-slate-100 pb-4 mb-4 flex-shrink-0">
             <div>
-              <h2 className="text-xl font-black font-headline text-slate-800">Dispatch Cart</h2>
+              <SheetTitle className="text-xl font-black font-headline text-slate-800">Dispatch Cart</SheetTitle>
               <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-1">{cartItemCount} items total</p>
             </div>
             {cart.length > 0 && (
@@ -412,6 +468,27 @@ function BuildStackDashboardContent() {
               </select>
             </div>
 
+            <div className="space-y-2 mb-4 mt-2">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Direct Sale (Benta):</span>
+              <div className="grid grid-cols-2 gap-2">
+                <Button 
+                  onClick={() => { setShowMobileCart(false); setShowCashModal(true); }}
+                  disabled={cart.length === 0 || isProcessing}
+                  className="h-12 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl gap-1.5 flex items-center justify-center text-xs shadow-lg"
+                >
+                  <Coins className="h-4 w-4" /> Cash
+                </Button>
+                <Button 
+                  onClick={() => { setShowMobileCart(false); setShowGCashQr(true); }}
+                  disabled={cart.length === 0 || isProcessing}
+                  className="h-12 text-white font-bold rounded-xl gap-1.5 flex items-center justify-center text-xs border-none cursor-pointer shadow-lg"
+                  style={{ backgroundColor: '#007aff', boxShadow: '0 8px 16px -4px #007aff40' }}
+                >
+                  <Receipt className="h-4 w-4" /> GCash
+                </Button>
+              </div>
+            </div>
+
             <Button 
               onClick={() => {
                 setShowMobileCart(false);
@@ -428,6 +505,92 @@ function BuildStackDashboardContent() {
         </SheetContent>
       </Sheet>
 
+      {/* GCash Modal */}
+      <GCashQrModal
+        open={showGCashQr}
+        onClose={() => setShowGCashQr(false)}
+        totalAmount={totalCentavos}
+        tenantName={currentTenant?.name || "Katuwang Store"}
+        paymentType="gcash"
+        onPaymentVerified={async (paymentMethod, gcashRef) => {
+          setShowGCashQr(false);
+          await handleCheckout(paymentMethod, gcashRef);
+        }}
+        theme={theme}
+      />
+
+      {/* Cash Modal */}
+      <Dialog open={showCashModal} onOpenChange={(open) => { setShowCashModal(open); if (!open) setCashTendered(''); }}>
+        <DialogContent className="rounded-[24px] p-0 overflow-hidden sm:max-w-[400px]">
+          <DialogHeader className="px-6 pt-6 pb-4 bg-emerald-50 border-b border-emerald-100">
+            <DialogTitle className="font-headline font-black text-lg flex items-center gap-2 text-emerald-800">
+              <Coins className="h-5 w-5 text-emerald-600" />
+              Cash Payment
+            </DialogTitle>
+          </DialogHeader>
+          <div className="p-6 space-y-4">
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center">
+              <span className="font-bold text-slate-500 uppercase text-xs">Total Amount</span>
+              <span className="font-black text-2xl" style={{ color: theme.primary }}>₱{totalPesos.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase text-emerald-600 tracking-widest">Pera na Ibinayad (Tendered)</Label>
+              <Input 
+                id="cash-tendered"
+                name="cashTendered"
+                type="number"
+                value={cashTendered}
+                onChange={e => setCashTendered(e.target.value)}
+                placeholder="0.00"
+                className="h-14 text-2xl font-black border-emerald-200 bg-white text-emerald-700 placeholder:text-emerald-200"
+                autoFocus
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 gap-2">
+              <Button variant="outline" onClick={() => setCashTendered(totalPesos.toString())} className="h-10 text-[10px] font-bold rounded-xl border-slate-200 text-slate-600">Exact</Button>
+              <Button variant="outline" onClick={() => setCashTendered('100')} className="h-10 text-[10px] font-bold rounded-xl border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100">₱100</Button>
+              <Button variant="outline" onClick={() => setCashTendered('500')} className="h-10 text-[10px] font-bold rounded-xl border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100">₱500</Button>
+              <Button variant="outline" onClick={() => setCashTendered('1000')} className="h-10 text-[10px] font-bold rounded-xl border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100">₱1000</Button>
+            </div>
+
+            {parseFloat(cashTendered) >= totalPesos && (
+              <div className="flex justify-between items-center p-4 rounded-xl border border-emerald-200 bg-emerald-50 animate-in fade-in zoom-in duration-200">
+                <span className="text-xs font-black uppercase tracking-widest text-emerald-700">Sukli (Change)</span>
+                <span className="text-2xl font-black text-emerald-700">₱{(parseFloat(cashTendered) - totalPesos).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-row gap-2">
+            <Button variant="outline" onClick={() => setShowCashModal(false)} className="rounded-xl h-12 flex-1 font-bold">
+              Bumalik
+            </Button>
+            <Button 
+              onClick={() => {
+                setShowCashModal(false);
+                handleCheckout('cash');
+              }} 
+              disabled={!cashTendered || isNaN(parseFloat(cashTendered)) || parseFloat(cashTendered) < totalPesos || isProcessing}
+              className="rounded-xl h-12 flex-1 font-bold text-white border-none shadow-md bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20"
+            >
+              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Tapusin ang Sale'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Thermal Receipt */}
+      <ThermalReceiptPreview
+        open={showReceipt}
+        onClose={() => setShowReceipt(false)}
+        storeName={currentTenant?.name || "Katuwang Store"}
+        items={completedSale?.items || []}
+        totalAmountPesos={(completedSale?.total || 0) / 100}
+        paymentMethod={completedSale?.paymentMethod || "cash"}
+        transactionId={completedSale?.saleId || 'PENDING'}
+        theme={theme}
+      />
     </div>
   );
 }

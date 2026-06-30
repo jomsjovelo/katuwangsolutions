@@ -11,13 +11,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
 import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from '@/lib/utils';
 import { getModuleTheme } from '@/lib/theme-utils';
 import { useToast } from '@/hooks/use-toast';
 import { 
-  Package, Plus, Minus, Loader2, Search, Tag, ShoppingCart, Trash2
+  Package, Plus, Minus, Loader2, Search, Tag, ShoppingCart, Trash2, Coins, Receipt 
 } from "lucide-react";
+import { CashModal } from '@/components/common/cash-modal';
+import { GCashQrModal } from '@/components/common/gcash-qr-modal';
+import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
+import { DiscountInput } from '@/components/ui/discount-input';
 import { KatuwangErrorBoundary } from '@/components/common/error-boundary';
 
 export function FreshTallyDashboard() {
@@ -147,6 +151,28 @@ function FreshTallyDashboardContent() {
   const [categories, setCategories] = useState<string[]>(['All']);
   const [showMobileCart, setShowMobileCart] = useState(false);
   
+  const [showCashModal, setShowCashModal] = useState(false);
+  const [cashTendered, setCashTendered] = useState('');
+  const [showGCashQr, setShowGCashQr] = useState(false);
+  const [completedSale, setCompletedSale] = useState<any>(null);
+  const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage');
+  const [discountValue, setDiscountValue] = useState<string>('');
+  const [discountReason, setDiscountReason] = useState<string>('');
+
+  const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const totalCentavos = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  
+  let discountCentavos = 0;
+  if (discountValue && !isNaN(parseFloat(discountValue))) {
+    if (discountType === 'fixed') {
+      discountCentavos = Math.round(parseFloat(discountValue) * 100);
+    } else {
+      discountCentavos = Math.round(totalCentavos * (parseFloat(discountValue) / 100));
+    }
+  }
+  const finalTotalCentavos = Math.max(0, totalCentavos - discountCentavos);
+  const totalPesos = finalTotalCentavos / 100;
+  
   const theme = getModuleTheme('fresh-tally');
 
   useEffect(() => {
@@ -163,13 +189,25 @@ function FreshTallyDashboardContent() {
     return matchesSearch && matchesCategory;
   });
 
-  const handleCheckout = async () => {
+  const handleCheckout = async (paymentMethod: string = 'cash', gcashRef?: string) => {
     if (cart.length === 0 || !currentTenant) return;
     setIsProcessing(true);
     try {
-      await processCheckout(currentTenant.id, cart, totalCentavos, 'cash');
+      const saleId = await processCheckout(
+        currentTenant.id, 
+        cart, 
+        finalTotalCentavos, 
+        paymentMethod, 
+        gcashRef,
+        discountCentavos,
+        discountType,
+        discountReason
+      );
+      setCompletedSale({ id: saleId, items: cart, totalAmount: finalTotalCentavos, paymentMethod });
       toast({ title: "Benta Recorded!", description: "Successfully processed the sale." });
       clearCart();
+      setDiscountValue('');
+      setDiscountReason('');
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
@@ -304,15 +342,23 @@ function FreshTallyDashboardContent() {
             </span>
           </div>
 
-          <Button 
-            className="w-full h-14 rounded-xl text-lg font-black tracking-wide shadow-lg transition-transform active:scale-[0.98]"
-            style={{ backgroundColor: theme.primary, color: theme.primaryText }}
-            disabled={cart.length === 0 || isProcessing}
-            onClick={handleCheckout}
-          >
-            {isProcessing ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-            CHECKOUT (BENTA)
-          </Button>
+          <div className="grid grid-cols-2 gap-2 mt-4">
+            <Button 
+              onClick={() => setShowCashModal(true)} 
+              disabled={cart.length === 0 || isProcessing}
+              className="h-14 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl gap-1.5 flex items-center justify-center text-sm shadow-lg transition-transform active:scale-95"
+            >
+              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Coins className="h-5 w-5" /> Cash</>}
+            </Button>
+            <Button 
+              onClick={() => setShowGCashQr(true)} 
+              disabled={cart.length === 0 || isProcessing}
+              className="h-14 text-white font-bold rounded-xl gap-1.5 flex items-center justify-center text-sm border-none cursor-pointer shadow-lg transition-transform active:scale-95"
+              style={{ backgroundColor: '#007aff', boxShadow: '0 8px 16px -4px #007aff40' }}
+            >
+              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Receipt className="h-5 w-5" /> GCash</>}
+            </Button>
+          </div>
 
           <Button 
             variant="outline"
@@ -370,7 +416,7 @@ function FreshTallyDashboardContent() {
         <SheetContent side="bottom" className="rounded-t-[32px] p-6 max-h-[85vh] flex flex-col">
           <SheetHeader className="flex flex-row justify-between items-center border-b border-slate-100 pb-4 mb-4 flex-shrink-0">
             <div>
-              <h2 className="text-xl font-black font-headline text-slate-800">Review Cart</h2>
+              <SheetTitle className="text-xl font-black font-headline text-slate-800">Review Cart</SheetTitle>
               <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-1">{cartItemCount} items total</p>
             </div>
             {cart.length > 0 && (
@@ -394,24 +440,40 @@ function FreshTallyDashboardContent() {
           </div>
           
           <div className="pt-4 border-t border-slate-100 flex-shrink-0 space-y-3">
-            <div className="flex items-center justify-between mb-4 px-1">
+            {cart.length > 0 && (
+              <DiscountInput 
+                discountType={discountType}
+                discountValue={discountValue}
+                discountReason={discountReason}
+                onTypeChange={setDiscountType as any}
+                onValueChange={setDiscountValue}
+                onReasonChange={setDiscountReason}
+              />
+            )}
+            
+            <div className="flex items-center justify-between mb-4 px-1 mt-2">
               <span className="text-slate-500 font-bold uppercase tracking-widest text-xs">Total</span>
               <span className="text-3xl font-black text-slate-800" style={{ color: theme.primary }}>
                 ₱{totalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
               </span>
             </div>
-            <Button 
-              onClick={() => {
-                setShowMobileCart(false);
-                handleCheckout();
-              }} 
-              disabled={cart.length === 0 || isProcessing}
-              className="w-full h-14 rounded-[16px] text-lg font-black shadow-lg"
-              style={{ backgroundColor: theme.primary, color: theme.primaryText }}
-            >
-              {isProcessing ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-              CHECKOUT (BENTA)
-            </Button>
+            <div className="grid grid-cols-2 gap-2 mt-4">
+              <Button 
+                onClick={() => setShowCashModal(true)} 
+                disabled={cart.length === 0 || isProcessing}
+                className="h-12 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl gap-1.5 flex items-center justify-center text-xs shadow-lg transition-transform active:scale-95"
+              >
+                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Coins className="h-4 w-4" /> Cash</>}
+              </Button>
+              <Button 
+                onClick={() => setShowGCashQr(true)} 
+                disabled={cart.length === 0 || isProcessing}
+                className="h-12 text-white font-bold rounded-xl gap-1.5 flex items-center justify-center text-xs border-none cursor-pointer shadow-lg transition-transform active:scale-95"
+                style={{ backgroundColor: '#007aff', boxShadow: '0 8px 16px -4px #007aff40' }}
+              >
+                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Receipt className="h-4 w-4" /> GCash</>}
+              </Button>
+            </div>
             <Button 
               variant="outline"
               onClick={() => {
@@ -428,6 +490,46 @@ function FreshTallyDashboardContent() {
         </SheetContent>
       </Sheet>
 
+      <CashModal 
+        open={showCashModal}
+        onClose={() => { setShowCashModal(false); setCashTendered(''); }}
+        totalAmount={finalTotalCentavos}
+        cashTendered={cashTendered}
+        onCashTenderedChange={setCashTendered}
+        onConfirm={() => { setShowCashModal(false); handleCheckout('cash'); }}
+        theme={theme}
+      />
+
+      <GCashQrModal
+        open={showGCashQr}
+        onClose={() => setShowGCashQr(false)}
+        totalAmount={finalTotalCentavos}
+        tenantName={currentTenant?.name || "Katuwang Store"}
+        paymentType="gcash"
+        onPaymentVerified={async (paymentMethod, gcashRef) => {
+          setShowGCashQr(false);
+          await handleCheckout(paymentMethod, gcashRef);
+        }}
+        theme={theme}
+      />
+
+      {completedSale && currentTenant && (
+        <ThermalReceiptPreview
+          open={!!completedSale}
+          onClose={() => setCompletedSale(null)}
+          storeName={currentTenant.name}
+          transactionId={completedSale.id || completedSale.receiptNumber}
+          items={completedSale.items.map((item: any) => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price
+          }))}
+          totalAmountPesos={(completedSale.totalAmount || completedSale.total) / 100}
+          cashReceivedPesos={cashTendered ? parseFloat(cashTendered) : undefined}
+          changePesos={cashTendered ? Math.max(0, parseFloat(cashTendered) - ((completedSale.totalAmount || completedSale.total) / 100)) : undefined}
+          paymentMethod={completedSale.paymentMethod || 'cash'}
+        />
+      )}
     </div>
   );
 }

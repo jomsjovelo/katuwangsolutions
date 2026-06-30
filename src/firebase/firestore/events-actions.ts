@@ -50,7 +50,7 @@ export async function completeEvent(
     // 2. Perform all writes
     // Update the Event Status and mark as fully paid
     transaction.update(eventRef, { 
-      status: 'Done',
+      status: 'Completed',
       amountPaid: contractPrice,
       updatedAt: serverTimestamp()
     });
@@ -164,7 +164,7 @@ export async function recordEventPayment(
     transaction.update(eventRef, {
       amountPaid: alreadyPaid + finalAmount + discountCentavos,
       updatedAt: serverTimestamp(),
-      ...(finalAmount + discountCentavos >= remainingBalance ? { status: 'completed' as const } : {})
+      ...(finalAmount + discountCentavos >= remainingBalance ? { status: 'Completed' as const } : {})
     });
 
     // Deposit to Master Cash

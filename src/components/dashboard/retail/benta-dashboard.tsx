@@ -602,7 +602,7 @@ function BentaDashboardContent() {
               <span className="text-[10px] font-bold text-slate-400">{filteredProducts.length} items found</span>
             </div>
             
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
               {inventoryLoading ? (
                 <div className="col-span-full flex flex-col items-center justify-center py-20 bg-white border border-slate-100 rounded-2xl">
                   <Loader2 className="h-8 w-8 animate-spin text-slate-400" style={{ color: theme.primary }} />

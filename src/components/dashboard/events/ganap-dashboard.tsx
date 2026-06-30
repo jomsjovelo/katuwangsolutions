@@ -20,6 +20,7 @@ import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useEvents } from '@/hooks/use-events';
 import { useToast } from '@/hooks/use-toast';
 import { GCashQrModal } from '@/components/common/gcash-qr-modal';
+import { CashModal } from '@/components/common/cash-modal';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { Link as LinkIcon, ClipboardList, Truck, ChefHat, UserCircle, ArrowLeft, CalendarHeart, CheckCircle2, MapPin, Users, Phone, Wallet, Plus, Calendar as CalendarIcon, Clock, Edit2, Loader2, DollarSign, FileText, ChevronRight, CheckSquare, Sparkles, Building2, User, Coins, Briefcase, Trash2, Gift, Receipt } from "lucide-react";
 import { DiscountInput } from '@/components/ui/discount-input';
@@ -103,7 +104,7 @@ export function GanapDashboard() {
   useDynamicThemeColor(theme);
 
   // Events State
-  const { events, upcomingEvents, ongoingEvents, pastEvents, loading: eventsLoading } = useEvents();
+  const { events, inquiryEvents, depositedEvents, prepEvents, eventDayEvents, completedEvents, loading: eventsLoading } = useEvents();
 
   // Create Event Form
   const [showAddEvent, setShowAddEvent] = useState(false);
@@ -126,6 +127,8 @@ export function GanapDashboard() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState<number | ''>('');
   const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [showCashModal, setShowCashModal] = useState(false);
+  const [cashTendered, setCashTendered] = useState('');
   const [showGCashQr, setShowGCashQr] = useState(false);
   
   const [showReceipt, setShowReceipt] = useState(false);
@@ -138,9 +141,20 @@ export function GanapDashboard() {
     saleId?: string;
   } | null>(null);
 
-  const [discountType, setDiscountType] = useState<'percentage'|'fixed'>('percentage');
-  const [discountValue, setDiscountValue] = useState('');
-  const [discountReason, setDiscountReason] = useState('');
+  const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage');
+  const [discountValue, setDiscountValue] = useState<string>('');
+  const [discountReason, setDiscountReason] = useState<string>('');
+
+  const parsedPaymentAmount = typeof paymentAmount === 'number' ? paymentAmount : 0;
+  const parsedDiscount = parseFloat(discountValue) || 0;
+  let discountCentavos = 0;
+  if (discountType === 'percentage') {
+    discountCentavos = Math.round((parsedPaymentAmount * 100 * parsedDiscount) / 100);
+  } else {
+    discountCentavos = Math.round(parsedDiscount * 100);
+  }
+  if (discountCentavos > parsedPaymentAmount * 100) discountCentavos = parsedPaymentAmount * 100;
+  const finalTotalCentavos = Math.max(0, parsedPaymentAmount * 100 - discountCentavos);
 
   // Guest List State
   const [guests, setGuests] = useState<any[]>([]);
@@ -165,7 +179,7 @@ export function GanapDashboard() {
         clientName: newClientName,
         eventDate: newEventDate,
         venue: newVenue,
-        status: 'Upcoming',
+        status: 'Inquiry',
         contractPrice: Math.round(finalPrice * 100),
         amountPaid: 0,
         setupNotes: '',
@@ -187,15 +201,11 @@ export function GanapDashboard() {
     }
   };
 
-  const updateEventStatus = async (id: string, status: 'Upcoming' | 'Ongoing' | 'Done') => {
+  const updateEventStatus = async (id: string, status: 'Inquiry'|'Deposited'|'Preparation'|'Event Day'|'Completed') => {
     if (!currentTenant || !db) return;
     try {
-      if (status === 'Done') {
-        await completeEvent(currentTenant.id, id, selectedEvent?.contractPrice || 0, `Event: ${selectedEvent?.title}`, 0, undefined, '', user?.uid, user?.displayName || user?.email || 'Unknown', activeShift?.id);
-      } else {
-        const eventRef = doc(db, 'tenants', currentTenant.id, 'events', id);
-        await updateDoc(eventRef, { status, updatedAt: serverTimestamp() });
-      }
+      const eventRef = doc(db, 'tenants', currentTenant.id, 'events', id);
+      await updateDoc(eventRef, { status, updatedAt: serverTimestamp() });
       if (selectedEvent?.id === id) {
         setSelectedEvent({ ...selectedEvent, status });
       }
@@ -288,16 +298,6 @@ export function GanapDashboard() {
     
     setPaymentProcessing(true);
     try {
-      const parsedDiscount = parseFloat(discountValue) || 0;
-      let discountCentavos = 0;
-      if (discountType === 'percentage') {
-        discountCentavos = Math.round((amount * 100 * parsedDiscount) / 100);
-      } else {
-        discountCentavos = Math.round(parsedDiscount * 100);
-      }
-
-      const finalAmountCentavos = Math.max(0, Math.round(amount * 100) - discountCentavos);
-
       await recordEventPayment(
         currentTenant.id, 
         selectedEvent.id, 
@@ -310,7 +310,7 @@ export function GanapDashboard() {
         user?.displayName || user?.email || 'Unknown',
         activeShift?.id
       );
-      setSelectedEvent({ ...selectedEvent, amountPaid: (selectedEvent.amountPaid || 0) + finalAmountCentavos + discountCentavos });
+      setSelectedEvent({ ...selectedEvent, amountPaid: (selectedEvent.amountPaid || 0) + finalTotalCentavos + discountCentavos });
       
       setCompletedSale({
         items: [{ name: `Payment for ${selectedEvent.title}`, quantity: 1, price: Math.round(amount * 100) }],
@@ -403,8 +403,9 @@ export function GanapDashboard() {
               </div>
               <div className="flex gap-2 items-center">
                 <Badge className={
-                  selectedEvent.status === 'Upcoming' ? 'bg-amber-100 text-amber-700' :
-                  selectedEvent.status === 'Ongoing' ? 'bg-cyan-100 text-cyan-700' : 'bg-emerald-100 text-emerald-700'
+                  selectedEvent.status === 'Inquiry' ? 'bg-slate-100 text-slate-700' :
+                  selectedEvent.status === 'Deposited' || selectedEvent.status === 'Preparation' ? 'bg-amber-100 text-amber-700' :
+                  selectedEvent.status === 'Event Day' ? 'bg-cyan-100 text-cyan-700' : 'bg-emerald-100 text-emerald-700'
                 }>{selectedEvent.status}</Badge>
                 <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 rounded-full bg-red-50" onClick={handleDeleteEvent} disabled={isDeleting}>
                     <Trash2 className="h-4 w-4" />
@@ -415,13 +416,18 @@ export function GanapDashboard() {
             <CardContent className="p-4 space-y-6">
               
               {/* Status Controls */}
-              <div className="flex gap-2">
-                <Button size="sm" variant={selectedEvent.status === 'Ongoing' ? 'default' : 'outline'} className="flex-1" onClick={() => updateEventStatus(selectedEvent.id!, 'Ongoing')}>
-                  <CalendarHeart className="h-4 w-4 mr-1" /> Start Event
-                </Button>
-                <Button size="sm" variant={selectedEvent.status === 'Done' ? 'default' : 'outline'} className="flex-1" onClick={() => updateEventStatus(selectedEvent.id!, 'Done')}>
-                  <CheckCircle2 className="h-4 w-4 mr-1" /> Mark Done
-                </Button>
+              <div className="flex flex-wrap gap-2">
+                {['Inquiry', 'Deposited', 'Preparation', 'Event Day', 'Completed'].map(s => (
+                  <Button 
+                    key={s}
+                    size="sm" 
+                    variant={selectedEvent.status === s ? 'default' : 'outline'} 
+                    className="flex-1 text-[10px]" 
+                    onClick={() => updateEventStatus(selectedEvent.id!, s as any)}
+                  >
+                    {s}
+                  </Button>
+                ))}
               </div>
 
               {/* Payment Tracking */}
@@ -473,22 +479,24 @@ export function GanapDashboard() {
                         subtotal={(typeof paymentAmount === 'number' ? paymentAmount : 0) * 100}
                       />
 
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 w-full pt-4 mt-4 border-t border-slate-100">
                         <Button 
-                          className="w-full text-white" 
-                          style={{ backgroundColor: theme.primary }}
-                          onClick={() => handleRecordPayment('cash')}
+                          variant="outline" 
+                          onClick={() => setShowCashModal(true)}
                           disabled={paymentProcessing || !paymentAmount}
+                          className="flex-1 font-bold h-12 border-none text-white shadow-md active:scale-95"
+                          style={{ backgroundColor: theme.primary }}
                         >
                           {paymentProcessing ? 'Processing...' : 'Pay Cash'}
                         </Button>
                         <Button 
-                          className="w-full text-white bg-blue-500 hover:bg-blue-600 border-none"
                           onClick={() => {
                             setShowPaymentModal(false);
                             setShowGCashQr(true);
                           }}
                           disabled={paymentProcessing || !paymentAmount}
+                          className="flex-1 font-bold h-12 text-white border-none shadow-md active:scale-95"
+                          style={{ backgroundColor: '#007aff' }}
                         >
                           {paymentProcessing ? 'Processing...' : 'Pay GCash'}
                         </Button>
@@ -605,10 +613,22 @@ export function GanapDashboard() {
           </Card>
         </main>
 
-        <GCashQrModal
+        <CashModal 
+        open={showCashModal}
+        onClose={() => { setShowCashModal(false); setCashTendered(''); }}
+        totalAmount={finalTotalCentavos}
+        cashTendered={cashTendered}
+        onCashTenderedChange={setCashTendered}
+        onConfirm={() => {
+          setShowCashModal(false);
+          handleRecordPayment('cash');
+        }}
+        theme={theme}
+      />
+      <GCashQrModal
           open={showGCashQr}
           onClose={() => setShowGCashQr(false)}
-          totalAmount={Math.round((typeof paymentAmount === 'number' ? paymentAmount : 0) * 100)}
+          totalAmount={finalTotalCentavos}
           tenantName={currentTenant?.name || "Katuwang Events"}
           paymentType="gcash"
           onPaymentVerified={async (paymentMethod, gcashRef) => {
@@ -662,7 +682,7 @@ export function GanapDashboard() {
             </CardHeader>
             <CardContent className="p-3 pt-0">
               <p className="text-xl font-black text-slate-800">
-                ₱{((upcomingEvents.reduce((acc, ev) => acc + (ev.contractPrice || 0), 0) + ongoingEvents.reduce((acc, ev) => acc + (ev.contractPrice || 0), 0)) / 100).toLocaleString()}
+                ₱{(([...inquiryEvents, ...depositedEvents, ...prepEvents, ...eventDayEvents].reduce((acc, ev) => acc + (ev.contractPrice || 0), 0)) / 100).toLocaleString()}
               </p>
             </CardContent>
           </Card>
@@ -672,7 +692,7 @@ export function GanapDashboard() {
             </CardHeader>
             <CardContent className="p-3 pt-0">
               <p className="text-xl font-black text-emerald-600">
-                ₱{(pastEvents.reduce((acc, ev) => acc + (ev.contractPrice || 0), 0) / 100).toLocaleString()}
+                ₱{(completedEvents.reduce((acc, ev) => acc + (ev.contractPrice || 0), 0) / 100).toLocaleString()}
               </p>
             </CardContent>
           </Card>
@@ -727,17 +747,21 @@ export function GanapDashboard() {
         {eventsLoading ? (
           <div className="text-center py-8 text-sm text-slate-400">Loading events...</div>
         ) : (
-          <Tabs defaultValue="upcoming" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-4 rounded-xl">
-              <TabsTrigger value="upcoming" className="rounded-lg text-xs md:text-sm font-bold">Upcoming ({upcomingEvents.length})</TabsTrigger>
-              <TabsTrigger value="ongoing" className="rounded-lg text-xs md:text-sm font-bold">Ongoing ({ongoingEvents.length})</TabsTrigger>
-              <TabsTrigger value="done" className="rounded-lg text-xs md:text-sm font-bold">Done ({pastEvents.length})</TabsTrigger>
+          <Tabs defaultValue="inquiry" className="w-full">
+            <TabsList className="grid w-full grid-cols-5 mb-4 rounded-xl h-auto">
+              <TabsTrigger value="inquiry" className="rounded-lg text-[9px] md:text-xs font-bold py-2 whitespace-normal h-full">Inquiry ({inquiryEvents?.length || 0})</TabsTrigger>
+              <TabsTrigger value="deposited" className="rounded-lg text-[9px] md:text-xs font-bold py-2 whitespace-normal h-full">Deposit ({depositedEvents?.length || 0})</TabsTrigger>
+              <TabsTrigger value="prep" className="rounded-lg text-[9px] md:text-xs font-bold py-2 whitespace-normal h-full">Prep ({prepEvents?.length || 0})</TabsTrigger>
+              <TabsTrigger value="event_day" className="rounded-lg text-[9px] md:text-xs font-bold py-2 whitespace-normal h-full">Event Day ({eventDayEvents?.length || 0})</TabsTrigger>
+              <TabsTrigger value="completed" className="rounded-lg text-[9px] md:text-xs font-bold py-2 whitespace-normal h-full">Done ({completedEvents?.length || 0})</TabsTrigger>
             </TabsList>
 
             {[
-              { id: 'upcoming', data: upcomingEvents, empty: 'No upcoming events.' },
-              { id: 'ongoing', data: ongoingEvents, empty: 'No ongoing events right now.' },
-              { id: 'done', data: pastEvents, empty: 'No completed events yet.' }
+              { id: 'inquiry', data: inquiryEvents || [], empty: 'No inquiries.' },
+              { id: 'deposited', data: depositedEvents || [], empty: 'No deposited events.' },
+              { id: 'prep', data: prepEvents || [], empty: 'No prep right now.' },
+              { id: 'event_day', data: eventDayEvents || [], empty: 'No events today.' },
+              { id: 'completed', data: completedEvents || [], empty: 'No completed events.' }
             ].map(tab => (
               <TabsContent key={tab.id} value={tab.id} className="space-y-3 animate-in slide-in-from-bottom-4 duration-300">
                 {tab.data.length === 0 ? (

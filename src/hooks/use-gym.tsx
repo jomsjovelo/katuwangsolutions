@@ -28,10 +28,21 @@ export function useGymMemberships() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
+    // Dynamically calculate status based on expiresAt
+    const processedData = data.map(m => {
+      if (m.status === 'Active' && m.expiresAt) {
+        const expDate = m.expiresAt.toDate ? m.expiresAt.toDate() : new Date(m.expiresAt as any);
+        if (expDate < today) {
+          return { ...m, status: 'Expired' };
+        }
+      }
+      return m;
+    });
+    
     return {
-      activeMembers: data.filter(m => m.status === 'Active'),
-      expiredMembers: data.filter(m => m.status === 'Expired'),
-      recentCheckIns: data.filter(m => {
+      activeMembers: processedData.filter(m => m.status === 'Active'),
+      expiredMembers: processedData.filter(m => m.status === 'Expired'),
+      recentCheckIns: processedData.filter(m => {
         if (!m.lastCheckIn) return false;
         const checkInDate = m.lastCheckIn.toDate ? m.lastCheckIn.toDate() : new Date(m.lastCheckIn as any);
         return checkInDate >= today;

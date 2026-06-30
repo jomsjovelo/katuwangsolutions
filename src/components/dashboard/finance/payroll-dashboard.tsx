@@ -110,6 +110,7 @@ export function PayrollDashboard() {
   // --- Per-Employee State (days worked, vale input) ---
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [daysInputs, setDaysInputs] = useState<Record<string, number | ''>>({});
+  const [commissionsInputs, setCommissionsInputs] = useState<Record<string, number | ''>>({});
   const [valeInputs, setValeInputs] = useState<Record<string, number | ''>>({});
   const [applyDeductionsInputs, setApplyDeductionsInputs] = useState<Record<string, boolean>>({});
   const [payingId, setPayingId] = useState<string | null>(null);
@@ -117,22 +118,25 @@ export function PayrollDashboard() {
   const handlePayNow = async (emp: any) => {
     if (!currentTenant) return;
     const days = Number(daysInputs[emp.id] ?? emp.daysWorkedThisPeriod ?? 0);
+    const commissions = Number(commissionsInputs[emp.id] ?? 0);
     const vale = Number(valeInputs[emp.id] ?? ((emp.outstandingVale ?? 0) / 100));
     const ratePerDay = emp.baseSalary; // in centavos
     const grossCentavos = emp.salaryType === 'daily' ? ratePerDay * days : ratePerDay;
+    const commissionsCentavos = commissions * 100;
+    const totalGrossCentavos = grossCentavos + commissionsCentavos;
     
     // Compute Govt Deductions
     const applyDeductions = applyDeductionsInputs[emp.id] || false;
     let govtDeductionsCentavos = 0;
     if (applyDeductions) {
-      const sss = Math.round(grossCentavos * 0.045);
-      const philHealth = Math.round(grossCentavos * 0.02);
+      const sss = Math.round(totalGrossCentavos * 0.045);
+      const philHealth = Math.round(totalGrossCentavos * 0.02);
       const pagIbig = 100 * 100; // 100 pesos
       govtDeductionsCentavos = sss + philHealth + pagIbig;
     }
 
     const valeCentavos = vale * 100;
-    const netCentavos = Math.max(0, grossCentavos - valeCentavos - govtDeductionsCentavos);
+    const netCentavos = Math.max(0, totalGrossCentavos - valeCentavos - govtDeductionsCentavos);
 
     setPayingId(emp.id);
     try {
@@ -142,6 +146,7 @@ export function PayrollDashboard() {
         emp.name,
         days,
         grossCentavos,
+        commissionsCentavos,
         valeCentavos,
         govtDeductionsCentavos,
         netCentavos,
@@ -151,6 +156,7 @@ export function PayrollDashboard() {
       );
       // Reset local inputs
       setDaysInputs(prev => ({ ...prev, [emp.id]: '' }));
+      setCommissionsInputs(prev => ({ ...prev, [emp.id]: '' }));
       setValeInputs(prev => ({ ...prev, [emp.id]: '' }));
       setExpandedId(null);
       toast({ 
@@ -167,17 +173,19 @@ export function PayrollDashboard() {
   const EmployeeCard = ({ emp }: { emp: any }) => {
     const isExpanded = expandedId === emp.id;
     const days = Number(daysInputs[emp.id] ?? emp.daysWorkedThisPeriod ?? 0);
+    const commissions = Number(commissionsInputs[emp.id] ?? 0);
     const vale = Number(valeInputs[emp.id] ?? ((emp.outstandingVale ?? 0) / 100));
     const rateDisplay = emp.baseSalary / 100;
     const grossPay = emp.salaryType === 'daily' ? rateDisplay * days : rateDisplay;
+    const totalGrossPay = grossPay + commissions;
     
     const applyDeductions = applyDeductionsInputs[emp.id] || false;
     let govtDeductions = 0;
     if (applyDeductions) {
-      govtDeductions = (grossPay * 0.045) + (grossPay * 0.02) + 100; // SSS + PHIC + HDMF
+      govtDeductions = (totalGrossPay * 0.045) + (totalGrossPay * 0.02) + 100; // SSS + PHIC + HDMF
     }
 
-    const netPay = Math.max(0, grossPay - vale - govtDeductions);
+    const netPay = Math.max(0, totalGrossPay - vale - govtDeductions);
     const isPaying = payingId === emp.id;
 
     return (
@@ -256,17 +264,35 @@ export function PayrollDashboard() {
                   </div>
                 )}
               </div>
-              <div className="flex-1 space-y-1">
-                <Label htmlFor={`vale-${emp.id}`} className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Vale (₱)</Label>
-                <Input
-                  id={`vale-${emp.id}`}
-                  name={`vale-${emp.id}`}
-                  type="number"
-                  placeholder="0"
-                  className="h-9 text-sm"
-                  value={valeInputs[emp.id] ?? ((emp.outstandingVale ?? 0) / 100)}
-                  onChange={e => setValeInputs(prev => ({ ...prev, [emp.id]: parseFloat(e.target.value) || '' }))}
-                />
+              <div className="flex gap-2">
+                <div className="flex-1 space-y-1">
+                  <Label htmlFor={`commissions-${emp.id}`} className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                    Commissions (₱)
+                  </Label>
+                  <Input
+                    id={`commissions-${emp.id}`}
+                    name={`commissions-${emp.id}`}
+                    type="number"
+                    placeholder="0"
+                    className="h-9 text-sm"
+                    value={commissionsInputs[emp.id] ?? ''}
+                    onChange={e => setCommissionsInputs(prev => ({ ...prev, [emp.id]: parseFloat(e.target.value) || '' }))}
+                  />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <Label htmlFor={`vale-${emp.id}`} className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                    Vale Deduction (₱)
+                  </Label>
+                  <Input
+                    id={`vale-${emp.id}`}
+                    name={`vale-${emp.id}`}
+                    type="number"
+                    placeholder="0"
+                    className="h-9 text-sm text-red-600 font-bold"
+                    value={valeInputs[emp.id] ?? ((emp.outstandingVale ?? 0) / 100)}
+                    onChange={e => setValeInputs(prev => ({ ...prev, [emp.id]: parseFloat(e.target.value) || '' }))}
+                  />
+                </div>
               </div>
             </div>
 
@@ -287,8 +313,18 @@ export function PayrollDashboard() {
             {/* Live Computation */}
             <div className="bg-white rounded-xl border border-slate-200 p-3 space-y-1.5">
               <div className="flex justify-between text-xs text-slate-500">
-                <span>Gross Pay</span>
+                <span>Base Pay</span>
                 <span className="font-semibold text-slate-700">₱{grossPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+              </div>
+              {commissions > 0 && (
+                <div className="flex justify-between text-xs text-emerald-600">
+                  <span>Commissions</span>
+                  <span className="font-semibold">+₱{commissions.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-xs text-slate-500 font-bold border-b border-slate-100 pb-1">
+                <span>Gross Pay</span>
+                <span className="font-semibold text-slate-700">₱{totalGrossPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
               </div>
               {applyDeductionsInputs[emp.id] && (
                 <div className="flex justify-between text-xs text-slate-500">

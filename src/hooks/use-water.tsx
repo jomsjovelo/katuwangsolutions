@@ -24,19 +24,23 @@ export function useWaterDeliveries() {
 
   const { data, loading, error } = useCollection<WaterDeliveryModel>(waterQuery);
 
-  const { pendingOrders, outForDeliveryOrders, deliveredOrders } = React.useMemo(() => {
+  const { emptyReceivedOrders, washingOrders, refilledOrders, outForDeliveryOrders, completedOrders } = React.useMemo(() => {
     return {
-      pendingOrders: data.filter(o => o.status === 'Pending'),
+      emptyReceivedOrders: data.filter(o => o.status === 'Empty Received'),
+      washingOrders: data.filter(o => o.status === 'Washing'),
+      refilledOrders: data.filter(o => o.status === 'Refilled'),
       outForDeliveryOrders: data.filter(o => o.status === 'Out for Delivery'),
-      deliveredOrders: data.filter(o => o.status === 'Delivered')
+      completedOrders: data.filter(o => o.status === 'Completed')
     };
   }, [data]);
 
   return { 
     orders: data, 
-    pendingOrders,
+    emptyReceivedOrders,
+    washingOrders,
+    refilledOrders,
     outForDeliveryOrders,
-    deliveredOrders,
+    completedOrders,
     loading, 
     error 
   };

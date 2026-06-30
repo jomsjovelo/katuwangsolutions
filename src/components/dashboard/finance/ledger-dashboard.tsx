@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 
 const INCOME_CATEGORIES = ['Sales', 'Service', 'Collection', 'Other Income'];
-const EXPENSE_CATEGORIES = ['Supplies', 'Utilities', 'Rent', 'Salary', 'Food', 'Transport', 'Other Expense'];
+const EXPENSE_CATEGORIES = ['Utilities', 'Inventory', 'Payroll', 'Misc', 'Supplies', 'Rent', 'Food', 'Transport'];
 
 function formatTimestamp(val: any): string {
   if (!val) return '';
@@ -410,6 +410,15 @@ export function LedgerDashboard() {
               <div className="bg-white/10 rounded-lg px-3 py-1.5 backdrop-blur-sm">
                 <p className="text-[9px] text-white/60 uppercase tracking-wider font-bold">Recent Expenses</p>
                 <p className="text-sm font-black text-red-300">-₱{(recentExpense / 100).toLocaleString('en-PH')}</p>
+              </div>
+              <div className="bg-white/10 rounded-lg px-3 py-1.5 backdrop-blur-sm">
+                <p className="text-[9px] text-white/60 uppercase tracking-wider font-bold">Net Profit (P&L)</p>
+                <p className={cn(
+                  "text-sm font-black",
+                  (recentIncome - recentExpense) >= 0 ? "text-emerald-300" : "text-red-300"
+                )}>
+                  {(recentIncome - recentExpense) >= 0 ? '+' : '-'}₱{(Math.abs(recentIncome - recentExpense) / 100).toLocaleString('en-PH')}
+                </p>
               </div>
             </div>
           </CardContent>

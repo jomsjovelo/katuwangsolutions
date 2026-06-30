@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useToast } from '@/hooks/use-toast';
+import { CashModal } from '@/components/common/cash-modal';
 import { GCashQrModal } from '@/components/common/gcash-qr-modal';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { 
@@ -199,12 +200,14 @@ export function FleetDashboard() {
 
   // Signature Pad State
   const [showSignatureModal, setShowSignatureModal] = useState<string | null>(null);
+  const [showGCashQr, setShowGCashQr] = useState(false);
+  const [showCashModal, setShowCashModal] = useState(false);
+  const [cashTendered, setCashTendered] = useState('');
   const [pendingGCashTripId, setPendingGCashTripId] = useState<string | null>(null);
   const [pendingGCashSignature, setPendingGCashSignature] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const signaturePadRef = useRef<any>(null); // Assuming a wrapper or ref to the actual library used
   const [isDrawing, setIsDrawing] = useState(false);
-
-  const [showGCashQr, setShowGCashQr] = useState(false);
   
   const [showReceipt, setShowReceipt] = useState(false);
   const [completedSale, setCompletedSale] = useState<{
@@ -233,8 +236,19 @@ export function FleetDashboard() {
   }, [currentTenant?.id, db]);
 
   const [tripsSnapshot, loading, tripsError] = useCollection(tripsQuery as any);
-  
   const trips = tripsSnapshot?.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })) || [];
+
+  const selectedTrip = trips.find((t: any) => t.id === (pendingGCashTripId || showSignatureModal));
+  const selectedTripFee = selectedTrip?.deliveryFee || 0;
+  
+  const parsedDiscount = parseFloat(discountValue) || 0;
+  let discountCentavos = 0;
+  if (discountType === 'percentage') {
+    discountCentavos = Math.round((selectedTripFee * parsedDiscount) / 100);
+  } else {
+    discountCentavos = Math.round(parsedDiscount * 100);
+  }
+  const finalTotalCentavos = Math.max(0, selectedTripFee - discountCentavos);
 
   React.useEffect(() => {
     if (tripsError) {
@@ -315,7 +329,6 @@ export function FleetDashboard() {
 
   const handleDeleteTrip = async (tripId: string) => {
     if (!currentTenant || !user) return;
-    // Phase 2: Require Manager PIN for Deletions
     const approved = await requireApproval("Deleting a record requires Manager authorization.");
     if (!approved) return;
 
@@ -417,16 +430,6 @@ export function FleetDashboard() {
     try {
       setIsProcessing(true);
       const trip = trips.find((t: any) => t.id === tripIdToUse);
-      
-      const parsedDiscount = parseFloat(discountValue) || 0;
-      let discountCentavos = 0;
-      if (discountType === 'percentage') {
-        discountCentavos = Math.round((trip.deliveryFee * parsedDiscount) / 100);
-      } else {
-        discountCentavos = Math.round(parsedDiscount * 100);
-      }
-      
-      const finalTotalCentavos = Math.max(0, trip.deliveryFee - discountCentavos);
 
       await moveTrip(
         tripIdToUse, 
@@ -635,7 +638,7 @@ export function FleetDashboard() {
 
         {/* Signature Modal */}
         {showSignatureModal && (
-          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-in fade-in">
+          <Dialog open={!!showSignatureModal} onOpenChange={() => setShowSignatureModal(null)}>
             <Card className="w-full max-w-sm bg-white shadow-2xl border-none">
               <CardHeader className="pb-3 border-b">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
@@ -684,10 +687,17 @@ export function FleetDashboard() {
                 </div>
                 <div className="flex gap-2 pt-2">
                   <Button 
-                    className="flex-1 text-white font-bold text-[10px]"
-                    style={{ backgroundColor: theme.primary }}
-                    onClick={() => handleSaveSignatureAndComplete('cash')}
+                    variant="outline" 
+                    className="flex-1 font-bold h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
                     disabled={isProcessing}
+                    onClick={() => {
+                        if (canvasRef.current) {
+                            const canvas = canvasRef.current;
+                            setPendingGCashSignature(canvas.toDataURL('image/png'));
+                            setPendingGCashTripId(showSignatureModal);
+                            setShowCashModal(true);
+                        }
+                    }}
                   >
                     {isProcessing ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Coins className="h-3 w-3 mr-1" /> Paid Cash</>}
                   </Button>
@@ -710,25 +720,39 @@ export function FleetDashboard() {
                 </div>
               </CardContent>
             </Card>
-          </div>
+          </Dialog>
         )}
 
+        <CashModal 
+            open={showCashModal}
+            onClose={() => { setShowCashModal(false); setCashTendered(''); }}
+            totalAmount={finalTotalCentavos}
+            cashTendered={cashTendered}
+            onCashTenderedChange={setCashTendered}
+            onConfirm={() => {
+            setShowCashModal(false);
+            if (pendingGCashTripId && pendingGCashSignature) {
+                handleSaveSignatureAndComplete('cash', pendingGCashTripId, pendingGCashSignature);
+            }
+            }}
+            theme={theme}
+        />
+
         <GCashQrModal
-          open={showGCashQr}
-          onClose={() => {
+            open={showGCashQr}
+            onClose={() => {
             setShowGCashQr(false);
-            setPendingGCashTripId(null);
-          }}
-          totalAmount={trips.find((t: any) => t.id === pendingGCashTripId)?.deliveryFee || 0}
-          tenantName={currentTenant?.name || "Katuwang Trucking"}
-          paymentType="gcash"
-          onPaymentVerified={async (paymentMethod, gcashRef) => {
+            }}
+            totalAmount={finalTotalCentavos}
+            tenantName={currentTenant?.name || "Katuwang Trucking"}
+            paymentType="gcash"
+            onPaymentVerified={async (method, ref) => {
             setShowGCashQr(false);
             if (pendingGCashTripId && pendingGCashSignature) {
-              await handleSaveSignatureAndComplete(paymentMethod, pendingGCashTripId, pendingGCashSignature);
+                await handleSaveSignatureAndComplete('gcash', pendingGCashTripId, pendingGCashSignature);
             }
-          }}
-          theme={theme}
+            }}
+            theme={theme}
         />
         
         <ThermalReceiptPreview

@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { DiscountInput } from '@/components/ui/discount-input';
+import { CashModal } from '@/components/common/cash-modal';
 import { GCashQrModal } from '@/components/common/gcash-qr-modal';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { TableSetupModal } from './table-setup-modal';
@@ -163,6 +164,8 @@ export function FoodDashboard() {
   const [cart, setCart] = useState<{ menuItemId: string; name: string; quantity: number; price: number; notes?: string }[]>([]);
   const [selectedTable, setSelectedTable] = useState('');
   
+  const [showCashModal, setShowCashModal] = useState(false);
+  const [cashTendered, setCashTendered] = useState('');
   const [showGCashQr, setShowGCashQr] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
   const [completedSale, setCompletedSale] = useState<{
@@ -591,7 +594,7 @@ export function FoodDashboard() {
                     <Button 
                       className="h-12 flex-1 font-bold text-white shadow-md active:scale-95 border-none" 
                       style={{ backgroundColor: theme.primary }}
-                      onClick={() => handleCheckout('cash')}
+                      onClick={() => setShowCashModal(true)}
                       disabled={isProcessing}
                     >
                       {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Coins className="h-4 w-4 mr-1" /> Cash</>}
@@ -609,7 +612,16 @@ export function FoodDashboard() {
               </Card>
             )}
 
-            <GCashQrModal
+            <CashModal 
+        open={showCashModal}
+        onClose={() => { setShowCashModal(false); setCashTendered(''); }}
+        totalAmount={finalTotalCentavos}
+        cashTendered={cashTendered}
+        onCashTenderedChange={setCashTendered}
+        onConfirm={() => { setShowCashModal(false); handleCheckout('cash'); }}
+        theme={theme}
+      />
+      <GCashQrModal
               open={showGCashQr}
               onClose={() => setShowGCashQr(false)}
               totalAmount={cartTotal}

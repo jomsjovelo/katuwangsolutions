@@ -14,53 +14,83 @@ import { processRentalBooking, processRentalReturn, deleteRentalBooking } from '
 import { useUser } from '@/firebase/auth/use-user';
 import { useShift } from '@/hooks/use-shift';
 import { GCashQrModal } from '@/components/common/gcash-qr-modal';
+import { CashModal } from '@/components/common/cash-modal';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { useFirestore } from '@/firebase/provider';
 import { useTenant } from '@/app/lib/tenant-context';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
+import { format } from 'date-fns';
 
 import { useToast } from '@/hooks/use-toast';
 
 
-const BookingItem = React.memo(({ booking, isOwner, handleDeleteBooking, returningId, handleReturnItem }: any) => (
-  <div className="p-4 flex items-center justify-between hover:bg-slate-50">
-    <div>
-      <div className="flex items-center gap-2">
-        <p className="font-bold text-slate-800 text-sm">{booking.itemName}</p>
-        {isOwner && (
-          <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0" onClick={() => handleDeleteBooking(booking)}>
-            <Trash2 className="h-3 w-3" />
-          </Button>
-        )}
+const BookingItem = React.memo(({ booking, isOwner, handleDeleteBooking, returningId, handleReturnItem }: any) => {
+  const endDate = booking.endDate && typeof booking.endDate === 'object' && 'toDate' in booking.endDate ? booking.endDate.toDate() : new Date(booking.endDate as any);
+  const today = new Date();
+  const isOverdue = today.getTime() > endDate.getTime() + 86400000; // +1 day grace
+
+  return (
+    <div className={`p-4 flex items-center justify-between hover:bg-slate-50 ${isOverdue ? 'bg-red-50/50' : ''}`}>
+      <div>
+        <div className="flex items-center gap-2">
+          <p className="font-bold text-slate-800 text-sm">{booking.itemName}</p>
+          {isOwner && (
+            <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0" onClick={() => handleDeleteBooking(booking)}>
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+        <p className="text-xs text-slate-500">{booking.customerName} • ₱{booking.totalCost / 100} 
+          <span className={`ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold ${booking.paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+            {booking.paymentStatus === 'paid' ? 'PAID' : 'UNPAID'}
+          </span>
+          {isOverdue && (
+            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">
+              OVERDUE
+            </span>
+          )}
+        </p>
       </div>
-      <p className="text-xs text-slate-500">{booking.customerName} • ₱{booking.totalCost} 
-        <span className={`ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold ${booking.paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-          {booking.paymentStatus === 'paid' ? 'PAID' : 'UNPAID'}
-        </span>
-      </p>
-    </div>
     <div className="flex items-center gap-3">
-      <Button
-        size="sm"
-        variant="outline"
-        disabled={returningId === booking.id}
-        onClick={() => {
-          if (booking.paymentStatus === 'unpaid') {
-             if (window.confirm(`This booking is UNPAID (₱${booking.totalCost}). Collect payment now and return item?`)) {
-                handleReturnItem(booking);
-             }
-          } else {
-             handleReturnItem(booking);
-          }
-        }}
-        className="h-8 rounded-lg px-3 text-[10px] font-black text-emerald-600 border-emerald-200 hover:bg-emerald-50 flex items-center gap-1"
-      >
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={returningId === booking.id}
+          onClick={() => {
+            let penaltyCentavos = 0;
+            const endDate = booking.endDate && typeof booking.endDate === 'object' && 'toDate' in booking.endDate ? booking.endDate.toDate() : new Date(booking.endDate as any);
+            const today = new Date();
+            if (today.getTime() > endDate.getTime() + 86400000) { // +1 day grace
+              const daysLate = Math.ceil((today.getTime() - endDate.getTime()) / 86400000);
+              const customPenalty = window.prompt(`This item is ${daysLate} day(s) late.\nEnter custom penalty fee (₱) if applicable:`, '0');
+              if (customPenalty !== null && !isNaN(Number(customPenalty))) {
+                penaltyCentavos = Math.round(Number(customPenalty) * 100);
+              }
+            }
+            if (booking.paymentStatus === 'unpaid') {
+               const extraStr = penaltyCentavos > 0 ? ` + ₱${penaltyCentavos/100} Penalty` : '';
+               if (window.confirm(`This booking is UNPAID (₱${booking.totalCost/100}${extraStr}). Collect payment now and return item?`)) {
+                 handleReturnItem(booking, penaltyCentavos);
+               }
+            } else {
+               if (penaltyCentavos > 0) {
+                 if (window.confirm(`Penalty of ₱${penaltyCentavos/100} will be charged. Collect payment and return item?`)) {
+                   handleReturnItem(booking, penaltyCentavos);
+                 }
+               } else {
+                 handleReturnItem(booking, 0);
+               }
+            }
+          }}
+          className="h-8 rounded-lg px-3 text-[10px] font-black text-emerald-600 border-emerald-200 hover:bg-emerald-50 flex items-center gap-1"
+        >
         {returningId === booking.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
         Return
       </Button>
     </div>
   </div>
-));
+);
+});
 BookingItem.displayName = 'BookingItem';
 
 const InventoryItem = React.memo(({ item }: any) => (
@@ -102,7 +132,6 @@ export function RentalDashboard() {
     }
   }, [inventoryError, bookingsError]);
 
-  // Toast state
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [returningId, setReturningId] = useState<string | null>(null);
@@ -110,7 +139,6 @@ export function RentalDashboard() {
   const showSuccess = (msg: string) => { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(null), 3000); };
   const showError = (msg: string) => { setErrorMsg(msg); setTimeout(() => setErrorMsg(null), 4000); };
 
-  // Add Item State
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [itemName, setItemName] = useState('');
   const [itemCategory, setItemCategory] = useState('');
@@ -141,15 +169,32 @@ export function RentalDashboard() {
     }
   };
 
-  // Add Booking State
   const [isAddingBooking, setIsAddingBooking] = useState(false);
   const [bookingItemId, setBookingItemId] = useState('');
   const [bookingCustomer, setBookingCustomer] = useState('');
   const [bookingCost, setBookingCost] = useState('');
+  const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [endDate, setEndDate] = useState(format(new Date(Date.now() + 86400000), 'yyyy-MM-dd'));
   const [bookingPaymentTiming, setBookingPaymentTiming] = useState<'upfront'|'return'>('upfront');
   const [bookingPaymentMethod, setBookingPaymentMethod] = useState<'cash'|'gcash'>('cash');
   const [showGCashQr, setShowGCashQr] = useState(false);
+  const [showCashModal, setShowCashModal] = useState(false);
+  const [cashTendered, setCashTendered] = useState('');
   const [showNewBookingModal, setShowNewBookingModal] = useState(false);
+  const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage');
+  const [discountValue, setDiscountValue] = useState<string>('');
+  const [discountReason, setDiscountReason] = useState<string>('');
+
+  const parsedCost = Number(bookingCost) || 0;
+  const parsedDiscount = parseFloat(discountValue) || 0;
+  let discountCentavos = 0;
+  if (discountType === 'percentage') {
+    discountCentavos = Math.round((parsedCost * 100 * parsedDiscount) / 100);
+  } else {
+    discountCentavos = Math.round(parsedDiscount * 100);
+  }
+  if (discountCentavos > parsedCost * 100) discountCentavos = parsedCost * 100;
+  const finalTotalCentavos = Math.max(0, parsedCost * 100 - discountCentavos);
   
   const [showReceipt, setShowReceipt] = useState(false);
   const [completedSale, setCompletedSale] = useState<{
@@ -174,26 +219,16 @@ export function RentalDashboard() {
       if (!selectedItem) throw new Error("Item not found in inventory.");
       if (selectedItem.availableQuantity <= 0) throw new Error(`${selectedItem.name} is currently fully rented out.`);
 
-      const parsedCost = Number(bookingCost) || 0;
-      const parsedDiscount = parseFloat(discountValue) || 0;
-      let discountCentavos = 0;
-      if (discountType === 'percentage') {
-        discountCentavos = Math.round((parsedCost * 100 * parsedDiscount) / 100);
-      } else {
-        discountCentavos = Math.round(parsedDiscount * 100);
-      }
-      if (discountCentavos > parsedCost * 100) discountCentavos = parsedCost * 100;
-
-      const finalTotalCentavos = Math.max(0, parsedCost * 100 - discountCentavos);
-
       const bookingId = await processRentalBooking(
         currentTenant.id,
         bookingItemId,
         selectedItem.name,
         bookingCustomer,
-        parsedCost * 100, // Pass centavos
+        parsedCost * 100,
         bookingPaymentTiming,
-        bookingPaymentTiming === 'upfront' ? bookingPaymentMethod : undefined,
+        new Date(startDate),
+        new Date(endDate),
+        paymentRef ? 'gcash' : 'cash',
         paymentRef,
         discountCentavos,
         discountType,
@@ -214,6 +249,8 @@ export function RentalDashboard() {
       });
 
       setBookingItemId(''); setBookingCustomer(''); setBookingCost(''); setDiscountValue('');
+      setStartDate(format(new Date(), 'yyyy-MM-dd'));
+      setEndDate(format(new Date(Date.now() + 86400000), 'yyyy-MM-dd'));
       setShowNewBookingModal(false);
       setShowReceipt(true);
       showSuccess(`Booking para kay ${bookingCustomer} naitala!`);
@@ -225,30 +262,28 @@ export function RentalDashboard() {
     }
   };
 
-  // Return a rented item back to inventory
-  const handleReturnItem = async (booking: any) => {
+  const handleReturnItem = async (booking: any, penaltyCentavos: number = 0) => {
     if (!db || !currentTenant) return;
     setReturningId(booking.id);
     try {
       let method = undefined;
-      // If payment is pending, we assume cash for simple return without explicit UI right now unless we add a return modal
-      // For now, let's default to cash if unpaid when they click return. 
       if (booking.paymentStatus === 'unpaid') {
-         method = 'cash'; // TODO: add a modal for return payment if needed, but for now default to cash
+         method = 'cash';
       }
       await processRentalReturn(
         currentTenant.id, 
         booking, 
         method, 
-        undefined, // gcashRef
-        0, // discountCentavos
-        undefined, // discountType
-        undefined, // discountReason
+        undefined,
+        0,
+        undefined,
+        undefined,
         user?.uid,
         user?.displayName || user?.email || 'Unknown',
-        activeShift?.id
+        activeShift?.id,
+        penaltyCentavos
       );
-      showSuccess(`${booking.itemName} na-return ni ${booking.customerName}!`);
+      showSuccess(`${booking.itemName} returned!`);
     } catch (e) {
       const error = e as Error & { code?: string };
       showError(error?.message || 'Failed to return item.');
@@ -271,7 +306,6 @@ export function RentalDashboard() {
   return (
     <div className="flex-1 flex flex-col p-4 sm:p-6 bg-slate-50 min-h-screen">
       
-      {/* Toast Alerts */}
       {successMsg && (
         <div className="fixed top-4 inset-x-4 z-50 bg-slate-900/95 text-white py-3 px-4 rounded-2xl border border-slate-700/50 text-xs font-bold flex items-center gap-2 shadow-2xl animate-in slide-in-from-top-4 duration-200">
           <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
@@ -285,19 +319,33 @@ export function RentalDashboard() {
         </div>
       )}
       
-      {showGCashQr && currentTenant && (
-        <GCashQrModal
-        open={showGCashQr}
-        onClose={() => setShowGCashQr(false)}
-        totalAmount={Number(bookingCost) * 100}
-        tenantName={currentTenant?.name || "Katuwang Rental"}
-        paymentType="gcash"
-        onPaymentVerified={async (method, ref) => {
-          setShowGCashQr(false);
-          await handleAddBooking(undefined, ref);
-        }}
-        theme={theme}
-      />
+      {currentTenant && (
+        <>
+          <CashModal 
+            open={showCashModal}
+            onClose={() => { setShowCashModal(false); setCashTendered(''); }}
+            totalAmount={finalTotalCentavos}
+            cashTendered={cashTendered}
+            onCashTenderedChange={setCashTendered}
+            onConfirm={() => {
+              setShowCashModal(false);
+              handleAddBooking();
+            }}
+            theme={theme}
+          />
+          <GCashQrModal
+            open={showGCashQr}
+            onClose={() => setShowGCashQr(false)}
+            totalAmount={finalTotalCentavos}
+            tenantName={currentTenant?.name || "Katuwang Rental"}
+            paymentType="gcash"
+            onPaymentVerified={async (method, ref) => {
+              setShowGCashQr(false);
+              await handleAddBooking(undefined, ref);
+            }}
+            theme={theme}
+          />
+        </>
       )}
       
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 animate-in slide-in-from-top-2">
@@ -354,14 +402,21 @@ export function RentalDashboard() {
                       <DialogTitle>Create New Booking</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={(e) => {
-                      e.preventDefault();
-                      if (bookingPaymentTiming === 'upfront' && bookingPaymentMethod === 'gcash') {
-                        setShowNewBookingModal(false);
-                        setShowGCashQr(true);
-                      } else {
+                        e.preventDefault();
+                        if (new Date(endDate) < new Date(startDate)) {
+                          showError('End date cannot be before start date.');
+                          return;
+                        }
+                        if (bookingPaymentTiming === 'upfront' && bookingPaymentMethod === 'gcash') {
+                          setShowGCashQr(true);
+                          return;
+                        }
+                        if (bookingPaymentTiming === 'upfront' && bookingPaymentMethod === 'cash') {
+                          setShowCashModal(true);
+                          return;
+                        }
                         handleAddBooking();
-                      }
-                    }} className="space-y-4 mt-4">
+                      }} className="space-y-4 mt-4">
                       <div>
                         <label className="text-xs font-bold text-slate-500 uppercase">Item to Rent</label>
                         <select 
@@ -379,6 +434,16 @@ export function RentalDashboard() {
                       <div>
                         <label className="text-xs font-bold text-slate-500 uppercase">Customer Name</label>
                         <Input id="booking-customer" name="bookingCustomer" required type="text" value={bookingCustomer} onChange={e => setBookingCustomer(e.target.value)} className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 mt-1" placeholder="Juan Dela Cruz" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-xs font-bold text-slate-500 uppercase">Start Date</label>
+                            <Input id="booking-start" required type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm mt-1" />
+                          </div>
+                          <div>
+                            <label className="text-xs font-bold text-slate-500 uppercase">End Date</label>
+                            <Input id="booking-end" required type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm mt-1" />
+                          </div>
                       </div>
                       <div>
                         <label className="text-xs font-bold text-slate-500 uppercase">Total Cost Before Discount (₱)</label>

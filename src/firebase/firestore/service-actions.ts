@@ -12,7 +12,7 @@ export async function addJob(
   serviceName: string, 
   amountCentavos: number, 
   phoneNumber?: string,
-  extra?: { deviceModel?: string, laborCost?: number, partsCost?: number, technicianName?: string }
+  extra?: { deviceModel?: string, laborCost?: number, partsCost?: number, technicianName?: string, targetDate?: string }
 ) {
   const db = getKatuwangDb();
   
@@ -349,10 +349,8 @@ export async function registerGymMember(
       referrerCode: referrerCode || null,
       createdAt: serverTimestamp(),
       lastCheckIn: serverTimestamp(),
+      ...(!isDaily ? { expiresAt } : {})
     };
-    if (!isDaily) {
-      memberData.expiresAt = expiresAt;
-    }
     
     transaction.set(memberRef, memberData);
 

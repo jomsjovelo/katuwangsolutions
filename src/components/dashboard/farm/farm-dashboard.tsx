@@ -6,6 +6,7 @@ import { useTenant } from '@/app/lib/tenant-context';
 import { doc, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { completeServiceOrder, deleteServiceOrder } from '@/firebase/firestore/service-actions';
+import { addTransaction } from '@/firebase/firestore/finance-actions';
 import { useUser } from '@/firebase/auth/use-user';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -138,8 +139,13 @@ export function FarmDashboard() {
 
   // Changed 'Planned' to 'Planted' for better semantics, falling back to 'Planned' for backward compatibility
   const plantedCrops = harvests.filter(h => h.status === 'Planted' || h.status === 'Planned');
-  const inBodegaHarvests = harvests.filter(h => h.status === 'In Bodega');
-  const dispatchedHarvests = harvests.filter(h => h.status === 'Dispatched');
+  const growingCrops = harvests.filter(h => h.status === 'Growing');
+  const harvestingCrops = harvests.filter(h => h.status === 'Harvesting' || h.status === 'In Bodega');
+  const completedHarvests = harvests.filter(h => h.status === 'Completed' || h.status === 'Dispatched');
+
+  const totalCapitalOut = harvests.reduce((acc, h) => acc + (Number(h.capitalInvested) || 0), 0);
+  const totalHarvestRevenue = completedHarvests.reduce((acc, h) => acc + (Number(h.actualValue) || 0), 0);
+  const overallROI = totalHarvestRevenue - totalCapitalOut;
 
   React.useEffect(() => {
     if (error) {
@@ -149,7 +155,7 @@ export function FarmDashboard() {
   }, [error, toast]);
 
   // Tabs State
-  const [activeTab, setActiveTab] = useState<'field' | 'bodega'>('field');
+  const [activeTab, setActiveTab] = useState<'field' | 'harvests'>('field');
 
   // Create Harvest Form
   const [showAddForm, setShowAddForm] = useState(false);
@@ -187,6 +193,25 @@ export function FarmDashboard() {
         paymentStatus: 'Unpaid',
         createdAt: serverTimestamp(),
       });
+      
+      if (capitalInvested && capitalInvested > 0) {
+        try {
+          await addTransaction(
+            currentTenant.id,
+            Number(capitalInvested) * 100, // convert to centavos
+            'expense',
+            `Farm Capital: Planted ${quantity} ${unit} of ${cropType}`,
+            'Inventory/Supplies',
+            user?.uid,
+            user?.displayName || user?.email || 'Unknown',
+            undefined // activeShift is not available in scope
+          );
+        } catch (txErr) {
+          console.error("Failed to record expense:", txErr);
+          toast({ title: 'Warning', description: 'Harvest logged but expense recording failed.', variant: 'destructive' });
+        }
+      }
+
       setCropType('Palay (Rice)');
       setQuantity('');
       setUnit('Sacks');
@@ -207,7 +232,7 @@ export function FarmDashboard() {
   const updateStatus = async (harvest: any, status: string, paymentStatus?: string, paymentMethod: string = 'cash', discountCentavos: number = 0, discountType?: 'percentage' | 'fixed', discountReason?: string) => {
     if (!currentTenant || !db) return;
     try {
-      if (status === 'Dispatched' && paymentStatus === 'Paid') {
+      if ((status === 'Completed' || status === 'Dispatched') && paymentStatus === 'Paid') {
         const finalValue = harvest.actualValue || harvest.expectedValue || 0;
         await completeServiceOrder(
           currentTenant.id, 
@@ -237,8 +262,8 @@ export function FarmDashboard() {
         const updates: any = { status, updatedAt: serverTimestamp() };
         if (paymentStatus) updates.paymentStatus = paymentStatus;
         
-        // If moving to bodega from planted, update with actual quantity
-        if (status === 'In Bodega' && actualQuantity !== '') {
+        // If moving to Harvesting, update with actual quantity
+        if (status === 'Harvesting' && actualQuantity !== '') {
             updates.quantity = actualQuantity;
         }
 
@@ -271,7 +296,7 @@ export function FarmDashboard() {
   const handleConfirmHarvest = async () => {
       if(!harvestingCrop || actualQuantity === '') return;
       setIsProcessing(true);
-      await updateStatus(harvestingCrop, 'In Bodega');
+      await updateStatus(harvestingCrop, 'Harvesting');
       setHarvestingCrop(null);
       setActualQuantity('');
       setIsProcessing(false);
@@ -310,6 +335,30 @@ export function FarmDashboard() {
           )}
         </section>
 
+        {/* ROI Widget */}
+        <div className="grid grid-cols-3 gap-2">
+          <Card className="shadow-sm border-slate-100 bg-white">
+            <CardContent className="p-3 text-center">
+              <p className="text-[10px] font-bold text-slate-500 uppercase">Capital Out</p>
+              <p className="text-sm font-black text-red-600 mt-1">₱{(totalCapitalOut).toLocaleString()}</p>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm border-slate-100 bg-white">
+            <CardContent className="p-3 text-center">
+              <p className="text-[10px] font-bold text-slate-500 uppercase">Total Revenue</p>
+              <p className="text-sm font-black text-emerald-600 mt-1">₱{(totalHarvestRevenue).toLocaleString()}</p>
+            </CardContent>
+          </Card>
+          <Card className={`shadow-sm border-slate-100 ${overallROI >= 0 ? 'bg-emerald-50' : 'bg-red-50'}`}>
+            <CardContent className="p-3 text-center">
+              <p className={`text-[10px] font-bold uppercase ${overallROI >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>Overall ROI</p>
+              <p className={`text-sm font-black mt-1 ${overallROI >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                {overallROI >= 0 ? '+' : ''}₱{(overallROI).toLocaleString()}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Tab Navigation */}
         <div className="flex gap-2 bg-white p-1 rounded-xl shadow-sm border border-slate-200">
             <Button 
@@ -321,12 +370,12 @@ export function FarmDashboard() {
                 <Leaf className="h-4 w-4 mr-2" /> Field
             </Button>
             <Button 
-                variant={activeTab === 'bodega' ? 'default' : 'ghost'}
-                className={activeTab === 'bodega' ? "flex-1 shadow-sm font-bold" : "flex-1 text-slate-500 font-medium"}
-                onClick={() => setActiveTab('bodega')}
-                style={activeTab === 'bodega' ? { backgroundColor: theme.primary, color: '#fff' } : {}}
+                variant={activeTab === 'harvests' ? 'default' : 'ghost'}
+                className={activeTab === 'harvests' ? "flex-1 shadow-sm font-bold" : "flex-1 text-slate-500 font-medium"}
+                onClick={() => setActiveTab('harvests')}
+                style={activeTab === 'harvests' ? { backgroundColor: theme.primary, color: '#fff' } : {}}
             >
-                <Warehouse className="h-4 w-4 mr-2" /> Bodega
+                <Warehouse className="h-4 w-4 mr-2" /> Harvests
             </Button>
         </div>
 
@@ -395,10 +444,10 @@ export function FarmDashboard() {
         {harvestingCrop && (
             <Card className="shadow-sm border-amber-200 bg-amber-50 border-l-4 animate-in slide-in-from-top-2" style={{ borderLeftColor: '#f59e0b' }}>
             <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm font-bold flex items-center gap-2"><Tractor className="h-4 w-4 text-amber-600" /> Harvest {harvestingCrop.cropType}</CardTitle>
+              <CardTitle className="text-sm font-bold flex items-center gap-2"><Tractor className="h-4 w-4 text-amber-600" /> Start Harvesting {harvestingCrop.cropType}</CardTitle>
             </CardHeader>
             <CardContent className="p-4 space-y-3 pt-0">
-                <p className="text-xs text-slate-600">Enter the actual harvested quantity to move to Bodega. (Estimated: {harvestingCrop.quantity} {harvestingCrop.unit})</p>
+                <p className="text-xs text-slate-600">Enter the actual harvested quantity to move to Harvests. (Estimated: {harvestingCrop.quantity} {harvestingCrop.unit})</p>
                 <div className="flex gap-2">
                     <div className="flex-1 space-y-1">
                         <Label className="text-xs">Actual Yield ({harvestingCrop.unit})</Label>
@@ -440,50 +489,82 @@ export function FarmDashboard() {
           <div className="pb-4">
             
             {activeTab === 'field' && (
-                <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                    <div className="flex items-center gap-2 mb-3 px-1">
-                        <Sprout className="h-4 w-4 text-emerald-500" />
-                        <h4 className="font-bold text-sm text-slate-700">Planted & Growing</h4>
-                        <Badge variant="secondary" className="bg-white ml-auto">{plantedCrops.length}</Badge>
+                <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col md:flex-row gap-4">
+                    {/* Planted Column */}
+                    <div className="flex-1 min-w-[280px]">
+                      <div className="flex items-center gap-2 mb-3 px-1">
+                          <Sprout className="h-4 w-4 text-emerald-500" />
+                          <h4 className="font-bold text-sm text-slate-700">Planted</h4>
+                          <Badge variant="secondary" className="bg-white ml-auto">{plantedCrops.length}</Badge>
+                      </div>
+                      {plantedCrops.length === 0 && (
+                          <div className="text-center py-10 bg-white rounded-xl border border-dashed border-slate-200">
+                              <Leaf className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                              <p className="text-sm text-slate-500 font-medium">No crops planted.</p>
+                          </div>
+                      )}
+                      <div className="space-y-2">
+                          {plantedCrops.map(harvest => (
+                          <HarvestCard 
+                              key={harvest.id} 
+                              harvest={harvest} 
+                              isOwner={isOwner}
+                              handleDeleteHarvest={handleDeleteHarvest}
+                              actions={
+                              <Button size="sm" className="w-full h-7 text-[10px] bg-cyan-600 hover:bg-cyan-700" onClick={() => updateStatus(harvest, 'Growing')}>
+                                  <Leaf className="h-3 w-3 mr-1 text-cyan-200" /> Mark as Growing
+                              </Button>
+                              } 
+                          />
+                          ))}
+                      </div>
                     </div>
-                    {plantedCrops.length === 0 && (
-                        <div className="text-center py-10 bg-white rounded-xl border border-dashed border-slate-200">
-                            <Leaf className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                            <p className="text-sm text-slate-500 font-medium">No crops currently in the field.</p>
-                        </div>
-                    )}
-                    <div className="space-y-2">
-                        {plantedCrops.map(harvest => (
-                        <HarvestCard 
-                            key={harvest.id} 
-                            harvest={harvest} 
-                            isOwner={isOwner}
-                            handleDeleteHarvest={handleDeleteHarvest}
-                            actions={
-                            <Button size="sm" className="w-full h-7 text-[10px] bg-amber-600 hover:bg-amber-700" onClick={() => setHarvestingCrop(harvest)}>
-                                <Tractor className="h-3 w-3 mr-1 text-amber-200" /> Harvest & Store
-                            </Button>
-                            } 
-                        />
-                        ))}
+                    {/* Growing Column */}
+                    <div className="flex-1 min-w-[280px] mt-6 md:mt-0 pt-6 md:pt-0 border-t md:border-t-0 md:border-l border-slate-200 border-dashed md:pl-4">
+                      <div className="flex items-center gap-2 mb-3 px-1">
+                          <Leaf className="h-4 w-4 text-cyan-500" />
+                          <h4 className="font-bold text-sm text-slate-700">Growing</h4>
+                          <Badge variant="secondary" className="bg-white ml-auto">{growingCrops.length}</Badge>
+                      </div>
+                      {growingCrops.length === 0 && (
+                          <div className="text-center py-10 bg-white rounded-xl border border-dashed border-slate-200">
+                              <Leaf className="h-8 w-8 text-slate-300 mx-auto mb-2 opacity-50" />
+                              <p className="text-sm text-slate-500 font-medium">No crops growing.</p>
+                          </div>
+                      )}
+                      <div className="space-y-2">
+                          {growingCrops.map(harvest => (
+                          <HarvestCard 
+                              key={harvest.id} 
+                              harvest={harvest} 
+                              isOwner={isOwner}
+                              handleDeleteHarvest={handleDeleteHarvest}
+                              actions={
+                              <Button size="sm" className="w-full h-7 text-[10px] bg-amber-600 hover:bg-amber-700" onClick={() => setHarvestingCrop(harvest)}>
+                                  <Tractor className="h-3 w-3 mr-1 text-amber-200" /> Start Harvesting
+                              </Button>
+                              } 
+                          />
+                          ))}
+                      </div>
                     </div>
                 </div>
             )}
 
-            {activeTab === 'bodega' && (
+            {activeTab === 'harvests' && (
                 <div className="animate-in fade-in slide-in-from-left-4 duration-300 flex flex-col md:flex-row gap-4">
-                    {/* In Bodega Column */}
+                    {/* Harvesting Column */}
                     <div className="flex-1 min-w-[280px]">
                         <div className="flex items-center gap-2 mb-3 px-1">
                             <Warehouse className="h-4 w-4 text-amber-600" />
-                            <h4 className="font-bold text-sm text-slate-700">Bodega (Inventory)</h4>
-                            <Badge variant="secondary" className="bg-white ml-auto">{inBodegaHarvests.length}</Badge>
+                            <h4 className="font-bold text-sm text-slate-700">Harvesting / Stored</h4>
+                            <Badge variant="secondary" className="bg-white ml-auto">{harvestingCrops.length}</Badge>
                         </div>
-                        {inBodegaHarvests.length === 0 && (
-                            <div className="text-center py-8 text-xs text-slate-400 border border-dashed rounded-xl">Bodega is empty.</div>
+                        {harvestingCrops.length === 0 && (
+                            <div className="text-center py-8 text-xs text-slate-400 border border-dashed rounded-xl">No harvests available.</div>
                         )}
                         <div className="space-y-2">
-                            {inBodegaHarvests.map(harvest => (
+                            {harvestingCrops.map(harvest => (
                             <HarvestCard 
                                 key={harvest.id} 
                                 harvest={harvest} 
@@ -492,7 +573,7 @@ export function FarmDashboard() {
                                 actions={
                                 <div className="flex gap-2 w-full">
                                     <Button size="sm" className="flex-1 h-7 text-[10px] font-bold text-white border-none" style={{ backgroundColor: theme.primary }} onClick={() => { setSellingCrop(harvest); setActualValue(harvest.expectedValue || ''); }}>
-                                    <Coins className="h-3 w-3 mr-1" /> Sell / Dispatch
+                                    <Coins className="h-3 w-3 mr-1" /> Sell / Complete
                                     </Button>
                                 </div>
                                 } 
@@ -501,18 +582,18 @@ export function FarmDashboard() {
                         </div>
                     </div>
 
-                    {/* Sold Column */}
+                    {/* Completed Column */}
                     <div className="flex-1 min-w-[280px] mt-6 md:mt-0 pt-6 md:pt-0 border-t md:border-t-0 md:border-l border-slate-200 border-dashed md:pl-4">
                         <div className="flex items-center gap-2 mb-3 px-1">
                             <CheckCircle2 className="h-4 w-4 text-indigo-500" />
-                            <h4 className="font-bold text-sm text-slate-700">Sold / Dispatched</h4>
-                            <Badge variant="secondary" className="bg-white ml-auto">{dispatchedHarvests.length}</Badge>
+                            <h4 className="font-bold text-sm text-slate-700">Completed (Sold)</h4>
+                            <Badge variant="secondary" className="bg-white ml-auto">{completedHarvests.length}</Badge>
                         </div>
-                        {dispatchedHarvests.length === 0 && (
-                            <div className="text-center py-8 text-xs text-slate-400 border border-dashed rounded-xl">No sales yet.</div>
+                        {completedHarvests.length === 0 && (
+                            <div className="text-center py-8 text-xs text-slate-400 border border-dashed rounded-xl">No completed harvests yet.</div>
                         )}
                         <div className="space-y-2 opacity-70">
-                            {dispatchedHarvests.map(harvest => (
+                            {completedHarvests.map(harvest => (
                             <HarvestCard 
                                 key={harvest.id} 
                                 harvest={harvest} 
@@ -520,7 +601,7 @@ export function FarmDashboard() {
                                 handleDeleteHarvest={handleDeleteHarvest}
                                 actions={
                                 <Button disabled size="sm" variant="outline" className="w-full h-7 text-[10px] font-bold text-indigo-600 border-indigo-200 bg-indigo-50">
-                                    Settled
+                                    Completed
                                 </Button>
                                 } 
                             />
@@ -546,7 +627,7 @@ export function FarmDashboard() {
               setPendingDiscountReason(discountReason || '');
               setShowGCashQr(true);
             } else {
-              updateStatus(pendingPaymentHarvest, 'Dispatched', 'Paid', method, discountCentavos, discountType, discountReason);
+              updateStatus(pendingPaymentHarvest, 'Completed', 'Paid', method, discountCentavos, discountType, discountReason);
               setPendingPaymentHarvest(null);
             }
           }}

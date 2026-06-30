@@ -17,6 +17,7 @@ import { useWaterDeliveries } from '@/hooks/use-water';
 import { useToast } from '@/hooks/use-toast';
 import { GCashQrModal } from '@/components/common/gcash-qr-modal';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
+import { ServicePaymentModal } from '@/components/common/service-payment-modal';
 import { 
   Droplet, 
   Plus, 
@@ -78,6 +79,7 @@ const OrderCard = React.memo(({ order, actions, isOwner, onDelete }: { order: an
         >
           <Navigation className="h-3 w-3" /> Open in Google Maps
         </button>
+        {order.driver && <p className="text-[10px] text-slate-500 mb-2 font-medium">Driver: {order.driver}</p>}
 
         {order.status === 'Delivered' && (
           <div className="space-y-1 mb-3">
@@ -123,7 +125,12 @@ export function HydroDashboard() {
   const isOwner = currentTenant?.ownerUid === user?.uid || (currentTenant as any)?.role === 'owner';
 
   // Deliveries State
-  const { pendingOrders, outForDeliveryOrders, deliveredOrders, loading, error: waterError } = useWaterDeliveries();
+  const { orders, emptyReceivedOrders, washingOrders, refilledOrders, outForDeliveryOrders, completedOrders, loading, error: waterError } = useWaterDeliveries();
+
+  const loanedRound = React.useMemo(() => orders ? orders.reduce((sum, o) => sum + Math.max(0, o.roundOrdered - o.roundReturned), 0) : 0, [orders]);
+  const loanedSlim = React.useMemo(() => orders ? orders.reduce((sum, o) => sum + Math.max(0, o.slimOrdered - o.slimReturned), 0) : 0, [orders]);
+
+  const [driverAssignments, setDriverAssignments] = useState<Record<string, string>>({});
 
   React.useEffect(() => {
     if (waterError) {
@@ -135,6 +142,7 @@ export function HydroDashboard() {
   // Create Delivery Form
   const [showAddForm, setShowAddForm] = useState(false);
   const [customerName, setCustomerName] = useState('');
+  const [orderType, setOrderType] = useState<'Walk-in' | 'Delivery'>('Delivery');
   const [address, setAddress] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [roundQty, setRoundQty] = useState<number | ''>('');
@@ -143,10 +151,10 @@ export function HydroDashboard() {
 
   // Settlement Form (when delivering)
   const [settleOrderId, setSettleOrderId] = useState<string | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedOrderForStatus, setSelectedOrderForStatus] = useState<any>(null);
   const [roundReturned, setRoundReturned] = useState<number | ''>('');
   const [slimReturned, setSlimReturned] = useState<number | ''>('');
-
-  const [showGCashQr, setShowGCashQr] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
   const [completedSale, setCompletedSale] = useState<{
     items: any[];
@@ -162,7 +170,11 @@ export function HydroDashboard() {
   const finalPrice = typeof priceOverride === 'number' ? priceOverride : suggestedPrice;
 
   const handleAddDelivery = async () => {
-    if (!currentTenant || !db || !customerName || !address) return;
+    if (!currentTenant || !db || !customerName) return;
+    if (orderType === 'Delivery' && !address) {
+      toast({ title: 'Error', description: 'Address is required for deliveries.', variant: 'destructive' });
+      return;
+    }
     if (roundCount === 0 && slimCount === 0) {
       toast({ title: 'Error', description: 'Please enter at least 1 round or slim gallon.', variant: 'destructive' });
       return;
@@ -178,14 +190,15 @@ export function HydroDashboard() {
       await setDoc(orderRef, {
         tenantId: currentTenant.id,
         customerName,
-        address,
+        orderType,
+        address: orderType === 'Walk-in' ? 'Walk-in Customer' : address,
         customerPhone: customerPhone || null,
         driver: '',
         roundOrdered: roundCount,
         slimOrdered: slimCount,
         roundReturned: 0,
         slimReturned: 0,
-        status: 'Pending',
+        status: 'Empty Received',
         amountDue: Math.round(finalPrice * 100), // convert to cents safely
         paymentStatus: 'Unpaid',
         createdAt: serverTimestamp(),
@@ -216,11 +229,6 @@ export function HydroDashboard() {
     }
   };
 
-  const openMaps = (address: string) => {
-    const encoded = encodeURIComponent(address);
-    window.open(`https://www.google.com/maps/dir/?api=1&destination=${encoded}`, '_blank');
-  };
-
   const handleDeleteOrder = async (orderId: string) => {
     if (!currentTenant || !user) return;
     // Phase 2: Require Manager PIN for Deletions
@@ -236,25 +244,31 @@ export function HydroDashboard() {
     }
   };
 
-  const handleSettleAndDeliver = async (paymentMethod: string = 'cash') => {
+  const handleSettleAndDeliver = async (paymentMethod: string, discountCentavos: number, discountType: string, discountReason: string) => {
     if (!settleOrderId || !currentTenant || !db) return;
     setIsProcessing(true);
     try {
-      const orderToSettle = outForDeliveryOrders.find(o => o.id === settleOrderId);
+      const ordersList = [...emptyReceivedOrders, ...washingOrders, ...refilledOrders, ...outForDeliveryOrders];
+      const orderToSettle = ordersList.find(o => o.id === settleOrderId);
       if (orderToSettle) {
+        const finalAmount = orderToSettle.amountDue - discountCentavos;
         await completeServiceOrder(
           currentTenant.id, 
           'water_deliveries', 
           settleOrderId, 
-          'Delivered', 
-          orderToSettle.amountDue, 
+          'Completed', 
+          finalAmount, 
           `Water Delivery: ${orderToSettle.customerName}`,
           undefined,
           {
             roundReturned: typeof roundReturned === 'number' ? roundReturned : 0,
             slimReturned: typeof slimReturned === 'number' ? slimReturned : 0,
           },
-          paymentMethod
+          paymentMethod,
+          undefined,
+          discountCentavos,
+          discountType,
+          discountReason
         );
         
         setCompletedSale({
@@ -262,13 +276,14 @@ export function HydroDashboard() {
             ...(orderToSettle.roundOrdered > 0 ? [{ name: 'Round Gallon', quantity: orderToSettle.roundOrdered, price: PRICES.round * 100 }] : []),
             ...(orderToSettle.slimOrdered > 0 ? [{ name: 'Slim Gallon', quantity: orderToSettle.slimOrdered, price: PRICES.slim * 100 }] : []),
           ],
-          total: orderToSettle.amountDue,
+          total: finalAmount,
           paymentMethod,
           saleId: settleOrderId
         });
 
-        toast({ title: 'Delivery Updated', description: `Order moved to Delivered.` });
+        toast({ title: 'Delivered', description: `Delivery to ${orderToSettle.customerName} completed and paid!` });
         setSettleOrderId(null);
+        setSelectedOrderForStatus(null);
         setRoundReturned('');
         setSlimReturned('');
         setShowReceipt(true);
@@ -280,11 +295,30 @@ export function HydroDashboard() {
     }
   };
 
-
-
   return (
-    <div className="flex-1 flex flex-col bg-slate-50 min-h-screen">
-      <main className="p-4 space-y-4 pb-24">
+    <div className="flex-1 flex flex-col min-h-0 bg-slate-50 relative">
+      
+      <main className="flex-1 overflow-auto p-4 bg-slate-50 relative">
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <Card className="border-amber-200 bg-amber-50">
+            <CardContent className="p-3 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Loaned Round</p>
+                <h3 className="text-xl font-black text-amber-700">{loanedRound} Jugs</h3>
+              </div>
+              <Package className="h-6 w-6 text-amber-400 opacity-50" />
+            </CardContent>
+          </Card>
+          <Card className="border-amber-200 bg-amber-50">
+            <CardContent className="p-3 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Loaned Slim</p>
+                <h3 className="text-xl font-black text-amber-700">{loanedSlim} Jugs</h3>
+              </div>
+              <Package className="h-6 w-6 text-amber-400 opacity-50" />
+            </CardContent>
+          </Card>
+        </div>
         
         <section className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
           <div className="flex items-center gap-3">
@@ -310,14 +344,36 @@ export function HydroDashboard() {
               <CardTitle className="text-sm font-bold flex items-center gap-2"><Droplet className="h-4 w-4" /> New Delivery</CardTitle>
             </CardHeader>
             <CardContent className="p-4 space-y-3 pt-0">
+              <div className="flex gap-2 mb-2">
+                <Button 
+                  type="button"
+                  variant={orderType === 'Delivery' ? 'default' : 'outline'} 
+                  className="flex-1 h-8 text-xs font-bold"
+                  onClick={() => setOrderType('Delivery')}
+                  style={orderType === 'Delivery' ? { backgroundColor: theme.primary, color: 'white' } : {}}
+                >
+                  <Truck className="h-3 w-3 mr-1" /> Delivery
+                </Button>
+                <Button 
+                  type="button"
+                  variant={orderType === 'Walk-in' ? 'default' : 'outline'} 
+                  className="flex-1 h-8 text-xs font-bold"
+                  onClick={() => setOrderType('Walk-in')}
+                  style={orderType === 'Walk-in' ? { backgroundColor: theme.primary, color: 'white' } : {}}
+                >
+                  <User className="h-3 w-3 mr-1" /> Walk-in
+                </Button>
+              </div>
               <div className="space-y-1">
                 <Label htmlFor="customer-name" className="text-xs">Customer Name</Label>
                 <Input id="customer-name" name="customerName" placeholder="e.g. Maria Santos" value={customerName} onChange={e => setCustomerName(e.target.value)} />
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="hydro-address" className="text-xs">Address</Label>
-                <Input id="hydro-address" name="address" placeholder="e.g. Blk 4 Lot 12, Phase 2" value={address} onChange={e => setAddress(e.target.value)} />
-              </div>
+              {orderType === 'Delivery' && (
+                <div className="space-y-1">
+                  <Label htmlFor="hydro-address" className="text-xs">Address</Label>
+                  <Input id="hydro-address" name="address" placeholder="e.g. Blk 4 Lot 12, Phase 2" value={address} onChange={e => setAddress(e.target.value)} />
+                </div>
+              )}
               <div className="flex gap-2">
                 <div className="flex-1 space-y-1">
                   <Label htmlFor="round-qty" className="text-xs">Round Gallons</Label>
@@ -339,9 +395,9 @@ export function HydroDashboard() {
                 className="w-full h-8 text-xs font-bold text-white" 
                 style={{ backgroundColor: theme.primary }}
                 onClick={handleAddDelivery}
-                disabled={isProcessing || !customerName || !address || (roundCount === 0 && slimCount === 0)}
+                disabled={isProcessing || !customerName || (orderType === 'Delivery' && !address) || (roundCount === 0 && slimCount === 0)}
               >
-                Log Delivery
+                Log Order
               </Button>
             </CardContent>
           </Card>
@@ -366,13 +422,12 @@ export function HydroDashboard() {
                     <Input id="slim-returned" name="slimReturned" type="number" placeholder="0" value={slimReturned} onChange={e => setSlimReturned(parseInt(e.target.value) || '')} />
                   </div>
                 </div>
-                <div className="flex gap-2 pt-2">
-                  <Button variant="outline" className="flex-1" onClick={() => setSettleOrderId(null)}>Cancel</Button>
-                  <Button className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-bold" onClick={() => handleSettleAndDeliver('cash')} disabled={isProcessing}>
-                    Paid via Cash
+                <div className="flex gap-2 w-full mt-4">
+                  <Button variant="outline" className="flex-1 font-bold" onClick={() => { setSettleOrderId(null); setSelectedOrderForStatus(null); }}>
+                    Cancel
                   </Button>
-                  <Button className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold" onClick={() => setShowGCashQr(true)} disabled={isProcessing}>
-                    Paid via GCash
+                  <Button className="flex-1 font-bold text-white shadow-md border-none" style={{ backgroundColor: theme.primary }} onClick={() => setShowPaymentModal(true)}>
+                    Proceed to Pay
                   </Button>
                 </div>
               </CardContent>
@@ -385,19 +440,73 @@ export function HydroDashboard() {
         ) : (
           <div className="flex flex-col md:flex-row gap-4 overflow-x-auto pb-4">
             
-            {/* Pending Column */}
+            {/* Empty Received Column */}
             <div className="flex-1 min-w-[300px]">
               <div className="flex items-center gap-2 mb-3 px-1">
                 <Package className="h-4 w-4 text-amber-500" />
-                <h4 className="font-bold text-sm text-slate-700">Pending Request</h4>
-                <Badge variant="secondary" className="bg-white ml-auto">{pendingOrders.length}</Badge>
+                <h4 className="font-bold text-sm text-slate-700">Empty Received</h4>
+                <Badge variant="secondary" className="bg-white ml-auto">{emptyReceivedOrders.length}</Badge>
               </div>
               <div className="space-y-2">
-                {pendingOrders.map(order => (
+                {emptyReceivedOrders.map(order => (
                   <OrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-slate-800 text-white hover:bg-slate-700" onClick={() => updateStatus(order.id!, 'Out for Delivery')}>
-                      <Truck className="h-3 w-3 mr-1" /> Dispatch
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-cyan-500 hover:bg-cyan-600 text-white" onClick={() => updateStatus(order.id!, 'Washing')}>
+                      <Droplet className="h-3 w-3 mr-1" /> Start Washing
                     </Button>
+                  } />
+                ))}
+              </div>
+            </div>
+
+            {/* Washing Column */}
+            <div className="flex-1 min-w-[300px]">
+              <div className="flex items-center gap-2 mb-3 px-1">
+                <Droplet className="h-4 w-4 text-cyan-500" />
+                <h4 className="font-bold text-sm text-slate-700">Washing</h4>
+                <Badge variant="secondary" className="bg-white ml-auto">{washingOrders.length}</Badge>
+              </div>
+              <div className="space-y-2">
+                {washingOrders.map(order => (
+                  <OrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} actions={
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-blue-500 hover:bg-blue-600 text-white" onClick={() => updateStatus(order.id!, 'Refilled')}>
+                      <Plus className="h-3 w-3 mr-1" /> Finish Refill
+                    </Button>
+                  } />
+                ))}
+              </div>
+            </div>
+
+            {/* Refilled Column */}
+            <div className="flex-1 min-w-[300px]">
+              <div className="flex items-center gap-2 mb-3 px-1">
+                <CheckCircle2 className="h-4 w-4 text-blue-500" />
+                <h4 className="font-bold text-sm text-slate-700">Refilled & Ready</h4>
+                <Badge variant="secondary" className="bg-white ml-auto">{refilledOrders.length}</Badge>
+              </div>
+              <div className="space-y-2">
+                {refilledOrders.map(order => (
+                  <OrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} actions={
+                    order.orderType === 'Walk-in' ? (
+                      <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white" onClick={() => setSettleOrderId(order.id!)}>
+                        <CircleDollarSign className="h-3 w-3 mr-1" /> Settle & Complete
+                      </Button>
+                    ) : (
+                      <div className="w-full flex gap-1">
+                        <Input 
+                          placeholder="Driver / Tricycle" 
+                          className="h-7 text-[10px] border-slate-200"
+                          value={driverAssignments[order.id as string] || ''}
+                          onChange={e => setDriverAssignments(prev => ({...prev, [order.id as string]: e.target.value}))}
+                        />
+                        <Button 
+                          size="sm" 
+                          className="h-7 text-[10px] bg-slate-800 text-white hover:bg-slate-700" 
+                          onClick={() => updateStatus(order.id!, 'Out for Delivery', { driver: driverAssignments[order.id as string] || 'Unknown' })}
+                        >
+                          <Truck className="h-3 w-3 mr-1" /> Dispatch
+                        </Button>
+                      </div>
+                    )
                   } />
                 ))}
               </div>
@@ -413,7 +522,7 @@ export function HydroDashboard() {
               <div className="space-y-2">
                 {outForDeliveryOrders.map(order => (
                   <OrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white" onClick={() => setSettleOrderId(order.id!)}>
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white" onClick={() => { setSettleOrderId(order.id!); setSelectedOrderForStatus(order); }}>
                       <CircleDollarSign className="h-3 w-3 mr-1" /> Settle & Complete
                     </Button>
                   } />
@@ -421,15 +530,15 @@ export function HydroDashboard() {
               </div>
             </div>
 
-            {/* Delivered Column */}
+            {/* Completed Column */}
             <div className="flex-1 min-w-[300px]">
               <div className="flex items-center gap-2 mb-3 px-1">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                <h4 className="font-bold text-sm text-slate-700">Delivered Today</h4>
-                <Badge variant="secondary" className="bg-white ml-auto">{deliveredOrders.length}</Badge>
+                <h4 className="font-bold text-sm text-slate-700">Completed Today</h4>
+                <Badge variant="secondary" className="bg-white ml-auto">{completedOrders.length}</Badge>
               </div>
               <div className="space-y-2 opacity-75">
-                {deliveredOrders.map(order => (
+                {completedOrders.map(order => (
                   <OrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} actions={
                     <Button disabled size="sm" variant="outline" className="w-full h-7 text-[10px] font-bold text-emerald-600 border-emerald-200 bg-emerald-50">
                       Settled
@@ -443,18 +552,14 @@ export function HydroDashboard() {
 
       </main>
 
-      {/* Hardware Tools */}
-      <GCashQrModal
-        open={showGCashQr}
-        onClose={() => setShowGCashQr(false)}
-        totalAmount={settleOrderId ? (outForDeliveryOrders.find(o => o.id === settleOrderId)?.amountDue || 0) : 0}
-        tenantName={currentTenant?.name || "Water Station"}
-        paymentType="gcash"
-        onPaymentVerified={async (paymentMethod, gcashRef) => {
-          setShowGCashQr(false);
-          await handleSettleAndDeliver(paymentMethod);
+      <ServicePaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        amountDue={selectedOrderForStatus?.amountDue || 0}
+        onConfirm={(method, discountCentavos, discountType, discountReason) => {
+          setShowPaymentModal(false);
+          handleSettleAndDeliver(method, discountCentavos || 0, discountType || 'none', discountReason || '');
         }}
-        theme={theme}
       />
       
       <ThermalReceiptPreview

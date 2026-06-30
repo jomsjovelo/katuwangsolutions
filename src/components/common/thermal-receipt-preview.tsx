@@ -10,10 +10,11 @@ import {
   AlertCircle,
   FileText,
   Loader2,
-  Share2,
+  Image,
   Download
 } from "lucide-react";
 import { EscPosBluetoothDriver } from '@/lib/hardware/print-driver';
+import { toJpeg } from 'html-to-image';
 
 interface ReceiptItem {
   productId?: string;
@@ -103,23 +104,23 @@ export function ThermalReceiptPreview({
   };
 
   // Uses browser native print dialog — user can Save as PDF/Image from there
-  const handleDownloadImage = () => {
-    window.print();
-  };
-
-  const handleShareReceipt = async () => {
-    // Use Web Share API with plain text fallback
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `Receipt from ${storeName}`,
-          text: `Resibo mula sa ${storeName}\nKabuuan: ₱${totalAmountPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}\nMaraming Salamat Po!`,
-        });
-      } catch (err) {
-        console.error('Failed to share receipt', err);
-      }
-    } else {
-      alert("I-print ang resibo at i-save bilang PDF para ma-share.");
+  const handleDownloadImage = async () => {
+    const receiptElement = document.getElementById('katuwang-print-area');
+    if (!receiptElement) return;
+    
+    try {
+      const dataUrl = await toJpeg(receiptElement, { 
+        quality: 0.95, 
+        backgroundColor: '#ffffff',
+        skipFonts: true 
+      });
+      const link = document.createElement('a');
+      link.download = `Receipt_${transactionId || Date.now()}.jpg`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Failed to generate JPG', err);
+      alert('Failed to save receipt as JPG.');
     }
   };
 
@@ -300,7 +301,7 @@ export function ThermalReceiptPreview({
               Print (Bluetooth)
             </Button>
 
-            {/* Local standard printer print trigger */}
+            {/* Local standard printer print trigger (Save as PDF / Print) */}
             <Button 
               onClick={handleSystemPrint}
               className="h-11 text-white font-black rounded-xl flex items-center justify-center gap-1.5 text-xs border-none cursor-pointer"
@@ -310,25 +311,16 @@ export function ThermalReceiptPreview({
               }}
             >
               <FileText className="h-4 w-4" />
-              System Print / PDF
+              Save as PDF
             </Button>
             
-            {/* Image Download - uses native print dialog */}
+            {/* Image Download - Uses html-to-image to generate JPG */}
             <Button 
               onClick={handleDownloadImage}
               className="h-11 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 font-black rounded-xl flex items-center justify-center gap-1.5 text-xs cursor-pointer"
             >
-              <Download className="h-4 w-4" />
-              Save as PDF
-            </Button>
-
-            {/* Native Share (Messenger/Viber) */}
-            <Button 
-              onClick={handleShareReceipt}
-              className="h-11 text-blue-600 bg-blue-50 hover:bg-blue-100 font-black rounded-xl flex items-center justify-center gap-1.5 text-xs cursor-pointer"
-            >
-              <Share2 className="h-4 w-4" />
-              Share Receipt
+              <Image className="h-4 w-4" />
+              Save as JPG
             </Button>
             
             {/* Void Sale (Optional) */}

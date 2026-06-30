@@ -44,7 +44,38 @@ const SERVICE_PRICES: Record<string, number> = {
   'Spa Package': 1500,
 };
 
-const AppointmentCard = React.memo(({ appointment, actions, isOwner, onDelete }: { appointment: any, actions: React.ReactNode, isOwner: boolean, onDelete: (id: string) => void }) => (
+const AppointmentCard = ({ appointment, actions, isOwner, onDelete }: { appointment: any, actions: React.ReactNode, isOwner: boolean, onDelete: (id: string) => void }) => {
+  const [timeLeft, setTimeLeft] = useState<string | null>(null);
+  const [isOverdue, setIsOverdue] = useState(false);
+
+  React.useEffect(() => {
+    if (appointment.status === 'In Session' && appointment.sessionEndTime) {
+      const endTime = appointment.sessionEndTime.toDate ? appointment.sessionEndTime.toDate().getTime() : new Date(appointment.sessionEndTime).getTime();
+      
+      const updateTimer = () => {
+        const now = Date.now();
+        const diff = endTime - now;
+        if (diff <= 0) {
+          setTimeLeft('Time is up!');
+          setIsOverdue(true);
+        } else {
+          setIsOverdue(false);
+          const mins = Math.floor(diff / 60000);
+          const secs = Math.floor((diff % 60000) / 1000);
+          setTimeLeft(`${mins}:${secs.toString().padStart(2, '0')} left`);
+        }
+      };
+      
+      updateTimer();
+      const int = setInterval(updateTimer, 1000);
+      return () => clearInterval(int);
+    } else {
+      setTimeLeft(null);
+      setIsOverdue(false);
+    }
+  }, [appointment.status, appointment.sessionEndTime]);
+
+  return (
   <Card className="shadow-sm border-slate-200 mb-3 hover:shadow-md transition-shadow">
     <CardContent className="p-3">
       <div className="flex justify-between items-start mb-3">
@@ -54,7 +85,7 @@ const AppointmentCard = React.memo(({ appointment, actions, isOwner, onDelete }:
               <UserCircle2 className="h-4 w-4 text-purple-400" />
               {appointment.clientName}
             </h4>
-          <div className="flex items-center gap-2 mt-1.5">
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             <Badge variant="secondary" className="text-[10px] bg-purple-50 text-purple-600 border-purple-100">
               {appointment.serviceType}
             </Badge>
@@ -64,6 +95,11 @@ const AppointmentCard = React.memo(({ appointment, actions, isOwner, onDelete }:
             {appointment.roomNumber && (
               <Badge variant="outline" className="text-[9px] border-slate-200 text-slate-600 bg-slate-50">
                 {appointment.roomNumber}
+              </Badge>
+            )}
+            {timeLeft && (
+              <Badge variant="outline" className={`text-[9px] ${isOverdue ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>
+                <Clock className="h-3 w-3 mr-1" /> {timeLeft}
               </Badge>
             )}
           </div>
@@ -97,8 +133,8 @@ const AppointmentCard = React.memo(({ appointment, actions, isOwner, onDelete }:
       </div>
     </CardContent>
   </Card>
-));
-AppointmentCard.displayName = 'AppointmentCard';
+  );
+};
 
 export function WellnessDashboard() {
   const { currentTenant } = useTenant();
@@ -272,6 +308,10 @@ export function WellnessDashboard() {
           const { occupyRoom } = await import('@/firebase/firestore/room-actions');
           await occupyRoom(currentTenant.id, roomId, appointment.id);
           updates.roomId = roomId;
+
+          const durationMins = SERVICE_PRICES[appointment.serviceType as string] ? (appointment.serviceType === 'Spa Package' ? 120 : (appointment.serviceType === 'Facial' ? 45 : 60)) : 60;
+          updates.sessionStartTime = new Date();
+          updates.sessionEndTime = new Date(Date.now() + durationMins * 60000);
         } else if (status === 'Done' || status === 'Resting') {
           if (appointment.roomId) {
             const { releaseRoom } = await import('@/firebase/firestore/room-actions');

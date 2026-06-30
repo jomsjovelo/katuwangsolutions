@@ -161,6 +161,7 @@ export async function recordPayout(
   employeeName: string,
   daysWorked: number,
   grossPayCentavos: number,
+  commissionsCentavos: number = 0,
   valeDeductedCentavos: number,
   govtDeductionsCentavos: number,
   netPayCentavos: number,
@@ -169,7 +170,7 @@ export async function recordPayout(
   shiftId?: string
 ) {
   // Server-side recompute to prevent client-side manipulation
-  const serverNetPay = grossPayCentavos - valeDeductedCentavos - govtDeductionsCentavos;
+  const serverNetPay = grossPayCentavos + commissionsCentavos - valeDeductedCentavos - govtDeductionsCentavos;
   if (serverNetPay !== netPayCentavos) {
     console.warn(`[Payroll Audit] netPay mismatch: client sent ${netPayCentavos}, server computed ${serverNetPay}. Using server value.`);
   }
@@ -200,6 +201,7 @@ export async function recordPayout(
       employeeName,
       daysWorked,
       grossPay: grossPayCentavos,
+      commissions: commissionsCentavos,
       valeDeducted: valeDeductedCentavos,
       govtDeducted: govtDeductionsCentavos,
       netPay: finalNetPay, // Always use server-computed value

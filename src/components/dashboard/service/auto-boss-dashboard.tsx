@@ -85,6 +85,11 @@ const OrderCard = React.memo(({ order, actions, isOwner, onDelete }: { order: an
                 <Trash2 className="h-3 w-3" />
               </Button>
             )}
+            {order.bayNumber && (
+              <Badge variant="outline" className="text-[9px] border-slate-200 text-slate-600 bg-slate-50 ml-2">
+                Bay {order.bayNumber}
+              </Badge>
+            )}
           </div>
           <p className="text-xs text-slate-500 font-medium">{order.vehicleType} • {order.servicePackage}</p>
           {order.mechanicName && <p className="text-[10px] text-slate-400 mt-0.5">Assigned: {order.mechanicName}</p>}
@@ -109,7 +114,12 @@ const OrderCard = React.memo(({ order, actions, isOwner, onDelete }: { order: an
               {order.appointmentDate.toDate ? format(order.appointmentDate.toDate(), 'MMM d, h:mm a') : format(new Date(order.appointmentDate), 'MMM d, h:mm a')}
             </p>
           )}
-          {order.therapistCommission && (
+          {order.washerCommission && (
+            <p className="text-[9px] font-bold text-emerald-600 mt-0.5">
+              +₱{(order.washerCommission / 100).toLocaleString()} Comm
+            </p>
+          )}
+          {order.therapistCommission && !order.washerCommission && (
             <p className="text-[9px] font-bold text-emerald-600 mt-0.5">
               +₱{(order.therapistCommission / 100).toLocaleString()} Comm
             </p>
@@ -143,6 +153,7 @@ export function AutoBossDashboard() {
 
   // Carwash State
   const { scheduledOrders, queuedOrders, washingOrders, dryingOrders, readyOrders, loading, error: carwashError } = useCarwashOrders();
+  const [bayAssignments, setBayAssignments] = useState<Record<string, string>>({});
 
   React.useEffect(() => {
     if (carwashError) {
@@ -160,6 +171,7 @@ export function AutoBossDashboard() {
   const [vehicleType, setVehicleType] = useState('Sedan');
   const [servicePackage, setServicePackage] = useState('Basic Wash');
   const [mechanicName, setMechanicName] = useState('');
+  const [washerCommission, setWasherCommission] = useState<number | ''>('');
   const [partsUsed, setPartsUsed] = useState<{productId: string, quantity: number, name: string, price: number}[]>([]);
   const [selectedPartId, setSelectedPartId] = useState('');
   const [selectedPartQty, setSelectedPartQty] = useState('1');
@@ -251,6 +263,7 @@ export function AutoBossDashboard() {
         paymentStatus: 'Unpaid',
         inspectionNotes,
         mechanicName: mechanicName || null,
+        washerCommission: typeof washerCommission === 'number' ? Math.round(washerCommission * 100) : null,
         partsUsed,
         customerPhone: customerPhone || null,
         appointmentDate: aptTimestamp,
@@ -262,6 +275,7 @@ export function AutoBossDashboard() {
       setPriceOverride('');
       setInspectionNotes([]);
       setMechanicName('');
+      setWasherCommission('');
       setPartsUsed([]);
       setCustomerPhone('');
       setIsRedeeming(false);
@@ -280,6 +294,7 @@ export function AutoBossDashboard() {
   const updateStatus = async (
     order: any, 
     status: string, 
+    bayNumber?: string,
     paymentStatus?: string, 
     paymentMethod: string = 'cash', 
     discountCentavos: number = 0, 
@@ -289,9 +304,14 @@ export function AutoBossDashboard() {
     if (!currentTenant || !db) return;
     try {
       if (status === 'Completed' && paymentStatus === 'Paid') {
-        const commissionPercentage = currentTenant.mechanicCommissionRate ?? 0.30;
-        const laborAmount = order.amountDue - (order.partsUsed?.reduce((sum: number, p: any) => sum + (p.price * p.quantity), 0) || 0);
-        const commissionCentavos = Math.round(Math.max(0, laborAmount) * commissionPercentage);
+        let commissionCentavos = 0;
+        if (order.washerCommission) {
+          commissionCentavos = order.washerCommission;
+        } else {
+          const commissionPercentage = currentTenant.mechanicCommissionRate ?? 0.30;
+          const laborAmount = order.amountDue - (order.partsUsed?.reduce((sum: number, p: any) => sum + (p.price * p.quantity), 0) || 0);
+          commissionCentavos = Math.round(Math.max(0, laborAmount) * commissionPercentage);
+        }
 
         await completeServiceOrder(
           currentTenant.id, 
@@ -322,6 +342,7 @@ export function AutoBossDashboard() {
       } else {
         const orderRef = doc(db, 'tenants', currentTenant.id, 'carwash_orders', order.id);
         const updates: any = { status, updatedAt: serverTimestamp() };
+        if (bayNumber) updates.bayNumber = bayNumber;
         if (paymentStatus) updates.paymentStatus = paymentStatus;
         await updateDoc(orderRef, updates);
       }
@@ -446,6 +467,10 @@ export function AutoBossDashboard() {
                     <div className="flex-1 space-y-1">
                       <Label htmlFor="mechanic-name" className="text-xs">Mechanic / Staff Name</Label>
                       <Input id="mechanic-name" name="mechanicName" placeholder="e.g. Kuya J" value={mechanicName} onChange={e => setMechanicName(e.target.value)} className="h-9 bg-white" />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <Label htmlFor="washer-commission" className="text-xs">Commission (₱)</Label>
+                      <Input id="washer-commission" name="washerCommission" type="number" placeholder="0" value={washerCommission} onChange={e => setWasherCommission(parseFloat(e.target.value) || '')} className="h-9 bg-white" />
                     </div>
                   </div>
 
@@ -595,9 +620,27 @@ export function AutoBossDashboard() {
               <div className="space-y-2">
                 {queuedOrders.map(order => (
                   <OrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-slate-800 hover:bg-slate-700" onClick={() => updateStatus(order, 'Washing')}>
-                      <Droplets className="h-3 w-3 mr-1 text-cyan-400" /> Move to Wash Bay
-                    </Button>
+                    <div className="w-full flex gap-1">
+                      <select 
+                        className="border border-slate-200 text-[10px] rounded px-1 max-w-[80px]"
+                        value={bayAssignments[order.id as string] || ''}
+                        onChange={e => setBayAssignments(prev => ({...prev, [order.id as string]: e.target.value}))}
+                      >
+                        <option value="">Bay</option>
+                        <option value="1">Bay 1</option>
+                        <option value="2">Bay 2</option>
+                        <option value="3">Bay 3</option>
+                        <option value="4">Bay 4</option>
+                      </select>
+                      <Button 
+                        size="sm" 
+                        className="flex-1 h-7 text-[10px] bg-slate-800 hover:bg-slate-700 disabled:opacity-50" 
+                        disabled={!bayAssignments[order.id as string]}
+                        onClick={() => updateStatus(order, 'Washing', bayAssignments[order.id as string])}
+                      >
+                        <Droplets className="h-3 w-3 mr-1 text-cyan-400" /> Move to Wash Bay
+                      </Button>
+                    </div>
                   } />
                 ))}
               </div>
@@ -613,7 +656,7 @@ export function AutoBossDashboard() {
               <div className="space-y-2">
                 {washingOrders.map(order => (
                   <OrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-cyan-600 hover:bg-cyan-700 text-white" onClick={() => updateStatus(order, 'Drying')}>
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-cyan-600 hover:bg-cyan-700 text-white" onClick={() => updateStatus(order, 'Drying', order.bayNumber)}>
                       <Wind className="h-3 w-3 mr-1 text-sky-200" /> Move to Drying
                     </Button>
                   } />
@@ -631,7 +674,7 @@ export function AutoBossDashboard() {
               <div className="space-y-2">
                 {dryingOrders.map(order => (
                   <OrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} actions={
-                    <Button size="sm" className="w-full h-7 text-[10px] bg-indigo-500 hover:bg-indigo-600" onClick={() => updateStatus(order, 'Ready')}>
+                    <Button size="sm" className="w-full h-7 text-[10px] bg-indigo-500 hover:bg-indigo-600" onClick={() => updateStatus(order, 'Ready', order.bayNumber)}>
                       <CheckCircle2 className="h-3 w-3 mr-1" /> Mark Ready
                     </Button>
                   } />
@@ -668,7 +711,7 @@ export function AutoBossDashboard() {
             onClose={() => setSelectedOrderForPayment(null)}
             amountDue={selectedOrderForPayment.amountDue}
             onConfirm={(method, discountCentavos, discountType, discountReason) => {
-              updateStatus(selectedOrderForPayment, 'Completed', 'Paid', method, discountCentavos, discountType, discountReason);
+              updateStatus(selectedOrderForPayment, 'Completed', selectedOrderForPayment.bayNumber, 'Paid', method, discountCentavos, discountType, discountReason);
               setSelectedOrderForPayment(null);
             }}
           />

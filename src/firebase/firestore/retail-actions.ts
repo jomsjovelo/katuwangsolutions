@@ -128,7 +128,7 @@ export async function processCheckout(
       subtotalAmount: secureTotalAmount,
       discountAmount: discountCentavos,
       discountType: discountType || 'none',
-      discountReason,
+      discountReason: discountReason || '',
       totalAmount: finalAmount,
       paymentMethod,
       createdAt: serverTimestamp()
