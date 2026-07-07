@@ -1,174 +1,194 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
-import Image from 'next/image';
-import { Button } from '@/components/ui/button';
-import { ChevronRight, ChevronLeft, Hand } from 'lucide-react';
-
-import { appGroups, AppGroup } from '@/lib/app-data';
+import React, { useState } from 'react';
+import { ChevronRight } from 'lucide-react';
 import Link from 'next/link';
+import {
+  ShoppingCart, Leaf, Truck, HandCoins, Utensils
+} from 'lucide-react';
+import { RegisterSheet, useRegisterSheet } from '@/components/marketing/register-sheet';
+import Image from 'next/image';
 
-interface AppSuiteCarouselProps {
-  groups?: AppGroup[];
-}
+const FLAGSHIP_APPS = [
+  {
+    id: 'benta-snap',
+    name: 'Benta Snap',
+    icon: ShoppingCart,
+    tagline: 'Lightning-fast retail checkout para sa sari-sari store at tindahan.',
+    imageSrc: '/apps/benta-snap.png',
+    color: '#06B6D4',
+    badge: 'Pinaka-Popular',
+  },
+  {
+    id: 'fresh-tally',
+    name: 'Fresh Tally',
+    icon: Leaf,
+    tagline: 'Smart tracking ng prutas, gulay, at karne para sa palengke.',
+    imageSrc: '/apps/fresh-tally.png',
+    color: '#10B981',
+    badge: null,
+  },
+  {
+    id: 'fleet-sync',
+    name: 'Biyahe Sync',
+    icon: Truck,
+    tagline: 'Subaybayan ang bawat biyahe, gastos, at kita ng iyong trucking.',
+    imageSrc: '/apps/biyahe-sync.png',
+    color: '#3B82F6',
+    badge: 'Bagong Module',
+  },
+  {
+    id: '5-6-tracker',
+    name: '5-6 Tracker',
+    icon: HandCoins,
+    tagline: 'I-digitize ang listahan ng utang at koleksyon. Walang nawawala.',
+    imageSrc: '/apps/5-6-tracker.png',
+    color: '#10B981',
+    badge: 'Bagong Module',
+  },
+  {
+    id: 'bite-snap',
+    name: 'Bite Snap',
+    icon: Utensils,
+    tagline: 'Mabilis na order at payment system para sa iyong kainan o restaurant.',
+    imageSrc: '/apps/bite-snap.png',
+    color: '#F97316',
+    badge: 'Bagong Module',
+  },
+];
 
-export function AppSuiteCarousel({ groups = appGroups }: AppSuiteCarouselProps) {
-  const [activeGroupId, setActiveGroupId] = useState(groups[0].id);
-  const scrollRef = useRef<HTMLDivElement>(null);
+export function AppSuiteCarousel() {
+  const { open, openSheet, closeSheet } = useRegisterSheet();
+  const [activeId, setActiveId] = useState(FLAGSHIP_APPS[0].id);
 
-  const activeGroup = groups.find((g) => g.id === activeGroupId) ?? groups[0];
-
-  const scroll = (direction: 'left' | 'right') => {
-    if (scrollRef.current) {
-      // Scroll by the container's visible width to page through faster and guarantee a snap
-      const containerWidth = scrollRef.current.clientWidth;
-      const scrollDistance = Math.max(containerWidth * 0.8, 300); // Scroll 80% of the screen width
-      
-      const scrollAmount = direction === 'left' ? -scrollDistance : scrollDistance;
-      scrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-    }
-  };
+  const activeApp = FLAGSHIP_APPS.find(a => a.id === activeId) ?? FLAGSHIP_APPS[0];
 
   return (
-    <section id="products" className="py-10 bg-slate-50 relative w-full max-w-[100vw] overflow-hidden">
-      {/* Section heading */}
-      <div className="px-5 mb-5">
-        <h2 className="text-xl font-black text-slate-900 tracking-tight">Katuwang App Suite</h2>
-        <p className="text-xs text-slate-500 font-semibold uppercase tracking-widest mt-0.5">19 Industry Specific Products</p>
-      </div>
-
-      {/* Group tab pills — horizontally scrollable */}
-      <div className="flex gap-2 px-5 overflow-x-auto no-scrollbar pb-1 mb-5">
-        {groups.map((group) => (
-          <button
-            key={group.id}
-            onClick={() => {
-              setActiveGroupId(group.id);
-              if (scrollRef.current) {
-                scrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
-              }
-            }}
-            className="flex-shrink-0 h-9 px-4 rounded-full text-xs font-bold tracking-wide uppercase transition-all active:scale-95"
-            style={
-              activeGroupId === group.id
-                ? { backgroundColor: group.accentColor, color: '#fff' }
-                : { backgroundColor: '#F1F5F9', color: '#64748B' }
-            }
-          >
-            {group.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Carousel Container with optional arrows on desktop */}
-      <div className="relative group">
-        
-        {/* Left Scroll Arrow (Desktop Only) - Always visible on desktop, moved inwards to prevent scrollbar overlap */}
-        <button 
-          onClick={() => scroll('left')}
-          className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-20 h-12 w-12 bg-white/95 backdrop-blur-md rounded-full shadow-xl border border-slate-200 items-center justify-center text-slate-700 hover:text-slate-900 hover:scale-110 transition-all"
-          aria-label="Scroll left"
-        >
-          <ChevronLeft className="h-6 w-6" />
-        </button>
-
-        {/* Card carousel — horizontal swipe with peek */}
-        <div 
-          ref={scrollRef}
-          className="flex gap-3 px-5 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-3"
-        >
-          {activeGroup.apps.map((app) => {
-            const Icon = app.icon;
-            return (
-              <div
-                key={app.name}
-                className="snap-start flex-shrink-0 flex flex-col h-full w-[85vw] sm:w-[50vw] md:w-[28vw] bg-white rounded-2xl overflow-hidden shadow-md border border-slate-100"
-              >
-                {/* Photo */}
-                <div className="relative aspect-video sm:aspect-[4/3] w-full flex-shrink-0 overflow-hidden bg-slate-100">
-                  <Image
-                    src={app.imageSrc}
-                    alt={app.name}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 640px) 85vw, (max-width: 768px) 50vw, 28vw"
-                  />
-                </div>
-
-                {/* Card body */}
-                <div className="p-4 flex-1 flex flex-col gap-2.5">
-                  {/* Icon + name */}
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className="h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: `${activeGroup.accentColor}18` }}
-                    >
-                      <Icon className="h-4.5 w-4.5" style={{ color: activeGroup.accentColor }} strokeWidth={2} />
-                    </div>
-                    <span className="text-sm font-black text-slate-900 leading-tight">{app.name}</span>
-                  </div>
-
-                  {/* Tagline */}
-                  <p className="text-xs text-slate-500 italic leading-snug">"{app.tagline}"</p>
-
-                  {/* CTA */}
-                  <div className="flex gap-2 mt-auto">
-                    <Link href={`/onboarding?app=${app.id}`} className="flex-1">
-                      <Button
-                        className="w-full h-11 rounded-xl font-bold text-[10px] sm:text-xs text-white active:scale-95 transition-transform"
-                        style={{ backgroundColor: activeGroup.accentColor }}
-                      >
-                        Buy Now
-                      </Button>
-                    </Link>
-                    <Link href={`/product/${app.id}`} className="flex-1">
-                      <Button
-                        variant="outline"
-                        className="w-full h-11 rounded-xl font-bold text-[10px] sm:text-xs text-slate-700 active:scale-95 transition-transform"
-                      >
-                        Learn More
-                        <ChevronRight className="h-3.5 w-3.5 ml-1" />
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-
-          {/* Trailing space to show peek of scroll end */}
-          <div className="flex-shrink-0 w-2" />
+    <>
+      <section id="products" className="py-12 bg-white w-full">
+        {/* Section header */}
+        <div className="px-5 mb-6">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-1">Featured Modules</p>
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">
+            Kahit anong negosyo,<br />
+            <span className="text-primary">may module para sa iyo.</span>
+          </h2>
+          <p className="text-xs text-slate-500 mt-1.5">19 modules available · ₱99/buwan bawat isa</p>
         </div>
 
-        {/* Right Scroll Arrow (Desktop Only) - Always visible on desktop, moved inwards */}
-        <button 
-          onClick={() => scroll('right')}
-          className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 z-20 h-12 w-12 bg-white/95 backdrop-blur-md rounded-full shadow-xl border border-slate-200 items-center justify-center text-slate-700 hover:text-slate-900 hover:scale-110 transition-all"
-          aria-label="Scroll right"
-        >
-          <ChevronRight className="h-6 w-6" />
-        </button>
-      </div>
+        {/* Module selector pills */}
+        <div className="flex gap-2 px-5 overflow-x-auto no-scrollbar pb-1 mb-6">
+          {FLAGSHIP_APPS.map((app) => (
+            <button
+              key={app.id}
+              onClick={() => setActiveId(app.id)}
+              className="flex-shrink-0 h-9 px-4 rounded-full text-xs font-bold tracking-wide uppercase transition-all active:scale-95"
+              style={
+                activeId === app.id
+                  ? { backgroundColor: app.color, color: '#fff' }
+                  : { backgroundColor: '#F1F5F9', color: '#64748B' }
+              }
+            >
+              {app.name}
+            </button>
+          ))}
+        </div>
 
-      {/* Swipe/Scroll Hint */}
-      <div className="flex items-center justify-center gap-1.5 mt-2 text-slate-400">
-        <Hand className="h-3 w-3 hidden sm:block md:hidden" />
-        <p className="text-[10px] font-bold uppercase tracking-widest text-center">
-          <span className="md:hidden">Swipe to explore apps</span>
-          <span className="hidden md:inline">Scroll to explore apps</span>
-        </p>
-      </div>
+        {/* Active module card — full width */}
+        <div className="mx-5 bg-white rounded-2xl overflow-hidden shadow-lg border border-slate-100">
+          {/* Image */}
+          <div className="relative w-full aspect-[16/9] overflow-hidden bg-slate-100">
+            <Image
+              src={activeApp.imageSrc}
+              alt={activeApp.name}
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 600px"
+            />
+            {/* Badges overlaid on image */}
+            <div className="absolute bottom-3 left-3 flex gap-1.5">
+              <div className="flex items-center gap-1 bg-slate-900/80 backdrop-blur-md rounded-full px-2.5 py-1">
+                <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[9px] font-bold text-emerald-300 uppercase tracking-wide">Works Offline</span>
+              </div>
+              <div className="flex items-center gap-1 bg-slate-900/80 backdrop-blur-md rounded-full px-2.5 py-1">
+                <div className="h-1.5 w-1.5 rounded-full bg-sky-400 animate-pulse" />
+                <span className="text-[9px] font-bold text-sky-300 uppercase tracking-wide">Auto Sync</span>
+              </div>
+            </div>
+            {activeApp.badge && (
+              <div
+                className="absolute top-3 right-3 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white"
+                style={{ backgroundColor: activeApp.color }}
+              >
+                {activeApp.badge}
+              </div>
+            )}
+          </div>
 
-      {/* Dot count indicator */}
-      <div className="flex items-center justify-center gap-1.5 mt-3 px-5">
-        {activeGroup.apps.map((_, i) => (
-          <div
-            key={i}
-            className="h-1.5 rounded-full transition-all"
-            style={{ width: i === 0 ? '16px' : '6px', backgroundColor: i === 0 ? activeGroup.accentColor : '#CBD5E1' }}
-          />
-        ))}
-      </div>
-    </section>
+          {/* Card body */}
+          <div className="p-4 space-y-3">
+            <div className="flex items-center gap-2.5">
+              <div
+                className="h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: `${activeApp.color}18` }}
+              >
+                <activeApp.icon className="h-5 w-5" style={{ color: activeApp.color }} strokeWidth={2} />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900 leading-tight">{activeApp.name}</h3>
+                <p className="text-xs text-slate-400 font-medium">₱99 / buwan</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-slate-600 leading-relaxed">"{activeApp.tagline}"</p>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={openSheet}
+                className="flex-1 h-11 rounded-xl font-bold text-xs text-white active:scale-95 transition-transform"
+                style={{ backgroundColor: activeApp.color }}
+              >
+                Register Now
+              </button>
+              <Link href={`/product/${activeApp.id}`} className="flex-1">
+                <button className="w-full h-11 rounded-xl font-bold text-xs text-slate-700 border border-slate-200 bg-slate-50 active:scale-95 transition-transform flex items-center justify-center gap-1 hover:bg-slate-100">
+                  Learn More
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Dot indicators */}
+        <div className="flex items-center justify-center gap-1.5 mt-5 px-5">
+          {FLAGSHIP_APPS.map((app) => (
+            <button
+              key={app.id}
+              onClick={() => setActiveId(app.id)}
+              className="h-1.5 rounded-full transition-all"
+              style={{
+                width: activeId === app.id ? '20px' : '6px',
+                backgroundColor: activeId === app.id ? activeApp.color : '#CBD5E1'
+              }}
+            />
+          ))}
+        </div>
+
+        {/* View All button */}
+        <div className="flex justify-center mt-6 px-5">
+          <Link
+            href="/onboarding"
+            className="flex items-center gap-2 rounded-xl border border-slate-300 text-slate-600 font-bold px-8 py-3 hover:bg-slate-50 active:scale-95 transition-all shadow-sm text-sm"
+          >
+            Tingnan ang Lahat ng 19 Modules
+            <ChevronRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </section>
+
+      <RegisterSheet open={open} onClose={closeSheet} />
+    </>
   );
 }

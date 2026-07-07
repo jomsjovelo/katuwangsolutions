@@ -92,7 +92,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (authLoading || isAdmin === null) return;
     if (!user) {
-      const isPublicPath = pathname === '/' || pathname === '/admin' || pathname.startsWith('/rsvp') || pathname.startsWith('/product') || pathname.startsWith('/terms') || pathname.startsWith('/onboarding');
+      const isPublicPath = pathname === '/' || pathname === '/admin' || pathname.startsWith('/rsvp') || pathname.startsWith('/product') || pathname.startsWith('/terms') || pathname.startsWith('/onboarding') || pathname.startsWith('/about') || pathname.startsWith('/faq') || pathname.startsWith('/modules') || pathname.startsWith('/privacy');
       if (!isPublicPath) router.push('/');
       return;
     }
@@ -205,8 +205,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId, db]);
 
-  // Helper to check if current route is public
-  const isPublicRoute = pathname === '/' || pathname === '/admin' || pathname.startsWith('/rsvp') || pathname.startsWith('/product') || pathname.startsWith('/terms') || pathname.startsWith('/onboarding');
+  const isPublicRoute = pathname === '/' || pathname === '/admin' || pathname.startsWith('/rsvp') || pathname.startsWith('/product') || pathname.startsWith('/terms') || pathname.startsWith('/onboarding') || pathname.startsWith('/about') || pathname.startsWith('/faq') || pathname.startsWith('/modules') || pathname.startsWith('/privacy');
   const isOnboarding = pathname.startsWith('/onboarding');
 
   // 1. Initial Loading/Hydration State
@@ -466,7 +465,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   // 4. Strict Routing Render Locks (Prevents FOUC)
   const isUnauthorized = 
-    (!user && pathname !== '/' && pathname !== '/admin' && !pathname.startsWith('/rsvp') && !pathname.startsWith('/product') && !pathname.startsWith('/onboarding') && !pathname.startsWith('/terms')) ||
+    (!user && pathname !== '/' && pathname !== '/admin' && !pathname.startsWith('/rsvp') && !pathname.startsWith('/product') && !pathname.startsWith('/onboarding') && !pathname.startsWith('/terms') && !pathname.startsWith('/about') && !pathname.startsWith('/faq') && !pathname.startsWith('/modules') && !pathname.startsWith('/privacy')) ||
     (user !== null && isAdmin === false && pathname === '/admin') ||
     (isAdmin === true && pathname !== '/admin' && pathname !== '/dashboard' && !pathname.startsWith('/module/'));
 
