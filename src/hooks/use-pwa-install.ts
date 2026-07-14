@@ -44,12 +44,13 @@ export function usePWAInstall() {
       setIsInstalled(true);
     }
 
-    // Detect iOS Safari
+    // Detect any iOS device (iPhone, iPad, iPod)
+    // We detect by device OS, not by browser brand, because on iOS all browsers
+    // (Safari, Chrome, Firefox, Edge) use WebKit and none support `beforeinstallprompt`.
     const userAgent = window.navigator.userAgent.toLowerCase();
     const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
-    const isSafari = userAgent.includes("safari") && !userAgent.includes("chrome");
     
-    if (isIosDevice && isSafari) {
+    if (isIosDevice) {
       setIsIOS(true);
     }
 

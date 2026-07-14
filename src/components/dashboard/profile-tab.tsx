@@ -1095,15 +1095,14 @@ export function ProfileTab() {
                 <p className="text-[10px] text-emerald-600 font-medium leading-tight">Hanapin ang Katuwang icon sa home screen ng iyong phone.</p>
               </div>
             ) : isIOS ? (
-              <div className="bg-slate-50 rounded-xl p-4 flex flex-col items-center justify-center text-center gap-3 border border-slate-100">
-                <p className="text-[11px] font-bold text-slate-600 flex items-center justify-center gap-1.5 flex-wrap">
-                  Para ma-install sa iPhone, i-tap ang <Share className="h-4 w-4 text-blue-500 inline" /> sa ibaba at piliin ang:
-                </p>
-                <div className="bg-white border border-slate-200 rounded-lg px-4 py-2 flex items-center gap-2 shadow-sm">
-                  <PlusSquare className="h-4 w-4 text-slate-700" />
-                  <span className="text-xs font-bold text-slate-700">Add to Home Screen</span>
-                </div>
-              </div>
+              <Button
+                onClick={() => setShowInstallGuide(true)}
+                className="w-full h-12 rounded-xl text-white font-bold text-sm shadow-md active:scale-95 transition-all gap-2"
+                style={{ backgroundColor: theme.primary }}
+              >
+                <Share className="h-4 w-4" />
+                I-install sa Home Screen
+              </Button>
             ) : (
               <Button 
                 onClick={handleInstallClick}
@@ -1123,7 +1122,7 @@ export function ProfileTab() {
             <DialogHeader>
               <DialogTitle className="text-xl font-black text-slate-800">Paano I-install?</DialogTitle>
               <DialogDescription className="text-slate-500 font-medium">
-                Dahil ikaw ay gumagamit ng iPhone o nasa Test Mode, hindi gumagana ang 1-click install. Sundin ang steps sa ibaba:
+                Sundin ang mga simpleng steps sa ibaba para ma-add ang Katuwang sa home screen ng iyong phone.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">

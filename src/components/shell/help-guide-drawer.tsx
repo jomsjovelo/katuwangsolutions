@@ -33,7 +33,7 @@ export function HelpGuideDrawer({
 }: HelpGuideDrawerProps) {
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const [showInstallGuide, setShowInstallGuide] = useState(false);
-  const { deferredPrompt, isInstalled, triggerInstall } = usePWAInstall();
+  const { deferredPrompt, isInstalled, triggerInstall, isIOS } = usePWAInstall();
   const haptic = useHaptic();
   const { currentTenant } = useTenant();
 
@@ -257,7 +257,7 @@ export function HelpGuideDrawer({
                   className="w-full h-11 bg-white text-emerald-600 hover:bg-emerald-50 font-black tracking-widest uppercase text-xs rounded-xl shadow-sm active:scale-95 transition-transform"
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  I-INSTALL NGAYON
+                  {isIOS ? 'I-INSTALL SA IPHONE' : 'I-INSTALL NGAYON'}
                 </Button>
               </div>
             )}
@@ -351,7 +351,7 @@ export function HelpGuideDrawer({
           <DialogHeader>
             <DialogTitle className="text-xl font-black text-slate-800">Paano I-install?</DialogTitle>
             <DialogDescription className="text-slate-500 font-medium">
-              Dahil ikaw ay gumagamit ng iPhone o nasa Test Mode, hindi gumagana ang 1-click install. Sundin ang steps sa ibaba:
+              Sundin ang mga simpleng steps sa ibaba para ma-add ang Katuwang sa home screen ng iyong phone.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
