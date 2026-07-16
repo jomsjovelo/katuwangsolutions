@@ -11,50 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-const APP_GROUPS = [
-  {
-    category: 'Retail & Tindahan',
-    items: [
-      { id: 'benta-snap', name: 'Benta Snap', icon: ShoppingCart, desc: 'Lightning-fast retail checkout.' },
-      { id: 'fresh-tally', name: 'Fresh Tally', icon: Leaf, desc: 'Smart fresh produce inventory.' },
-      { id: 'build-stack', name: 'Build Stack', icon: Hammer, desc: 'Construction supply tracking.' },
-    ]
-  },
-  {
-    category: 'Pagkain & Inumin',
-    items: [
-      { id: 'bite-snap', name: 'Bite Snap', icon: Utensils, desc: 'Rapid order-to-kitchen flow.' },
-      { id: 'timpla-track', name: 'Timpla Track', icon: Coffee, desc: 'Cafe & milk tea operations.' },
-      { id: 'ganap-master', name: 'Ganap Master', icon: CalendarHeart, desc: 'Event & catering planning.' },
-    ]
-  },
-  {
-    category: 'Serbisyo',
-    items: [
-      { id: 'spin-snap', name: 'Spin Snap', icon: RotateCcw, desc: 'Automated laundry tracking.' },
-      { id: 'hydro-sync', name: 'Hydro Sync', icon: Droplets, desc: 'Water delivery logistics.' },
-      { id: 'auto-boss', name: 'Auto Boss', icon: Sparkles, desc: 'Auto shop management.' },
-      { id: 'wellness-pro', name: 'Wellness', icon: Sun, desc: 'Spa & clinic booking.' },
-      { id: 'trim-track', name: 'Trim Track', icon: Scissors, desc: 'Barber & salon queue.' },
-      { id: 'rep-sync', name: 'Rep Sync', icon: Dumbbell, desc: 'Gym membership & attendance.' },
-      { id: 'rental', name: 'Rental', icon: CalendarHeart, desc: 'Equipment & booking tracker.' },
-    ]
-  },
-  {
-    category: 'Pananatili ng Negosyo',
-    items: [
-      { id: 'sahod-flow', name: 'Sahod Flow', icon: Banknote, desc: 'Payroll automation.' },
-      { id: 'ledger-flow', name: 'Ledger Flow', icon: BookText, desc: 'Financial insights & P&L.' },
-      { id: 'biyahe-sync', name: 'Biyahe Sync', icon: Truck, desc: 'Trucking service dispatching & tracking.' },
-    ]
-  },
-  {
-    category: 'Pinansyal & Pagpapautang',
-    items: [
-      { id: '5-6-tracker', name: '5-6 Tracker', icon: BookText, desc: 'Micro-lending list manager.' },
-    ]
-  }
-];
+import { appGroups, activeModulesCount } from '@/lib/app-data';
 
 interface RegisterSheetProps {
   open: boolean;
@@ -62,7 +19,7 @@ interface RegisterSheetProps {
   initialAppId?: string;
 }
 
-export function RegisterSheet({ open, onClose, initialAppId = '' }: RegisterSheetProps) {
+function RegisterSheetContent({ open, onClose, initialAppId = '' }: RegisterSheetProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const existingCode = searchParams?.get('ref') || searchParams?.get('code') || '';
@@ -121,7 +78,7 @@ export function RegisterSheet({ open, onClose, initialAppId = '' }: RegisterShee
               {step === 'role' ? 'Ano ang role mo?' : 'Anong uri ng negosyo mo?'}
             </h3>
             <p className="text-xs text-slate-500 font-medium">
-              {step === 'role' ? 'Piliin kung ikaw ang may-ari o staff.' : 'Pumili sa 16 apps — ₱99/buwan.'}
+              {step === 'role' ? 'Piliin kung ikaw ang may-ari o staff.' : `Pumili sa ${activeModulesCount} apps — ₱99/buwan.`}
             </p>
           </div>
           <button
@@ -177,13 +134,13 @@ export function RegisterSheet({ open, onClose, initialAppId = '' }: RegisterShee
               </button>
             </div>
           ) : (
-            APP_GROUPS.map((group) => (
-              <div key={group.category} className="space-y-2">
+            appGroups.map((group) => (
+              <div key={group.id} className="space-y-2">
                 <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 pl-1">
-                  {group.category}
+                  {group.label}
                 </h4>
                 <div className="grid gap-2">
-                  {group.items.map((app) => {
+                  {group.apps.map((app) => {
                     const Icon = app.icon;
                     const isSelected = selectedId === app.id;
                     return (
@@ -205,7 +162,7 @@ export function RegisterSheet({ open, onClose, initialAppId = '' }: RegisterShee
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-bold text-sm text-slate-900">{app.name}</div>
-                          <div className="text-xs text-slate-500 truncate">{app.desc}</div>
+                          <div className="text-xs text-slate-500 truncate">{app.tagline}</div>
                         </div>
                         {isSelected && (
                           <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
@@ -234,6 +191,14 @@ export function RegisterSheet({ open, onClose, initialAppId = '' }: RegisterShee
         </div>
       </div>
     </div>
+  );
+}
+
+export function RegisterSheet(props: RegisterSheetProps) {
+  return (
+    <React.Suspense fallback={null}>
+      <RegisterSheetContent {...props} />
+    </React.Suspense>
   );
 }
 

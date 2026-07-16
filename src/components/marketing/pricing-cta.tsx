@@ -4,17 +4,19 @@ import React from 'react';
 import { ChevronRight, Check } from 'lucide-react';
 import { RegisterSheet, useRegisterSheet } from '@/components/marketing/register-sheet';
 
-const INCLUSIONS = [
-  '19 modules para sa lahat ng negosyo',
-  'Works Offline — kahit walang internet',
-  'Auto Sync kapag bumalik ang koneksyon',
-  'Secure Cloud Backup — walang nawawala',
-  'No auto-renew — ikaw ang may kontrol',
-  'No setup fee — magsimula agad',
-];
+import { activeModulesCount } from '@/lib/app-data';
 
 export function PricingCta() {
   const { open, openSheet, closeSheet } = useRegisterSheet();
+
+  const inclusions = [
+    `${activeModulesCount} business modules na mapagpipilian`,
+    'Works Offline — kahit walang internet',
+    'Auto Sync kapag bumalik ang koneksyon',
+    'Secure Cloud Backup — walang nawawala',
+    'No auto-renew — ikaw ang may kontrol',
+    'No setup fee — magsimula agad',
+  ];
 
   return (
     <>
@@ -38,7 +40,7 @@ export function PricingCta() {
 
               {/* Inclusions */}
               <ul className="space-y-2.5 text-left">
-                {INCLUSIONS.map((item) => (
+                {inclusions.map((item) => (
                   <li key={item} className="flex items-center gap-2.5">
                     <div className="h-5 w-5 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
                       <Check className="h-3 w-3 text-primary" strokeWidth={3} />

@@ -7,6 +7,7 @@ import {
   ShoppingCart, Leaf, Truck, HandCoins, Utensils
 } from 'lucide-react';
 import { RegisterSheet, useRegisterSheet } from '@/components/marketing/register-sheet';
+import { activeModulesCount } from '@/lib/app-data';
 import Image from 'next/image';
 
 const FLAGSHIP_APPS = [
@@ -29,7 +30,7 @@ const FLAGSHIP_APPS = [
     badge: null,
   },
   {
-    id: 'fleet-sync',
+    id: 'biyahe-sync',
     name: 'Biyahe Sync',
     icon: Truck,
     tagline: 'Subaybayan ang bawat biyahe, gastos, at kita ng iyong trucking.',
@@ -73,7 +74,7 @@ export function AppSuiteCarousel() {
             Kahit anong negosyo,<br />
             <span className="text-primary">may module para sa iyo.</span>
           </h2>
-          <p className="text-xs text-slate-500 mt-1.5">19 modules available · ₱99/buwan bawat isa</p>
+          <p className="text-xs text-slate-500 mt-1.5">{activeModulesCount} business modules na mapagpipilian · ₱99/buwan bawat isa</p>
         </div>
 
         {/* Module selector pills */}
@@ -179,10 +180,10 @@ export function AppSuiteCarousel() {
         {/* View All button */}
         <div className="flex justify-center mt-6 px-5">
           <Link
-            href="/onboarding"
+            href="/modules"
             className="flex items-center gap-2 rounded-xl border border-slate-300 text-slate-600 font-bold px-8 py-3 hover:bg-slate-50 active:scale-95 transition-all shadow-sm text-sm"
           >
-            Tingnan ang Lahat ng 19 Modules
+            Tingnan ang Lahat ng {activeModulesCount} Modules
             <ChevronRight className="h-4 w-4" />
           </Link>
         </div>

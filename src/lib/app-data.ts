@@ -393,7 +393,7 @@ export const appGroups: AppGroup[] = [
     accentColor: '#10B981',
     apps: [
       {
-        id: 'fleet-sync',
+        id: 'biyahe-sync',
         name: 'Biyahe Sync',
         icon: Truck,
         tagline: 'Track your fleet, trips, and trucking revenue effortlessly.',
@@ -419,8 +419,8 @@ export const appGroups: AppGroup[] = [
         targetUsers: ['Trucking Companies', 'Haulers', 'Moving Services']
       },
       {
-        id: 'rental-track',
-        name: 'Rental Master',
+        id: 'rental',
+        name: 'Rental',
         icon: Car,
         tagline: 'Complete control over your equipment and vehicle rentals.',
         imageSrc: '/apps/rental.png',
@@ -444,39 +444,6 @@ export const appGroups: AppGroup[] = [
         ],
         targetUsers: ['Equipment Rentals', 'Vehicle Rentals', 'Gown Rentals']
       },
-    ]
-  },
-  {
-    id: 'agri',
-    label: 'Agrikultura',
-    accentColor: '#84CC16',
-    apps: [
-      {
-        id: 'farm-master',
-        name: 'Farm Master',
-        icon: Tractor,
-        tagline: 'Modern management for traditional farming operations.',
-        imageSrc: '/apps/farm-master.png',
-        features: ['Crop Cycle Tracking', 'Livestock Management', 'Harvest Logs', 'Expense Tracking', 'Revenue Recording'],
-        description: 'Farming is a complex business that needs precise record keeping. Farm Master allows you to track planting cycles, monitor livestock inventory, log harvest yields, and record daily operational expenses all in one place.',
-        benefits: [
-          'Track crops from planting to harvest with clear status indicators',
-          'Manage livestock counts and record feed or medicine expenses',
-          'Safely record harvest sales and instantly update your financial ledger',
-          'Make data-driven decisions on which crops are most profitable',
-        ],
-        stats: [
-          { value: '100%', label: 'Cycle Visibility' },
-          { value: '0', label: 'Lost Expenses' },
-          { value: '1 App', label: 'Total Farm Control' },
-        ],
-        howItWorks: [
-          { step: 'Start a Cycle', detail: 'Log a new crop planting or livestock acquisition.' },
-          { step: 'Track Expenses', detail: 'Record fertilizers, feeds, and labor costs as they happen.' },
-          { step: 'Harvest & Sell', detail: 'Log the final yield and record the sales revenue into the ledger.' }
-        ],
-        targetUsers: ['Farms', 'Poultries', 'Piggeries']
-      }
     ]
   },
   {
@@ -565,3 +532,65 @@ export const appGroups: AppGroup[] = [
     ],
   },
 ];
+
+export const activeModules: AppModule[] = appGroups.flatMap(g => g.apps);
+export const activeModulesCount: number = activeModules.length;
+
+export function normalizeModuleId(id: string): string {
+  if (!id) return '';
+  const cleanId = id.toLowerCase().trim();
+  if (cleanId === 'fleet-sync') return 'biyahe-sync';
+  if (cleanId === 'rental-track') return 'rental';
+  return cleanId;
+}
+
+export function isValidActiveModuleId(id: string): boolean {
+  const canonicalId = normalizeModuleId(id);
+  return activeModules.some(a => a.id === canonicalId);
+}
+
+export function getActiveAppById(id: string): AppModule | undefined {
+  const canonicalId = normalizeModuleId(id);
+  if (!isValidActiveModuleId(canonicalId)) return undefined;
+  return activeModules.find(a => a.id === canonicalId);
+}
+
+const legacyApps: Record<string, AppModule> = {
+  'farm-master': {
+    id: 'farm-master',
+    name: 'Farm Master',
+    icon: Tractor,
+    tagline: 'Modern management for traditional farming operations.',
+    imageSrc: '/apps/farm-master.png',
+    features: ['Crop Cycle Tracking', 'Livestock Management', 'Harvest Logs', 'Expense Tracking', 'Revenue Recording'],
+    description: 'Farming is a complex business that needs precise record keeping. Farm Master allows you to track planting cycles, monitor livestock inventory, log harvest yields, and record daily operational expenses all in one place.',
+    benefits: [
+      'Track crops from planting to harvest with clear status indicators',
+      'Manage livestock counts and record feed or medicine expenses',
+      'Safely record harvest sales and instantly update your financial ledger',
+      'Make data-driven decisions on which crops are most profitable',
+    ],
+    stats: [
+      { value: '100%', label: 'Cycle Visibility' },
+      { value: '0', label: 'Lost Expenses' },
+      { value: '1 App', label: 'Total Farm Control' },
+    ],
+    howItWorks: [
+      { step: 'Start a Cycle', detail: 'Log a new crop planting or livestock acquisition.' },
+      { step: 'Track Expenses', detail: 'Record fertilizers, feeds, and labor costs as they happen.' },
+      { step: 'Harvest & Sell', detail: 'Log the final yield and record the sales revenue into the ledger.' }
+    ],
+    targetUsers: ['Farms', 'Poultries', 'Piggeries']
+  }
+};
+
+export function getAppById(id: string): AppModule | undefined {
+  const activeApp = getActiveAppById(id);
+  if (activeApp) return activeApp;
+  const normalizedId = normalizeModuleId(id);
+  if (normalizedId === 'farm-master') {
+    return legacyApps['farm-master'];
+  }
+  return undefined;
+}
+

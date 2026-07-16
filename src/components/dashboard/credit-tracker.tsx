@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Loader2, Plus, Users, Store, Banknote, History, ExternalLink, Calendar as CalendarIcon } from 'lucide-react';
+import { Loader2, Plus, Users, Store, Banknote, History, ExternalLink, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getModuleTheme } from '@/lib/theme-utils';
 import { DiscountInput } from '@/components/ui/discount-input';
@@ -19,7 +19,105 @@ import { useShift } from '@/hooks/use-shift';
 import { Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useInventory } from '@/hooks/use-inventory';
+import { Product } from '@/lib/schemas/inventory';
 import { ShoppingCart, Package, Trash2, CheckSquare } from 'lucide-react';
+
+// --- Inventory Item Autocomplete Combobox ---
+function ItemCombobox({
+  value,
+  products,
+  creditType,
+  onSelect,
+  onChange,
+}: {
+  value: string;
+  products: Product[];
+  creditType: 'receivable' | 'payable';
+  onSelect: (product: Product) => void;
+  onChange: (name: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState(value);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Keep local query in sync if parent clears the value
+  useEffect(() => { setQuery(value); }, [value]);
+
+  const filtered = query.trim() === ''
+    ? products.filter(p => p.isActive !== false)
+    : products.filter(p =>
+        p.isActive !== false &&
+        p.name.toLowerCase().includes(query.toLowerCase())
+      );
+
+  const handleSelect = (product: Product) => {
+    setQuery(product.name);
+    setOpen(false);
+    onSelect(product);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
+    onChange(e.target.value);
+    setOpen(true);
+  };
+
+  // Close on click outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={containerRef} className="relative flex-1">
+      <div className="relative">
+        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400 pointer-events-none" />
+        <Input
+          placeholder="Pangalan ng Item o Product"
+          className="h-8 text-xs border-slate-100 pl-6"
+          value={query}
+          onChange={handleChange}
+          onFocus={() => setOpen(true)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }}
+        />
+      </div>
+      {open && filtered.length > 0 && (
+        <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-xl max-h-48 overflow-y-auto">
+          {filtered.slice(0, 20).map(product => (
+            <button
+              key={product.id}
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); handleSelect(product); }}
+              className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-indigo-50 transition-colors group"
+            >
+              <div>
+                <p className="text-xs font-bold text-slate-800 group-hover:text-indigo-700 leading-tight">
+                  {product.name}
+                </p>
+                <p className="text-[10px] text-slate-400 font-medium">
+                  {product.unit} &middot; Stock: {product.currentStock}
+                </p>
+              </div>
+              <span className="text-[10px] font-black text-slate-500 group-hover:text-indigo-600 ml-2 shrink-0">
+                ₱{((creditType === 'payable' ? product.costPrice : product.salePrice) / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+      {open && filtered.length === 0 && query.trim() !== '' && (
+        <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-xl px-3 py-3">
+          <p className="text-xs text-slate-400 text-center">Walang nahanap. I-type pa rin para magsave.</p>
+        </div>
+      )}
+    </div>
+  );
+}
 const CreditListItem = React.memo(({ credit, idx, setSelectedCredit, setShowPayModal, setPaymentAmountStr, setViewItemsCredit }: any) => {
   const isReceivable = credit.type === 'receivable';
   const remaining = credit.amount - (credit.paidAmount || 0);
@@ -106,6 +204,8 @@ export function CreditTracker() {
   const [discountType, setDiscountType] = useState<'percentage'|'fixed'>('percentage');
   const [discountValue, setDiscountValue] = useState('');
   const [discountReason, setDiscountReason] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [receiptData, setReceiptData] = useState<any>(null);
 
   useEffect(() => {
     if (!currentTenant) return;
@@ -207,14 +307,33 @@ export function CreditTracker() {
         discountReason,
         user?.uid,
         user?.displayName || user?.email || 'Unknown',
-        activeShift?.id
+        activeShift?.id,
+        paymentMethod
       );
       
+      const remainingBefore = selectedCredit.amount - (selectedCredit.paidAmount || 0);
+      const remainingAfter = Math.max(0, remainingBefore - payCentavos - discountCentavos);
+      const changeCentavos = payCentavos > (remainingBefore - discountCentavos) ? payCentavos - (remainingBefore - discountCentavos) : 0;
+      
       toast({ title: 'Payment Recorded', description: 'Credit balance has been updated.' });
+      
+      setReceiptData({
+        date: new Date(),
+        creditName: selectedCredit.name,
+        paymentAmountStr: paymentAmountStr,
+        paymentMethod: paymentMethod,
+        discountCentavos: discountCentavos,
+        remainingBalance: remainingAfter,
+        changeCentavos: changeCentavos,
+        cashierName: user?.displayName || user?.email || 'Unknown',
+        type: selectedCredit.type,
+      });
+
       setShowPayModal(false);
       setPaymentAmountStr('');
       setDiscountValue('');
       setDiscountReason('');
+      setPaymentMethod('cash');
       setSelectedCredit(null);
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: 'destructive' });
@@ -363,37 +482,30 @@ export function CreditTracker() {
                   </div>
                   {addForm.items.map((item, i) => (
                     <div key={i} className="flex gap-2 items-center bg-white p-2 border border-slate-200 rounded-lg shadow-sm">
-                      <div className="flex-1 space-y-1">
-                        <Input 
-                          placeholder="Pangalan ng Item o Product" 
-                          className="h-8 text-xs border-slate-100" 
-                          value={item.name}
-                          onChange={(e) => {
-                            const newItems = [...addForm.items];
-                            newItems[i].name = e.target.value;
-                            setAddForm({...addForm, items: newItems});
-                          }}
-                        />
-                        {addForm.type === 'payable' && products && products.length > 0 && (
-                          <select 
-                            className="w-full text-xs h-8 rounded-md border border-slate-100 text-slate-500 bg-slate-50"
-                            value={item.productId}
-                            onChange={(e) => {
-                              const selected = products.find(p => p.id === e.target.value);
-                              const newItems = [...addForm.items];
-                              newItems[i].productId = e.target.value;
-                              if (selected) {
-                                newItems[i].name = selected.name;
-                                if (!newItems[i].priceStr) newItems[i].priceStr = (selected.costPrice || selected.salePrice || 0).toString();
-                              }
-                              setAddForm({...addForm, items: newItems});
-                            }}
-                          >
-                            <option value="">(Select Product sa Inventory)</option>
-                            {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                          </select>
-                        )}
-                      </div>
+                      <ItemCombobox
+                        value={item.name}
+                        products={products || []}
+                        creditType={addForm.type}
+                        onChange={(name) => {
+                          const newItems = [...addForm.items];
+                          newItems[i].name = name;
+                          newItems[i].productId = ''; // clear link when typing freely
+                          setAddForm({...addForm, items: newItems});
+                        }}
+                        onSelect={(product) => {
+                          const newItems = [...addForm.items];
+                          newItems[i].name = product.name;
+                          newItems[i].productId = product.id || '';
+                          // Auto-fill price: salePrice for customer pautang, costPrice for supplier
+                          const rawPrice = addForm.type === 'payable'
+                            ? (product.costPrice || product.salePrice || 0)
+                            : (product.salePrice || product.costPrice || 0);
+                          if (!newItems[i].priceStr) {
+                            newItems[i].priceStr = (rawPrice / 100).toString();
+                          }
+                          setAddForm({...addForm, items: newItems});
+                        }}
+                      />
                       <Input 
                         placeholder="Qty" 
                         type="number"
@@ -501,6 +613,20 @@ export function CreditTracker() {
                 autoFocus
               />
             </div>
+
+            <div className="space-y-2">
+              <Label>Payment Method</Label>
+              <select 
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="w-full h-12 rounded-xl border border-slate-200 px-3 text-slate-700 bg-white"
+              >
+                <option value="cash">Cash</option>
+                <option value="gcash">GCash</option>
+                <option value="maya">Maya</option>
+                <option value="bank_transfer">Bank Transfer</option>
+              </select>
+            </div>
             
             <DiscountInput 
               discountType={discountType}
@@ -560,6 +686,73 @@ export function CreditTracker() {
           <DialogFooter>
             <Button onClick={() => setViewItemsCredit(null)} className="rounded-xl font-bold bg-slate-800 text-white hover:bg-slate-700 w-full">
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Printable Receipt Dialog */}
+      <Dialog open={!!receiptData} onOpenChange={(open) => !open && setReceiptData(null)}>
+        <DialogContent className="sm:max-w-xs rounded-2xl print:shadow-none print:w-full print:max-w-full print:border-none print:p-0">
+          <DialogHeader className="print:hidden">
+            <DialogTitle>Payment Receipt</DialogTitle>
+          </DialogHeader>
+          {receiptData && (
+            <div id="receipt-content" className="p-4 bg-white text-slate-800 text-sm space-y-4 print:p-0 print:text-black">
+              <div className="text-center pb-4 border-b border-dashed border-slate-300 print:border-black">
+                <h3 className="font-black text-lg">Katuwang Solutions</h3>
+                <p className="text-xs uppercase tracking-wider">{receiptData.type === 'receivable' ? 'Pautang Payment' : 'Supplier Payment'}</p>
+                <p className="text-[10px] text-slate-500 mt-1">{receiptData.date.toLocaleString()}</p>
+              </div>
+              
+              <div className="space-y-1 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Name:</span>
+                  <span className="font-bold">{receiptData.creditName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Cashier:</span>
+                  <span className="font-bold">{receiptData.cashierName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Method:</span>
+                  <span className="font-bold uppercase">{receiptData.paymentMethod}</span>
+                </div>
+              </div>
+
+              <div className="py-2 border-y border-dashed border-slate-300 space-y-1 print:border-black">
+                <div className="flex justify-between font-bold text-sm">
+                  <span>Amount Paid:</span>
+                  <span>₱{parseFloat(receiptData.paymentAmountStr).toLocaleString('en-PH', {minimumFractionDigits: 2})}</span>
+                </div>
+                {receiptData.discountCentavos > 0 && (
+                  <div className="flex justify-between text-xs text-orange-600">
+                    <span>Discount Applied:</span>
+                    <span>₱{(receiptData.discountCentavos/100).toLocaleString('en-PH', {minimumFractionDigits: 2})}</span>
+                  </div>
+                )}
+                {receiptData.changeCentavos > 0 && (
+                  <div className="flex justify-between text-xs text-green-600 font-bold">
+                    <span>Sukli (Change):</span>
+                    <span>₱{(receiptData.changeCentavos/100).toLocaleString('en-PH', {minimumFractionDigits: 2})}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-between items-center pt-2">
+                <span className="font-bold text-xs uppercase">Remaining Bal:</span>
+                <span className="font-black text-lg">₱{(receiptData.remainingBalance/100).toLocaleString('en-PH', {minimumFractionDigits: 2})}</span>
+              </div>
+              
+              <div className="text-center pt-4 text-[10px] text-slate-400 print:text-black">
+                <p>Maraming Salamat!</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="print:hidden">
+            <Button variant="outline" onClick={() => setReceiptData(null)} className="rounded-xl">Close</Button>
+            <Button onClick={() => window.print()} className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
+              Print Receipt
             </Button>
           </DialogFooter>
         </DialogContent>

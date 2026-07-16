@@ -2,12 +2,12 @@ import React from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { BrandLogo } from '@/components/ui/brand-logo';
-import { appGroups } from '@/lib/app-data';
+import { appGroups, activeModulesCount } from '@/lib/app-data';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Lahat ng Modules | Katuwang Solutions',
-  description: 'Tingnan ang lahat ng 19 business management modules ng Katuwang Solutions.',
+  description: 'Tingnan ang lahat ng 18 business management modules ng Katuwang Solutions.',
 };
 
 export default function ModulesPage() {
@@ -31,7 +31,7 @@ export default function ModulesPage() {
             Lahat ng Modules
           </h1>
           <p className="text-lg text-slate-500 font-medium leading-relaxed">
-            Pumili mula sa 19 iba't-ibang Katuwang modules na eksaktong naka-disenyo para sa uri ng iyong negosyo. ₱99 lang per month.
+            Pumili mula sa {activeModulesCount} iba't-ibang Katuwang modules na eksaktong naka-disenyo para sa uri ng iyong negosyo. ₱99 lang per month.
           </p>
         </div>
 
@@ -46,7 +46,7 @@ export default function ModulesPage() {
               
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {group.apps.map((app) => (
-                  <div key={app.id} className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col h-full">
+                  <div key={app.id} data-module-id={app.id} className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col h-full">
                     <div className="flex items-start gap-4 mb-4">
                       <div className={`h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 ${group.accentColor}`}>
                         <app.icon className="h-6 w-6" />
@@ -65,7 +65,7 @@ export default function ModulesPage() {
                           </span>
                         ))}
                       </div>
-                      <Link href="/" className="flex items-center justify-between text-sm font-bold text-primary hover:text-primary/80 transition-colors w-full bg-primary/5 hover:bg-primary/10 p-3 rounded-xl">
+                      <Link href={`/onboarding?app=${app.id}`} className="flex items-center justify-between text-sm font-bold text-primary hover:text-primary/80 transition-colors w-full bg-primary/5 hover:bg-primary/10 p-3 rounded-xl">
                         <span>Gamitin na</span>
                         <ArrowRight className="h-4 w-4" />
                       </Link>
@@ -84,7 +84,7 @@ export default function ModulesPage() {
             <p className="text-slate-400 text-lg">
               Isang account lang ang kailangan. Mag-register nang libre para masubukan.
             </p>
-            <Link href="/" className="inline-block bg-primary text-white font-bold text-lg px-10 py-4 rounded-full hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/20">
+            <Link href="/onboarding" className="inline-block bg-primary text-white font-bold text-lg px-10 py-4 rounded-full hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/20">
               Magsimula Ngayon
             </Link>
           </div>

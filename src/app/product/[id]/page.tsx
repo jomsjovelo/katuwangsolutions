@@ -1,6 +1,6 @@
 import React from 'react';
-import { appGroups } from '@/lib/app-data';
-import { notFound } from 'next/navigation';
+import { getActiveAppById, appGroups } from '@/lib/app-data';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
@@ -12,16 +12,13 @@ import {
 import { Metadata } from 'next';
 
 type Props = {
-  params: Promise<{ id: string }>
+  params: Promise<{ id: string }>,
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await params;
-  let foundApp: any = null;
-  appGroups.forEach(g => {
-    const app = g.apps.find(a => a.id === resolvedParams.id);
-    if (app) foundApp = app;
-  });
+  const foundApp = getActiveAppById(resolvedParams.id);
 
   if (!foundApp) return { title: 'Product Not Found | Katuwang Solutions' };
 
@@ -49,22 +46,38 @@ const getFeatureIcon = (feature: string) => {
   return Check;
 };
 
-export default async function ProductPage({ params }: Props) {
+export default async function ProductPage({ params, searchParams }: Props) {
   const resolvedParams = await params;
-  let foundApp: any = null;
-  let foundGroup: any = null;
+  const resolvedSearchParams = await searchParams;
+  const id = resolvedParams.id;
 
-  appGroups.forEach(g => {
-    const app = g.apps.find(a => a.id === resolvedParams.id);
-    if (app) {
-      foundApp = app;
-      foundGroup = g;
-    }
-  });
+  // Handle redirects for obsolete alias IDs
+  if (id === 'fleet-sync' || id === 'rental-track') {
+    const canonicalId = id === 'fleet-sync' ? 'biyahe-sync' : 'rental';
+    const urlParams = new URLSearchParams();
+    Object.entries(resolvedSearchParams).forEach(([key, val]) => {
+      if (typeof val === 'string') {
+        urlParams.set(key, val);
+      } else if (Array.isArray(val)) {
+        val.forEach(v => urlParams.append(key, v));
+      }
+    });
+    const queryString = urlParams.toString();
+    const dest = `/product/${canonicalId}${queryString ? `?${queryString}` : ''}`;
+    permanentRedirect(dest);
+  }
 
+  const foundApp = getActiveAppById(id);
   if (!foundApp) {
     notFound();
   }
+
+  let foundGroup: any = null;
+  appGroups.forEach(g => {
+    if (g.apps.some(a => a.id === foundApp.id)) {
+      foundGroup = g;
+    }
+  });
 
   const Icon = foundApp.icon;
   const accent = foundGroup.accentColor;
@@ -280,7 +293,7 @@ export default async function ProductPage({ params }: Props) {
             </p>
             
             <div className="flex flex-col items-center gap-5 relative z-10">
-              <Link href={`/?onboard=${foundApp.id}`}>
+              <Link href={`/onboarding?app=${foundApp.id}`}>
                 <Button
                   size="lg"
                   className="h-14 px-12 text-lg font-black text-white shadow-lg hover:scale-105 hover:shadow-2xl transition-all active:scale-95 rounded-2xl"
@@ -293,11 +306,11 @@ export default async function ProductPage({ params }: Props) {
               {/* Pricing Teaser */}
               <div className="flex items-center gap-2 mt-2 text-xs font-bold text-slate-500 bg-slate-50 px-5 py-2.5 rounded-full border border-slate-100">
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>Starting at ₱99/mo</span>
+                <span>₱99/buwan bawat module</span>
                 <span className="text-slate-300 px-1">•</span>
                 <span>₱0 setup</span>
                 <span className="text-slate-300 px-1">•</span>
-                <span>Cancel anytime</span>
+                <span>No auto-renew</span>
               </div>
             </div>
           </div>

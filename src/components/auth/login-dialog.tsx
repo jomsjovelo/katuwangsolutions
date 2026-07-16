@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -38,7 +38,7 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-export function LoginDialog({ children }: { children: React.ReactNode }) {
+function LoginDialogContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const existingCode = searchParams?.get('ref') || searchParams?.get('code') || '';
@@ -305,6 +305,14 @@ export function LoginDialog({ children }: { children: React.ReactNode }) {
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function LoginDialog({ children }: { children: React.ReactNode }) {
+  return (
+    <React.Suspense fallback={children}>
+      <LoginDialogContent>{children}</LoginDialogContent>
+    </React.Suspense>
   );
 }
 

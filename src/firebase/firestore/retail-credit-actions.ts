@@ -1,4 +1,4 @@
-import { getFirestore, doc, collection, serverTimestamp, setDoc, increment, Timestamp } from 'firebase/firestore';
+import { doc, collection, serverTimestamp, increment, Timestamp } from 'firebase/firestore';
 import { initializeFirebase } from '../index';
 import { runTransactionResilient } from './resilient-transaction';
 import { logAuditEvent } from './audit-actions';
@@ -11,12 +11,32 @@ export interface RetailCreditEntry {
   type: 'receivable' | 'payable'; // receivable = customer owes us, payable = we owe supplier
   name: string;
   amount: number; // original credit amount in centavos
-  paidAmount: number; // accumulated payments in centavos
+  paidAmount: number; // accumulated payments in centavos (always ≤ amount)
   status: 'unpaid' | 'partial' | 'paid';
   creditDate: Timestamp; // when the credit was incurred
   description?: string;
   relatedSaleId?: string;
   items?: { productId?: string; name: string; quantity: number; price: number }[];
+  paymentCount?: number; // total number of payments recorded
+}
+
+export interface CreditPaymentRecord {
+  id: string;
+  creditId: string;
+  paidAt: Timestamp;
+  amountCentavos: number;      // actual cash received from payer
+  discountCentavos: number;    // goodwill / discount written off
+  netAppliedCentavos: number;  // amount applied to balance (capped at remaining)
+  changeCentavos: number;      // overpayment returned to payer (cash out)
+  balanceBefore: number;       // remaining balance before this payment
+  balanceAfter: number;        // remaining balance after this payment
+  paymentNumber: number;       // which payment # this is (1st, 2nd, etc.)
+  paidBy: string | null;             // userId
+  paidByName: string | null;
+  shiftId: string | null;             // shiftId
+  discountType: 'percentage' | 'fixed' | null;
+  discountReason: string | null;
+  paymentMethod: string;
 }
 
 export async function addRetailCredit(
@@ -73,6 +93,7 @@ export async function addRetailCredit(
       ...data,
       id: newCreditRef.id,
       paidAmount: 0,
+      paymentCount: 0,
       status: 'unpaid',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
@@ -83,13 +104,14 @@ export async function addRetailCredit(
 export async function recordRetailCreditPayment(
   tenantId: string, 
   creditId: string, 
-  paymentAmount: number, // in centavos
+  paymentAmount: number, // cash received from payer, in centavos
   discountCentavos: number = 0,
   discountType?: 'percentage' | 'fixed',
   discountReason?: string,
   userId?: string,
   userName?: string,
-  shiftId?: string
+  shiftId?: string,
+  paymentMethod: string = 'cash'
 ) {
   const db = getKatuwangDb();
   
@@ -102,16 +124,29 @@ export async function recordRetailCreditPayment(
     }
     
     const credit = creditSnap.data() as RetailCreditEntry;
-    
-    // Calculate new paid amount and status.
-    const newPaidAmount = (credit.paidAmount || 0) + paymentAmount + discountCentavos;
+    const currentPaid = credit.paidAmount || 0;
+    const remaining = credit.amount - currentPaid;
+
+    // --- Smart math ---
+    // Total that would be applied to balance (payment + any forgiven discount)
+    const totalApplied = paymentAmount + discountCentavos;
+    // Cap: never apply more than what's still owed
+    const netAppliedCentavos = Math.min(totalApplied, remaining);
+    // Change = what the payer gets back (only cash overpay, not discount)
+    const cashApplied = Math.min(paymentAmount, Math.max(0, remaining - discountCentavos));
+    const changeCentavos = paymentAmount - cashApplied;
+
+    const newPaidAmount = currentPaid + netAppliedCentavos;
+    const balanceAfter = credit.amount - newPaidAmount;
+
     let newStatus: 'unpaid' | 'partial' | 'paid' = 'unpaid';
-    
     if (newPaidAmount >= credit.amount) {
       newStatus = 'paid';
     } else if (newPaidAmount > 0) {
       newStatus = 'partial';
     }
+
+    const paymentNumber = (credit.paymentCount || 0) + 1;
 
     // Handle Master Cash Ledger integration
     const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
@@ -119,20 +154,42 @@ export async function recordRetailCreditPayment(
 
     // Update the credit record
     transaction.update(creditRef, {
-      paidAmount: newPaidAmount,
+      paidAmount: newPaidAmount, // always ≤ credit.amount
+      paymentCount: paymentNumber,
       status: newStatus,
       updatedAt: serverTimestamp()
     });
+
+    // Write per-payment audit record to subcollection
+    const paymentsRef = collection(db, 'tenants', tenantId, 'retail_credits', creditId, 'payments');
+    const newPaymentRef = doc(paymentsRef);
+    transaction.set(newPaymentRef, {
+      id: newPaymentRef.id,
+      creditId,
+      paidAt: serverTimestamp(),
+      amountCentavos: paymentAmount,         // full cash handed over
+      discountCentavos,                       // discount forgiven
+      netAppliedCentavos,                     // what actually reduced the balance
+      changeCentavos,                         // cash returned to payer
+      balanceBefore: remaining,
+      balanceAfter,
+      paymentNumber,
+      paidBy: userId || null,
+      paidByName: userName || null,
+      shiftId: shiftId || null,
+      discountType: discountType || null,
+      discountReason: discountReason || null,
+      paymentMethod,
+    } as CreditPaymentRecord);
 
     // Determine cash flow direction
     // Receivable payment = Income (Cash in)
     // Payable payment = Expense (Cash out)
     const isIncome = credit.type === 'receivable';
-    // Discount is NOT cash flow, so we only track the actual paymentAmount as cash movement.
-    const cashFlowAmount = isIncome ? paymentAmount : -paymentAmount;
+    // Only actual cash collected (not discount) moves through the ledger
+    const cashFlowAmount = isIncome ? cashApplied : -cashApplied;
 
     if (!masterAccountSnap.exists()) {
-      // If master cash doesn't exist, we create it (even if negative, to track perfectly)
       transaction.set(masterAccountRef, {
         id: 'master-cash',
         tenantId,
@@ -150,30 +207,34 @@ export async function recordRetailCreditPayment(
       }, { merge: true });
     }
 
-    // Record the specific transaction in the ledger
+    // Record the specific transaction in the master ledger
     const transactionsRef = collection(db, 'tenants', tenantId, 'transactions');
     const newTxRef = doc(transactionsRef);
     transaction.set(newTxRef, {
       id: newTxRef.id,
       tenantId,
       accountId: 'master-cash',
-      amount: paymentAmount, // positive amount for the transaction log
+      amount: cashApplied, // only actual cash movement
       type: isIncome ? 'income' : 'expense',
       category: isIncome ? 'Accounts Receivable Payment' : 'Accounts Payable Settlement',
-      description: `Payment for ${credit.name} - ${credit.description || 'Credit Settlement'}`,
+      description: `Payment #${paymentNumber} for ${credit.name}${credit.description ? ` - ${credit.description}` : ''} (${paymentMethod})${changeCentavos > 0 ? ` (Sukli: ₱${(changeCentavos/100).toFixed(2)})` : ''}`,
       date: new Date(),
       createdAt: serverTimestamp(),
       discountCentavos,
-      discountType,
-      discountReason
+      discountType: discountType || null,
+      discountReason: discountReason || null,
+      changeCentavos,
+      creditId,
+      paymentMethod,
     });
 
     if (discountCentavos > 0 && userId && userName) {
       logAuditEvent(tenantId, userId, userName, {
         type: 'apply_discount',
-        description: `Applied ${discountType === 'percentage' ? 'percentage' : 'fixed'} discount of ₱${(discountCentavos / 100).toFixed(2)} to credit payment. Reason: ${discountReason || 'None'}`,
-        meta: { creditId, discountCentavos, discountType, discountReason, shiftId }
+        description: `Applied ${discountType === 'percentage' ? 'percentage' : 'fixed'} discount of ₱${(discountCentavos / 100).toFixed(2)} to credit payment for ${credit.name}. Reason: ${discountReason || 'None'}`,
+        meta: { creditId, discountCentavos, discountType, discountReason, shiftId, paymentNumber }
       });
     }
   });
 }
+

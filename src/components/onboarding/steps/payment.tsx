@@ -31,11 +31,12 @@ export function PaymentStep({ data, onPaymentSent }: PaymentStepProps) {
       </div>
 
       {/* Amount Due Card */}
-      <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 flex justify-between items-center">
+      <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 flex justify-between items-center" data-testid="payment-amount-card">
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Amount Due</p>
-          <p className="text-3xl font-black text-primary">₱99.00</p>
-          <p className="text-[10px] text-slate-500 font-medium mt-0.5">per month · all 15 modules</p>
+          <p className="text-3xl font-black text-primary" data-testid="payment-amount">₱99.00</p>
+          <p className="text-[10px] text-slate-500 font-medium mt-0.5" data-testid="payment-per-module-label">₱99/buwan · bawat module</p>
+          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1" data-testid="payment-clarification">Ang bayad na ₱99 ay para sa napili mong module.</p>
         </div>
         <div className="text-right">
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Business</p>

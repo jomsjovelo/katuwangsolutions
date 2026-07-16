@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Facebook, MessageCircle, Mail, Building2, Calendar, Target, Globe } from 'lucide-react';
 import { BrandLogo } from '@/components/ui/brand-logo';
+import { activeModulesCount } from '@/lib/app-data';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -48,7 +49,7 @@ export default function AboutPage() {
               Nagsimula ang Katuwang Solutions dahil nakita namin ang hirap ng mga maliliit na negosyante (MSMEs) sa Pilipinas. Marami ang nagbabase pa rin sa papel at ballpen para sa kanilang imbentaryo, o kaya naman ay nagbabayad ng napakamahal sa mga kumplikadong POS systems na hindi tugma sa kanilang aktwal na pangangailangan.
             </p>
             <p className="text-slate-600 leading-relaxed text-lg mt-4">
-              Kaya naman, binuo namin ang isang all-in-one platform na may 19 na iba't-ibang modules — mula Sari-Sari Store, Bigasan, Hardware, hanggang Salon at Car Wash. Anuman ang iyong negosyo, may Katuwang na naka-disenyo para sayo.
+              Kaya naman, binuo namin ang isang all-in-one platform na may {activeModulesCount} na iba't-ibang modules na mapagpipilian — mula Sari-Sari Store, Bigasan, Hardware, hanggang Salon at Car Wash. Anuman ang iyong negosyo, may Katuwang na naka-disenyo para sayo.
             </p>
           </div>
         </div>
@@ -62,7 +63,7 @@ export default function AboutPage() {
           </div>
           <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center">
             <Building2 className="h-6 w-6 text-slate-400 mx-auto mb-3" />
-            <div className="font-black text-2xl text-slate-900">19</div>
+            <div className="font-black text-2xl text-slate-900">{activeModulesCount}</div>
             <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Modules</div>
           </div>
           <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center">

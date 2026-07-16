@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -57,7 +57,7 @@ const staffRegisterSchema = z.object({
 
 type StaffRegisterFormValues = z.infer<typeof staffRegisterSchema>;
 
-export function StaffRegisterDialog({ children }: { children?: React.ReactNode }) {
+function StaffRegisterDialogContent({ children }: { children?: React.ReactNode }) {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -346,5 +346,13 @@ export function StaffRegisterDialog({ children }: { children?: React.ReactNode }
         </Form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function StaffRegisterDialog({ children }: { children?: React.ReactNode }) {
+  return (
+    <React.Suspense fallback={children}>
+      <StaffRegisterDialogContent>{children}</StaffRegisterDialogContent>
+    </React.Suspense>
   );
 }

@@ -1,24 +1,60 @@
 import { MetadataRoute } from 'next';
+import { activeModules } from '@/lib/app-data';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  return [
+  const baseUrl = 'https://www.katuwangsolutions.com';
+
+  const staticRoutes = [
     {
-      url: 'https://www.katuwangsolutions.com',
+      url: baseUrl,
       lastModified: new Date(),
-      changeFrequency: 'monthly',
+      changeFrequency: 'monthly' as const,
       priority: 1,
     },
     {
-      url: 'https://www.katuwangsolutions.com/onboarding',
+      url: `${baseUrl}/onboarding`,
       lastModified: new Date(),
-      changeFrequency: 'monthly',
+      changeFrequency: 'monthly' as const,
       priority: 0.8,
     },
     {
-      url: 'https://www.katuwangsolutions.com/terms',
+      url: `${baseUrl}/terms`,
       lastModified: new Date(),
-      changeFrequency: 'yearly',
+      changeFrequency: 'yearly' as const,
+      priority: 0.5,
+    },
+    {
+      url: `${baseUrl}/about`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly' as const,
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/faq`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly' as const,
+      priority: 0.6,
+    },
+    {
+      url: `${baseUrl}/modules`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly' as const,
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/privacy`,
+      lastModified: new Date(),
+      changeFrequency: 'yearly' as const,
       priority: 0.5,
     },
   ];
+
+  const productRoutes = activeModules.map(app => ({
+    url: `${baseUrl}/product/${app.id}`,
+    lastModified: new Date(),
+    changeFrequency: 'monthly' as const,
+    priority: 0.6,
+  }));
+
+  return [...staticRoutes, ...productRoutes];
 }

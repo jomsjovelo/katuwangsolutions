@@ -209,9 +209,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const isOnboarding = pathname.startsWith('/onboarding');
 
   // 1. Initial Loading/Hydration State
-  // We do not block render on /onboarding (except for initial auth load) because creating an account 
-  // automatically logs the user in. If we block render, it unmounts the onboarding wizard and resets its state!
-  if (authLoading || (!isOnboarding && (checking || isLoading || (user && isAdmin === null)))) {
+  // Public routes (marketing pages, product pages, onboarding, etc.) must NOT block on authLoading.
+  // They render immediately; auth state resolves in the background. Only authenticated routes
+  // (/dashboard, /admin) need to block on authLoading to prevent flashing unauthorized content.
+  // Note: onboarding is already excluded because creating an account logs the user in mid-flow.
+  if (!isPublicRoute && (authLoading || checking || isLoading || (user && isAdmin === null))) {
     console.log('AuthGuard is blocking render:', { authLoading, isOnboarding, checking, isLoading, hasUser: !!user, isAdmin });
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-white">

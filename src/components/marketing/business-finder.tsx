@@ -14,7 +14,7 @@ const INDUSTRIES = [
   { id: 'cafe', label: 'Coffee Shop', icon: Coffee, module: 'Timpla Track', moduleId: 'timpla-track', color: '#EF4444' },
   { id: 'laundry', label: 'Laundry Shop', icon: RotateCcw, module: 'Spin Snap', moduleId: 'spin-snap', color: '#22D3EE' },
   { id: 'salon', label: 'Salon / Barbershop', icon: Scissors, module: 'Trim Track', moduleId: 'trim-track', color: '#E11D48' },
-  { id: 'trucking', label: 'Trucking', icon: Truck, module: 'Biyahe Sync', moduleId: 'fleet-sync', color: '#3B82F6' },
+  { id: 'trucking', label: 'Trucking', icon: Truck, module: 'Biyahe Sync', moduleId: 'biyahe-sync', color: '#3B82F6' },
   { id: 'hardware', label: 'Hardware Store', icon: Hammer, module: 'Build Stack', moduleId: 'build-stack', color: '#475569' },
   { id: 'water', label: 'Water Refilling', icon: Droplets, module: 'Hydro Sync', moduleId: 'hydro-sync', color: '#0284C7' },
 ];

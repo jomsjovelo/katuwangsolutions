@@ -16,6 +16,8 @@ import { registerNewTenant } from '@/firebase/firestore/onboarding-actions';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+import { normalizeModuleId, isValidActiveModuleId } from '@/lib/app-data';
+
 type Step = 'mode' | 'apps' | 'business' | 'account' | 'success' | 'payment' | 'pending';
 
 const FORM_STEPS: Step[] = ['apps', 'business', 'account'];
@@ -29,16 +31,34 @@ interface OnboardingWizardProps {
 export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, onCancel }: OnboardingWizardProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialAppId = initialAppIdProp ?? searchParams.get('app') ?? '';
+  
+  const rawAppId = initialAppIdProp ?? searchParams.get('app') ?? '';
+  const normalizedAppId = normalizeModuleId(rawAppId);
+
+  let resolvedAppId = '';
+  let initialStep: Step = 'mode';
+  let initialError: string | null = null;
+
+  if (rawAppId) {
+    if (isValidActiveModuleId(normalizedAppId)) {
+      resolvedAppId = normalizedAppId;
+      initialStep = 'business';
+    } else {
+      initialStep = 'apps';
+      if (normalizedAppId === 'farm-master') {
+        initialError = 'Ang napiling module ay kasalukuyang hindi magagamit. Mangyaring pumili ng ibang module.';
+      }
+    }
+  }
 
   const handleComplete = onComplete ?? (() => router.push('/dashboard'));
   const handleCancel = onCancel ?? (() => router.push('/'));
-  const [step, setStep] = useState<Step>(initialAppId ? 'business' : 'mode');
+  const [step, setStep] = useState<Step>(initialStep);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError);
   const [data, setData] = useState({
     // Business
-    appId: initialAppId || '',
+    appId: resolvedAppId,
     businessName: '',
     businessPhone: '',
     // Personal
@@ -57,29 +77,57 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
 
   const update = (patch: Partial<typeof data>) => setData((d) => ({ ...d, ...patch }));
 
+  const [isRecovered, setIsRecovered] = useState(false);
+
   useEffect(() => {
     const saved = localStorage.getItem('katuwang_onboarding_draft');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (parsed.step && parsed.data) {
-          if (['payment', 'pending', 'success'].includes(parsed.step)) return;
-          setStep(parsed.step);
-          setData((d) => ({ ...d, ...parsed.data }));
+          if (['payment', 'pending', 'success'].includes(parsed.step)) {
+            setIsRecovered(true);
+            return;
+          }
+          
+          let updatedData = { ...parsed.data };
+          let updatedStep = parsed.step;
+          let draftError: string | null = null;
+
+          const draftAppId = normalizeModuleId(updatedData.appId || '');
+
+          if (draftAppId === 'farm-master') {
+            updatedData.appId = '';
+            updatedStep = 'apps';
+            draftError = 'Ang napiling module ay kasalukuyang hindi magagamit. Mangyaring pumili ng ibang module.';
+          } else if (draftAppId && !isValidActiveModuleId(draftAppId)) {
+            updatedData.appId = '';
+            updatedStep = 'apps';
+          } else {
+            updatedData.appId = draftAppId;
+          }
+
+          setStep(updatedStep);
+          setData((d) => ({ ...d, ...updatedData }));
+          if (draftError) {
+            setError(draftError);
+          }
         }
       } catch (e) {
-        // ignore
+        // ignore safely
       }
     }
+    setIsRecovered(true);
   }, []);
 
   useEffect(() => {
+    if (!isRecovered) return;
     if (['payment', 'pending', 'success'].includes(step)) {
       localStorage.removeItem('katuwang_onboarding_draft');
     } else {
       localStorage.setItem('katuwang_onboarding_draft', JSON.stringify({ step, data }));
     }
-  }, [step, data]);
+  }, [step, data, isRecovered]);
 
   const next = async () => {
     setError(null);
@@ -111,7 +159,7 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
     if (isLoading) return;
     if (step === 'mode') { handleCancel(); return; }
     if (step === 'apps') { setStep('mode'); return; }
-    if (step === 'business' && initialAppId) { handleCancel(); return; }
+    if (step === 'business' && resolvedAppId) { handleCancel(); return; }
     if (step === 'success' || step === 'payment' || step === 'pending') return;
     const all: Step[] = ['apps', 'business', 'account'];
     const idx = all.indexOf(step);

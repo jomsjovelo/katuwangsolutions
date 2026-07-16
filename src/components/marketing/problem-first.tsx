@@ -47,7 +47,7 @@ const PROBLEMS = [
     challenge: 'Mahirap mag-monitor ng deliveries',
     solution: 'Biyahe Sync ay nagtatala ng bawat biyahe, gastos, at kita ng iyong trucking.',
     module: 'Biyahe Sync',
-    moduleId: 'fleet-sync',
+    moduleId: 'biyahe-sync',
     color: '#3B82F6',
   },
   {
