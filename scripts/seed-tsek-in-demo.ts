@@ -6,13 +6,13 @@ async function seed() {
   console.log('Seeding Tsek-In mock data for demo tenant...');
   
   const mockRooms = [
-    { roomNumber: '101', type: 'Standard', rate: 1500, capacity: 2, bedType: '1 Queen', status: 'Available' as const },
-    { roomNumber: '102', type: 'Standard', rate: 1500, capacity: 2, bedType: '1 Queen', status: 'Occupied' as const },
-    { roomNumber: '103', type: 'Standard', rate: 1500, capacity: 2, bedType: '1 Queen', status: 'Cleaning' as const },
-    { roomNumber: '201', type: 'Deluxe', rate: 2500, capacity: 3, bedType: '1 Queen, 1 Single', status: 'Available' as const },
-    { roomNumber: '202', type: 'Deluxe', rate: 2500, capacity: 3, bedType: '1 Queen, 1 Single', status: 'Available' as const },
-    { roomNumber: '301', type: 'Suite', rate: 4500, capacity: 4, bedType: '2 Queens', status: 'Available' as const },
-    { roomNumber: 'Villa A', type: 'Villa', rate: 8000, capacity: 6, bedType: '3 Queens', status: 'Available' as const }
+    { roomNumber: '101', type: 'Standard', rateCentavos: 150000, capacity: 2, bedType: '1 Queen', status: 'Available' as const },
+    { roomNumber: '102', type: 'Standard', rateCentavos: 150000, capacity: 2, bedType: '1 Queen', status: 'Occupied' as const },
+    { roomNumber: '103', type: 'Standard', rateCentavos: 150000, capacity: 2, bedType: '1 Queen', status: 'Cleaning' as const },
+    { roomNumber: '201', type: 'Deluxe', rateCentavos: 250000, capacity: 3, bedType: '1 Queen, 1 Single', status: 'Available' as const },
+    { roomNumber: '202', type: 'Deluxe', rateCentavos: 250000, capacity: 3, bedType: '1 Queen, 1 Single', status: 'Available' as const },
+    { roomNumber: '301', type: 'Suite', rateCentavos: 450000, capacity: 4, bedType: '2 Queens', status: 'Available' as const },
+    { roomNumber: 'Villa A', type: 'Villa', rateCentavos: 800000, capacity: 6, bedType: '3 Queens', status: 'Available' as const }
   ];
 
   for (const room of mockRooms) {
