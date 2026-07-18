@@ -457,8 +457,8 @@ export function TsekInRoomsDashboard() {
         selectedBooking.id,
         durStr,
         new Date(newOutStr),
-        addedCost,
-        parseFloat(extendPayment || '0'),
+        addedCostCentavos,
+        Math.round(parseFloat(extendPayment || '0') * 100),
         extendPaymentMethod,
         user?.uid,
         user?.displayName || user?.email || 'Unknown'
