@@ -98,7 +98,7 @@ export function TsekInRoomsDashboard() {
   // Check Out / Manage Stay Form
   const [manageTab, setManageTab] = useState<'checkout' | 'extend'>('checkout');
   const [checkOutDate, setCheckOutDate] = useState(getCurrentDateTimeLocal());
-  const [extraChargesList, setExtraChargesList] = useState<{description: string, amount: number}[]>([]);
+  const [extraChargesList, setExtraChargesList] = useState<{description: string, amountCentavos: number}[]>([]);
   const [newChargeDesc, setNewChargeDesc] = useState('');
   const [newChargeAmt, setNewChargeAmt] = useState('');
   const [checkoutPaymentMethod, setCheckoutPaymentMethod] = useState('cash');
