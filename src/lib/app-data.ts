@@ -3,7 +3,7 @@ import {
   Utensils, Coffee, CalendarHeart, 
   RotateCcw, Droplets, Sparkles, Sun, Scissors, Dumbbell, Wrench,
   Truck, Car, Tractor, 
-  Banknote, BookText, HandCoins, LucideIcon
+  Banknote, BookText, HandCoins, LucideIcon, Bed, Users
 } from 'lucide-react';
 
 export interface AppModule {
@@ -531,6 +531,39 @@ export const appGroups: AppGroup[] = [
       },
     ],
   },
+  {
+    id: 'hospitality',
+    label: 'Hospitality',
+    accentColor: '#D97706',
+    apps: [
+      {
+        id: 'tsek-in',
+        name: 'Tsek-In',
+        icon: Bed,
+        tagline: 'Lightweight Property Management for small lodging businesses.',
+        imageSrc: '/apps/tsek-in.png',
+        features: ['Room Setup', 'Guest Check-in', 'Check-out & Billing', 'Room Status Board', 'Occupancy Rates'],
+        description: 'Tsek-In is the perfectly-sized Property Management System for your small resort, boarding house, apartment, apartelle, or motel. Easily track which rooms are occupied, available, or being cleaned, while keeping an active tab on guest bills and extra charges.',
+        benefits: [
+          'Visually track all room statuses in a simple grid (Available, Occupied, Cleaning)',
+          'Automatically compute the total bill based on nights stayed upon checkout',
+          'Record guest information and contact details efficiently',
+          'Perfectly sized for small properties, supporting up to 25 rooms effortlessly'
+        ],
+        stats: [
+          { value: '100%', label: 'Occupancy Tracking' },
+          { value: '₱99/mo', label: 'Flat Rate' },
+          { value: '0', label: 'Double Bookings' },
+        ],
+        howItWorks: [
+          { step: 'Setup Rooms', detail: 'Create your rooms with their types, capacities, and nightly rates.' },
+          { step: 'Check-In Guests', detail: 'Assign a room, set the number of nights, and record any initial payment.' },
+          { step: 'Check-Out & Settle', detail: 'The system computes the total stay and any extra charges for final billing.' }
+        ],
+        targetUsers: ['Resorts', 'Boarding Houses', 'Apartelles', 'Motels']
+      }
+    ]
+  }
 ];
 
 export const activeModules: AppModule[] = appGroups.flatMap(g => g.apps);

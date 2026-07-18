@@ -206,6 +206,43 @@ function ServiceMetrics({ incomeTxs }: { incomeTxs: any[] }) {
   );
 }
 
+// Specialized Hospitality Metrics for tsek-in
+function TsekInMetrics({ incomeTxs }: { incomeTxs: any[] }) {
+  const uniqueBookings = new Set(incomeTxs.filter(t => t.referenceId).map(t => t.referenceId));
+  const bookingVolume = uniqueBookings.size;
+  
+  const totalRoomRev = incomeTxs.reduce((acc, t) => acc + (t.totalPesos || 0), 0);
+  const arpb = bookingVolume > 0 ? totalRoomRev / bookingVolume : 0;
+
+  return (
+    <>
+      <Card className="shadow-none border border-slate-200/60 rounded-[28px] overflow-hidden bg-white">
+        <CardHeader className="p-4 pb-0">
+          <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Total Bookings</span>
+          <h4 className="text-xl font-headline font-black text-slate-800 mt-1">
+            {bookingVolume}
+          </h4>
+        </CardHeader>
+        <CardContent className="p-4 pt-1.5 text-[8px] font-bold text-slate-400 uppercase border-t border-slate-50 bg-slate-50/40 mt-3 flex justify-between items-center">
+          <span>Unique Stays</span>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-none border border-slate-200/60 rounded-[28px] overflow-hidden bg-white">
+        <CardHeader className="p-4 pb-0">
+          <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Avg Rev / Booking</span>
+          <h4 className="text-xl font-headline font-black text-slate-800 mt-1">
+            ₱{arpb.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+          </h4>
+        </CardHeader>
+        <CardContent className="p-4 pt-1.5 text-[8px] font-bold text-slate-400 uppercase border-t border-slate-50 bg-slate-50/40 mt-3 flex justify-between items-center">
+          <span>ARPB</span>
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
 export function ReportsTab() {
   const { currentTenant, allTenants } = useTenant();
   const theme = getModuleTheme(currentTenant?.moduleType);
@@ -451,6 +488,7 @@ export function ReportsTab() {
   const isRetail = currentTenant?.moduleType === 'benta-snap' || currentTenant?.moduleType === 'build-stack';
   const isLending = currentTenant?.moduleType === '5-6-tracker';
   const isService = currentTenant?.moduleType === 'wellness-pro' || currentTenant?.moduleType === 'auto-boss' || currentTenant?.moduleType === 'spin-snap';
+  const isTsekIn = currentTenant?.moduleType === 'tsek-in' || currentTenant?.moduleType === 'hospitality';
 
   const handleExportCSV = () => {
     if (transactions.length === 0) {
@@ -617,6 +655,7 @@ export function ReportsTab() {
           {isRetail && <RetailMetrics selectedDate={{ start: rangeStart, end: rangeEnd }} />}
           {isLending && <LendingMetrics expenseTxs={expenseTxs} incomeTxs={incomeTxs} borrowers={borrowers} />}
           {isService && <ServiceMetrics incomeTxs={incomeTxs} />}
+          {isTsekIn && <TsekInMetrics incomeTxs={incomeTxs} />}
           
           {totalExpensesPesos > 0 && (
             <Card className="shadow-none border border-slate-200/60 rounded-[28px] overflow-hidden bg-white">

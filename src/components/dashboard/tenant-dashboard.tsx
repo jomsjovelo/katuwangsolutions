@@ -33,6 +33,7 @@ const RepSyncDashboard = dynamic(() => import('@/components/dashboard/service/re
 const FleetDashboard = dynamic(() => import('@/components/dashboard/trucking/fleet-dashboard').then(m => m.FleetDashboard));
 const RentalDashboard = dynamic(() => import('@/components/dashboard/rental/rental-dashboard').then(m => m.RentalDashboard));
 const FarmDashboard = dynamic(() => import('@/components/dashboard/farm/farm-dashboard').then(m => m.FarmDashboard));
+const TsekInRoomsDashboard = dynamic(() => import('@/components/dashboard/hospitality/tsek-in-dashboard').then(m => m.TsekInRoomsDashboard));
 
 const ProfileTab = dynamic(() => import('@/components/dashboard/profile-tab').then(m => m.ProfileTab));
 const StockTab = dynamic(() => import('@/components/dashboard/stock-tab').then(m => m.StockTab));
@@ -195,7 +196,7 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
     return <BentaDashboard />;
   };
 
-  const isIndustryTab = !['profile', 'stock', 'ulat', 'home', 'kita'].includes(activeTab || 'home');
+  const isIndustryTab = !['profile', 'stock', 'ulat', 'home', 'kita', 'rooms'].includes(activeTab || 'home');
 
   return (
     <ShiftGate activeTab={activeTab} onGoToProfile={() => onTabChange?.('profile')}>
@@ -225,6 +226,10 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
         
         <div className={activeTab === 'stock' ? 'block' : 'hidden'}>
           <StockTab />
+        </div>
+
+        <div className={activeTab === 'rooms' ? 'block' : 'hidden'}>
+          <TsekInRoomsDashboard />
         </div>
 
         <div className={activeTab === 'ulat' ? 'block' : 'hidden'}>

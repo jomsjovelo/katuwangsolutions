@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import {
-  ShoppingCart, Leaf, Truck, HandCoins, Utensils
+  ShoppingCart, Leaf, Truck, HandCoins, Utensils, Bed
 } from 'lucide-react';
 import { RegisterSheet, useRegisterSheet } from '@/components/marketing/register-sheet';
 import { activeModulesCount } from '@/lib/app-data';
@@ -54,6 +54,15 @@ const FLAGSHIP_APPS = [
     tagline: 'Mabilis na order at payment system para sa iyong kainan o restaurant.',
     imageSrc: '/apps/bite-snap.png',
     color: '#F97316',
+    badge: 'Bagong Module',
+  },
+  {
+    id: 'tsek-in',
+    name: 'Tsek-In',
+    icon: Bed,
+    tagline: 'Lightweight Property Management para sa resorts, motels at apartelles.',
+    imageSrc: '/apps/tsek-in.png',
+    color: '#D97706',
     badge: 'Bagong Module',
   },
 ];

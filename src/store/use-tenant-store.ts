@@ -27,6 +27,9 @@ export interface Tenant {
   therapistCommissionRate?: number;
   mechanicCommissionRate?: number;
   managerPin?: string; // Phase 2: Manager Override PIN
+  standardCheckInTime?: string;
+  standardCheckOutTime?: string;
+  extraPaxFee?: number;
 }
 
 export interface UserProfile {
@@ -89,7 +92,10 @@ export const useTenantStore = create<TenantState>()(
     if (deepEqual(state.allTenants, tenants)) {
       return state;
     }
-    return { allTenants: tenants };
+    const updatedActive = state.activeTenant 
+      ? tenants.find(t => t.id === state.activeTenant?.id) || state.activeTenant 
+      : state.activeTenant;
+    return { allTenants: tenants, activeTenant: updatedActive };
   }),
   
   updateTenantStatus: (id, status) => set((state) => {

@@ -59,6 +59,15 @@ const PROBLEMS = [
     moduleId: 'ledger-flow',
     color: '#6366F1',
   },
+  {
+    id: 'hospitality',
+    emoji: '🏨',
+    challenge: 'Magulo ang monitoring ng available rooms at guest check-ins',
+    solution: 'Tsek-In ay nagbibigay ng visual na room status board at mabilis na check-out billing.',
+    module: 'Tsek-In',
+    moduleId: 'tsek-in',
+    color: '#D97706',
+  },
 ];
 
 export function ProblemFirst() {

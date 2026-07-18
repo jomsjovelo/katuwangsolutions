@@ -41,14 +41,8 @@ export function useUserTenants() {
     return deduped;
   }, [ownerTenants, staffTenants]);
 
-  // Track the last hash we pushed to the store so we never call setAllTenants twice for identical data
-  const lastSyncedHashRef = useRef<string>('');
-
   useEffect(() => {
     if (loading) return;
-    const hash = uniqueTenants.map(t => t.id).join(',');
-    if (hash === lastSyncedHashRef.current) return;
-    lastSyncedHashRef.current = hash;
     // Read actions directly from the store singleton — NOT via hook selector.
     // This way we never need to put them in the dependency array, which was
     // the direct cause of the infinite "Maximum update depth" loop.

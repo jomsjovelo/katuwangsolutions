@@ -36,12 +36,16 @@ export function useTenant() {
       return null;
     }
       
+    // Try to find the live data from the Firestore sync
+    const liveTenantData = allTenants.find(t => t.id === effectiveTenantId);
+
     return {
       ...activeTenant,
+      ...liveTenantData,
       id: effectiveTenantId,
       moduleType
     };
-  }, [activeTenant, activeModuleOverride, seededTenants]);
+  }, [activeTenant, activeModuleOverride, seededTenants, allTenants]);
 
   React.useEffect(() => {
     if (!activeTenant) return;

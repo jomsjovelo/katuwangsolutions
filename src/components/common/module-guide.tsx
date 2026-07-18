@@ -281,6 +281,19 @@ export const MODULE_GUIDES: Record<string, GuideContent> = {
       action: 'Mag-benta ng 10 boxes ng sardinas sa system at tanggapin ang bulk payment.',
       result: 'Awtomatikong mababawasan ng 10 boxes ang iyong master inventory at lalaki ang cash-on-hand.'
     }
+  },
+  'tsek-in': {
+    tagline: 'Pamahalaan ang mga kwarto at check-in ng inyong resort o motel nang walang kahirap-hirap.',
+    steps: [
+      'I-setup ang mga kwarto gamit ang "Settings & Rates" para ilagay ang presyo at kapasidad.',
+      'Pindutin ang "+ Check-In Guest" kapag may dumating na bisita para i-assign sa available na kwarto.',
+      'I-click ang kwarto para mag-add ng extra charges (tulad ng extra bed) at i-checkout para makita ang final bill.'
+    ],
+    example: {
+      scenario: 'Nag-check in ang isang pamilya sa Standard Room para sa 2 gabi.',
+      action: 'I-click ang "Check-In Guest", piliin ang Standard Room, at ilagay ang 2 nights.',
+      result: 'Magiging "Occupied" ang kwarto sa dashboard at awtomatikong ma-co-compute ang total bill nila pag-checkout.'
+    }
   }
 };
 

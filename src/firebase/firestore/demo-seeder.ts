@@ -162,61 +162,84 @@ export async function seedDemoAccountIfNeeded(tenantId: string, moduleType: stri
       createdAt: serverTimestamp(),
     }, { merge: true });
     
-    // Seed products
-    const seedProducts = MODULE_SEED_DATA[moduleType] || MODULE_SEED_DATA['benta-snap'];
-    const batch = writeBatch(db);
-    
-    const productsRef = collection(db, 'tenants', tenantId, 'products');
-    
-    seedProducts.forEach((prod) => {
-      const newProdRef = doc(productsRef);
-      batch.set(newProdRef, {
-        tenantId,
-        name: prod.name,
-        salePrice: prod.price,
-        costPrice: prod.cost,
-        currentStock: prod.stock,
-        minStock: prod.minStock,
-        isActive: true,
-        category: 'General',
-        unit: 'pcs',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+    if (moduleType === 'tsek-in') {
+      const mockRooms = [
+        { roomNumber: '101', type: 'Standard', rate: 1500, capacity: 2, bedType: '1 Queen', status: 'Available' },
+        { roomNumber: '102', type: 'Standard', rate: 1500, capacity: 2, bedType: '1 Queen', status: 'Occupied' },
+        { roomNumber: '103', type: 'Standard', rate: 1500, capacity: 2, bedType: '1 Queen', status: 'Cleaning' },
+        { roomNumber: '201', type: 'Deluxe', rate: 2500, capacity: 3, bedType: '1 Queen, 1 Single', status: 'Available' },
+        { roomNumber: '202', type: 'Deluxe', rate: 2500, capacity: 3, bedType: '1 Queen, 1 Single', status: 'Available' },
+        { roomNumber: '301', type: 'Suite', rate: 4500, capacity: 4, bedType: '2 Queens', status: 'Available' },
+        { roomNumber: 'Villa A', type: 'Villa', rate: 8000, capacity: 6, bedType: '3 Queens', status: 'Available' }
+      ];
+      const roomsBatch = writeBatch(db);
+      const roomsRef = collection(db, 'tenants', tenantId, 'rooms');
+      mockRooms.forEach((room) => {
+        const newRoomRef = doc(roomsRef);
+        roomsBatch.set(newRoomRef, {
+          id: newRoomRef.id,
+          ...room,
+          createdAt: serverTimestamp(),
+        });
       });
-    });
-    
-    await batch.commit();
-    console.log(`[DemoSeeder] Successfully seeded ${seedProducts.length} items for ${moduleType}.`);
-    
-    // Seed some recent sales to make the dashboard look alive
-    const salesRef = collection(db, 'tenants', tenantId, 'sales');
-    const salesBatch = writeBatch(db);
-    
-    // Create 3 recent sales using random products from the seed data
-    for (let i = 0; i < 3; i++) {
-      const randomProd = seedProducts[Math.floor(Math.random() * seedProducts.length)];
-      const qty = Math.floor(Math.random() * 3) + 1;
-      const totalAmount = randomProd.price * qty;
+      await roomsBatch.commit();
+      console.log(`[DemoSeeder] Successfully seeded ${mockRooms.length} rooms for Tsek-In.`);
+    } else {
+      // Seed products
+      const seedProducts = MODULE_SEED_DATA[moduleType] || MODULE_SEED_DATA['benta-snap'];
+      const batch = writeBatch(db);
       
-      const newSaleRef = doc(salesRef);
-      salesBatch.set(newSaleRef, {
-        tenantId,
-        productId: 'demo-prod-' + i,
-        productName: randomProd.name,
-        unitPrice: randomProd.price,
-        quantity: qty,
-        totalAmount,
-        paymentMethod: 'cash',
-        status: 'paid',
-        performedBy: actualUid,
-        // Randomize time within the last 24 hours
-        createdAt: new Date(Date.now() - Math.random() * 86400000), 
+      const productsRef = collection(db, 'tenants', tenantId, 'products');
+      
+      seedProducts.forEach((prod) => {
+        const newProdRef = doc(productsRef);
+        batch.set(newProdRef, {
+          tenantId,
+          name: prod.name,
+          salePrice: prod.price,
+          costPrice: prod.cost,
+          currentStock: prod.stock,
+          minStock: prod.minStock,
+          isActive: true,
+          category: 'General',
+          unit: 'pcs',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
       });
+      
+      await batch.commit();
+      console.log(`[DemoSeeder] Successfully seeded ${seedProducts.length} items for ${moduleType}.`);
+      
+      // Seed some recent sales to make the dashboard look alive
+      const salesRef = collection(db, 'tenants', tenantId, 'sales');
+      const salesBatch = writeBatch(db);
+      
+      // Create 3 recent sales using random products from the seed data
+      for (let i = 0; i < 3; i++) {
+        const randomProd = seedProducts[Math.floor(Math.random() * seedProducts.length)];
+        const qty = Math.floor(Math.random() * 3) + 1;
+        const totalAmount = randomProd.price * qty;
+        
+        const newSaleRef = doc(salesRef);
+        salesBatch.set(newSaleRef, {
+          tenantId,
+          productId: 'demo-prod-' + i,
+          productName: randomProd.name,
+          unitPrice: randomProd.price,
+          quantity: qty,
+          totalAmount,
+          paymentMethod: 'cash',
+          status: 'paid',
+          performedBy: actualUid,
+          // Randomize time within the last 24 hours
+          createdAt: new Date(Date.now() - Math.random() * 86400000), 
+        });
+      }
+      
+      await salesBatch.commit();
+      console.log(`[DemoSeeder] Successfully seeded sales for ${moduleType}.`);
     }
-    
-    await salesBatch.commit();
-    console.log(`[DemoSeeder] Successfully seeded sales for ${moduleType}.`);
-    
   } catch (error) {
     console.error('[DemoSeeder] Seeding failed:', error);
   } finally {

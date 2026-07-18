@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import {
   ShoppingCart, Leaf, Utensils, Coffee, RotateCcw,
-  Scissors, Truck, Hammer, Droplets, ChevronRight
+  Scissors, Truck, Hammer, Droplets, ChevronRight, Bed
 } from 'lucide-react';
 import { RegisterSheet, useRegisterSheet } from '@/components/marketing/register-sheet';
 
@@ -17,6 +17,7 @@ const INDUSTRIES = [
   { id: 'trucking', label: 'Trucking', icon: Truck, module: 'Biyahe Sync', moduleId: 'biyahe-sync', color: '#3B82F6' },
   { id: 'hardware', label: 'Hardware Store', icon: Hammer, module: 'Build Stack', moduleId: 'build-stack', color: '#475569' },
   { id: 'water', label: 'Water Refilling', icon: Droplets, module: 'Hydro Sync', moduleId: 'hydro-sync', color: '#0284C7' },
+  { id: 'hospitality', label: 'Resort / Motel', icon: Bed, module: 'Tsek-In', moduleId: 'tsek-in', color: '#D97706' },
 ];
 
 export function BusinessFinder() {

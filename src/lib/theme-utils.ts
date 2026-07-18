@@ -274,6 +274,20 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
     glowClass: 'joy-glow-amber',
     name: 'Rental',
     tagline: 'Mabilis na pamamahala ng pinaparentahan at gamit'
+  },
+  
+  // 16. Hospitality
+  'tsek-in': {
+    primary: '#D97706', // Amber 600
+    primaryBg: 'from-amber-600 to-orange-600',
+    primaryText: 'text-amber-700',
+    primaryBorder: 'border-amber-200',
+    secondary: '#0F172A',
+    secondaryBg: 'bg-slate-900 hover:bg-slate-800',
+    secondaryText: 'text-white',
+    glowClass: 'joy-glow-amber',
+    name: 'Tsek-In',
+    tagline: 'Mabilis na pamamahala ng resort at hotel'
   }
 };
 
