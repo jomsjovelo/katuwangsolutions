@@ -56,6 +56,11 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
   const [txToDelete, setTxToDelete] = useState<any | null>(null);
   const [envToDelete, setEnvToDelete] = useState<any | null>(null);
 
+  // Transaction History States
+  const [searchTerm, setSearchTerm] = useState('');
+  const [txDateFilter, setTxDateFilter] = useState<'all' | 'today' | '7days' | '15days' | '30days'>('all');
+  const [txLimit, setTxLimit] = useState(20);
+
   // Insights Date Filter States
   const [insightsRange, setInsightsRange] = useState<'cycle' | 'today' | 'last7' | 'last15' | 'last30' | 'custom'>('cycle');
   const [customStartDate, setCustomStartDate] = useState(() => {
@@ -852,95 +857,130 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
             </div>
           )}
 
-          {/* Quick Logs Preview */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Recent Logs</h3>
-              <p className="text-[10px] font-bold text-primary cursor-pointer hover:underline" onClick={() => onTabChange?.('benta')}>View All</p>
-            </div>
+          {/* Transaction History Filter Logic */}
+          {(() => {
+            let filteredTransactions = [...transactions];
             
-            {transactions.length === 0 ? (
-              <div className="py-8 text-center text-slate-400 text-sm">
-                No transactions logged yet.
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {transactions.slice(0, 3).map(tx => (
-                  <div key={tx.id} onClick={() => setEditingTx(tx)} className="flex justify-between items-center cursor-pointer hover:bg-slate-50 p-2 rounded-xl transition-colors -mx-2">
-                    <div className="flex items-center gap-3">
-                      <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
-                        tx.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'
-                      }`}>
-                        {tx.type === 'income' ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
+            // 1. Date Filter
+            if (txDateFilter !== 'all') {
+              const nowTime = new Date().getTime();
+              let msToSubtract = 0;
+              if (txDateFilter === 'today') msToSubtract = 24 * 60 * 60 * 1000;
+              else if (txDateFilter === '7days') msToSubtract = 7 * 24 * 60 * 60 * 1000;
+              else if (txDateFilter === '15days') msToSubtract = 15 * 24 * 60 * 60 * 1000;
+              else if (txDateFilter === '30days') msToSubtract = 30 * 24 * 60 * 60 * 1000;
+              
+              const cutoffTime = nowTime - msToSubtract;
+              
+              filteredTransactions = filteredTransactions.filter(tx => {
+                if (!tx.createdAt) return false;
+                const txDate = tx.createdAt.toDate ? tx.createdAt.toDate() : new Date(tx.createdAt);
+                if (txDateFilter === 'today') {
+                  // Today means same day, not just 24h ago
+                  const todayStr = new Date().toDateString();
+                  return txDate.toDateString() === todayStr;
+                }
+                return txDate.getTime() >= cutoffTime;
+              });
+            }
+
+            // 2. Search Filter
+            if (searchTerm.trim() !== '') {
+              const q = searchTerm.toLowerCase();
+              filteredTransactions = filteredTransactions.filter(tx => 
+                tx.category.toLowerCase().includes(q) || 
+                (tx.note && tx.note.toLowerCase().includes(q))
+              );
+            }
+
+            const visibleTransactions = filteredTransactions.slice(0, txLimit);
+
+            return (
+              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm min-h-[400px]">
+                <div className="flex flex-col gap-4 mb-6">
+                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Transaction History</h3>
+                  
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg className="h-4 w-4 text-slate-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" />
+                        </svg>
                       </div>
-                      <div>
-                        <p className="font-bold text-sm text-slate-800">{tx.category}</p>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tx.note || 'No Note'}</p>
-                      </div>
+                      <input 
+                        type="text" 
+                        placeholder="Search logs..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 text-xs font-bold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-primary transition-colors text-slate-700"
+                      />
                     </div>
-                    <div className="text-right">
-                      <p className={`font-black tracking-tight ${tx.type === 'income' ? 'text-emerald-600' : 'text-slate-800'}`}>
-                        {tx.type === 'income' ? '+' : '-'}{formatMoney(tx.amountCentavos)}
-                      </p>
-                      <p className="text-[10px] text-slate-400 font-medium">
-                        {tx.createdAt?.toDate ? new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric' }).format(tx.createdAt.toDate()) : 'Just now'}
-                      </p>
-                    </div>
+                    <select
+                      value={txDateFilter}
+                      onChange={(e) => setTxDateFilter(e.target.value as any)}
+                      className="w-[110px] text-xs font-bold text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-2 py-2 outline-none focus:border-primary transition-colors"
+                    >
+                      <option value="all">All Time</option>
+                      <option value="today">Today</option>
+                      <option value="7days">Last 7 Days</option>
+                      <option value="15days">Last 15 Days</option>
+                      <option value="30days">Last 30 Days</option>
+                    </select>
                   </div>
-                ))}
+                </div>
+                
+                {filteredTransactions.length === 0 ? (
+                  <div className="py-12 flex flex-col items-center justify-center text-slate-400 text-sm">
+                    <Receipt className="h-12 w-12 text-slate-200 mb-3" />
+                    {transactions.length === 0 ? "No transactions logged yet." : "No matching transactions found."}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {visibleTransactions.map(tx => (
+                      <div key={tx.id} onClick={() => setEditingTx(tx)} className="flex justify-between items-center p-3 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer">
+                        <div className="flex items-center gap-3">
+                          <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
+                            tx.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'
+                          }`}>
+                            {tx.type === 'income' ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
+                          </div>
+                          <div>
+                            <p className="font-bold text-sm text-slate-800">{tx.category}</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tx.note || 'No Note'}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className={`font-black tracking-tight ${tx.type === 'income' ? 'text-emerald-600' : 'text-slate-800'}`}>
+                            {tx.type === 'income' ? '+' : '-'}{formatMoney(tx.amountCentavos)}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-medium">
+                            {tx.createdAt?.toDate ? new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric' }).format(tx.createdAt.toDate()) : 'Just now'}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+
+                    {filteredTransactions.length > visibleTransactions.length && (
+                      <div className="pt-4 flex justify-center">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => setTxLimit(prev => prev + 20)}
+                          className="h-8 text-xs font-bold text-primary border-primary hover:bg-primary/5 rounded-full px-6"
+                        >
+                          Load More
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            );
+          })()}
         </div>
       )}
 
-      {/* TXNS / LOGS TAB */}
-      {activeTab === 'benta' && (
-        <div className="-mt-6 px-4 space-y-6 relative z-10">
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm min-h-[500px]">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Transaction History</h3>
-              <div className="flex gap-2">
-                <Button onClick={() => setShowIncomeModal(true)} size="sm" variant="outline" className="h-8 text-emerald-600 border-emerald-200 hover:bg-emerald-50">+ Income</Button>
-                <Button onClick={() => setShowExpenseModal(true)} size="sm" variant="outline" className="h-8 text-rose-600 border-rose-200 hover:bg-rose-50">- Expense</Button>
-              </div>
-            </div>
-            
-            {transactions.length === 0 ? (
-              <div className="py-20 flex flex-col items-center justify-center text-slate-400 text-sm">
-                <Receipt className="h-12 w-12 text-slate-200 mb-3" />
-                No transactions logged yet.
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {transactions.map(tx => (
-                  <div key={tx.id} onClick={() => setEditingTx(tx)} className="flex justify-between items-center p-3 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer">
-                    <div className="flex items-center gap-3">
-                      <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
-                        tx.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'
-                      }`}>
-                        {tx.type === 'income' ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm text-slate-800">{tx.category}</p>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tx.note || 'No Note'}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className={`font-black tracking-tight ${tx.type === 'income' ? 'text-emerald-600' : 'text-slate-800'}`}>
-                        {tx.type === 'income' ? '+' : '-'}{formatMoney(tx.amountCentavos)}
-                      </p>
-                      <p className="text-[10px] text-slate-400 font-medium">
-                        {tx.createdAt?.toDate ? new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric' }).format(tx.createdAt.toDate()) : 'Just now'}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+
 
       {/* SAVINGS TAB (STOCK) */}
       {activeTab === 'stock' && (

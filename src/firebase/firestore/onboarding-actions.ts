@@ -12,6 +12,7 @@ import {
 import { initializeFirebase } from '../index';
 import { BusinessInfoSchema, AccountSchema } from '@/lib/schemas/onboarding';
 import { generateUniqueReferralCode } from './referral-utils';
+import { getModulePricing } from '@/lib/pricing';
 
 export async function registerNewTenant(onboardingData: any) {
   const { auth, db } = initializeFirebase();
@@ -105,7 +106,7 @@ export async function registerNewTenant(onboardingData: any) {
           ownerUid: uid,
           ownerEmail: accountInfo.email,
           businessCode: businessCode,
-          pricingTier: onboardingData.appId === 'budget-mo' ? 'promo_50' : 'promo_99',
+          pricingTier: getModulePricing(onboardingData.appId).pricingTier,
           nextBillingDate: null,
           subscriptionStatus: 'pending',
           contactPhone: '',

@@ -3,6 +3,7 @@
 import React from 'react';
 import { ExternalLink, Download } from 'lucide-react';
 import Image from 'next/image';
+import { getModulePricing, formatPesoWithCents, formatPeso } from '@/lib/pricing';
 
 const FB_MESSENGER_URL = 'https://m.me/KatuwangSolutions';
 
@@ -12,6 +13,8 @@ interface PaymentStepProps {
 }
 
 export function PaymentStep({ data, onPaymentSent }: PaymentStepProps) {
+  const pricing = getModulePricing(data.appId || '');
+
   const downloadQR = () => {
     const link = document.createElement('a');
     link.href = '/images/gcash-qr.jpg';
@@ -33,16 +36,16 @@ export function PaymentStep({ data, onPaymentSent }: PaymentStepProps) {
       {/* Header */}
       <div className="space-y-1">
         <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900">Complete Your Payment</h2>
-        <p className="text-slate-600 text-sm font-medium">Send <strong>{data.appId === 'budget-mo' ? '₱50.00' : '₱99.00'}</strong> via GCash or Maya to activate your account.</p>
+        <p className="text-slate-600 text-sm font-medium">Send <strong>{formatPesoWithCents(pricing.promotionalMonthlyPrice)}</strong> via GCash or Maya to activate your account.</p>
       </div>
 
       {/* Amount Due Card */}
       <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 flex justify-between items-center" data-testid="payment-amount-card">
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Amount Due</p>
-          <p className="text-3xl font-black text-primary" data-testid="payment-amount">{data.appId === 'budget-mo' ? '₱50.00' : '₱99.00'}</p>
-          <p className="text-[10px] text-slate-500 font-medium mt-0.5" data-testid="payment-per-module-label">{data.appId === 'budget-mo' ? '₱50' : '₱99'}/buwan · bawat module</p>
-          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1" data-testid="payment-clarification">Ang bayad na {data.appId === 'budget-mo' ? '₱50' : '₱99'} ay para sa napili mong module.</p>
+          <p className="text-3xl font-black text-primary" data-testid="payment-amount">{formatPesoWithCents(pricing.promotionalMonthlyPrice)}</p>
+          <p className="text-[10px] text-slate-500 font-medium mt-0.5" data-testid="payment-per-module-label">{formatPeso(pricing.promotionalMonthlyPrice)}/buwan · bawat module</p>
+          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1" data-testid="payment-clarification">Ang bayad na {formatPeso(pricing.promotionalMonthlyPrice)} ay para sa napili mong module.</p>
         </div>
         <div className="text-right">
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Business</p>
@@ -82,7 +85,7 @@ export function PaymentStep({ data, onPaymentSent }: PaymentStepProps) {
         <div className="space-y-3">
           {[
             'Scan or download the QR code above, then upload it in your GCash or Maya app.',
-            `Input the exact amount: ${data.appId === 'budget-mo' ? '₱50.00' : '₱99.00'}.`,
+            `Input the exact amount: ${formatPesoWithCents(pricing.promotionalMonthlyPrice)}.`,
             'Take a screenshot of your payment confirmation.',
             'Send the screenshot AND your registered email address to our Facebook Page via Messenger.',
             'We will send you a message once your account is activated.',

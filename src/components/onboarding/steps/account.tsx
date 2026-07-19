@@ -8,6 +8,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Eye, EyeOff } from 'lucide-react';
 
 import { AccountSchema } from '@/lib/schemas/onboarding';
+import { getActiveAppById } from '@/lib/app-data';
+import { getModulePricing, formatPesoWithCents } from '@/lib/pricing';
 import {
   Sheet,
   SheetContent,
@@ -30,6 +32,9 @@ export function AccountStep({ data, onUpdate, onNext }: AccountStepProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
+
+  const app = getActiveAppById(data.appId || '');
+  const pricing = getModulePricing(data.appId || '');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -206,7 +211,7 @@ export function AccountStep({ data, onUpdate, onNext }: AccountStepProps) {
               <section>
                 <h3 className="text-lg font-bold text-slate-900 mb-2">6. Subscription</h3>
                 <p className="text-slate-600">
-                  <strong>Pricing:</strong> Access to a single Katuwang module is billed at ₱99.00 per month (Philippine Peso) on promo. <br />
+                  <strong>Pricing:</strong> Access to {app?.name || 'the module'} is billed at {formatPesoWithCents(pricing.promotionalMonthlyPrice)} per month (Philippine Peso) on promo. (Regular rate: {formatPesoWithCents(pricing.regularMonthlyPrice)}).<br />
                   <strong>No Auto-Renew:</strong> We do not automatically charge your payment method. You must manually renew to continue.
                 </p>
               </section>

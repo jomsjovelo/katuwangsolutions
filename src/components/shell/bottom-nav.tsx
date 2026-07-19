@@ -91,7 +91,7 @@ export function BottomNav({ activeTab = 'home', onTabChange }: BottomNavProps) {
 
   const tabs = [
     { id: 'home',    label: isBudgeting ? 'Dashboard' : 'Home',    Icon: Home },
-    ...(isHospitality ? [] : [{ id: 'benta',   label: getBentaLabel(),   Icon: getBentaIcon() }]),
+    ...(isHospitality || isBudgeting ? [] : [{ id: 'benta',   label: getBentaLabel(),   Icon: getBentaIcon() }]),
     ...(isHospitality ? [{ id: 'rooms', label: 'Rooms', Icon: Bed }] : []),
     ...(isLending ? [] : [{ id: 'stock',   label: isBudgeting ? 'Savings' : 'Stock',   Icon: isBudgeting ? PiggyBank : Package }]),
     { id: 'ulat',    label: isBudgeting ? 'Insights' : 'Report',    Icon: isBudgeting ? Target : BarChart2 },

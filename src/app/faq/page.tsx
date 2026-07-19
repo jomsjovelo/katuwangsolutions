@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 const faqs = [
   {
     q: "Magkano ang Katuwang Solutions?",
-    a: "₱99 lang per month (para sa iisang module) kung mag-aavail ka sa ating promotional rate. At ang maganda pa, locked-in na ang presyong ito habang active ang iyong subscription!"
+    a: "Nagsisimula sa ₱50/buwan (Budget Mo) hanggang ₱99/buwan para sa iba pang standard modules. At ang maganda pa, locked-in na ang presyong ito habang active ang iyong subscription!"
   },
   {
     q: "Paano mag-bayad?",

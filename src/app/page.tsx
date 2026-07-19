@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { Facebook, MessageCircle, Globe, Mail, FileText, HelpCircle, Info } from 'lucide-react';
 
+import { activeModulesCount } from '@/lib/app-data';
+
 // Marketing components — all lazily loaded for performance
 const Hero = dynamic(() => import('@/components/marketing/hero').then(mod => mod.Hero));
 const SocialProofBar = dynamic(() => import('@/components/marketing/social-proof-bar').then(mod => mod.SocialProofBar));
@@ -73,7 +75,7 @@ export default function Home() {
                     <BrandLogo theme="dark" />
                   </div>
                   <p className="text-slate-500 text-xs leading-relaxed max-w-[220px]">
-                    Ang all-in-one business management system para sa Pilipinong negosyante. ₱99 / buwan.
+                    Ang all-in-one business management system para sa Pilipinong negosyante. {activeModulesCount} business modules · ₱50–₱99/buwan bawat module.
                   </p>
                   {/* Social links */}
                   <div className="flex items-center gap-3 pt-1">

@@ -6,6 +6,7 @@ import {
   Scissors, Truck, Hammer, Droplets, ChevronRight, Bed, Banknote
 } from 'lucide-react';
 import { RegisterSheet, useRegisterSheet } from '@/components/marketing/register-sheet';
+import { getModulePricing, formatPeso } from '@/lib/pricing';
 
 const INDUSTRIES = [
   { id: 'retail', label: 'Retail / Sari-Sari', icon: ShoppingCart, module: 'Benta Snap', moduleId: 'benta-snap', color: '#06B6D4' },
@@ -94,23 +95,35 @@ export function BusinessFinder() {
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-0.5">Para sa iyo</p>
                 <p className="font-black text-slate-900 text-base leading-tight">{selectedIndustry.module}</p>
-              {selectedIndustry.moduleId === 'budget-mo' ? (
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  <span className="line-through mr-1">₱100</span>
-                  <span className="text-primary font-bold">₱50 / buwan</span> · Works Offline
+                  {selectedIndustry.moduleId === 'budget-mo' ? (
+                    <>
+                      <span className="line-through mr-1">₱100</span>
+                      <span className="text-primary font-bold">₱50/buwan</span>
+                    </>
+                  ) : (
+                    <span className="font-bold">₱99/buwan</span>
+                  )}
+                  {' '}· bawat module
                 </p>
-              ) : (
-                <p className="text-[11px] text-slate-500 mt-0.5">₱99 / buwan · Works Offline</p>
-              )}
               </div>
-              <button
-                onClick={openSheet}
-                className="flex-shrink-0 h-10 px-4 rounded-xl font-bold text-xs text-white flex items-center gap-1 active:scale-95 transition-transform"
-                style={{ backgroundColor: selectedIndustry.color }}
-              >
-                Register
-                <ChevronRight className="h-3.5 w-3.5" />
-              </button>
+              <div className="flex flex-col gap-2 flex-shrink-0">
+                <button
+                  onClick={openSheet}
+                  className="h-9 px-4 rounded-xl font-bold text-[11px] text-white flex items-center justify-center gap-1 active:scale-95 transition-transform"
+                  style={{ backgroundColor: selectedIndustry.color }}
+                >
+                  Register
+                  <ChevronRight className="h-3 w-3" />
+                </button>
+                <a
+                  href={`/product/${selectedIndustry.moduleId}`}
+                  className="h-8 px-3 rounded-lg font-bold text-[10px] flex items-center justify-center gap-1 active:scale-95 transition-all"
+                  style={{ color: selectedIndustry.color, backgroundColor: `${selectedIndustry.color}15` }}
+                >
+                  Learn More
+                </a>
+              </div>
             </div>
           )}
         </div>

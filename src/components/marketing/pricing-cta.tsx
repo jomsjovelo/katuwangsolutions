@@ -73,8 +73,9 @@ export function PricingCta() {
                   <ChevronRight className="h-5 w-5" />
                 </button>
 
-                <p className="text-[10px] text-white/35 uppercase tracking-[0.2em] font-bold">
-                  ₱99 only for a month. No auto renew.
+                <p className="text-[10px] text-white/40 font-bold">
+                  Para sa 19 standard modules · bawat module<br />
+                  <span className="text-white/30 text-[9px] uppercase tracking-[0.1em] mt-1 inline-block">Budget Mo: ₱50/buwan promo · regular ₱100</span>
                 </p>
               </div>
             </div>

@@ -22,8 +22,8 @@ export function FloatingCta() {
             </div>
             <div className="flex items-center gap-2">
               <div className="text-right">
-                <div className="text-[10px] line-through text-white/50 leading-none">₱199</div>
-                <div className="text-sm font-black text-secondary leading-none">₱99/mo</div>
+                <div className="text-[11px] font-black text-secondary leading-none">₱50–₱99/mo</div>
+                <div className="text-[9px] text-white/70 leading-none mt-1">bawat module</div>
               </div>
               <div className="h-8 w-8 rounded-xl bg-white/20 flex items-center justify-center">
                 <ChevronRight className="h-4 w-4" />

@@ -49,8 +49,8 @@ export default function TermsPage() {
           <section className="space-y-4">
             <h2 className="text-xl font-bold text-slate-900">3. Subscription and Billing</h2>
             <p className="text-slate-600 leading-relaxed">
-              <strong>Pricing:</strong> The standard rate for a single Katuwang module is ₱199.00 per month (Philippine Peso). <br />
-              <strong>Promotional Rates & Grandfather Clause:</strong> We may occasionally offer promotional rates (e.g., ₱99.00 per month). If you subscribe during a promotional period, you lock in that discounted rate for the lifetime of your continuous subscription. However, if your subscription lapses or expires, you will be subject to the standard ₱199.00 rate upon reactivation.<br />
+              <strong>Pricing:</strong> Our modules follow a dual-tier structure. The standard rate for a single Katuwang module is ₱199.00 per month. The standard rate for the Budget Mo module is ₱100.00 per month. <br />
+              <strong>Promotional Rates & Grandfather Clause:</strong> We frequently offer promotional rates (e.g., ₱99.00/month for standard modules, and ₱50.00/month for Budget Mo). If you subscribe during a promotional period, you lock in that discounted rate for the lifetime of your continuous subscription. However, if your subscription lapses or expires, you will be subject to the standard non-promotional rate upon reactivation.<br />
               <strong>No Auto-Renew:</strong> We do not automatically charge your payment method at the end of your billing cycle. You must manually renew your subscription to continue accessing the module. <br />
               <strong>Cancellation:</strong> You may cancel your use of the service at any time. Because there is no auto-renew, simply allowing your subscription to expire acts as cancellation.
             </p>

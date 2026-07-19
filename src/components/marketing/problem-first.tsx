@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { ChevronRight, Banknote } from 'lucide-react';
 import { RegisterSheet, useRegisterSheet } from '@/components/marketing/register-sheet';
+import { getModulePricing } from '@/lib/pricing';
 
 const PROBLEMS = [
   {
@@ -148,24 +149,34 @@ export function ProblemFirst() {
                 <p className="font-black text-slate-900 text-base">{selectedProblem.module}</p>
                 <p className="text-sm text-slate-600 leading-relaxed">{selectedProblem.solution}</p>
               </div>
-              <button
-                onClick={openSheet}
-                className="w-full h-12 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
-                style={{ backgroundColor: selectedProblem.color }}
-              >
-                Subukan ang {selectedProblem.module}
-                <ChevronRight className="h-4 w-4" />
-              </button>
-              {selectedProblem.moduleId === 'budget-mo' ? (
-                <p className="text-[11px] text-slate-500 mt-1 text-center">
-                  <span className="line-through mr-1">₱100</span>
-                  <span className="text-primary font-bold">₱50 / buwan</span> · No auto-renew · Works Offline
-                </p>
-              ) : (
-                <p className="text-[11px] text-slate-500 mt-1 text-center">
-                  ₱99 / buwan · No auto-renew · Works Offline
-                </p>
-              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={openSheet}
+                  className="flex-1 h-12 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+                  style={{ backgroundColor: selectedProblem.color }}
+                >
+                  Subukan ang {selectedProblem.module}
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+                <a
+                  href={`/product/${selectedProblem.moduleId}`}
+                  className="w-24 flex-shrink-0 h-12 rounded-xl font-bold text-xs flex items-center justify-center gap-1 active:scale-95 transition-all"
+                  style={{ color: selectedProblem.color, backgroundColor: `${selectedProblem.color}15` }}
+                >
+                  Learn More
+                </a>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1 text-center">
+                {selectedProblem.moduleId === 'budget-mo' ? (
+                  <>
+                    <span className="line-through mr-1">₱100</span>
+                    <span className="text-primary font-bold">₱50/buwan</span>
+                  </>
+                ) : (
+                  <span className="font-bold">₱99/buwan</span>
+                )}
+                {' '}· bawat module · No auto-renew · Works Offline
+              </p>
             </div>
           )}
         </div>

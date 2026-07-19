@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 import { appGroups, activeModulesCount } from '@/lib/app-data';
+import { getModulePricing, formatPeso } from '@/lib/pricing';
 
 interface RegisterSheetProps {
   open: boolean;
@@ -78,7 +79,7 @@ function RegisterSheetContent({ open, onClose, initialAppId = '' }: RegisterShee
               {step === 'role' ? 'Ano ang role mo?' : 'Anong uri ng negosyo mo?'}
             </h3>
             <p className="text-xs text-slate-500 font-medium">
-              {step === 'role' ? 'Piliin kung ikaw ang may-ari o staff.' : `Pumili sa ${activeModulesCount} apps — ₱99/buwan.`}
+              {step === 'role' ? 'Piliin kung ikaw ang may-ari o staff.' : `Pumili sa ${activeModulesCount} apps.`}
             </p>
           </div>
           <button
@@ -143,6 +144,7 @@ function RegisterSheetContent({ open, onClose, initialAppId = '' }: RegisterShee
                   {group.apps.map((app) => {
                     const Icon = app.icon;
                     const isSelected = selectedId === app.id;
+                    const pricing = getModulePricing(app.id);
                     return (
                       <button
                         key={app.id}
@@ -161,7 +163,10 @@ function RegisterSheetContent({ open, onClose, initialAppId = '' }: RegisterShee
                           <Icon className="h-5 w-5" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="font-bold text-sm text-slate-900">{app.name}</div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-bold text-sm text-slate-900">{app.name}</span>
+                            <span className="text-[10px] font-black text-primary">{formatPeso(pricing.promotionalMonthlyPrice)}/mo</span>
+                          </div>
                           <div className="text-xs text-slate-500 truncate">{app.tagline}</div>
                         </div>
                         {isSelected && (

@@ -599,6 +599,7 @@ export const appGroups: AppGroup[] = [
 
 export const activeModules: AppModule[] = appGroups.flatMap(g => g.apps);
 export const activeModulesCount: number = activeModules.length;
+export const standardModulesCount: number = activeModules.filter(m => m.id !== 'budget-mo').length;
 
 export function normalizeModuleId(id: string): string {
   if (!id) return '';

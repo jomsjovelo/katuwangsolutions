@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { RegisterSheet, useRegisterSheet } from '@/components/marketing/register-sheet';
 import { activeModulesCount } from '@/lib/app-data';
+import { getModulePricing } from '@/lib/pricing';
 import Image from 'next/image';
 
 const FLAGSHIP_APPS = [
@@ -92,7 +93,7 @@ export function AppSuiteCarousel() {
             Kahit anong negosyo,<br />
             <span className="text-primary">may module para sa iyo.</span>
           </h2>
-          <p className="text-xs text-slate-500 mt-1.5">{activeModulesCount} business modules na mapagpipilian · ₱99/buwan bawat isa</p>
+          <p className="text-xs text-slate-500 mt-1.5">{activeModulesCount} business modules na mapagpipilian · ₱50–₱99/buwan bawat module</p>
         </div>
 
         {/* Module selector pills */}
@@ -156,14 +157,17 @@ export function AppSuiteCarousel() {
               </div>
               <div>
                 <h3 className="text-base font-black text-slate-900 leading-tight">{activeApp.name}</h3>
-              {activeApp.id === 'budget-mo' ? (
                 <p className="text-xs text-slate-400 font-medium">
-                  <span className="line-through mr-1">₱100</span>
-                  <span className="text-primary font-bold">₱50 / buwan</span>
+                  {activeApp.id === 'budget-mo' ? (
+                    <>
+                      <span className="line-through mr-1">₱100</span>
+                      <span className="text-primary font-bold">₱50/buwan</span>
+                    </>
+                  ) : (
+                    <span className="font-bold">₱99/buwan</span>
+                  )}
+                  {' '}· bawat module
                 </p>
-              ) : (
-                <p className="text-xs text-slate-400 font-medium">₱99 / buwan</p>
-              )}
               </div>
             </div>
 

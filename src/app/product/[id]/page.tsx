@@ -1,5 +1,6 @@
 import React from 'react';
 import { getActiveAppById, appGroups } from '@/lib/app-data';
+import { getModulePricing, formatPeso } from '@/lib/pricing';
 import { notFound, permanentRedirect } from 'next/navigation';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { Button } from '@/components/ui/button';
@@ -71,6 +72,8 @@ export default async function ProductPage({ params, searchParams }: Props) {
   if (!foundApp) {
     notFound();
   }
+
+  const pricing = getModulePricing(id);
 
   let foundGroup: any = null;
   appGroups.forEach(g => {
@@ -306,7 +309,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
               {/* Pricing Teaser */}
               <div className="flex items-center gap-2 mt-2 text-xs font-bold text-slate-500 bg-slate-50 px-5 py-2.5 rounded-full border border-slate-100">
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>₱99/buwan bawat module</span>
+                <span>{formatPeso(pricing.promotionalMonthlyPrice)}/buwan bawat module</span>
                 <span className="text-slate-300 px-1">•</span>
                 <span>₱0 setup</span>
                 <span className="text-slate-300 px-1">•</span>

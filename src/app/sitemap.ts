@@ -49,12 +49,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 
-  const productRoutes = activeModules.map(app => ({
-    url: `${baseUrl}/product/${app.id}`,
-    lastModified: new Date(),
-    changeFrequency: 'monthly' as const,
-    priority: 0.6,
-  }));
+  const productRoutes = activeModules
+    .filter(app => app.id !== 'farm-master')
+    .map(app => ({
+      url: `${baseUrl}/product/${app.id}`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly' as const,
+      priority: 0.6,
+    }));
 
   return [...staticRoutes, ...productRoutes];
 }

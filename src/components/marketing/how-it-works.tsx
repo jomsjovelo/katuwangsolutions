@@ -1,5 +1,6 @@
 import React from 'react';
 import { UserPlus, Store, AppWindow, TrendingUp } from 'lucide-react';
+import { activeModulesCount } from '@/lib/app-data';
 
 const STEPS = [
   {
@@ -22,7 +23,7 @@ const STEPS = [
     number: '03',
     icon: AppWindow,
     title: 'Piliin ang Module',
-    desc: 'Pumili sa 19 na industry-specific na apps na espesyal na dinisenyo para sa iyong negosyo.',
+    desc: `Pumili sa ${activeModulesCount} na industry-specific na apps na espesyal na dinisenyo para sa iyong negosyo.`,
     color: '#8B5CF6',
     bg: 'bg-violet-50',
   },

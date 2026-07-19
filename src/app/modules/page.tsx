@@ -2,7 +2,8 @@ import React from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { BrandLogo } from '@/components/ui/brand-logo';
-import { appGroups, activeModulesCount } from '@/lib/app-data';
+import { appGroups, activeModulesCount, standardModulesCount } from '@/lib/app-data';
+import { getModulePricing, formatPeso } from '@/lib/pricing';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -31,21 +32,32 @@ export default function ModulesPage() {
             Lahat ng Modules
           </h1>
           <p className="text-lg text-slate-500 font-medium leading-relaxed">
-            Pumili mula sa {activeModulesCount} iba't-ibang Katuwang modules na eksaktong naka-disenyo para sa uri ng iyong negosyo. ₱99 lang per month.
+            Pumili mula sa {activeModulesCount} iba't-ibang Katuwang modules na eksaktong naka-disenyo para sa uri ng iyong negosyo. {standardModulesCount} standard modules (₱99/mo) at Budget Mo (₱50/mo).
           </p>
+        </div>
+
+        {/* ── Jump Controls (Mobile) ─────────────────────────────────────────────────────────── */}
+        <div className="flex gap-2 overflow-x-auto no-scrollbar md:hidden pb-2 -mx-5 px-5 snap-x">
+          {appGroups.map((group) => (
+            <a key={`nav-${group.id}`} href={`#group-${group.id}`} className="snap-start flex-shrink-0 h-11 px-4 flex items-center justify-center bg-white border border-slate-200 rounded-full text-xs font-bold text-slate-600 active:scale-95 transition-transform shadow-sm">
+              {group.label}
+            </a>
+          ))}
         </div>
 
         {/* ── Module Grid ─────────────────────────────────────────────────────────── */}
         <div className="space-y-16">
           {appGroups.map((group) => (
-            <div key={group.id} className="space-y-6">
+            <div key={group.id} id={`group-${group.id}`} className="space-y-6 scroll-mt-24">
               <div className="flex items-center gap-4">
                 <h2 className="text-2xl font-black text-slate-900 capitalize">{group.label}</h2>
                 <div className="h-px flex-1 bg-slate-200" />
               </div>
               
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {group.apps.map((app) => (
+                {group.apps.map((app) => {
+                  const pricing = getModulePricing(app.id);
+                  return (
                   <div key={app.id} data-module-id={app.id} className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col h-full">
                     <div className="flex items-start gap-4 mb-4">
                       <div className={`h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 ${group.accentColor}`}>
@@ -58,6 +70,13 @@ export default function ModulesPage() {
                     </div>
                     
                     <div className="mt-auto pt-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="text-xl font-black text-slate-900">{formatPeso(pricing.promotionalMonthlyPrice)}</span>
+                        <span className="text-xs text-slate-500 font-medium">/buwan</span>
+                        {pricing.pricingTier === 'promo_50' && (
+                          <span className="text-[10px] text-white bg-primary px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ml-auto">Promo</span>
+                        )}
+                      </div>
                       <div className="flex flex-wrap gap-2 mb-6">
                         {app.features.slice(0, 2).map((feature, idx) => (
                           <span key={idx} className="bg-slate-50 text-slate-600 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md border border-slate-100">
@@ -71,7 +90,7 @@ export default function ModulesPage() {
                       </Link>
                     </div>
                   </div>
-                ))}
+                )})}
               </div>
             </div>
           ))}

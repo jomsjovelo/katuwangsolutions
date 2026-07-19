@@ -63,23 +63,28 @@ export function Hero() {
           </div>
 
           {/* Pricing row */}
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100 ease-out fill-mode-both flex items-center gap-3">
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-white/40 text-sm font-semibold line-through">₱199</span>
-              <span className="text-white text-2xl font-black">₱99</span>
-              <span className="text-white/60 text-sm">/buwan</span>
-            </div>
-            <div className="h-4 w-px bg-white/20" />
-            <div className="flex gap-2">
-              <div className="flex items-center gap-1 bg-white/10 backdrop-blur-sm border border-white/15 rounded-full px-2.5 py-1">
-                <WifiOff className="h-2.5 w-2.5 text-emerald-400" />
-                <span className="text-[9px] font-bold text-emerald-300 uppercase tracking-wide">Works Offline</span>
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100 ease-out fill-mode-both flex flex-col gap-2">
+            <div className="flex items-center gap-3">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-white/40 text-sm font-semibold line-through">₱199</span>
+                <span className="text-white text-2xl font-black">₱99</span>
+                <span className="text-white/60 text-sm">/buwan</span>
               </div>
-              <div className="flex items-center gap-1 bg-white/10 backdrop-blur-sm border border-white/15 rounded-full px-2.5 py-1">
-                <RefreshCw className="h-2.5 w-2.5 text-sky-400" />
-                <span className="text-[9px] font-bold text-sky-300 uppercase tracking-wide">Auto Sync</span>
+              <div className="h-4 w-px bg-white/20" />
+              <div className="flex gap-2">
+                <div className="flex items-center gap-1 bg-white/10 backdrop-blur-sm border border-white/15 rounded-full px-2.5 py-1">
+                  <WifiOff className="h-2.5 w-2.5 text-emerald-400" />
+                  <span className="text-[9px] font-bold text-emerald-300 uppercase tracking-wide">Works Offline</span>
+                </div>
+                <div className="flex items-center gap-1 bg-white/10 backdrop-blur-sm border border-white/15 rounded-full px-2.5 py-1">
+                  <RefreshCw className="h-2.5 w-2.5 text-sky-400" />
+                  <span className="text-[9px] font-bold text-sky-300 uppercase tracking-wide">Auto Sync</span>
+                </div>
               </div>
             </div>
+            <p className="text-[11px] text-white/60 font-medium tracking-wide">
+              Para sa 19 standard modules. <span className="text-white/80">Budget Mo promo: ₱50/buwan · regular ₱100</span>
+            </p>
           </div>
 
           {/* CTAs */}
