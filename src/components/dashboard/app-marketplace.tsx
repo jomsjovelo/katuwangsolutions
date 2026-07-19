@@ -108,7 +108,7 @@ export function AppMarketplace({ isOpen, onClose }: AppMarketplaceProps) {
             <div>
               <p className="text-white text-xs font-black uppercase tracking-widest mb-0.5">Early Adopter Promo!</p>
               <p className="text-red-100 text-[10px] font-medium leading-snug">
-                Get modules for just ₱99/mo instead of ₱199.
+                Get Budget Mo for ₱50/mo, and other modules for just ₱99/mo instead of ₱199.
               </p>
             </div>
           </div>
@@ -122,7 +122,7 @@ export function AppMarketplace({ isOpen, onClose }: AppMarketplaceProps) {
             <div>
               <h3 className="font-black text-xl text-slate-800 uppercase tracking-tight mb-2">Unlock {checkoutApp.name}</h3>
               <p className="text-sm text-slate-500 font-medium leading-relaxed">
-                To unlock this module, please send <strong className="text-slate-800">₱{checkoutApp.price}</strong> via GCash or Maya.
+                To unlock this module, please send <strong className="text-slate-800">₱{checkoutApp.id === 'budget-mo' ? '50' : '99'}</strong> via GCash or Maya.
               </p>
             </div>
             

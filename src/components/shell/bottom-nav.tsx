@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Home, ShoppingCart, Package, BarChart2, User, Banknote, Wallet, Users, Bed } from 'lucide-react';
+import { Home, ShoppingCart, Package, BarChart2, User, Banknote, Wallet, Users, Bed, PiggyBank, Target, Receipt } from 'lucide-react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { getModuleTheme } from '@/lib/theme-utils';
 import { useHaptic } from '@/hooks/use-haptic';
@@ -73,25 +73,28 @@ export function BottomNav({ activeTab = 'home', onTabChange }: BottomNavProps) {
 
   const isLending = currentTenant?.moduleType === '5-6-tracker';
   const isHospitality = currentTenant?.moduleType === 'tsek-in';
+  const isBudgeting = currentTenant?.moduleType === 'budget-mo';
   
   const getBentaLabel = () => {
     if (isLending) return 'Ledger';
     if (isHospitality) return 'Guests';
+    if (isBudgeting) return 'Logs';
     return 'Sale';
   };
 
   const getBentaIcon = () => {
     if (isLending) return Wallet;
     if (isHospitality) return Users;
+    if (isBudgeting) return Receipt;
     return ShoppingCart;
   };
 
   const tabs = [
-    { id: 'home',    label: 'Home',    Icon: Home },
+    { id: 'home',    label: isBudgeting ? 'Dashboard' : 'Home',    Icon: Home },
     ...(isHospitality ? [] : [{ id: 'benta',   label: getBentaLabel(),   Icon: getBentaIcon() }]),
     ...(isHospitality ? [{ id: 'rooms', label: 'Rooms', Icon: Bed }] : []),
-    ...(isLending ? [] : [{ id: 'stock',   label: 'Stock',   Icon: Package }]),
-    { id: 'ulat',    label: 'Report',    Icon: BarChart2 },
+    ...(isLending ? [] : [{ id: 'stock',   label: isBudgeting ? 'Savings' : 'Stock',   Icon: isBudgeting ? PiggyBank : Package }]),
+    { id: 'ulat',    label: isBudgeting ? 'Insights' : 'Report',    Icon: isBudgeting ? Target : BarChart2 },
     ...(isHospitality ? [] : [{ id: 'kita',    label: 'Kita Ko', Icon: Banknote }]),
     { id: 'profile', label: 'Profile', Icon: User },
   ] as const;

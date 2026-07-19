@@ -53,15 +53,17 @@ export function useAppStoreConfig() {
       return { 
         price: config.promotions[appId], 
         isPromo: true, 
-        originalPrice: config.defaultAppPrice 
+        originalPrice: baseHardcodedPrice > 0 ? baseHardcodedPrice : config.defaultAppPrice 
       };
     }
     
-    // 2. Otherwise return the global default price
+    // 2. Otherwise return the base hardcoded price or global default price
+    const finalPrice = baseHardcodedPrice > 0 ? baseHardcodedPrice : config.defaultAppPrice;
+    
     return { 
-      price: config.defaultAppPrice, 
+      price: finalPrice, 
       isPromo: false, 
-      originalPrice: config.defaultAppPrice 
+      originalPrice: finalPrice 
     };
   };
 

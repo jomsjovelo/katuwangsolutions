@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import {
   ShoppingCart, Leaf, Utensils, Coffee, RotateCcw,
-  Scissors, Truck, Hammer, Droplets, ChevronRight, Bed
+  Scissors, Truck, Hammer, Droplets, ChevronRight, Bed, Banknote
 } from 'lucide-react';
 import { RegisterSheet, useRegisterSheet } from '@/components/marketing/register-sheet';
 
@@ -18,6 +18,7 @@ const INDUSTRIES = [
   { id: 'hardware', label: 'Hardware Store', icon: Hammer, module: 'Build Stack', moduleId: 'build-stack', color: '#475569' },
   { id: 'water', label: 'Water Refilling', icon: Droplets, module: 'Hydro Sync', moduleId: 'hydro-sync', color: '#0284C7' },
   { id: 'hospitality', label: 'Resort / Motel', icon: Bed, module: 'Tsek-In', moduleId: 'tsek-in', color: '#D97706' },
+  { id: 'finance', label: 'Personal / Business Finance', icon: Banknote, module: 'Budget Mo', moduleId: 'budget-mo', color: '#8B5CF6' },
 ];
 
 export function BusinessFinder() {
@@ -93,7 +94,14 @@ export function BusinessFinder() {
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-0.5">Para sa iyo</p>
                 <p className="font-black text-slate-900 text-base leading-tight">{selectedIndustry.module}</p>
+              {selectedIndustry.moduleId === 'budget-mo' ? (
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  <span className="line-through mr-1">₱100</span>
+                  <span className="text-primary font-bold">₱50 / buwan</span> · Works Offline
+                </p>
+              ) : (
                 <p className="text-[11px] text-slate-500 mt-0.5">₱99 / buwan · Works Offline</p>
+              )}
               </div>
               <button
                 onClick={openSheet}

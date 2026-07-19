@@ -122,7 +122,7 @@ export function useAdminTenants(enabled: boolean = true) {
       
       // If approving from pending → active: write billing log and process referral
       if (tenant.subscriptionStatus === 'pending' && status === 'active') {
-        const amount = tenant.pricingTier === 'promo_99' ? 99 : tenant.pricingTier === 'standard_199' ? 199 : tenant.pricingTier === 'foc' ? 0 : 499;
+        const amount = tenant.pricingTier === 'promo_50' ? 50 : tenant.pricingTier === 'promo_99' ? 99 : tenant.pricingTier === 'standard_100' ? 100 : tenant.pricingTier === 'standard_199' ? 199 : tenant.pricingTier === 'foc' ? 0 : 499;
         const logRef = doc(collection(db, 'billing_logs'));
         batch.set(logRef, {
           tenantId: tenant.id,
@@ -162,8 +162,11 @@ export function useAdminTenants(enabled: boolean = true) {
           const qSnap = await getDocs(q);
           
           if (!qSnap.empty) {
-            const totalModules = 1 + (tenant.unlockedModules?.length || 0);
-            const rewardAmount = totalModules * 10;
+            const modulesList = [tenant.moduleType, ...(tenant.unlockedModules || [])];
+            let rewardAmount = 0;
+            modulesList.forEach(m => {
+              rewardAmount += (m === 'budget-mo') ? 5 : 10;
+            });
             const referrerDoc = qSnap.docs[0];
             batch.update(referrerDoc.ref, { 
               referralEarnings: increment(rewardAmount),
@@ -190,7 +193,7 @@ export function useAdminTenants(enabled: boolean = true) {
 
       // If reactivating from suspended → active: write a reactivation billing log
       if (tenant.subscriptionStatus === 'suspended' && status === 'active') {
-        const amount = tenant.pricingTier === 'promo_99' ? 99 : tenant.pricingTier === 'standard_199' ? 199 : tenant.pricingTier === 'foc' ? 0 : 499;
+        const amount = tenant.pricingTier === 'promo_50' ? 50 : tenant.pricingTier === 'promo_99' ? 99 : tenant.pricingTier === 'standard_100' ? 100 : tenant.pricingTier === 'standard_199' ? 199 : tenant.pricingTier === 'foc' ? 0 : 499;
         const logRef = doc(collection(db, 'billing_logs'));
         batch.set(logRef, {
           tenantId: tenant.id,
@@ -214,8 +217,11 @@ export function useAdminTenants(enabled: boolean = true) {
             const qSnap = await getDocs(q);
             
             if (!qSnap.empty) {
-              const totalModules = 1 + (tenant.unlockedModules?.length || 0);
-              const rewardAmount = totalModules * 10;
+              const modulesList = [tenant.moduleType, ...(tenant.unlockedModules || [])];
+              let rewardAmount = 0;
+              modulesList.forEach(m => {
+                rewardAmount += (m === 'budget-mo') ? 5 : 10;
+              });
               const referrerDoc = qSnap.docs[0];
               batch.update(referrerDoc.ref, { 
                 referralEarnings: increment(rewardAmount),
@@ -424,7 +430,7 @@ export function useAdminTenants(enabled: boolean = true) {
       nextDate.setDate(nextDate.getDate() + 30);
       
       // 2. Add Billing Log
-      const amount = tenant.pricingTier === 'promo_99' ? 99 : tenant.pricingTier === 'standard_199' ? 199 : tenant.pricingTier === 'foc' ? 0 : 499;
+      const amount = tenant.pricingTier === 'promo_50' ? 50 : tenant.pricingTier === 'promo_99' ? 99 : tenant.pricingTier === 'standard_100' ? 100 : tenant.pricingTier === 'standard_199' ? 199 : tenant.pricingTier === 'foc' ? 0 : 499;
       const logRef = doc(collection(db, 'billing_logs'));
       batch.set(logRef, {
         tenantId: tenant.id,
@@ -449,8 +455,11 @@ export function useAdminTenants(enabled: boolean = true) {
           const qSnap = await getDocs(q);
           
           if (!qSnap.empty) {
-            const totalModules = 1 + (tenant.unlockedModules?.length || 0);
-            const rewardAmount = totalModules * 10;
+            const modulesList = [tenant.moduleType, ...(tenant.unlockedModules || [])];
+            let rewardAmount = 0;
+            modulesList.forEach(m => {
+              rewardAmount += (m === 'budget-mo') ? 5 : 10;
+            });
             const referrerDoc = qSnap.docs[0];
             batch.update(referrerDoc.ref, { 
               referralEarnings: increment(rewardAmount),

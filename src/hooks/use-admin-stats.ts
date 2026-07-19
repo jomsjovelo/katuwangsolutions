@@ -32,7 +32,9 @@ export function useAdminStats(enabled: boolean = true) {
         suspendedSnap,
         pendingSnap,
         promoSnap,
+        promo50Snap,
         standardSnap,
+        standard100Snap,
         enterpriseSnap,
         focSnap
       ] = await Promise.all([
@@ -41,19 +43,23 @@ export function useAdminStats(enabled: boolean = true) {
         getCountFromServer(query(tenantsRef, where('subscriptionStatus', '==', 'suspended'))),
         getCountFromServer(query(tenantsRef, where('subscriptionStatus', '==', 'pending'))),
         getCountFromServer(query(tenantsRef, where('subscriptionStatus', '==', 'active'), where('pricingTier', '==', 'promo_99'))),
+        getCountFromServer(query(tenantsRef, where('subscriptionStatus', '==', 'active'), where('pricingTier', '==', 'promo_50'))),
         getCountFromServer(query(tenantsRef, where('subscriptionStatus', '==', 'active'), where('pricingTier', '==', 'standard_199'))),
+        getCountFromServer(query(tenantsRef, where('subscriptionStatus', '==', 'active'), where('pricingTier', '==', 'standard_100'))),
         getCountFromServer(query(tenantsRef, where('subscriptionStatus', '==', 'active'), where('pricingTier', '==', 'enterprise'))),
         getCountFromServer(query(tenantsRef, where('subscriptionStatus', '==', 'active'), where('pricingTier', '==', 'foc')))
       ]);
 
       const promoCount = promoSnap.data().count;
+      const promo50Count = promo50Snap.data().count;
       const standardCount = standardSnap.data().count;
+      const standard100Count = standard100Snap.data().count;
       const enterpriseCount = enterpriseSnap.data().count;
       const focCount = focSnap.data().count;
 
       // Calculate MRR instantly based on live pricing tier counts
       // Note: We use the default prices here. In a true enterprise setup, this would pull from system config.
-      const calculatedMrr = (promoCount * 99) + (standardCount * 199) + (enterpriseCount * 499) + (focCount * 0);
+      const calculatedMrr = (promoCount * 99) + (promo50Count * 50) + (standardCount * 199) + (standard100Count * 100) + (enterpriseCount * 499) + (focCount * 0);
 
       setStats({
         totalTenants: totalSnap.data().count,
@@ -61,8 +67,8 @@ export function useAdminStats(enabled: boolean = true) {
         suspendedTenants: suspendedSnap.data().count,
         pendingTenants: pendingSnap.data().count,
         mrr: calculatedMrr,
-        promoCount,
-        standardCount,
+        promoCount: promoCount + promo50Count,
+        standardCount: standardCount + standard100Count,
         enterpriseCount,
         focCount
       });

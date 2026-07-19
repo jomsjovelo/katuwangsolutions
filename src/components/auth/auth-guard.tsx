@@ -272,24 +272,29 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // 2. Pending Activation View
-  const isOwnerPending = activeTenant?.subscriptionStatus === 'pending';
+  // 2. Pending Activation & Suspended View
+  const isOwnerPendingOrSuspended = activeTenant?.subscriptionStatus === 'pending' || activeTenant?.subscriptionStatus === 'suspended';
   const isStaffPendingOwner = (userProfile?.role === 'guest' || userProfile?.role === 'pending_staff' || userProfile?.role === 'staff') && userProfile?.approvalStatus === 'pending_owner';
   const isStaffPendingAdmin = (userProfile?.role === 'guest' || userProfile?.role === 'pending_staff' || userProfile?.role === 'staff') && userProfile?.approvalStatus === 'pending_admin';
+  const isBudgetMo = activeTenant?.pricingTier === 'promo_50' || activeTenant?.moduleType === 'budget-mo';
 
-  if ((isOwnerPending || isStaffPendingOwner || isStaffPendingAdmin) && !isPublicRoute && !isAdmin) {
+  if ((isOwnerPendingOrSuspended || isStaffPendingOwner || isStaffPendingAdmin) && !isPublicRoute && !isAdmin) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-8 text-center">
         <div className="p-6 bg-white rounded-[24px] shadow-2xl border border-amber-100 flex flex-col items-center w-full max-w-sm">
           <div className="p-4 bg-amber-50 rounded-full mb-4">
             <Loader2 className="h-12 w-12 text-amber-500 animate-spin" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Pending Verification</h1>
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">
+            {activeTenant?.subscriptionStatus === 'suspended' ? 'Subscription Expired' : 'Pending Verification'}
+          </h1>
           <p className="text-sm font-medium text-slate-600 mb-6 max-w-sm mx-auto leading-relaxed">
             {isStaffPendingOwner ? (
               <>Your account is waiting for <strong>Store Owner</strong> approval.</>
             ) : isStaffPendingAdmin ? (
               <>Your account is waiting for <strong>System Admin</strong> activation.</>
+            ) : activeTenant?.subscriptionStatus === 'suspended' ? (
+              <>Your subscription has expired. Please pay to restore access.</>
             ) : (
               <>Your business <strong>{activeTenant?.name}</strong> is waiting for payment verification.</>
             )}
@@ -322,7 +327,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
             <div className="space-y-2">
               {[
                 'Scan or download the QR code above, then upload it in your GCash or Maya app.',
-                'Input the exact amount: ₱99.00.',
+                `Input the exact amount: ${isBudgetMo ? '₱50.00' : '₱99.00'}.`,
                 'Take a screenshot of your payment confirmation.',
                 'Send the screenshot AND your registered email address to our Facebook Page via Messenger.',
                 'We will send you a message once your account is activated.',
@@ -393,41 +398,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // 3. Kill-Switch (Lockout) View
-  if (activeTenant?.subscriptionStatus === 'suspended' && !isPublicRoute && !isAdmin) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-8 text-center">
-        <div className="p-6 bg-white rounded-[24px] shadow-2xl border border-red-100 flex flex-col items-center">
-          <div className="p-4 bg-red-50 rounded-full mb-6">
-            <ShieldAlert className="h-12 w-12 text-red-500" />
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Akses de-aktibado</h1>
-          <p className="text-slate-500 text-sm mb-8 max-w-xs leading-relaxed">
-            Ang iyong account ay kasalukuyang suspendido. Mangyaring makipag-ugnayan sa Katuwang Support para sa karagdagang impormasyon.
-          </p>
-          <div className="w-full space-y-3">
-            <button 
-              onClick={() => window.location.href = 'mailto:support@katuwangsolutions.com'}
-              className="w-full bg-primary text-white h-12 rounded-xl font-bold shadow-lg hover:opacity-90 transition-opacity"
-            >
-              Contact Support
-            </button>
-            <button 
-              onClick={() => {
-                const auth = getAuth(app);
-                signOut(auth).then(() => {
-                  router.push('/');
-                });
-              }}
-              className="w-full bg-slate-100 text-slate-600 h-12 rounded-xl font-bold"
-            >
-              Sign Out & Return Home
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // 3. Error / Missing Configuration View
   if (error && !activeTenant && !isAdmin && !isPublicRoute) {

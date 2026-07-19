@@ -2,28 +2,33 @@ import { doc, collection, serverTimestamp, setDoc, increment, getDocs, query, Ti
 import { initializeFirebase } from '../index';
 import { runTransactionResilient } from './resilient-transaction';
 import { logAuditEvent } from './audit-actions';
+import { z } from 'zod';
 
 export const getKatuwangDb = () => initializeFirebase().db;
 
-export interface RoomData {
-  roomNumber: string;
-  type: string;
-  rateCentavos: number;
-  shortTimeRatesCentavos?: {
-    '3h'?: number;
-    '6h'?: number;
-    '8h'?: number;
-    '12h'?: number;
-  };
-  capacity: number;
-  bedType: string;
-  status: 'Available' | 'Occupied' | 'Cleaning';
-  extraPaxFeeCentavos?: number;
-}
+export const RoomSchema = z.object({
+  roomNumber: z.string().min(1),
+  type: z.string().min(1),
+  rateCentavos: z.number().int().min(0),
+  shortTimeRatesCentavos: z.object({
+    '3h': z.number().int().min(0).optional(),
+    '6h': z.number().int().min(0).optional(),
+    '8h': z.number().int().min(0).optional(),
+    '12h': z.number().int().min(0).optional(),
+  }).optional(),
+  capacity: z.number().int().min(1),
+  bedType: z.string().min(1),
+  status: z.enum(['Available', 'Occupied', 'Cleaning']),
+  extraPaxFeeCentavos: z.number().int().min(0).optional()
+});
+
+export type RoomData = z.infer<typeof RoomSchema>;
 
 export async function addRoom(tenantId: string, data: RoomData): Promise<void> {
   const db = getKatuwangDb();
   
+  const validatedData = RoomSchema.parse(data);
+
   // enforce max 25 rooms
   const roomsRef = collection(db, 'tenants', tenantId, 'rooms');
   const snap = await getDocs(query(roomsRef));
@@ -35,7 +40,7 @@ export async function addRoom(tenantId: string, data: RoomData): Promise<void> {
   const newRef = doc(roomsRef);
   await setDoc(newRef, {
     id: newRef.id,
-    ...data,
+    ...validatedData,
     status: 'Available',
     createdAt: serverTimestamp(),
   });
@@ -78,26 +83,30 @@ export async function deleteRoom(tenantId: string, roomId: string) {
   await setDoc(roomRef, { deletedAt: serverTimestamp() }, { merge: true });
 }
 
-export interface BookingData {
-  roomId: string;
-  roomName: string;
-  guestName: string;
-  contactInfo: string;
-  checkInDate: Date;
-  nights: number;
-  paymentMethod: string;
-  initialPaymentCentavos: number;
-  rateCentavos: number;
-  extraPax: number;
-  extraPaxCostCentavos: number;
-  expectedCheckOutDate: Date;
-  totalRoomCostCentavos: number;
-  userId?: string;
-  userName?: string;
-}
+export const BookingSchema = z.object({
+  roomId: z.string().min(1),
+  roomName: z.string().min(1),
+  guestName: z.string().min(1),
+  contactInfo: z.string(),
+  checkInDate: z.date(),
+  nights: z.number().int().min(0),
+  paymentMethod: z.string().min(1),
+  initialPaymentCentavos: z.number().int().min(0),
+  rateCentavos: z.number().int().min(0),
+  extraPax: z.number().int().min(0),
+  extraPaxCostCentavos: z.number().int().min(0),
+  expectedCheckOutDate: z.date(),
+  totalRoomCostCentavos: z.number().int().min(0),
+  userId: z.string().optional(),
+  userName: z.string().optional(),
+});
+
+export type BookingData = z.infer<typeof BookingSchema>;
 
 export async function checkInGuest(tenantId: string, data: BookingData) {
   const db = getKatuwangDb();
+  const validatedData = BookingSchema.parse(data);
+
   await runTransactionResilient(db, async (transaction) => {
     const roomRef = doc(db, 'tenants', tenantId, 'rooms', data.roomId);
     const roomSnap = await transaction.get(roomRef);
@@ -265,12 +274,15 @@ export async function extendGuestStay(
 
     const bookingData = bookingSnap.data();
 
+    const parsedAdditional = parseInt(additionalHoursOrNightsStr, 10);
+    const validAdditional = isNaN(parsedAdditional) ? 0 : parsedAdditional;
+
     transaction.update(bookingRef, {
       expectedCheckOutDate: newExpectedCheckOutDate,
       totalRoomCostCentavos: increment(additionalCostCentavos),
       initialPaymentCentavos: increment(paymentCollectedCentavos),
       nights: typeof bookingData.nights === 'number' && additionalHoursOrNightsStr.includes('Night') ? 
-        increment(parseInt(additionalHoursOrNightsStr) || 0) : bookingData.nights
+        increment(validAdditional) : bookingData.nights
     });
 
     if (paymentCollectedCentavos > 0) {

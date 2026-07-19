@@ -108,18 +108,18 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
     tagline: 'Maayos na trucking service at paghahatid ng kargamento'
   },
   
-  // 6. Agriculture (Ani)
-  'farm-master': {
-    primary: '#D97706',
-    primaryBg: 'from-amber-600 to-amber-700',
-    primaryText: 'text-amber-600',
-    primaryBorder: 'border-amber-200',
-    secondary: '#10B981',
-    secondaryBg: 'bg-emerald-500 hover:bg-emerald-600',
+  // 6. Finance
+  'budget-mo': {
+    primary: '#10B981',
+    primaryBg: 'from-emerald-500 to-emerald-600',
+    primaryText: 'text-emerald-600',
+    primaryBorder: 'border-emerald-200',
+    secondary: '#0F172A',
+    secondaryBg: 'bg-slate-900 hover:bg-slate-800',
     secondaryText: 'text-white',
-    glowClass: 'joy-glow-amber',
-    name: 'Farm Master',
-    tagline: 'Maayos na logistics at ani monitoring'
+    glowClass: 'joy-glow-emerald',
+    name: 'Budget Mo',
+    tagline: 'Masinop at matalinong pagbabadyet para sa lahat'
   },
   
   // 7. Food Diner
@@ -297,6 +297,20 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
  */
 export function getModuleTheme(moduleType?: string): ModuleTheme {
   const key = moduleType || 'benta-snap';
+  if (key === 'farm-master') {
+    return {
+      primary: '#D97706',
+      primaryBg: 'from-amber-600 to-amber-700',
+      primaryText: 'text-amber-600',
+      primaryBorder: 'border-amber-200',
+      secondary: '#10B981',
+      secondaryBg: 'bg-emerald-500 hover:bg-emerald-600',
+      secondaryText: 'text-white',
+      glowClass: 'joy-glow-amber',
+      name: 'Farm Master',
+      tagline: 'Maayos na logistics at ani monitoring'
+    };
+  }
   return MODULE_THEMES[key] || MODULE_THEMES['benta-snap'];
 }
 

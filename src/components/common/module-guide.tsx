@@ -294,6 +294,19 @@ export const MODULE_GUIDES: Record<string, GuideContent> = {
       action: 'I-click ang "Check-In Guest", piliin ang Standard Room, at ilagay ang 2 nights.',
       result: 'Magiging "Occupied" ang kwarto sa dashboard at awtomatikong ma-co-compute ang total bill nila pag-checkout.'
     }
+  },
+  'budget-mo': {
+    tagline: 'Subaybayan ang iyong bawat sentimo at mag-ipon nang walang stress.',
+    steps: [
+      'Pumunta sa "Envelopes" para i-set up ang iyong mga budget limits kada kategorya.',
+      'Araw-araw, pindutin ang "+ Kita" para sa kita, at "- Gastos" para sa gastos.',
+      'Tingnan ang iyong "Cash Flow" chart para malaman kung pasok ka sa budget o lumalampas na.'
+    ],
+    example: {
+      scenario: 'Sumahod ka ng ₱15,000 at namalengke ng ₱2,000.',
+      action: 'Ilista ang ₱15,000 sa "+ Kita", tapos ilista ang ₱2,000 sa "- Gastos" sa ilalim ng "Grocery" envelope.',
+      result: 'Makikita mo agad na ₱13,000 na lang ang natitira mo, at mapupuno nang konti ang bar graph ng iyong Grocery envelope.'
+    }
   }
 };
 

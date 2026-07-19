@@ -105,7 +105,7 @@ export async function registerNewTenant(onboardingData: any) {
           ownerUid: uid,
           ownerEmail: accountInfo.email,
           businessCode: businessCode,
-          pricingTier: 'promo_99',
+          pricingTier: onboardingData.appId === 'budget-mo' ? 'promo_50' : 'promo_99',
           nextBillingDate: null,
           subscriptionStatus: 'pending',
           contactPhone: '',

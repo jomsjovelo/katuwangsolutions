@@ -21,6 +21,7 @@ const ReportsTab = dynamic(() => import('@/components/dashboard/reports-tab').th
 const ServiceDashboard = dynamic(() => import('@/components/dashboard/service/service-dashboard').then(m => m.ServiceDashboard));
 const LedgerDashboard = dynamic(() => import('@/components/dashboard/finance/ledger-dashboard').then(m => m.LedgerDashboard));
 const PayrollDashboard = dynamic(() => import('@/components/dashboard/finance/payroll-dashboard').then(m => m.PayrollDashboard));
+const BudgetMoDashboard = dynamic(() => import('@/components/dashboard/financial/budget-mo-dashboard').then(m => m.BudgetMoDashboard));
 const FoodDashboard = dynamic(() => import('@/components/dashboard/food/food-dashboard').then(m => m.FoodDashboard));
 const TimplaDashboard = dynamic(() => import('@/components/dashboard/food/timpla-dashboard').then(m => m.TimplaDashboard));
 const GanapDashboard = dynamic(() => import('@/components/dashboard/events/ganap-dashboard').then(m => m.GanapDashboard));
@@ -192,6 +193,7 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
     
     if (activeModule === 'build-stack') return <BuildStackDashboard />;
     if (activeModule === 'fresh-tally') return <FreshTallyDashboard />;
+    if (activeModule === 'budget-mo') return <BudgetMoDashboard />;
     
     return <BentaDashboard />;
   };
@@ -212,9 +214,6 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
         )}
         
         <EmailVerificationBanner />
-        <div className={activeTab === 'home' || !activeTab ? 'block' : 'hidden'}>
-          <HomeTab setTab={onTabChange} />
-        </div>
         
         <div className={activeTab === 'profile' ? 'block' : 'hidden'}>
           <ProfileTab />
@@ -223,36 +222,48 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
         <div className={activeTab === 'kita' ? 'block' : 'hidden'}>
           <ReferralDashboard />
         </div>
-        
-        <div className={activeTab === 'stock' ? 'block' : 'hidden'}>
-          <StockTab />
-        </div>
 
-        <div className={activeTab === 'rooms' ? 'block' : 'hidden'}>
-          <TsekInRoomsDashboard />
-        </div>
-
-        <div className={activeTab === 'ulat' ? 'block' : 'hidden'}>
-          {profile?.role === 'staff' ? (
-            <div className="flex-1 flex items-center justify-center p-6 bg-slate-50 min-h-screen">
-              <div className="text-center space-y-4 max-w-xs bg-white rounded-3xl p-6 border border-slate-200 shadow-sm animate-in fade-in">
-                <div className="h-12 w-12 rounded-full bg-amber-50 mx-auto flex items-center justify-center">
-                  <AlertTriangle className="h-6 w-6 text-amber-500" />
-                </div>
-                <div>
-                  <h4 className="font-headline font-black text-sm text-slate-800">Akses Limitado</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed mt-1">
-                    Pasensya na po, Ate/Kuya. Ang mga ulat at profit reports ay maaari lamang makita ng Store Owner.
-                  </p>
-                </div>
-              </div>
+        {currentTenant.moduleType === 'budget-mo' && !['profile', 'kita'].includes(activeTab || 'home') ? (
+          <div className="block">
+            <BudgetMoDashboard activeTab={activeTab || 'home'} onTabChange={onTabChange} />
+          </div>
+        ) : (
+          <>
+            <div className={activeTab === 'home' || !activeTab ? 'block' : 'hidden'}>
+              <HomeTab setTab={onTabChange} />
             </div>
-          ) : (
-            <ReportsTab />
-          )}
-        </div>
+            
+            <div className={activeTab === 'stock' ? 'block' : 'hidden'}>
+              <StockTab />
+            </div>
 
-        <div className={isIndustryTab ? 'block' : 'hidden'}>
+            <div className={activeTab === 'rooms' ? 'block' : 'hidden'}>
+              <TsekInRoomsDashboard />
+            </div>
+
+            <div className={activeTab === 'ulat' ? 'block' : 'hidden'}>
+              {profile?.role === 'staff' ? (
+                <div className="flex-1 flex items-center justify-center p-6 bg-slate-50 min-h-screen">
+                  <div className="text-center space-y-4 max-w-xs bg-white rounded-3xl p-6 border border-slate-200 shadow-sm animate-in fade-in">
+                    <div className="h-12 w-12 rounded-full bg-amber-50 mx-auto flex items-center justify-center">
+                      <AlertTriangle className="h-6 w-6 text-amber-500" />
+                    </div>
+                    <div>
+                      <h4 className="font-headline font-black text-sm text-slate-800">Akses Limitado</h4>
+                      <p className="text-xs text-slate-400 leading-relaxed mt-1">
+                        Pasensya na po, Ate/Kuya. Ang mga ulat at profit reports ay maaari lamang makita ng Store Owner.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <ReportsTab />
+              )}
+            </div>
+          </>
+        )}
+
+        <div className={isIndustryTab && currentTenant.moduleType !== 'budget-mo' ? 'block' : 'hidden'}>
           {renderIndustryDashboard()}
         </div>
         

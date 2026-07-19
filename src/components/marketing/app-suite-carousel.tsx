@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import {
-  ShoppingCart, Leaf, Truck, HandCoins, Utensils, Bed
+  ShoppingCart, Leaf, Truck, HandCoins, Utensils, Bed, Banknote
 } from 'lucide-react';
 import { RegisterSheet, useRegisterSheet } from '@/components/marketing/register-sheet';
 import { activeModulesCount } from '@/lib/app-data';
@@ -64,6 +64,15 @@ const FLAGSHIP_APPS = [
     imageSrc: '/apps/tsek-in.png',
     color: '#D97706',
     badge: 'Bagong Module',
+  },
+  {
+    id: 'budget-mo',
+    name: 'Budget Mo',
+    icon: Banknote,
+    tagline: 'Makabagong paraan para mag-budget at mag-ipon.',
+    imageSrc: '/apps/budget-mo.png',
+    color: '#8B5CF6',
+    badge: '₱50 Promo',
   },
 ];
 
@@ -147,7 +156,14 @@ export function AppSuiteCarousel() {
               </div>
               <div>
                 <h3 className="text-base font-black text-slate-900 leading-tight">{activeApp.name}</h3>
+              {activeApp.id === 'budget-mo' ? (
+                <p className="text-xs text-slate-400 font-medium">
+                  <span className="line-through mr-1">₱100</span>
+                  <span className="text-primary font-bold">₱50 / buwan</span>
+                </p>
+              ) : (
                 <p className="text-xs text-slate-400 font-medium">₱99 / buwan</p>
+              )}
               </div>
             </div>
 

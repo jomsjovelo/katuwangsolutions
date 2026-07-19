@@ -32,6 +32,26 @@ export function AppHeader({ title, subtitle, onBack, rightAction }: AppHeaderPro
   const haptic = useHaptic();
   const { announcements } = useAnnouncements(true); // only fetch active
 
+  let expirationWarning = null;
+  if (currentTenant?.subscriptionStatus === 'active' && currentTenant?.nextBillingDate) {
+    const nextBilling = currentTenant.nextBillingDate instanceof Date 
+      ? currentTenant.nextBillingDate 
+      : (typeof currentTenant.nextBillingDate === 'object' && 'toDate' in (currentTenant.nextBillingDate as any)) 
+        ? (currentTenant.nextBillingDate as any).toDate() 
+        : new Date(currentTenant.nextBillingDate as string | number);
+    
+    if (!isNaN(nextBilling.getTime())) {
+      const msPerDay = 1000 * 60 * 60 * 24;
+      const daysLeft = Math.ceil((nextBilling.getTime() - Date.now()) / msPerDay);
+      
+      if (daysLeft <= 3 && daysLeft > 0) {
+        expirationWarning = `Your subscription will expire in ${daysLeft} day${daysLeft > 1 ? 's' : ''}. Please renew to avoid losing access.`;
+      } else if (daysLeft <= 0) {
+        expirationWarning = `Your subscription expires today. Please renew to avoid losing access.`;
+      }
+    }
+  }
+
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (pendingCount > 0) {
@@ -73,6 +93,17 @@ export function AppHeader({ title, subtitle, onBack, rightAction }: AppHeaderPro
         ))}
       </div>
     )}
+    
+    {expirationWarning && (
+      <div className="w-full bg-amber-100 text-amber-900 border-b border-amber-200 px-4 py-2 flex items-start gap-2 text-xs sm:text-sm shadow-sm">
+        <div className="mt-0.5"><AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" /></div>
+        <div className="flex-1">
+          <span className="font-bold uppercase tracking-wider text-[10px] sm:text-xs block mb-0.5 opacity-80">Subscription Expiring Soon</span>
+          <span className="leading-tight">{expirationWarning}</span>
+        </div>
+      </div>
+    )}
+    
     <header
       className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-xl border-b border-slate-100 transition-colors duration-300"
       style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}

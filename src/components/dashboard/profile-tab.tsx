@@ -118,6 +118,10 @@ export function ProfileTab() {
 
   const theme = getModuleTheme(currentTenant?.moduleType);
   const isOwner = profile?.role === 'owner';
+  
+  const isBudgetMo = currentTenant?.moduleType === 'budget-mo';
+  const is56Tracker = currentTenant?.moduleType === '5-6-tracker';
+  const isPOSModule = !isBudgetMo && !is56Tracker;
 
   // 1. Fetch Real-time User Profile
   useEffect(() => {
@@ -750,7 +754,7 @@ export function ProfileTab() {
               <CardContent className="p-4 space-y-4">
                 <div className="flex gap-4">
                   <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 flex-1 flex flex-col items-center justify-center text-center">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Business Code</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">REFERRAL CODE</span>
                     <div className="flex items-center gap-2">
                       <div className="text-4xl font-black text-slate-800 tracking-[0.25em]">
                         {currentTenant?.businessCode || '----'}
@@ -767,70 +771,72 @@ export function ProfileTab() {
             </Card>
 
             {/* Active Staff List */}
-            <Card className="bg-white border-slate-200 shadow-sm rounded-[24px]">
-              <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400">Mga Aktibong Staff</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 pt-0 space-y-3">
-                {activeStaff.length === 0 ? (
-                  <div className="text-center py-6 text-slate-400 text-xs border border-dashed border-slate-100 rounded-2xl">
-                    <User className="h-7 w-7 mx-auto opacity-20 mb-1" />
-                    Walang aktibong helper pa.
-                  </div>
-                ) : (
-                  <div className="divide-y divide-slate-100">
-                    {activeStaff.map((staff, idx) => (
-                      <div key={staff.uid || idx} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
-                        <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center font-black text-xs text-slate-500 uppercase">
-                            {staff.fullName ? staff.fullName[0] : 'T'}
+            {isPOSModule && (
+              <Card className="bg-white border-slate-200 shadow-sm rounded-[24px]">
+                <CardHeader className="p-4 pb-2">
+                  <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400">Mga Aktibong Staff</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-0 space-y-3">
+                  {activeStaff.length === 0 ? (
+                    <div className="text-center py-6 text-slate-400 text-xs border border-dashed border-slate-100 rounded-2xl">
+                      <User className="h-7 w-7 mx-auto opacity-20 mb-1" />
+                      Walang aktibong helper pa.
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-100">
+                      {activeStaff.map((staff, idx) => (
+                        <div key={staff.uid || idx} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center font-black text-xs text-slate-500 uppercase">
+                              {staff.fullName ? staff.fullName[0] : 'T'}
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                                {staff.fullName || 'Team Member'}
+                                {staff.subscriptionStatus === 'pending' && (
+                                  <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none font-bold uppercase tracking-wider text-[8px] px-2 py-0 rounded-sm">Pending</Badge>
+                                )}
+                              </p>
+                              <p className="text-[10px] text-slate-400">{staff.email}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-xs font-bold text-slate-800 flex items-center gap-2">
-                              {staff.fullName || 'Team Member'}
-                              {staff.subscriptionStatus === 'pending' && (
-                                <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none font-bold uppercase tracking-wider text-[8px] px-2 py-0 rounded-sm">Pending</Badge>
-                              )}
-                            </p>
-                            <p className="text-[10px] text-slate-400">{staff.email}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {staff.subscriptionStatus === 'pending' && (
-                            <Button
-                              onClick={() => {
-                                setSponsorStaffName(staff.fullName || staff.email);
-                                setIsSponsorOpen(true);
-                              }}
-                              variant="outline"
-                              className="h-8 text-[10px] font-bold uppercase tracking-widest bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
-                            >
-                              Pay for Access
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            disabled={isRemovingId === staff.uid}
-                            onClick={() => handleRemoveStaff(staff.uid)}
-                            className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                          >
-                            {isRemovingId === staff.uid ? (
-                              <Loader2 className="h-4 w-4 animate-spin text-red-500" />
-                            ) : (
-                              <Trash2 className="h-4 w-4" />
+                          <div className="flex items-center gap-2">
+                            {staff.subscriptionStatus === 'pending' && (
+                              <Button
+                                onClick={() => {
+                                  setSponsorStaffName(staff.fullName || staff.email);
+                                  setIsSponsorOpen(true);
+                                }}
+                                variant="outline"
+                                className="h-8 text-[10px] font-bold uppercase tracking-widest bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                              >
+                                Pay for Access
+                              </Button>
                             )}
-                          </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              disabled={isRemovingId === staff.uid}
+                              onClick={() => handleRemoveStaff(staff.uid)}
+                              className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                            >
+                              {isRemovingId === staff.uid ? (
+                                <Loader2 className="h-4 w-4 animate-spin text-red-500" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Pending Invites List */}
-            {pendingInvites.length > 0 && (
+            {isPOSModule && pendingInvites.length > 0 && (
               <Card className="bg-white border-slate-200 shadow-sm rounded-[24px]">
                 <CardHeader className="p-4 pb-2">
                   <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400">Mga Pending Invites</CardTitle>
@@ -854,126 +860,130 @@ export function ProfileTab() {
             )}
 
             {/* Pending Staff Approvals List */}
-            <Card className="bg-white border-blue-200 shadow-sm rounded-[24px] overflow-hidden">
-              <CardHeader className="p-4 pb-3 bg-blue-50/50">
-                <CardTitle className="text-xs font-black uppercase tracking-widest text-blue-600 flex items-center gap-2">
-                  <UserPlus className="h-4 w-4" /> Pending Approvals
-                </CardTitle>
-                <CardDescription className="text-[10px] text-blue-500 font-medium mt-1">
-                  Mga staff na gumamit ng iyong code at naghihintay ng approval.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 space-y-3">
-                {pendingStaffApprovals.length === 0 ? (
-                  <div className="text-center py-6 text-slate-400 text-xs border border-dashed border-blue-100 rounded-2xl">
-                    <UserPlus className="h-7 w-7 mx-auto opacity-20 mb-1" />
-                    Walang pending na staff approval.
-                  </div>
-                ) : (
-                  <div className="divide-y divide-slate-100">
-                    {pendingStaffApprovals.map((staff, idx) => (
-                      <div key={staff.uid || idx} className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 gap-3 first:pt-0 last:pb-0">
-                        <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center font-black text-xs text-blue-600 uppercase">
-                            {staff.fullName ? staff.fullName[0] : 'S'}
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold text-slate-800 flex items-center gap-2">
-                              {staff.fullName || 'Unknown Staff'}
-                            </p>
-                            <p className="text-[10px] text-slate-400">{staff.email}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 self-end sm:self-auto">
-                          <Button
-                            onClick={() => handleApproveStaff(staff)}
-                            className="h-8 text-[10px] font-bold uppercase tracking-widest bg-blue-600 text-white hover:bg-blue-700 shadow-sm rounded-lg"
-                          >
-                            Approve
-                          </Button>
-                          <Button
-                            onClick={() => handleRejectStaff(staff)}
-                            variant="outline"
-                            className="h-8 text-[10px] font-bold uppercase tracking-widest text-red-600 border-red-200 hover:bg-red-50 rounded-lg"
-                          >
-                            Reject
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-            
-            {/* Activity Log (Owner Only) */}
-            <Card className="bg-white border-slate-200 shadow-sm rounded-[24px]">
-              <CardHeader className="p-4 pb-2 border-b border-slate-50 flex flex-row items-center justify-between">
-                <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
-                  <Activity className="h-4 w-4" /> System Audit Log
-                </CardTitle>
-                <button 
-                  onClick={() => setShowOrganizer(true)}
-                  className="text-[10px] font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"
-                >
-                  View All Activity <ArrowRight className="h-3 w-3" />
-                </button>
-              </CardHeader>
-              <CardContent className="p-0">
-                {auditLogs.length === 0 ? (
-                  <div className="text-center py-6">
-                    <p className="text-[10px] font-bold text-slate-400">Walang recent activities.</p>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-slate-100">
-                    {auditLogs.map((log) => {
-                      const date = log.createdAt?.toDate ? log.createdAt.toDate() : new Date();
-                      
-                      let icon = <Activity className="h-3.5 w-3.5 text-slate-400" />;
-                      if (log.type === 'delete_transaction' || log.type === 'void_sale' || log.type === 'delete_record') {
-                        icon = <Trash2 className="h-3.5 w-3.5 text-red-500" />;
-                      } else if (log.type === 'edit_transaction' || log.type === 'price_override') {
-                        icon = <Edit2 className="h-3.5 w-3.5 text-amber-500" />;
-                      } else if (log.type === 'add_staff' || log.type === 'remove_staff') {
-                        icon = <Users className="h-3.5 w-3.5 text-indigo-500" />;
-                      } else if (log.type === 'apply_discount') {
-                        icon = <Tag className="h-3.5 w-3.5 text-emerald-500" />;
-                      } else if (log.type === 'payout_expense') {
-                        icon = <Banknote className="h-3.5 w-3.5 text-rose-500" />;
-                      } else if (log.type === 'status_change') {
-                        icon = <Zap className="h-3.5 w-3.5 text-blue-500" />;
-                      }
-
-                      return (
-                        <div key={log.id} className="p-4 flex gap-3 hover:bg-slate-50 transition-colors">
-                          <div className="mt-0.5 flex-shrink-0">
-                            {icon}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-slate-700 leading-tight">
-                              {log.description}
-                            </p>
-                            <div className="flex flex-wrap items-center gap-2 mt-1 text-[9px] font-semibold text-slate-400">
-                              <span className="truncate">{log.userName || 'Unknown'}</span>
-                              <span>&bull;</span>
-                              <span>{date.toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                              {log.meta?.shiftId && (
-                                <>
-                                  <span>&bull;</span>
-                                  <span className="text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-100">
-                                    Shift {log.meta.shiftId.slice(-4)}
-                                  </span>
-                                </>
-                              )}
+            {isPOSModule && (
+              <Card className="bg-white border-blue-200 shadow-sm rounded-[24px] overflow-hidden">
+                <CardHeader className="p-4 pb-3 bg-blue-50/50">
+                  <CardTitle className="text-xs font-black uppercase tracking-widest text-blue-600 flex items-center gap-2">
+                    <UserPlus className="h-4 w-4" /> Pending Approvals
+                  </CardTitle>
+                  <CardDescription className="text-[10px] text-blue-500 font-medium mt-1">
+                    Mga staff na gumamit ng iyong code at naghihintay ng approval.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 space-y-3">
+                  {pendingStaffApprovals.length === 0 ? (
+                    <div className="text-center py-6 text-slate-400 text-xs border border-dashed border-blue-100 rounded-2xl">
+                      <UserPlus className="h-7 w-7 mx-auto opacity-20 mb-1" />
+                      Walang pending na staff approval.
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-100">
+                      {pendingStaffApprovals.map((staff, idx) => (
+                        <div key={staff.uid || idx} className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 gap-3 first:pt-0 last:pb-0">
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center font-black text-xs text-blue-600 uppercase">
+                              {staff.fullName ? staff.fullName[0] : 'S'}
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                                {staff.fullName || 'Unknown Staff'}
+                              </p>
+                              <p className="text-[10px] text-slate-400">{staff.email}</p>
                             </div>
                           </div>
+                          <div className="flex items-center gap-2 self-end sm:self-auto">
+                            <Button
+                              onClick={() => handleApproveStaff(staff)}
+                              className="h-8 text-[10px] font-bold uppercase tracking-widest bg-blue-600 text-white hover:bg-blue-700 shadow-sm rounded-lg"
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              onClick={() => handleRejectStaff(staff)}
+                              variant="outline"
+                              className="h-8 text-[10px] font-bold uppercase tracking-widest text-red-600 border-red-200 hover:bg-red-50 rounded-lg"
+                            >
+                              Reject
+                            </Button>
+                          </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+            
+            {/* Activity Log (Owner Only) */}
+            {!isBudgetMo && (
+              <Card className="bg-white border-slate-200 shadow-sm rounded-[24px]">
+                <CardHeader className="p-4 pb-2 border-b border-slate-50 flex flex-row items-center justify-between">
+                  <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                    <Activity className="h-4 w-4" /> System Audit Log
+                  </CardTitle>
+                  <button 
+                    onClick={() => setShowOrganizer(true)}
+                    className="text-[10px] font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"
+                  >
+                    View All Activity <ArrowRight className="h-3 w-3" />
+                  </button>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {auditLogs.length === 0 ? (
+                    <div className="text-center py-6">
+                      <p className="text-[10px] font-bold text-slate-400">Walang recent activities.</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-100">
+                      {auditLogs.map((log) => {
+                        const date = log.createdAt?.toDate ? log.createdAt.toDate() : new Date();
+                        
+                        let icon = <Activity className="h-3.5 w-3.5 text-slate-400" />;
+                        if (log.type === 'delete_transaction' || log.type === 'void_sale' || log.type === 'delete_record') {
+                          icon = <Trash2 className="h-3.5 w-3.5 text-red-500" />;
+                        } else if (log.type === 'edit_transaction' || log.type === 'price_override') {
+                          icon = <Edit2 className="h-3.5 w-3.5 text-amber-500" />;
+                        } else if (log.type === 'add_staff' || log.type === 'remove_staff') {
+                          icon = <Users className="h-3.5 w-3.5 text-indigo-500" />;
+                        } else if (log.type === 'apply_discount') {
+                          icon = <Tag className="h-3.5 w-3.5 text-emerald-500" />;
+                        } else if (log.type === 'payout_expense') {
+                          icon = <Banknote className="h-3.5 w-3.5 text-rose-500" />;
+                        } else if (log.type === 'status_change') {
+                          icon = <Zap className="h-3.5 w-3.5 text-blue-500" />;
+                        }
+
+                        return (
+                          <div key={log.id} className="p-4 flex gap-3 hover:bg-slate-50 transition-colors">
+                            <div className="mt-0.5 flex-shrink-0">
+                              {icon}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-slate-700 leading-tight">
+                                {log.description}
+                              </p>
+                              <div className="flex flex-wrap items-center gap-2 mt-1 text-[9px] font-semibold text-slate-400">
+                                <span className="truncate">{log.userName || 'Unknown'}</span>
+                                <span>&bull;</span>
+                                <span>{date.toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                {log.meta?.shiftId && (
+                                  <>
+                                    <span>&bull;</span>
+                                    <span className="text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-100">
+                                      Shift {log.meta.shiftId.slice(-4)}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
         {/* Staff Payment Wall Dialog */}
         <Dialog open={showStaffPaymentModal} onOpenChange={setShowStaffPaymentModal}>
@@ -1047,12 +1057,86 @@ export function ProfileTab() {
         )}
 
         {/* Manager PIN Setup for Owners */}
-        {isOwner && (
+        {isOwner && isPOSModule && (
           <ManagerPinSetup />
         )}
 
+        {/* Budget Mo Only Sections */}
+        {isOwner && isBudgetMo && (
+          <>
+            <Card className="bg-white border-slate-200 shadow-sm rounded-[24px]">
+              <CardHeader className="p-4 pb-2">
+                <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                  <Users className="h-4 w-4" /> Family Sync (Coming Soon)
+                </CardTitle>
+                <CardDescription className="text-[10px] text-slate-500 font-medium mt-1">
+                  Link your partner's account to share and manage the same household budget.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 pt-2">
+                <Button disabled variant="outline" className="w-full text-xs font-bold text-slate-400 rounded-xl">
+                  Invite Partner
+                </Button>
+              </CardContent>
+            </Card>
+
+            <ManagerPinSetup 
+              title="Security PIN"
+              description="Set a 4-digit PIN. You will be required to enter this PIN to validate sensitive updates like deleting records."
+            />
+          </>
+        )}
+
+        {/* 5-6 Tracker Only Sections */}
+        {isOwner && is56Tracker && (
+          <>
+            <Card className="bg-white border-slate-200 shadow-sm rounded-[24px]">
+              <CardHeader className="p-4 pb-2">
+                <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                  <Users className="h-4 w-4" /> Co-Admin Access (Coming Soon)
+                </CardTitle>
+                <CardDescription className="text-[10px] text-slate-500 font-medium mt-1">
+                  Grant permission to a partner or secretary to help manage collections.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 pt-2">
+                <Button disabled variant="outline" className="w-full text-xs font-bold text-slate-400 rounded-xl">
+                  Invite Co-Admin
+                </Button>
+              </CardContent>
+            </Card>
+
+            <ManagerPinSetup 
+              title="Admin Security PIN"
+              description="Set a 4-digit PIN. You will be required to enter this PIN to validate sensitive updates like voiding debt records."
+            />
+          </>
+        )}
+
+        {/* Data Export (Budget Mo & 5-6 Tracker) */}
+        {isOwner && (isBudgetMo || is56Tracker) && (
+          <Card className="bg-white border-slate-200 shadow-sm rounded-[24px]">
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                <Download className="h-4 w-4" /> Data Export
+              </CardTitle>
+              <CardDescription className="text-[10px] text-slate-500 font-medium mt-1">
+                Download a copy of your records in CSV or PDF format for offline backup.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 pt-2 flex gap-3">
+              <Button disabled variant="outline" className="flex-1 text-xs font-bold text-slate-400 rounded-xl bg-slate-50 border-slate-200">
+                CSV Export
+              </Button>
+              <Button disabled variant="outline" className="flex-1 text-xs font-bold text-slate-400 rounded-xl bg-slate-50 border-slate-200">
+                PDF Export
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Staff Dashboard Informational Banner */}
-        {!isOwner && (
+        {!isOwner && isPOSModule && (
           <Card className="bg-white border-slate-200 shadow-sm rounded-[24px] overflow-hidden">
             <div className="p-5 text-center space-y-4">
               <div className="h-12 w-12 rounded-full bg-emerald-50 mx-auto flex items-center justify-center">
@@ -1072,7 +1156,9 @@ export function ProfileTab() {
         )}
 
         {/* Staff Shift Card */}
-        <StaffShiftCard />
+        {isPOSModule && (
+          <StaffShiftCard />
+        )}
 
 
 

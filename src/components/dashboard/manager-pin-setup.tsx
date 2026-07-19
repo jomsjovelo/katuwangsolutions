@@ -9,7 +9,15 @@ import { updateManagerPin } from '@/firebase/firestore/tenant-actions';
 import { useToast } from '@/hooks/use-toast';
 import { getModuleTheme } from '@/lib/theme-utils';
 
-export function ManagerPinSetup() {
+interface ManagerPinSetupProps {
+  title?: string;
+  description?: string;
+}
+
+export function ManagerPinSetup({ 
+  title = "Manager Override PIN", 
+  description = "Set a 4-digit PIN. Staff will be required to enter this PIN whenever they want to void sales or delete records." 
+}: ManagerPinSetupProps) {
   const { currentTenant } = useTenant();
   const { user } = useUser();
   const theme = getModuleTheme(currentTenant?.moduleType);
@@ -43,7 +51,7 @@ export function ManagerPinSetup() {
         user.uid,
         user.email || 'Owner'
       );
-      toast({ title: 'Success', description: 'Manager Override PIN has been set successfully.' });
+      toast({ title: 'Success', description: `${title} has been set successfully.` });
       setPin('');
       setConfirmPin('');
       setIsEditing(false);
@@ -63,10 +71,10 @@ export function ManagerPinSetup() {
       <CardHeader className="p-4 pb-2 border-b border-slate-50">
         <CardTitle className="text-sm font-black text-slate-800 flex items-center gap-2">
           <Shield className="h-4 w-4" style={{ color: theme.primary }} />
-          Manager Override PIN
+          {title}
         </CardTitle>
         <CardDescription className="text-[11px] font-medium leading-relaxed mt-0.5">
-          Set a 4-digit PIN. Staff will be required to enter this PIN whenever they want to void sales or delete records.
+          {description}
         </CardDescription>
       </CardHeader>
       

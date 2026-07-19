@@ -63,9 +63,14 @@ export function useAdminStaff(enabled: boolean = true) {
         updatedAt: serverTimestamp()
       });
 
+      const { getDoc } = await import('firebase/firestore');
+      const tenantSnap = await getDoc(tenantRef);
+      const isBudgetMo = tenantSnap.exists() && tenantSnap.data().moduleType === 'budget-mo';
+      const referralAmount = isBudgetMo ? 5 : 10;
+
       // Process universal referral payout if they were referred
       if (staff.referredBy && !staff.referralPaid) {
-        await processUniversalReferral(db, batch, staff.referredBy, staff.id, 'staff', 10);
+        await processUniversalReferral(db, batch, staff.referredBy, staff.id, 'staff', referralAmount);
         
         batch.update(userRef, {
           referralPaid: true,

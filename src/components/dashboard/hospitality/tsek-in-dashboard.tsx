@@ -17,6 +17,7 @@ import { getModuleTheme } from '@/lib/theme-utils';
 import { addRoom, updateRoomStatus, deleteRoom, checkInGuest, checkOutGuest, extendGuestStay, updateCategoryRates, RoomData, BookingData } from '@/firebase/firestore/tsek-in-actions';
 import { useToast } from '@/hooks/use-toast';
 import { Bed, Users, Plus, CheckCircle2, XCircle, MoreVertical, LogIn, LogOut, Brush, Trash2 } from 'lucide-react';
+import { VerificationPrompt } from '@/components/common/verification-prompt';
 
 export function TsekInRoomsDashboard() {
   const { currentTenant, setCurrentTenant } = useTenant();
@@ -82,9 +83,9 @@ export function TsekInRoomsDashboard() {
   };
 
   // Check In Form
-  const [checkInDate, setCheckInDate] = useState(getCurrentDateTimeLocal());
+  const [checkInDate, setCheckInDate] = useState('');
   const [durationType, setDurationType] = useState('Daily');
-  const [expectedCheckOutDate, setExpectedCheckOutDate] = useState(getCurrentDateTimeLocal());
+  const [expectedCheckOutDate, setExpectedCheckOutDate] = useState('');
   const [totalRoomCost, setTotalRoomCost] = useState(0);
   const [guestName, setGuestName] = useState('');
   const [contactInfo, setContactInfo] = useState('');
@@ -97,7 +98,7 @@ export function TsekInRoomsDashboard() {
 
   // Check Out / Manage Stay Form
   const [manageTab, setManageTab] = useState<'checkout' | 'extend'>('checkout');
-  const [checkOutDate, setCheckOutDate] = useState(getCurrentDateTimeLocal());
+  const [checkOutDate, setCheckOutDate] = useState('');
   const [extraChargesList, setExtraChargesList] = useState<{description: string, amountCentavos: number}[]>([]);
   const [newChargeDesc, setNewChargeDesc] = useState('');
   const [newChargeAmt, setNewChargeAmt] = useState('');
@@ -108,6 +109,14 @@ export function TsekInRoomsDashboard() {
   const [extendNights, setExtendNights] = useState('1');
   const [extendPayment, setExtendPayment] = useState('');
   const [extendPaymentMethod, setExtendPaymentMethod] = useState('cash');
+
+  // Initialize dates after mount to prevent SSR hydration mismatches
+  useEffect(() => {
+    const nowLocal = getCurrentDateTimeLocal();
+    setCheckInDate(nowLocal);
+    setExpectedCheckOutDate(nowLocal);
+    setCheckOutDate(nowLocal);
+  }, []);
 
   useEffect(() => {
     if (!currentTenant) return;
@@ -568,7 +577,20 @@ export function TsekInRoomsDashboard() {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-        {rooms.map(room => (
+          {roomToDelete && (
+            <VerificationPrompt
+              open={!!roomToDelete}
+              onOpenChange={(open) => !open && setRoomToDelete(null)}
+              title="Delete Room?"
+              description={`Are you sure you want to delete this room? This will remove it from your inventory. Active bookings for this room may be affected.`}
+              onConfirm={handleDelete}
+              confirmText="Delete"
+              destructive={true}
+              verificationString="DELETE"
+            />
+          )}
+
+          {rooms.map(room => (
           <Card 
             key={room.id} 
             className={`overflow-hidden border-slate-200 transition-all ${(room.status === 'Available' || room.status === 'Occupied') ? 'cursor-pointer hover:shadow-md hover:border-slate-300' : ''}`}

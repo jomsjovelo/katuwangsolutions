@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Banknote } from 'lucide-react';
 import { RegisterSheet, useRegisterSheet } from '@/components/marketing/register-sheet';
 
 const PROBLEMS = [
@@ -67,6 +67,15 @@ const PROBLEMS = [
     module: 'Tsek-In',
     moduleId: 'tsek-in',
     color: '#D97706',
+  },
+  {
+    id: 'budget',
+    emoji: '💸',
+    challenge: 'Saan napupunta ang pera at budget ko?',
+    solution: 'Ang Budget Mo ay tumutulong upang ma-monitor ang bawat sentimo at makapag-ipon.',
+    module: 'Budget Mo',
+    moduleId: 'budget-mo',
+    color: '#8B5CF6',
   },
 ];
 
@@ -147,9 +156,16 @@ export function ProblemFirst() {
                 Subukan ang {selectedProblem.module}
                 <ChevronRight className="h-4 w-4" />
               </button>
-              <p className="text-[10px] text-center font-medium" style={{ color: selectedProblem.color }}>
-                ₱99 / buwan · No auto-renew · Works Offline
-              </p>
+              {selectedProblem.moduleId === 'budget-mo' ? (
+                <p className="text-[11px] text-slate-500 mt-1 text-center">
+                  <span className="line-through mr-1">₱100</span>
+                  <span className="text-primary font-bold">₱50 / buwan</span> · No auto-renew · Works Offline
+                </p>
+              ) : (
+                <p className="text-[11px] text-slate-500 mt-1 text-center">
+                  ₱99 / buwan · No auto-renew · Works Offline
+                </p>
+              )}
             </div>
           )}
         </div>

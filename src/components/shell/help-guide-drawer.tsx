@@ -304,7 +304,7 @@ export function HelpGuideDrawer({
                    <div>
                      <p className="text-xs font-bold text-amber-900 mb-0.5">Ano ang kikitain ko?</p>
                      <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
-                       Makakakuha ka ng base amount na <strong className="font-black text-emerald-600">₱10.00</strong>, at dagdag na <strong className="font-black text-emerald-600">₱10.00</strong> para sa bawat karagdagang App Module na active sa kanilang store, tuwing sila ay mag-aactivate o mag-rerenew. Mas maraming gamit na apps ang invite mo, mas malaki ang kita mo! Direct referrals lang po ang may kita.
+                       Makakakuha ka ng <strong className="font-black text-emerald-600">₱10.00</strong> para sa bawat standard App Module, at <strong className="font-black text-emerald-600">₱5.00</strong> para sa Budget Mo module na active sa kanilang store, tuwing sila ay mag-aactivate o mag-rerenew. Mas maraming gamit na apps ang invite mo, mas malaki ang kita mo! Direct referrals lang po ang may kita.
                      </p>
                    </div>
                  </div>
