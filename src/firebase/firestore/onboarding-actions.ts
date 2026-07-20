@@ -155,7 +155,11 @@ export async function registerNewTenant(onboardingData: any) {
 
     // Send email verification as the very last step
     try {
-      await sendEmailVerification(userCredential.user);
+      const actionCodeSettings = {
+        url: 'https://katuwangsolutions.com/dashboard',
+        handleCodeInApp: false
+      };
+      await sendEmailVerification(userCredential.user, actionCodeSettings);
       console.log('Email verification sent.');
     } catch (verifyError) {
       console.error('Failed to send verification email:', verifyError);

@@ -20,7 +20,11 @@ export function EmailVerificationBanner() {
     try {
       setIsSending(true);
       setMessage(null);
-      await sendEmailVerification(user);
+      const actionCodeSettings = {
+        url: 'https://katuwangsolutions.com/dashboard',
+        handleCodeInApp: false
+      };
+      await sendEmailVerification(user, actionCodeSettings);
       setMessage({ type: 'success', text: 'Naipadala na ulit ang verification link. I-check ang inyong inbox.' });
       setCooldown(60);
     } catch (e) {
