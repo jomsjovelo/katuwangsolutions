@@ -96,8 +96,15 @@ function LoginDialogContent({ children }: { children: React.ReactNode }) {
     try {
       setResetLoading(true);
       setResetMessage(null);
-      const { getAuth, sendPasswordResetEmail } = await import('firebase/auth');
-      await sendPasswordResetEmail(getAuth(), resetEmail);
+      // Using custom backend password reset email sender
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: resetEmail }),
+      });
+      if (!res.ok) {
+        throw new Error('Failed to send reset email');
+      }
       setResetMessage({ 
         type: 'success', 
         text: `Nagpadala na kami ng reset link sa ${resetEmail}. I-check ang inyong inbox at spam folder.` 

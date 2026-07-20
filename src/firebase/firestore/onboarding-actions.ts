@@ -5,10 +5,7 @@ import {
   getDoc
 } from 'firebase/firestore';
 import { runTransactionResilient } from './resilient-transaction';
-import { 
-  createUserWithEmailAndPassword,
-  sendEmailVerification
-} from 'firebase/auth';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { initializeFirebase } from '../index';
 import { BusinessInfoSchema, AccountSchema } from '@/lib/schemas/onboarding';
 import { generateUniqueReferralCode } from './referral-utils';
@@ -155,11 +152,15 @@ export async function registerNewTenant(onboardingData: any) {
 
     // Send email verification as the very last step
     try {
-      const actionCodeSettings = {
-        url: 'https://katuwangsolutions.com/dashboard',
-        handleCodeInApp: false
-      };
-      await sendEmailVerification(userCredential.user, actionCodeSettings);
+      // Using custom backend email sender instead of Firebase default
+      const res = await fetch('/api/auth/send-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userCredential.user.email }),
+      });
+      if (!res.ok) {
+        throw new Error('Failed to send custom verification email');
+      }
       console.log('Email verification sent.');
     } catch (verifyError) {
       console.error('Failed to send verification email:', verifyError);

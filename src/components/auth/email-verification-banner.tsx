@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useUser } from '@/firebase/auth/use-user';
-import { sendEmailVerification } from 'firebase/auth';
+
 import { AlertTriangle, MailCheck, Loader2 } from 'lucide-react';
 
 export function EmailVerificationBanner() {
@@ -20,11 +20,19 @@ export function EmailVerificationBanner() {
     try {
       setIsSending(true);
       setMessage(null);
-      const actionCodeSettings = {
-        url: 'https://katuwangsolutions.com/dashboard',
-        handleCodeInApp: false
-      };
-      await sendEmailVerification(user, actionCodeSettings);
+      // Using the custom backend email sender instead of Firebase default
+      const res = await fetch('/api/auth/send-verification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: user.email }),
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to send email');
+      }
       setMessage({ type: 'success', text: 'Naipadala na ulit ang verification link. I-check ang inyong inbox.' });
       setCooldown(60);
     } catch (e) {

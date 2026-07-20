@@ -60,7 +60,15 @@ export function AdminTenantDetails({ tenant, isOpen, onClose, updateNextBillingD
       setIsSendingReset(true);
       try {
         const { auth } = initializeFirebase();
-        await sendPasswordResetEmail(auth, tenant.ownerEmail);
+        // Using custom backend password reset email sender
+        const res = await fetch('/api/auth/reset-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: tenant.ownerEmail }),
+        });
+        if (!res.ok) {
+          throw new Error('Failed to send reset email');
+        }
         alert(`Password reset email sent successfully to ${tenant.ownerEmail}`);
       } catch (e) {
       const error = e as Error & { code?: string };
