@@ -13,16 +13,25 @@ import {
   addBudgetTransaction, 
   addDebtRecord, 
   logDebtPayment, 
-  addSavingsGoal, 
+  editDebtRecord,
+  deleteDebtRecord,
+  addSavingsGoal,
+  editSavingsGoal,
+  deleteSavingsGoal,
   allocateToSavings,
   deleteBudgetTransaction,
   editBudgetTransaction,
   addBudgetEnvelope,
-  deleteBudgetEnvelope
+  deleteBudgetEnvelope,
+  updateBudgetSettings
 } from '@/firebase/firestore/budget-actions';
+import { BudgetTransaction, Debt, SavingsGoal, BudgetEnvelope } from '@/lib/schemas/budget';
 import { Button } from '@/components/ui/button';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { VerificationPrompt } from '@/components/common/verification-prompt';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export type BudgetPersona = 'student' | 'worker' | 'freelancer' | 'business' | null;
 export type CycleType = 'weekly' | '15-days' | 'monthly';
@@ -32,17 +41,23 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
   const db = useFirestore();
   const { toast } = useToast();
 
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [debts, setDebts] = useState<any[]>([]);
-  const [goals, setGoals] = useState<any[]>([]);
-  const [envelopes, setEnvelopes] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<BudgetTransaction[]>([]);
+  const [debts, setDebts] = useState<Debt[]>([]);
+  const [goals, setGoals] = useState<SavingsGoal[]>([]);
+  const [envelopes, setEnvelopes] = useState<BudgetEnvelope[]>([]);
   const [masterBalance, setMasterBalance] = useState(0);
 
   // New states
   const [showIncomeModal, setShowIncomeModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [showDebtModal, setShowDebtModal] = useState(false);
+  const [showPayDebtModal, setShowPayDebtModal] = useState<Debt | null>(null);
+  const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
+  const [debtToDelete, setDebtToDelete] = useState<Debt | null>(null);
+  
   const [showGoalModal, setShowGoalModal] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<SavingsGoal | null>(null);
+  const [goalToDelete, setGoalToDelete] = useState<SavingsGoal | null>(null);
   const [showEnvelopeModal, setShowEnvelopeModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showAllocationPrompt, setShowAllocationPrompt] = useState<{amount: number} | null>(null);
@@ -51,10 +66,10 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
   const [wrapUpSavingsAmount, setWrapUpSavingsAmount] = useState(0);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [editingTx, setEditingTx] = useState<any | null>(null);
+  const [editingTx, setEditingTx] = useState<BudgetTransaction | null>(null);
 
-  const [txToDelete, setTxToDelete] = useState<any | null>(null);
-  const [envToDelete, setEnvToDelete] = useState<any | null>(null);
+  const [txToDelete, setTxToDelete] = useState<BudgetTransaction | null>(null);
+  const [envToDelete, setEnvToDelete] = useState<BudgetEnvelope | null>(null);
 
   // Transaction History States
   const [searchTerm, setSearchTerm] = useState('');
@@ -93,102 +108,114 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
     try { localStorage.setItem(key, value); } catch {}
   };
 
-  // Cycle Isolation must happen BEFORE useEffect to calculate fetchMinDate
-  const now = new Date();
-  let cycleStart = new Date(now.getFullYear(), now.getMonth(), paydayCycle);
-  let nextCycleStart = new Date(now.getFullYear(), now.getMonth() + 1, paydayCycle);
-  let daysRemaining = 1;
+  const { cycleStart, nextCycleStart, daysRemaining, fetchMinDate, previousCycleStart } = React.useMemo(() => {
+    const now = new Date();
+    let cStart = new Date(now.getFullYear(), now.getMonth(), paydayCycle);
+    let nStart = new Date(now.getFullYear(), now.getMonth() + 1, paydayCycle);
+    let dRemaining = 1;
 
-  if (cycleType === 'weekly') {
-    const dayOfWeek = now.getDay();
-    const diff = (dayOfWeek >= paydayCycle) ? (dayOfWeek - paydayCycle) : (7 - (paydayCycle - dayOfWeek));
-    cycleStart = new Date(now);
-    cycleStart.setDate(now.getDate() - diff);
-    cycleStart.setHours(0,0,0,0);
-    
-    nextCycleStart = new Date(cycleStart);
-    nextCycleStart.setDate(nextCycleStart.getDate() + 7);
-    
-    daysRemaining = 7 - diff;
-    if (daysRemaining === 0) daysRemaining = 7;
-  } else if (cycleType === '15-days') {
-    const firstDay = Math.min(paydayCycle, secondPaydayCycle || 30);
-    const secondDay = Math.max(paydayCycle, secondPaydayCycle || 30);
-    const currentDay = now.getDate();
-    
-    if (currentDay < firstDay) {
-      // Previous month's second cycle
-      const prevMonthLastDay = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
-      const prevSecondDay = Math.min(secondDay, prevMonthLastDay);
-      cycleStart = new Date(now.getFullYear(), now.getMonth() - 1, prevSecondDay);
-      nextCycleStart = new Date(now.getFullYear(), now.getMonth(), firstDay);
-    } else if (currentDay >= firstDay && currentDay < secondDay) {
-      // First cycle
-      cycleStart = new Date(now.getFullYear(), now.getMonth(), firstDay);
-      nextCycleStart = new Date(now.getFullYear(), now.getMonth(), secondDay);
-    } else {
-      // Second cycle
-      const currentMonthLastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-      const actualSecondDay = Math.min(secondDay, currentMonthLastDay);
-      cycleStart = new Date(now.getFullYear(), now.getMonth(), actualSecondDay);
-      nextCycleStart = new Date(now.getFullYear(), now.getMonth() + 1, firstDay);
-    }
-    
-    const todayAtMidnight = new Date(now);
-    todayAtMidnight.setHours(0,0,0,0);
-    daysRemaining = Math.max(1, Math.round((nextCycleStart.getTime() - todayAtMidnight.getTime()) / (1000 * 60 * 60 * 24)));
-  } else {
-    if (now.getDate() < paydayCycle) {
-      cycleStart = new Date(now.getFullYear(), now.getMonth() - 1, paydayCycle);
-      nextCycleStart = new Date(now.getFullYear(), now.getMonth(), paydayCycle);
-    }
-    const currentDay = now.getDate();
-    const currentMonthDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    if (currentDay < paydayCycle) {
-      daysRemaining = paydayCycle - currentDay;
-    } else {
-      daysRemaining = (currentMonthDays - currentDay) + paydayCycle;
-    }
-  }
-
-  // Calculate fetchMinDate to limit Firestore reads
-  const previousCycleStart = new Date(cycleStart);
-  if (cycleType === 'weekly') {
-    previousCycleStart.setDate(previousCycleStart.getDate() - 7);
-  } else if (cycleType === '15-days') {
-    previousCycleStart.setDate(previousCycleStart.getDate() - 31);
-  } else {
-    previousCycleStart.setMonth(previousCycleStart.getMonth() - 1);
-  }
-
-  let fetchMinDate = new Date(previousCycleStart);
-  if (insightsRange === 'last30') {
-    const d30 = new Date(); d30.setDate(d30.getDate() - 30); d30.setHours(0,0,0,0);
-    if (d30 < fetchMinDate) fetchMinDate = d30;
-  } else if (insightsRange === 'custom' && customStartDate) {
-    const customStart = new Date(customStartDate); customStart.setHours(0,0,0,0);
-    if (customStart < fetchMinDate) fetchMinDate = customStart;
-  }
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedPersona = safeGetStorage('budgetSensePersona') as BudgetPersona;
-      const savedCycleType = safeGetStorage('budgetSenseCycleType') as CycleType;
-      const savedPayday = safeGetStorage('budgetSensePayday');
-      const savedSecondPayday = safeGetStorage('budgetSenseSecondPayday');
+    if (cycleType === 'weekly') {
+      const dayOfWeek = now.getDay();
+      const diff = (dayOfWeek >= paydayCycle) ? (dayOfWeek - paydayCycle) : (7 - (paydayCycle - dayOfWeek));
+      cStart = new Date(now);
+      cStart.setDate(now.getDate() - diff);
+      cStart.setHours(0,0,0,0);
       
-      if (savedPersona) setPersona(savedPersona);
-      else setPersona(null); 
-
-      if (savedCycleType) setCycleType(savedCycleType);
-      if (savedPayday) setPaydayCycle(Number(savedPayday));
-      if (savedSecondPayday) setSecondPaydayCycle(Number(savedSecondPayday));
-      setIsInitializing(false);
+      nStart = new Date(cStart);
+      nStart.setDate(nStart.getDate() + 7);
+      
+      dRemaining = 7 - diff;
+      if (dRemaining === 0) dRemaining = 7;
+    } else if (cycleType === '15-days') {
+      const firstDay = Math.min(paydayCycle, secondPaydayCycle || 30);
+      const secondDay = Math.max(paydayCycle, secondPaydayCycle || 30);
+      const currentDay = now.getDate();
+      
+      if (currentDay < firstDay) {
+        // Previous month's second cycle
+        const prevMonthLastDay = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
+        const prevSecondDay = Math.min(secondDay, prevMonthLastDay);
+        cStart = new Date(now.getFullYear(), now.getMonth() - 1, prevSecondDay);
+        nStart = new Date(now.getFullYear(), now.getMonth(), firstDay);
+      } else if (currentDay >= firstDay && currentDay < secondDay) {
+        // First cycle
+        cStart = new Date(now.getFullYear(), now.getMonth(), firstDay);
+        nStart = new Date(now.getFullYear(), now.getMonth(), secondDay);
+      } else {
+        // Second cycle
+        const currentMonthLastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        const actualSecondDay = Math.min(secondDay, currentMonthLastDay);
+        cStart = new Date(now.getFullYear(), now.getMonth(), actualSecondDay);
+        nStart = new Date(now.getFullYear(), now.getMonth() + 1, firstDay);
+      }
+      
+      const todayAtMidnight = new Date(now);
+      todayAtMidnight.setHours(0,0,0,0);
+      dRemaining = Math.max(1, Math.round((nStart.getTime() - todayAtMidnight.getTime()) / (1000 * 60 * 60 * 24)));
+    } else {
+      if (now.getDate() < paydayCycle) {
+        cStart = new Date(now.getFullYear(), now.getMonth() - 1, paydayCycle);
+        nStart = new Date(now.getFullYear(), now.getMonth(), paydayCycle);
+      }
+      const currentDay = now.getDate();
+      const currentMonthDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      if (currentDay < paydayCycle) {
+        dRemaining = paydayCycle - currentDay;
+      } else {
+        dRemaining = (currentMonthDays - currentDay) + paydayCycle;
+      }
     }
-  }, []);
+
+    const prevStart = new Date(cStart);
+    if (cycleType === 'weekly') {
+      prevStart.setDate(prevStart.getDate() - 7);
+    } else if (cycleType === '15-days') {
+      prevStart.setDate(prevStart.getDate() - 31);
+    } else {
+      prevStart.setMonth(prevStart.getMonth() - 1);
+    }
+
+    let fMinDate = new Date(prevStart);
+    if (insightsRange === 'last30') {
+      const d30 = new Date(); d30.setDate(d30.getDate() - 30); d30.setHours(0,0,0,0);
+      if (d30 < fMinDate) fMinDate = d30;
+    } else if (insightsRange === 'custom' && customStartDate) {
+      const customStart = new Date(customStartDate); customStart.setHours(0,0,0,0);
+      if (customStart < fMinDate) fMinDate = customStart;
+    }
+    
+    // For "all time", we can safely fetch everything since year 2000
+    if (txDateFilter === 'all') {
+       fMinDate = new Date(2000, 0, 1); 
+    }
+
+    return { cycleStart: cStart, nextCycleStart: nStart, daysRemaining: dRemaining, fetchMinDate: fMinDate, previousCycleStart: prevStart };
+  }, [cycleType, paydayCycle, secondPaydayCycle, insightsRange, customStartDate, txDateFilter]);
 
   useEffect(() => {
     if (!currentTenant?.id || !db) return;
+
+    const unsubSettings = onSnapshot(doc(db, 'tenants', currentTenant.id, 'settings', 'budget'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.persona) setPersona(data.persona as BudgetPersona);
+        if (data.cycleType) setCycleType(data.cycleType as CycleType);
+        if (data.paydayCycle) setPaydayCycle(Number(data.paydayCycle));
+        if (data.secondPaydayCycle) setSecondPaydayCycle(Number(data.secondPaydayCycle));
+      } else {
+        // Fallback to local storage migration
+        const savedPersona = safeGetStorage('budgetSensePersona') as BudgetPersona;
+        if (savedPersona) {
+           setPersona(savedPersona);
+           setCycleType(safeGetStorage('budgetSenseCycleType') as CycleType || 'monthly');
+           setPaydayCycle(Number(safeGetStorage('budgetSensePayday') || 15));
+           setSecondPaydayCycle(Number(safeGetStorage('budgetSenseSecondPayday') || 30));
+        } else {
+           setPersona(null);
+        }
+      }
+      setIsInitializing(false);
+    });
 
     const masterUnsub = onSnapshot(doc(db, 'tenants', currentTenant.id, 'accounts', 'master-cash'), (docSnap: any) => {
       if (docSnap.exists()) {
@@ -203,24 +230,24 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
         orderBy('createdAt', 'desc')
       ), 
       (snap) => {
-        setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() }) as BudgetTransaction));
       }
     );
 
     const debtUnsub = onSnapshot(query(collection(db, 'tenants', currentTenant.id, 'budget_debts'), orderBy('createdAt', 'desc')), (snap) => {
-      setDebts(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setDebts(snap.docs.map(d => ({ id: d.id, ...d.data() }) as Debt));
     });
 
     const goalUnsub = onSnapshot(query(collection(db, 'tenants', currentTenant.id, 'budget_goals'), orderBy('createdAt', 'desc')), (snap) => {
-      setGoals(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setGoals(snap.docs.map(d => ({ id: d.id, ...d.data() }) as SavingsGoal));
     });
 
     const envUnsub = onSnapshot(query(collection(db, 'tenants', currentTenant.id, 'budget_envelopes'), orderBy('createdAt', 'desc')), (snap) => {
-      setEnvelopes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setEnvelopes(snap.docs.map(d => ({ id: d.id, ...d.data() }) as BudgetEnvelope));
     });
 
-    return () => { masterUnsub(); txUnsub(); debtUnsub(); goalUnsub(); envUnsub(); };
-  }, [currentTenant?.id, db, fetchMinDate.toISOString().split('T')[0]]);
+    return () => { unsubSettings(); masterUnsub(); txUnsub(); debtUnsub(); goalUnsub(); envUnsub(); };
+  }, [currentTenant?.id, db, fetchMinDate.getTime()]);
 
   const cycleTransactions = transactions.filter(t => {
     if (!t.createdAt) return true;
@@ -509,7 +536,7 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
 
   const handleEditSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!currentTenant?.id || !editingTx) return;
+    if (!currentTenant?.id || !editingTx?.id) return;
     
     const formData = new FormData(e.currentTarget);
     const amount = Number(formData.get('amount')) * 100;
@@ -530,7 +557,7 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
   };
 
   const handleDeleteTx = async () => {
-    if (!currentTenant?.id || !txToDelete) return;
+    if (!currentTenant?.id || !txToDelete?.id) return;
     try {
       setIsSubmitting(true);
       await deleteBudgetTransaction(currentTenant.id, txToDelete.id);
@@ -1013,9 +1040,15 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
                             I Borrowed
                           </span>
                         </div>
-                        <div className="text-right">
-                          <p className="font-black text-lg text-slate-800">{formatMoney(debt.remainingAmountCentavos)}</p>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Remaining</p>
+                        <div className="flex gap-2 items-start">
+                          <div className="text-right">
+                            <p className="font-black text-lg text-slate-800">{formatMoney(debt.remainingAmountCentavos)}</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Remaining</p>
+                          </div>
+                          <div className="flex flex-col gap-1 -mt-1 -mr-1">
+                            <Button size="icon" variant="ghost" className="h-6 w-6 text-slate-400 hover:text-indigo-600" onClick={() => setEditingDebt(debt)}><Settings className="h-3 w-3" /></Button>
+                            <Button size="icon" variant="ghost" className="h-6 w-6 text-slate-400 hover:text-rose-600" onClick={() => setDebtToDelete(debt)}><Trash2 className="h-3 w-3" /></Button>
+                          </div>
                         </div>
                       </div>
                       
@@ -1026,14 +1059,7 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
                             style={{ width: `${Math.min(100, ((debt.totalAmountCentavos - debt.remainingAmountCentavos) / debt.totalAmountCentavos) * 100)}%` }}
                           />
                         </div>
-                        <Button size="sm" variant="ghost" className="h-8 text-xs font-bold text-primary" onClick={() => {
-                          const amountStr = prompt(`How much to pay towards ${debt.creditorName}?`);
-                          if (!amountStr || isNaN(Number(amountStr))) return;
-                          const amtC = Number(amountStr) * 100;
-                          logDebtPayment(currentTenant!.id, debt.id, amtC, `Payment towards ${debt.creditorName}`)
-                            .then(() => toast({ title: 'Payment Logged' }))
-                            .catch(e => toast({ title: 'Error', description: e.message, variant: 'destructive' }));
-                        }}>
+                        <Button size="sm" variant="ghost" className="h-8 text-xs font-bold text-primary" onClick={() => setShowPayDebtModal(debt)}>
                           Pay
                         </Button>
                       </div>
@@ -1090,8 +1116,14 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
                             <h4 className="font-bold text-sm text-slate-800">{goal.name}</h4>
                             <p className="text-xs text-slate-500 font-medium">{formatMoney(goal.currentAmountCentavos)} / {formatMoney(goal.targetAmountCentavos)}</p>
                           </div>
-                          <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-black text-xs">
-                            {Math.floor(progress)}%
+                          <div className="flex gap-2 items-start">
+                            <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-black text-xs">
+                              {Math.floor(progress)}%
+                            </div>
+                            <div className="flex flex-col gap-1 -mt-1 -mr-1">
+                              <Button size="icon" variant="ghost" className="h-6 w-6 text-slate-400 hover:text-indigo-600" onClick={() => setEditingGoal(goal)}><Settings className="h-3 w-3" /></Button>
+                              <Button size="icon" variant="ghost" className="h-6 w-6 text-slate-400 hover:text-rose-600" onClick={() => setGoalToDelete(goal)}><Trash2 className="h-3 w-3" /></Button>
+                            </div>
                           </div>
                         </div>
                         
@@ -1286,7 +1318,7 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
               <p className="text-sm font-medium mb-3">You just logged {formatMoney(showAllocationPrompt.amount)}. Want to save 20% ({formatMoney(showAllocationPrompt.amount * 0.2)}) straight to your "{goals[0].name}" goal?</p>
               <div className="flex gap-2">
                 <Button size="sm" className="bg-white text-amber-600 font-black rounded-xl" onClick={async () => {
-                  if(!currentTenant?.id) return;
+                  if(!currentTenant?.id || !goals[0]?.id) return;
                   await allocateToSavings(currentTenant.id, goals[0].id, showAllocationPrompt.amount * 0.2);
                   toast({title: 'Savings Boosted!', description: 'You successfully allocated 20% to your savings.'});
                   setShowAllocationPrompt(null);
@@ -1315,7 +1347,7 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
         title="Delete Envelope?"
         description={`Are you sure you want to delete the ${envToDelete?.category} envelope? This will NOT delete past transactions, but will remove the budget limit.`}
         onConfirm={async () => {
-          if (currentTenant?.id && envToDelete) {
+          if (currentTenant?.id && envToDelete?.id) {
             await (await import('@/firebase/firestore/budget-actions')).deleteBudgetEnvelope(currentTenant.id, envToDelete.id);
             setEnvToDelete(null);
           }
@@ -1359,7 +1391,7 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
             <div className="mb-3 space-y-2">
               <input required name="category" value={expenseCategory} onChange={(e) => setExpenseCategory(e.target.value)} placeholder="Category (e.g. Food, Transportation)" className="w-full bg-slate-50 p-4 rounded-2xl font-medium outline-none border border-slate-100 focus:border-rose-500" />
               <div className="flex flex-wrap gap-2">
-                {(persona === 'student' ? ['Food', 'Pamasahe', 'School Project', 'Dorm/Rent', 'Load', 'Gala'] : persona === 'freelancer' ? ['Internet', 'Software/Tools', 'Food', 'Pamasahe', 'Coffee Shop'] : ['Groceries', 'Rent', 'Utilities/Bills', 'Pamasahe', 'Dining Out']).map(cat => (
+                {(envelopes.length > 0 ? envelopes.map(e => e.category) : persona === 'student' ? ['Food', 'Pamasahe', 'School Project', 'Dorm/Rent', 'Load', 'Gala'] : persona === 'freelancer' ? ['Internet', 'Software/Tools', 'Food', 'Pamasahe', 'Coffee Shop'] : ['Groceries', 'Rent', 'Utilities/Bills', 'Pamasahe', 'Dining Out']).map(cat => (
                   <button key={cat} type="button" onClick={() => setExpenseCategory(cat)} className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${expenseCategory === cat ? 'bg-rose-500 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
                     {cat}
                   </button>
@@ -1617,7 +1649,7 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
                 <Button 
                   className="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold p-6 flex flex-col gap-1 h-auto"
                   onClick={async () => {
-                    if(!currentTenant?.id) return;
+                    if(!currentTenant?.id || !goals[0]?.id) return;
                     try {
                       await allocateToSavings(currentTenant.id, goals[0].id, wrapUpSavingsAmount * 100);
                       toast({title: 'Savings Boosted!', description: 'You successfully rolled over your savings.'});
@@ -1691,6 +1723,189 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
             </Button>
           </div>
         </div>
+      )}
+
+      {showPayDebtModal && (
+        <Dialog open={!!showPayDebtModal} onOpenChange={(open) => !open && setShowPayDebtModal(null)}>
+          <DialogContent className="rounded-2xl">
+            <DialogHeader>
+              <DialogTitle>Pay {showPayDebtModal.creditorName}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <p className="text-sm text-slate-500">
+                How much are you paying today? Your remaining balance is {formatMoney(showPayDebtModal.remainingAmountCentavos)}.
+              </p>
+              <div className="space-y-2">
+                <Label>Payment Amount (₱)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  id="debtPaymentAmount"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowPayDebtModal(null)}>Cancel</Button>
+              <Button 
+                onClick={async () => {
+                  const input = document.getElementById('debtPaymentAmount') as HTMLInputElement;
+                  const val = input?.value;
+                  if (!val || isNaN(Number(val)) || !currentTenant?.id || !showPayDebtModal?.id) return;
+                  setIsSubmitting(true);
+                  try {
+                    const amtC = Number(val) * 100;
+                    await logDebtPayment(currentTenant.id, showPayDebtModal.id, amtC, `Payment towards ${showPayDebtModal.creditorName}`);
+                    toast({ title: 'Payment Logged' });
+                    setShowPayDebtModal(null);
+                  } catch (e: any) {
+                    toast({ title: 'Error', description: e.message, variant: 'destructive' });
+                  } finally {
+                    setIsSubmitting(false);
+                  }
+                }}
+                disabled={isSubmitting}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              >
+                Log Payment
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {editingDebt && (
+        <Dialog open={!!editingDebt} onOpenChange={(open) => !open && setEditingDebt(null)}>
+          <DialogContent className="rounded-2xl">
+            <DialogHeader>
+              <DialogTitle>Edit Debt Record</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <p className="text-sm text-slate-500">Update creditor name.</p>
+              <div className="space-y-2">
+                <Label>Creditor Name</Label>
+                <Input
+                  type="text"
+                  id="editDebtCreditorName"
+                  defaultValue={editingDebt.creditorName}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditingDebt(null)}>Cancel</Button>
+              <Button 
+                onClick={async () => {
+                  const input = document.getElementById('editDebtCreditorName') as HTMLInputElement;
+                  const val = input?.value;
+                  if (!val || !currentTenant?.id || !editingDebt?.id) return;
+                  setIsSubmitting(true);
+                  try {
+                    await editDebtRecord(currentTenant.id, editingDebt.id, { creditorName: val });
+                    toast({ title: 'Debt Updated' });
+                    setEditingDebt(null);
+                  } catch (e: any) {
+                    toast({ title: 'Error', description: e.message, variant: 'destructive' });
+                  } finally {
+                    setIsSubmitting(false);
+                  }
+                }}
+                disabled={isSubmitting}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              >
+                Update
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {debtToDelete && (
+        <VerificationPrompt
+          title="Delete Debt Record?"
+          description={`Are you sure you want to delete the debt for ${debtToDelete.creditorName}? This action cannot be undone.`}
+          confirmText="Yes, Delete"
+          open={true}
+          onOpenChange={(open) => !open && setDebtToDelete(null)}
+          onConfirm={async () => {
+            setIsSubmitting(true);
+            try {
+              await deleteDebtRecord(currentTenant!.id, debtToDelete.id!);
+              toast({ title: 'Debt Deleted' });
+              setDebtToDelete(null);
+            } catch (e: any) {
+              toast({ title: 'Error', description: e.message, variant: 'destructive' });
+            } finally {
+              setIsSubmitting(false);
+            }
+          }}
+        />
+      )}
+
+      {editingGoal && (
+        <Dialog open={!!editingGoal} onOpenChange={(open) => !open && setEditingGoal(null)}>
+          <DialogContent className="rounded-2xl">
+            <DialogHeader>
+              <DialogTitle>Edit Savings Goal</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <p className="text-sm text-slate-500">Update goal name.</p>
+              <div className="space-y-2">
+                <Label>Goal Name</Label>
+                <Input
+                  type="text"
+                  id="editGoalName"
+                  defaultValue={editingGoal.name}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditingGoal(null)}>Cancel</Button>
+              <Button 
+                onClick={async () => {
+                  const input = document.getElementById('editGoalName') as HTMLInputElement;
+                  const val = input?.value;
+                  if (!val || !currentTenant?.id || !editingGoal?.id) return;
+                  setIsSubmitting(true);
+                  try {
+                    await editSavingsGoal(currentTenant.id, editingGoal.id, { name: val });
+                    toast({ title: 'Goal Updated' });
+                    setEditingGoal(null);
+                  } catch (e: any) {
+                    toast({ title: 'Error', description: e.message, variant: 'destructive' });
+                  } finally {
+                    setIsSubmitting(false);
+                  }
+                }}
+                disabled={isSubmitting}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              >
+                Update
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {goalToDelete && (
+        <VerificationPrompt
+          title="Delete Savings Goal?"
+          description={`Are you sure you want to delete the goal "${goalToDelete.name}"? This will not deduct from your cash, only remove the goal.`}
+          confirmText="Yes, Delete"
+          open={true}
+          onOpenChange={(open) => !open && setGoalToDelete(null)}
+          onConfirm={async () => {
+            setIsSubmitting(true);
+            try {
+              await deleteSavingsGoal(currentTenant!.id, goalToDelete.id!);
+              toast({ title: 'Goal Deleted' });
+              setGoalToDelete(null);
+            } catch (e: any) {
+              toast({ title: 'Error', description: e.message, variant: 'destructive' });
+            } finally {
+              setIsSubmitting(false);
+            }
+          }}
+        />
       )}
     </div>
   );

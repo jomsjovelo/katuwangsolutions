@@ -1,4 +1,4 @@
-import { doc, collection, serverTimestamp, setDoc, increment, getDocs, query, Timestamp, writeBatch } from 'firebase/firestore';
+import { doc, collection, serverTimestamp, setDoc, increment, getDocs, query, Timestamp, writeBatch, getDoc, FirestoreDataConverter, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import { initializeFirebase } from '../index';
 import { runTransactionResilient } from './resilient-transaction';
 import { logAuditEvent } from './audit-actions';
@@ -22,7 +22,20 @@ export const RoomSchema = z.object({
   extraPaxFeeCentavos: z.number().int().min(0).optional()
 });
 
-export type RoomData = z.infer<typeof RoomSchema>;
+export type RoomData = z.infer<typeof RoomSchema> & { id?: string, deletedAt?: any };
+
+export const roomConverter: FirestoreDataConverter<RoomData> = {
+  toFirestore(room: RoomData): DocumentData {
+    return { ...room };
+  },
+  fromFirestore(snapshot: QueryDocumentSnapshot, options): RoomData {
+    const data = snapshot.data(options);
+    return {
+      id: snapshot.id,
+      ...data,
+    } as RoomData;
+  }
+};
 
 export async function addRoom(tenantId: string, data: RoomData): Promise<void> {
   const db = getKatuwangDb();
@@ -44,6 +57,18 @@ export async function addRoom(tenantId: string, data: RoomData): Promise<void> {
     status: 'Available',
     createdAt: serverTimestamp(),
   });
+}
+
+export async function editRoom(tenantId: string, roomId: string, data: RoomData): Promise<void> {
+  const db = getKatuwangDb();
+  
+  const validatedData = RoomSchema.parse(data);
+  const roomRef = doc(db, 'tenants', tenantId, 'rooms', roomId);
+  
+  await setDoc(roomRef, {
+    ...validatedData,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
 }
 
 export async function updateCategoryRates(
@@ -77,10 +102,22 @@ export async function updateRoomStatus(tenantId: string, roomId: string, status:
   await setDoc(roomRef, { status }, { merge: true });
 }
 
-export async function deleteRoom(tenantId: string, roomId: string) {
+export async function deleteRoom(tenantId: string, roomId: string, userId?: string, userName?: string): Promise<void> {
   const db = getKatuwangDb();
   const roomRef = doc(db, 'tenants', tenantId, 'rooms', roomId);
-  await setDoc(roomRef, { deletedAt: serverTimestamp() }, { merge: true });
+  const roomSnap = await getDoc(roomRef);
+  
+  await setDoc(roomRef, {
+    deletedAt: serverTimestamp(),
+  }, { merge: true });
+
+  if (userId && userName && roomSnap.exists()) {
+    await logAuditEvent(tenantId, userId, userName, {
+      type: 'delete_record',
+      description: `Deleted room ${roomSnap.data().roomNumber}`,
+      meta: { roomId }
+    });
+  }
 }
 
 export const BookingSchema = z.object({
@@ -101,12 +138,30 @@ export const BookingSchema = z.object({
   userName: z.string().optional(),
 });
 
-export type BookingData = z.infer<typeof BookingSchema>;
+export type BookingData = z.infer<typeof BookingSchema> & { id?: string, status?: 'Active' | 'CheckedOut', actualCheckOutDate?: any, extraCharges?: any[], checkedOutAt?: any };
+
+export const bookingConverter: FirestoreDataConverter<BookingData> = {
+  toFirestore(booking: BookingData): DocumentData {
+    return { ...booking };
+  },
+  fromFirestore(snapshot: QueryDocumentSnapshot, options): BookingData {
+    const data = snapshot.data(options);
+    return {
+      id: snapshot.id,
+      ...data,
+      checkInDate: data.checkInDate?.toDate ? data.checkInDate.toDate() : data.checkInDate,
+      expectedCheckOutDate: data.expectedCheckOutDate?.toDate ? data.expectedCheckOutDate.toDate() : data.expectedCheckOutDate,
+      actualCheckOutDate: data.actualCheckOutDate?.toDate ? data.actualCheckOutDate.toDate() : data.actualCheckOutDate,
+      checkedOutAt: data.checkedOutAt?.toDate ? data.checkedOutAt.toDate() : data.checkedOutAt,
+    } as BookingData;
+  }
+};
 
 export async function checkInGuest(tenantId: string, data: BookingData) {
   const db = getKatuwangDb();
   const validatedData = BookingSchema.parse(data);
 
+  let generatedBookingId = '';
   await runTransactionResilient(db, async (transaction) => {
     const roomRef = doc(db, 'tenants', tenantId, 'rooms', data.roomId);
     const roomSnap = await transaction.get(roomRef);
@@ -120,10 +175,11 @@ export async function checkInGuest(tenantId: string, data: BookingData) {
 
     const bookingsRef = collection(db, 'tenants', tenantId, 'bookings');
     const newBookingRef = doc(bookingsRef);
+    generatedBookingId = newBookingRef.id;
     
     transaction.set(newBookingRef, {
       id: newBookingRef.id,
-      ...data,
+      ...validatedData,
       status: 'Active',
       createdAt: serverTimestamp(),
     });
@@ -168,6 +224,14 @@ export async function checkInGuest(tenantId: string, data: BookingData) {
       });
     }
   });
+
+  if (data.userId && data.userName) {
+    await logAuditEvent(tenantId, data.userId, data.userName, {
+      type: 'status_change',
+      description: `Checked in guest ${data.guestName} to Room ${data.roomName}`,
+      meta: { bookingId: generatedBookingId, roomId: data.roomId }
+    });
+  }
 }
 
 export async function checkOutGuest(
@@ -182,12 +246,17 @@ export async function checkOutGuest(
   checkOutDate?: Date
 ) {
   const db = getKatuwangDb();
+  let guestName = '';
+  let roomName = '';
+  
   await runTransactionResilient(db, async (transaction) => {
     const bookingRef = doc(db, 'tenants', tenantId, 'bookings', bookingId);
     const bookingSnap = await transaction.get(bookingRef);
     if (!bookingSnap.exists()) throw new Error('Booking not found');
 
     const bookingData = bookingSnap.data();
+    guestName = bookingData.guestName;
+    roomName = bookingData.roomName;
     
     // Read master account FIRST to satisfy Firestore read-before-write requirement
     const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
@@ -253,6 +322,14 @@ export async function checkOutGuest(
       });
     }
   });
+
+  if (userId && userName) {
+    await logAuditEvent(tenantId, userId, userName, {
+      type: 'status_change',
+      description: `Checked out guest ${guestName} from Room ${roomName}`,
+      meta: { bookingId, roomId }
+    });
+  }
 }
 
 export async function extendGuestStay(
@@ -267,15 +344,27 @@ export async function extendGuestStay(
   userName?: string
 ) {
   const db = getKatuwangDb();
+  let guestName = '';
+  let roomName = '';
+  
   await runTransactionResilient(db, async (transaction) => {
     const bookingRef = doc(db, 'tenants', tenantId, 'bookings', bookingId);
     const bookingSnap = await transaction.get(bookingRef);
     if (!bookingSnap.exists()) throw new Error('Booking not found');
 
     const bookingData = bookingSnap.data();
+    guestName = bookingData.guestName;
+    roomName = bookingData.roomName;
 
     const parsedAdditional = parseInt(additionalHoursOrNightsStr, 10);
     const validAdditional = isNaN(parsedAdditional) ? 0 : parsedAdditional;
+
+    // Read master account FIRST to satisfy Firestore read-before-write requirement
+    const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+    let masterAccountSnap = null;
+    if (paymentCollectedCentavos > 0) {
+      masterAccountSnap = await transaction.get(masterAccountRef);
+    }
 
     transaction.update(bookingRef, {
       expectedCheckOutDate: newExpectedCheckOutDate,
@@ -285,10 +374,8 @@ export async function extendGuestStay(
         increment(validAdditional) : bookingData.nights
     });
 
-    if (paymentCollectedCentavos > 0) {
+    if (paymentCollectedCentavos > 0 && masterAccountSnap) {
       const paymentCentavos = paymentCollectedCentavos;
-      const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
-      const masterAccountSnap = await transaction.get(masterAccountRef);
       
       if (!masterAccountSnap.exists()) {
         transaction.set(masterAccountRef, {
@@ -328,4 +415,12 @@ export async function extendGuestStay(
       });
     }
   });
+
+  if (userId && userName) {
+    await logAuditEvent(tenantId, userId, userName, {
+      type: 'status_change',
+      description: `Extended guest ${guestName} in Room ${roomName} by ${additionalHoursOrNightsStr}`,
+      meta: { bookingId }
+    });
+  }
 }

@@ -182,6 +182,8 @@ export async function logDebtPayment(
   
   await runTransactionResilient(db, async (transaction) => {
     const debtSnap = await transaction.get(debtRef);
+    const masterSnap = await transaction.get(masterAccountRef);
+
     if (!debtSnap.exists()) throw new Error("Debt record not found");
 
     const data = debtSnap.data();
@@ -198,8 +200,23 @@ export async function logDebtPayment(
       updatedAt: serverTimestamp()
     });
 
-    // We manually log this as an expense in budget transactions, but we DO NOT auto-deduct from Master Cash.
-    // The user explicitly requested to handle master cash deductions themselves.
+    if (masterSnap.exists()) {
+      transaction.update(masterAccountRef, {
+        balance: increment(-amountCentavos),
+        updatedAt: serverTimestamp()
+      });
+    } else {
+      transaction.set(masterAccountRef, {
+        id: 'master-cash',
+        tenantId,
+        name: 'Main Cash Register',
+        type: 'asset',
+        balance: -amountCentavos,
+        isActive: true,
+        createdAt: serverTimestamp(),
+      });
+    }
+
     const transactionsRef = collection(db, 'tenants', tenantId, 'budget_transactions');
     const newTxRef = doc(transactionsRef);
     transaction.set(newTxRef, {
@@ -211,6 +228,24 @@ export async function logDebtPayment(
       createdAt: serverTimestamp(),
     });
   });
+}
+
+export async function editDebtRecord(
+  tenantId: string,
+  debtId: string,
+  updates: { creditorName?: string, totalAmountCentavos?: number, remainingAmountCentavos?: number, dueDate?: string, note?: string, isRecurring?: boolean }
+) {
+  const db = getKatuwangDb();
+  const debtRef = doc(db, 'tenants', tenantId, 'budget_debts', debtId);
+  const payload: any = { ...updates, updatedAt: serverTimestamp() };
+  Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+  await updateDoc(debtRef, payload);
+}
+
+export async function deleteDebtRecord(tenantId: string, debtId: string) {
+  const db = getKatuwangDb();
+  const debtRef = doc(db, 'tenants', tenantId, 'budget_debts', debtId);
+  await deleteDoc(debtRef);
 }
 
 export async function addSavingsGoal(
@@ -314,3 +349,30 @@ export async function deleteBudgetEnvelope(tenantId: string, envelopeId: string)
   const db = getKatuwangDb();
   await deleteDoc(doc(db, 'tenants', tenantId, 'budget_envelopes', envelopeId));
 }
+
+export async function editSavingsGoal(
+  tenantId: string,
+  goalId: string,
+  updates: { name?: string, targetAmountCentavos?: number, currentAmountCentavos?: number }
+) {
+  const db = getKatuwangDb();
+  const goalRef = doc(db, 'tenants', tenantId, 'budget_goals', goalId);
+  const payload: any = { ...updates, updatedAt: serverTimestamp() };
+  Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+  await updateDoc(goalRef, payload);
+}
+
+export async function deleteSavingsGoal(tenantId: string, goalId: string) {
+  const db = getKatuwangDb();
+  await deleteDoc(doc(db, 'tenants', tenantId, 'budget_goals', goalId));
+}
+
+export async function updateBudgetSettings(
+  tenantId: string,
+  settings: { persona: string, cycleType: string, paydayCycle: number, secondPaydayCycle: number }
+) {
+  const db = getKatuwangDb();
+  const settingsRef = doc(db, 'tenants', tenantId, 'settings', 'budget');
+  await setDoc(settingsRef, { ...settings, updatedAt: serverTimestamp() }, { merge: true });
+}
+

@@ -32,3 +32,23 @@ export const BudgetEnvelopeSchema = z.object({
   category: z.string().min(1, 'Category is required'),
   limitCentavos: z.number().min(1, 'Limit must be greater than 0'),
 });
+
+export type BudgetTransaction = z.infer<typeof BudgetTransactionSchema> & {
+  createdAt?: any;
+  updatedAt?: any;
+};
+
+export type Debt = z.infer<typeof DebtSchema> & {
+  createdAt?: any;
+  updatedAt?: any;
+};
+
+export type SavingsGoal = z.infer<typeof SavingsGoalSchema> & {
+  createdAt?: any;
+  updatedAt?: any;
+};
+
+export type BudgetEnvelope = z.infer<typeof BudgetEnvelopeSchema> & {
+  createdAt?: any;
+  updatedAt?: any;
+};
