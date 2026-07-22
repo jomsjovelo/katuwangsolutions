@@ -74,63 +74,40 @@ export function InAppBrowserBlocker() {
   if (!isIab) return null;
 
   return (
-    <div className="fixed inset-0 z-[99999] bg-slate-50 flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-[99999] bg-slate-50 flex flex-col items-center justify-center p-6 overflow-hidden">
+      <div className="w-full max-w-sm bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col items-center text-center space-y-6">
+        <BrandLogo />
+        
+        <div className="space-y-2">
+          <h1 className="text-lg font-black text-slate-800 tracking-tight">
+            Unsupported Browser
+          </h1>
+          <p className="text-slate-500 font-medium text-sm leading-relaxed">
+            Please copy the link below and open it in {isIOS ? 'Safari' : 'Google Chrome'} to continue.
+          </p>
+        </div>
 
-      {/* ── MIDDLE: Main scrollable content ── */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="flex flex-col items-center text-center p-6 pb-2">
-          <BrandLogo className="mb-6 mt-2" />
-
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-sm w-full shadow-sm text-left">
-            <div className="flex flex-col items-center text-center mb-5">
-              <div className="w-14 h-14 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center rotate-12 shadow-inner mb-4">
-                <Compass className="w-7 h-7" />
-              </div>
-              <h1 className="text-xl font-black text-slate-800 font-headline tracking-tight">
-                {isIOS ? 'Open in Safari' : 'Open in Chrome'}
-              </h1>
-              <p className="text-slate-500 font-medium text-xs mt-1 leading-relaxed">
-                {isIOS
-                  ? 'This link was opened inside Messenger. To use Katuwang, open it in Safari.'
-                  : 'This link was opened inside Messenger. To use Katuwang, open it in Chrome.'}
-              </p>
-            </div>
+        <div className="w-full space-y-3">
+          {/* URL display */}
+          <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 overflow-hidden text-left">
+            <p className="text-xs font-mono text-slate-500 truncate">{currentUrl}</p>
           </div>
+
+          {/* Copy button */}
+          <button
+            onClick={copyUrl}
+            className={`w-full flex items-center justify-center gap-2 text-sm font-bold py-3.5 rounded-xl transition-all active:scale-[0.98] ${
+              copied
+                ? 'bg-green-100 text-green-700 border border-green-200'
+                : 'bg-slate-900 text-white'
+            }`}
+          >
+            {copied
+              ? <><Check className="h-4 w-4" /> Copied!</>
+              : <><Copy className="h-4 w-4" /> Copy Link</>}
+          </button>
         </div>
       </div>
-
-      {/* ── BOTTOM: Sticky "Copy Link" bar — ALWAYS VISIBLE ── */}
-      <div className="shrink-0 bg-white border-t border-slate-200 p-4 space-y-3" style={{ paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))' }}>
-        <div className="flex items-center gap-3 py-1">
-          <div className="h-px bg-slate-100 flex-1"></div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Or copy link manually</span>
-          <div className="h-px bg-slate-100 flex-1"></div>
-        </div>
-
-        {/* URL display */}
-        <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 overflow-hidden">
-          <p className="text-xs font-mono text-slate-500 truncate">{currentUrl}</p>
-        </div>
-
-        {/* Copy button */}
-        <button
-          onClick={copyUrl}
-          className={`w-full flex items-center justify-center gap-2 text-sm font-bold py-3 rounded-xl transition-all active:scale-[0.98] ${
-            copied
-              ? 'bg-green-100 text-green-700 border border-green-200'
-              : 'bg-slate-900 text-white'
-          }`}
-        >
-          {copied
-            ? <><Check className="h-4 w-4" /> Copied!</>
-            : <><Copy className="h-4 w-4" /> Copy Link</>}
-        </button>
-
-        <p className="text-[11px] font-medium text-slate-400 text-center">
-          Paste this link in {isIOS ? 'Safari' : 'Google Chrome'} to continue.
-        </p>
-      </div>
-
     </div>
   );
 }
