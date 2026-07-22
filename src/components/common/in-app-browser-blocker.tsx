@@ -76,21 +76,6 @@ export function InAppBrowserBlocker() {
   return (
     <div className="fixed inset-0 z-[99999] bg-slate-50 flex flex-col overflow-hidden">
 
-      {/* ── TOP: Arrow pointing to 3-dots menu (Android only) ── */}
-      {!isIOS && (
-        <div className="w-full flex justify-end px-6 pt-5 animate-bounce shrink-0">
-          <div className="bg-white px-4 py-3 rounded-full flex items-center gap-3 border border-slate-200 shadow-lg relative">
-            <div className="absolute -top-3 right-4 w-0 h-0 border-l-[8px] border-l-transparent border-b-[12px] border-b-white border-r-[8px] border-r-transparent drop-shadow"></div>
-            <span className="text-sm font-black text-slate-700 tracking-tight">Tap here first</span>
-            <div className="flex gap-1.5">
-              <div className="w-2 h-2 bg-slate-800 rounded-full"></div>
-              <div className="w-2 h-2 bg-slate-800 rounded-full"></div>
-              <div className="w-2 h-2 bg-slate-800 rounded-full"></div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ── MIDDLE: Main scrollable content ── */}
       <div className="flex-1 overflow-y-auto">
         <div className="flex flex-col items-center text-center p-6 pb-2">
@@ -109,32 +94,6 @@ export function InAppBrowserBlocker() {
                   ? 'This link was opened inside Messenger. To use Katuwang, open it in Safari.'
                   : 'This link was opened inside Messenger. To use Katuwang, open it in Chrome.'}
               </p>
-            </div>
-
-            {/* Steps */}
-            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-4">
-              <div className="flex gap-3 items-start">
-                <div className="w-7 h-7 bg-white shadow-sm text-slate-800 rounded-full flex items-center justify-center font-black flex-shrink-0 text-sm">1</div>
-                <div>
-                  <p className="font-bold text-slate-800 text-sm">
-                    {isIOS ? 'Tap the Share icon (box with arrow)' : 'Tap the 3-dot menu (⋮)'}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {isIOS ? 'Look at the bottom of your screen' : 'Look at the top-right corner of your screen'}
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-3 items-start">
-                <div className="w-7 h-7 bg-white shadow-sm text-slate-800 rounded-full flex items-center justify-center font-black flex-shrink-0 text-sm">2</div>
-                <div>
-                  <p className="font-bold text-slate-800 text-sm">
-                    {isIOS ? 'Tap "Open in Safari"' : 'Tap "Open in Chrome"'}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {isIOS ? 'Or "Open in Browser"' : 'Or "Open in Browser"'}
-                  </p>
-                </div>
-              </div>
             </div>
           </div>
         </div>
