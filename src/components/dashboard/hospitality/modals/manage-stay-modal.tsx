@@ -201,7 +201,13 @@ export function ManageStayModal({
               </div>
               <div className="flex justify-between text-indigo-600">
                 <span className="text-indigo-600/80">Expected Check-Out</span>
-                <span className="font-bold">{selectedBooking.expectedCheckOutDate?.toDate ? new Date(selectedBooking.expectedCheckOutDate.toDate()).toLocaleString() : new Date(selectedBooking.expectedCheckOutDate).toLocaleString()}</span>
+                <span className="font-bold">
+                  {selectedBooking.expectedCheckOutDate 
+                    ? (selectedBooking.expectedCheckOutDate?.toDate 
+                        ? new Date(selectedBooking.expectedCheckOutDate.toDate()).toLocaleString() 
+                        : new Date(selectedBooking.expectedCheckOutDate).toLocaleString())
+                    : 'N/A'}
+                </span>
               </div>
               <div className="flex justify-between mt-2 pt-2 border-t border-slate-200">
                 <span className="text-slate-500">Total Room Cost</span>

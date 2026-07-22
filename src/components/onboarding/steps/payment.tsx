@@ -1,11 +1,13 @@
 "use client"
 
-import React from 'react';
-import { ExternalLink, Download } from 'lucide-react';
-import Image from 'next/image';
+import React, { useState } from 'react';
+import { ExternalLink, Copy, Check } from 'lucide-react';
 import { getModulePricing, formatPesoWithCents, formatPeso } from '@/lib/pricing';
+import { getActiveAppById } from '@/lib/app-data';
 
-const FB_MESSENGER_URL = 'https://m.me/KatuwangSolutions';
+const FB_MESSENGER_BASE = 'https://m.me/katuwangsolutions';
+const PAYMENT_NUMBER = '09951665423';
+const PAYMENT_NUMBER_DISPLAY = '0995 166 5423';
 
 interface PaymentStepProps {
   data: any;
@@ -14,21 +16,41 @@ interface PaymentStepProps {
 
 export function PaymentStep({ data, onPaymentSent }: PaymentStepProps) {
   const pricing = getModulePricing(data.appId || '');
+  const app = getActiveAppById(data.appId || '');
+  const [gcashCopied, setGcashCopied] = useState(false);
+  const [mayaCopied, setMayaCopied] = useState(false);
 
-  const downloadQR = () => {
-    const link = document.createElement('a');
-    link.href = '/images/gcash-qr.jpg';
-    link.download = 'Katuwang-QR-Code.jpg';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const copyNumber = (type: 'gcash' | 'maya') => {
+    navigator.clipboard.writeText(PAYMENT_NUMBER).catch(() => {});
+    if (type === 'gcash') {
+      setGcashCopied(true);
+      setTimeout(() => setGcashCopied(false), 2500);
+    } else {
+      setMayaCopied(true);
+      setTimeout(() => setMayaCopied(false), 2500);
+    }
   };
+
+  // Build pre-filled Messenger message so admin gets all info at once
+  const messengerMessage = [
+    'Bayad ko na po!',
+    '',
+    `Pangalan: ${data.fullName || ''}`,
+    `Email: ${data.email || ''}`,
+    `Negosyo: ${data.businessName || ''}`,
+    `Module: ${app?.name || data.appId}`,
+    `Halaga: ${formatPesoWithCents(pricing.promotionalMonthlyPrice)}`,
+    '',
+    '(Screenshot attached below 👇)',
+  ].join('\n');
+
+  const messengerUrl = `${FB_MESSENGER_BASE}?text=${encodeURIComponent(messengerMessage)}`;
 
   return (
     <div className="p-6 space-y-7 animate-in fade-in slide-in-from-right-4 duration-500 pb-12">
-      {/* Dynamic Pricing Logic */}
+      {/* Dynamic Pricing Badge */}
       {data.appId === 'budget-mo' ? (
-        <div className="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-full inline-block mb-2 border border-amber-200">
+        <div className="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-full inline-block border border-amber-200">
           🎉 Special ₱50/mo Promo Applied!
         </div>
       ) : null}
@@ -36,7 +58,9 @@ export function PaymentStep({ data, onPaymentSent }: PaymentStepProps) {
       {/* Header */}
       <div className="space-y-1">
         <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900">Complete Your Payment</h2>
-        <p className="text-slate-600 text-sm font-medium">Send <strong>{formatPesoWithCents(pricing.promotionalMonthlyPrice)}</strong> via GCash or Maya to activate your account.</p>
+        <p className="text-slate-600 text-sm font-medium">
+          Send <strong>{formatPesoWithCents(pricing.promotionalMonthlyPrice)}</strong> via GCash or Maya to activate your account.
+        </p>
       </div>
 
       {/* Amount Due Card */}
@@ -44,8 +68,12 @@ export function PaymentStep({ data, onPaymentSent }: PaymentStepProps) {
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Amount Due</p>
           <p className="text-3xl font-black text-primary" data-testid="payment-amount">{formatPesoWithCents(pricing.promotionalMonthlyPrice)}</p>
-          <p className="text-[10px] text-slate-500 font-medium mt-0.5" data-testid="payment-per-module-label">{formatPeso(pricing.promotionalMonthlyPrice)}/buwan · bawat module</p>
-          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1" data-testid="payment-clarification">Ang bayad na {formatPeso(pricing.promotionalMonthlyPrice)} ay para sa napili mong module.</p>
+          <p className="text-[10px] text-slate-500 font-medium mt-0.5" data-testid="payment-per-module-label">
+            {formatPeso(pricing.promotionalMonthlyPrice)}/buwan · bawat module
+          </p>
+          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1" data-testid="payment-clarification">
+            Ang bayad na {formatPeso(pricing.promotionalMonthlyPrice)} ay para sa napili mong module.
+          </p>
         </div>
         <div className="text-right">
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Business</p>
@@ -53,54 +81,88 @@ export function PaymentStep({ data, onPaymentSent }: PaymentStepProps) {
         </div>
       </div>
 
-      {/* QR Code Section */}
-      <div className="bg-white border-2 border-slate-100 rounded-2xl p-6 flex flex-col items-center text-center space-y-4 shadow-sm">
-        <div className="space-y-1">
-          <p className="text-sm font-bold text-slate-900 uppercase tracking-widest">Scan to Pay</p>
-          <p className="text-xs text-slate-500 font-medium">Use this QR code for both GCash and Maya</p>
-        </div>
-        
-        <div className="relative w-48 h-48 bg-slate-50 rounded-xl overflow-hidden border border-slate-100 p-2 shadow-inner">
-          <Image 
-            src="/images/gcash-qr.jpg" 
-            alt="Katuwang Solutions QR Code" 
-            fill 
-            className="object-contain"
-            priority
-            unoptimized
-          />
-        </div>
+      {/* Payment Number Cards */}
+      <div className="space-y-3">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Send Payment To</p>
+        <div className="grid grid-cols-2 gap-3">
 
-        <button 
-          onClick={downloadQR}
-          className="flex items-center gap-2 text-sm font-bold text-primary hover:text-primary/80 transition-colors bg-primary/5 px-4 py-2 rounded-lg"
-        >
-          <Download className="h-4 w-4" /> Download QR Code
-        </button>
+          {/* GCash Card */}
+          <div className="bg-blue-50 border-2 border-blue-100 rounded-2xl p-4 flex flex-col items-center text-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <div className="w-5 h-5 rounded-full bg-[#007DFE] flex items-center justify-center shrink-0">
+                <span className="text-white text-[8px] font-black">G</span>
+              </div>
+              <span className="text-sm font-black text-[#007DFE] uppercase tracking-wide">GCash</span>
+            </div>
+            <p className="text-base font-black text-slate-900 tracking-widest leading-tight tabular-nums">
+              {PAYMENT_NUMBER_DISPLAY}
+            </p>
+            <button
+              onClick={() => copyNumber('gcash')}
+              className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg w-full justify-center transition-all duration-200 active:scale-95 ${
+                gcashCopied
+                  ? 'bg-green-100 text-green-700 border border-green-200'
+                  : 'bg-[#007DFE] text-white hover:bg-blue-700'
+              }`}
+            >
+              {gcashCopied
+                ? <><Check className="h-3 w-3" /> Copied!</>
+                : <><Copy className="h-3 w-3" /> Copy Number</>
+              }
+            </button>
+          </div>
+
+          {/* Maya Card */}
+          <div className="bg-green-50 border-2 border-green-100 rounded-2xl p-4 flex flex-col items-center text-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <div className="w-5 h-5 rounded-full bg-[#00A14B] flex items-center justify-center shrink-0">
+                <span className="text-white text-[8px] font-black">M</span>
+              </div>
+              <span className="text-sm font-black text-[#00A14B] uppercase tracking-wide">Maya</span>
+            </div>
+            <p className="text-base font-black text-slate-900 tracking-widest leading-tight tabular-nums">
+              {PAYMENT_NUMBER_DISPLAY}
+            </p>
+            <button
+              onClick={() => copyNumber('maya')}
+              className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg w-full justify-center transition-all duration-200 active:scale-95 ${
+                mayaCopied
+                  ? 'bg-green-100 text-green-700 border border-green-200'
+                  : 'bg-[#00A14B] text-white hover:bg-green-700'
+              }`}
+            >
+              {mayaCopied
+                ? <><Check className="h-3 w-3" /> Copied!</>
+                : <><Copy className="h-3 w-3" /> Copy Number</>
+              }
+            </button>
+          </div>
+
+        </div>
       </div>
 
-      {/* How-to Instructions */}
+      {/* Streamlined Instructions */}
       <div className="space-y-3">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">How to Confirm Payment</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">How to Pay</p>
         <div className="space-y-3">
           {[
-            'Scan or download the QR code above, then upload it in your GCash or Maya app.',
-            `Input the exact amount: ${formatPesoWithCents(pricing.promotionalMonthlyPrice)}.`,
-            'Take a screenshot of your payment confirmation.',
-            'Send the screenshot AND your registered email address to our Facebook Page via Messenger.',
-            'We will send you a message once your account is activated.',
+            'Open GCash or Maya → tap Send Money → paste the number above.',
+            `Enter the exact amount: ${formatPesoWithCents(pricing.promotionalMonthlyPrice)}.`,
+            'Take a screenshot of your confirmation, then send it to us on Messenger below — your details will be pre-filled!',
           ].map((text, i) => (
             <div key={i} className="flex gap-3 items-start">
-              <div className="h-6 w-6 rounded-full bg-primary text-white text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">{i + 1}</div>
+              <div className="h-6 w-6 rounded-full bg-primary text-white text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">
+                {i + 1}
+              </div>
               <p className="text-sm text-slate-700 font-medium leading-snug">{text}</p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Messenger CTA */}
+      {/* Messenger CTA — pre-filled with user's onboarding info */}
       <a
-        href={FB_MESSENGER_URL}
+        href={messengerUrl}
         target="_blank"
         rel="noopener noreferrer"
         className="w-full h-14 rounded-2xl text-white font-bold text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-xl"
@@ -120,3 +182,5 @@ export function PaymentStep({ data, onPaymentSent }: PaymentStepProps) {
     </div>
   );
 }
+
+

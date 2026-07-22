@@ -20,6 +20,8 @@ const PricingCta = dynamic(() => import('@/components/marketing/pricing-cta').th
 const FloatingCta = dynamic(() => import('@/components/marketing/floating-cta').then(mod => mod.FloatingCta));
 const InvitationGuard = dynamic(() => import('@/components/auth/invitation-guard').then(mod => mod.InvitationGuard));
 
+import { MessengerWidget } from '@/components/marketing/messenger-widget';
+
 export default function Home() {
   return (
     <InvitationGuard>
@@ -145,8 +147,9 @@ export default function Home() {
 
         </div>
 
-        {/* Fixed floating CTA — always visible */}
+        {/* Global Floating Elements for Landing Page */}
         <FloatingCta />
+        <MessengerWidget />
       </div>
     </InvitationGuard>
   );

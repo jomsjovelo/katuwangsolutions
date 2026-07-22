@@ -267,7 +267,7 @@ export function CheckInModal({
             <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl">
               <Label className="text-xs font-bold text-indigo-500 uppercase tracking-wider">Expected Check-Out</Label>
               <p className="font-black text-indigo-700 mt-1">
-                {formatInTimeZone(new Date(expectedCheckOutDate), TIMEZONE, 'MMM d, yyyy h:mm a')}
+                {expectedCheckOutDate ? formatInTimeZone(new Date(expectedCheckOutDate), TIMEZONE, 'MMM d, yyyy h:mm a') : 'Calculating...'}
               </p>
             </div>
           </div>

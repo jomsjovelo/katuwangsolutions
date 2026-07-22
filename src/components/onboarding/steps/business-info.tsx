@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -47,6 +47,12 @@ export function BusinessInfoStep({ data, onUpdate, onNext, isLoading }: Business
   
   // Local submitting state for sub-step transitions
   const [isLocalSubmitting, setIsLocalSubmitting] = useState(false);
+
+  // Stable callback to prevent BirthdayPicker's useEffect from re-running on every render
+  const handleBirthdayChange = useCallback((val: string) => {
+    onUpdate({ birthday: val });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleNextSubStep = (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,7 +126,7 @@ export function BusinessInfoStep({ data, onUpdate, onNext, isLoading }: Business
                 </div>
                 <BirthdayPicker 
                   value={data.birthday} 
-                  onChange={(val) => onUpdate({ birthday: val })}
+                  onChange={handleBirthdayChange}
                   error={!!errors.birthday}
                 />
                 {errors.birthday && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.birthday}</p>}
@@ -128,8 +134,8 @@ export function BusinessInfoStep({ data, onUpdate, onNext, isLoading }: Business
 
               <div className="space-y-2">
                 <Label htmlFor="gender" className="text-xs font-bold uppercase tracking-widest text-slate-500">Kasarian</Label>
-                <Select value={data.gender || 'Prefer not to say'} onValueChange={(val) => onUpdate({ gender: val })}>
-                  <SelectTrigger className={errors.gender ? "border-destructive h-14" : "h-14"}>
+                <Select name="gender" value={data.gender || 'Prefer not to say'} onValueChange={(val) => onUpdate({ gender: val })}>
+                  <SelectTrigger id="gender" className={errors.gender ? "border-destructive h-14" : "h-14"}>
                     <SelectValue placeholder="Pumili..." />
                   </SelectTrigger>
                   <SelectContent>

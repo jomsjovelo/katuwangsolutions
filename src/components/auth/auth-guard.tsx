@@ -7,7 +7,7 @@ import { useTenantStore, Tenant } from '@/store/use-tenant-store';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { getAuth, signOut } from 'firebase/auth';
 import { app } from '@/firebase/config';
-import { ShieldAlert, Loader2, AlertCircle } from 'lucide-react';
+import { ShieldAlert, Loader2, AlertCircle, Copy, Check, ExternalLink } from 'lucide-react';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { useFirestore } from '@/firebase/provider';
 import Image from 'next/image';
@@ -28,6 +28,19 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const [profileTenantId, setProfileTenantId] = useState<string | null>(null);
   const [maintenance, setMaintenance] = useState<{ mode: boolean; message: string } | null>(null);
 
+  // Payment states for GCash/Maya
+  const [gcashCopied, setGcashCopied] = useState(false);
+  const [mayaCopied, setMayaCopied] = useState(false);
+  const copyNumber = (type: 'gcash' | 'maya') => {
+    navigator.clipboard.writeText('09951665423').catch(() => {});
+    if (type === 'gcash') {
+      setGcashCopied(true);
+      setTimeout(() => setGcashCopied(false), 2500);
+    } else {
+      setMayaCopied(true);
+      setTimeout(() => setMayaCopied(false), 2500);
+    }
+  };
   // Stable refs for store actions — prevents spurious effect re-runs
   const setLoadingRef = useRef(useTenantStore.getState().setLoading);
   const setErrorRef = useRef(useTenantStore.getState().setError);
@@ -300,37 +313,58 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
             )}
           </p>
 
-          <div className="bg-white border-2 border-slate-100 rounded-2xl p-4 flex flex-col items-center text-center space-y-4 shadow-sm w-full mb-6">
-            <div className="space-y-1">
-              <p className="text-sm font-bold text-slate-900 uppercase tracking-widest">Scan to Pay</p>
-              <p className="text-xs text-slate-500 font-medium">Use this QR code for both GCash and Maya</p>
+          {/* Payment Number Cards */}
+          <div className="w-full space-y-3 mb-6">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 text-center">Send Payment To</p>
+            <div className="grid grid-cols-2 gap-3">
+              {/* GCash Card */}
+              <div className="bg-blue-50 border-2 border-blue-100 rounded-2xl p-4 flex flex-col items-center text-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-5 h-5 rounded-full bg-[#007DFE] flex items-center justify-center shrink-0">
+                    <span className="text-white text-[8px] font-black">G</span>
+                  </div>
+                  <span className="text-sm font-black text-[#007DFE] uppercase tracking-wide">GCash</span>
+                </div>
+                <p className="text-sm font-black text-slate-900 tracking-widest leading-tight tabular-nums">0995 166 5423</p>
+                <button
+                  onClick={() => copyNumber('gcash')}
+                  className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg w-full justify-center transition-all duration-200 active:scale-95 ${
+                    gcashCopied ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-[#007DFE] text-white hover:bg-blue-700'
+                  }`}
+                >
+                  {gcashCopied ? <><Check className="h-3 w-3" /> Copied!</> : <><Copy className="h-3 w-3" /> Copy Number</>}
+                </button>
+              </div>
+
+              {/* Maya Card */}
+              <div className="bg-green-50 border-2 border-green-100 rounded-2xl p-4 flex flex-col items-center text-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-5 h-5 rounded-full bg-[#00A14B] flex items-center justify-center shrink-0">
+                    <span className="text-white text-[8px] font-black">M</span>
+                  </div>
+                  <span className="text-sm font-black text-[#00A14B] uppercase tracking-wide">Maya</span>
+                </div>
+                <p className="text-sm font-black text-slate-900 tracking-widest leading-tight tabular-nums">0995 166 5423</p>
+                <button
+                  onClick={() => copyNumber('maya')}
+                  className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg w-full justify-center transition-all duration-200 active:scale-95 ${
+                    mayaCopied ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-[#00A14B] text-white hover:bg-green-700'
+                  }`}
+                >
+                  {mayaCopied ? <><Check className="h-3 w-3" /> Copied!</> : <><Copy className="h-3 w-3" /> Copy Number</>}
+                </button>
+              </div>
             </div>
-            
-            <div className="relative w-40 h-40 bg-slate-50 rounded-xl overflow-hidden border border-slate-100 p-2 shadow-inner">
-              <Image 
-                src="/images/gcash-qr.jpg" 
-                alt="Katuwang Solutions QR Code" 
-                fill 
-                className="object-contain"
-                priority
-                unoptimized
-              />
-            </div>
-            <a href="/images/gcash-qr.jpg" download="Katuwang-QR-Code.jpg" className="text-xs font-bold text-primary hover:underline">
-              Download QR Code
-            </a>
           </div>
 
           {/* Payment Instructions */}
           <div className="w-full bg-amber-50 border border-amber-100 rounded-xl p-4 text-left space-y-3 mb-6">
-            <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 mb-1">How to Confirm Payment</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 mb-1">How to Pay</p>
             <div className="space-y-2">
               {[
-                'Scan or download the QR code above, then upload it in your GCash or Maya app.',
-                `Input the exact amount: ${isBudgetMo ? '₱50.00' : '₱99.00'}.`,
-                'Take a screenshot of your payment confirmation.',
-                'Send the screenshot AND your registered email address to our Facebook Page via Messenger.',
-                'We will send you a message once your account is activated.',
+                'Open GCash or Maya → tap Send Money → paste the number above.',
+                `Enter the exact amount: ${isBudgetMo ? '₱50.00' : '₱99.00'}.`,
+                'Take a screenshot of your confirmation, then send it to us on Messenger below — your details will be pre-filled!'
               ].map((text, i) => (
                 <div key={i} className="flex gap-2 items-start">
                   <div className="h-4 w-4 rounded-full bg-amber-500 text-white text-[8px] font-black flex items-center justify-center shrink-0 mt-0.5">{i + 1}</div>
@@ -338,19 +372,19 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
                 </div>
               ))}
             </div>
-            <p className="text-xs text-amber-900 font-medium mt-3 text-center border-t border-amber-200/50 pt-2">
-              Manual Mobile No: <strong className="text-sm text-amber-800 tracking-wider ml-1">09951665423</strong>
-            </p>
           </div>
 
           <div className="w-full space-y-3">
-            <button 
-              onClick={() => window.open('https://m.me/KatuwangSolutions', '_blank')}
+            <a 
+              href={`https://m.me/katuwangsolutions?text=${encodeURIComponent(`Bayad ko na po!\n\nPangalan: ${userProfile?.fullName || 'N/A'}\nEmail: ${user?.email || 'N/A'}\nNegosyo: ${activeTenant?.name || 'N/A'}\nHalaga: ${isBudgetMo ? '₱50.00' : '₱99.00'}\n\n(Screenshot attached below 👇)`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
               className="w-full h-12 rounded-xl text-white font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-lg"
               style={{ background: '#0099FF' }}
             >
+              <ExternalLink className="h-5 w-5" />
               Send Receipt on Messenger
-            </button>
+            </a>
             <button 
               onClick={() => {
                 const auth = getAuth(app);

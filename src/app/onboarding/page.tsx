@@ -7,7 +7,11 @@ import { OnboardingWizard } from '@/components/onboarding/onboarding-wizard';
 function OnboardingContent() {
   const searchParams = useSearchParams();
   const appId = searchParams.get('app') ?? '';
-  return <OnboardingWizard initialAppId={appId} />;
+  return (
+    <div className="min-h-screen w-full relative">
+      <OnboardingWizard initialAppId={appId || undefined} />
+    </div>
+  );
 }
 
 export default function OnboardingPage() {

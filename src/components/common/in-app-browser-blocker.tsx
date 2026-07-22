@@ -1,14 +1,19 @@
 "use client"
 
 import React, { useEffect, useState } from 'react';
-import { Compass } from 'lucide-react';
+import { Compass, Copy, Check } from 'lucide-react';
 import { BrandLogo } from '@/components/ui/brand-logo';
 
 export function InAppBrowserBlocker() {
   const [isIab, setIsIab] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [currentUrl, setCurrentUrl] = useState('');
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
+    // Capture the exact URL including any query parameters
+    setCurrentUrl(window.location.href);
+
     const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
     const isIOSDevice = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
     setIsIOS(isIOSDevice);
@@ -24,6 +29,12 @@ export function InAppBrowserBlocker() {
       setIsIab(true);
     }
   }, []);
+
+  const copyUrl = () => {
+    navigator.clipboard.writeText(currentUrl).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
 
   if (!isIab) return null;
 
@@ -78,6 +89,36 @@ export function InAppBrowserBlocker() {
                 <p className="font-bold text-slate-800 text-sm">Select "Open in Browser"</p>
                 <p className="text-xs text-slate-500 mt-0.5">Or "Open in Safari / Chrome"</p>
               </div>
+            </div>
+          </div>
+
+          {/* Exact URL Fallback */}
+          <div className="pt-2">
+            <div className="flex items-center gap-4 py-3">
+              <div className="h-px bg-slate-100 flex-1"></div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Or copy link manually</span>
+              <div className="h-px bg-slate-100 flex-1"></div>
+            </div>
+            
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col gap-3">
+              <div className="bg-white border border-slate-200 rounded-lg px-3 py-2 overflow-hidden">
+                <p className="text-xs font-mono text-slate-500 truncate select-all">{currentUrl}</p>
+              </div>
+              
+              <button
+                onClick={copyUrl}
+                className={`w-full flex items-center justify-center gap-2 text-sm font-bold py-3 rounded-lg transition-colors active:scale-[0.98] ${
+                  copied 
+                    ? 'bg-green-100 text-green-700 border border-green-200' 
+                    : 'bg-slate-800 text-white hover:bg-slate-700'
+                }`}
+              >
+                {copied ? <><Check className="h-4 w-4" /> Copied!</> : <><Copy className="h-4 w-4" /> Copy Link</>}
+              </button>
+              
+              <p className="text-[11px] font-medium text-slate-500 text-center px-2">
+                Paste this link in {isIOS ? 'Safari' : 'Google Chrome'} to continue.
+              </p>
             </div>
           </div>
         </div>

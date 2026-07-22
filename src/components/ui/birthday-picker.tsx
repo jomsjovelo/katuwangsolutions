@@ -70,7 +70,8 @@ export function BirthdayPicker({ value, onChange, error }: BirthdayPickerProps) 
     } else {
       onChange(''); // clear out if not complete
     }
-  }, [month, day, year, onChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [month, day, year]);
 
   // Adjust day if selected day exceeds new month's days
   useEffect(() => {
@@ -82,9 +83,9 @@ export function BirthdayPicker({ value, onChange, error }: BirthdayPickerProps) 
   return (
     <div className="grid grid-cols-3 gap-2">
       <div className="space-y-1.5">
-        <Label className="text-[10px] uppercase font-bold text-slate-500">Buwan</Label>
-        <Select value={month} onValueChange={setMonth}>
-          <SelectTrigger className={cn("h-14 bg-white", error && "border-destructive")}>
+        <Label htmlFor="birthday-month" className="text-[10px] uppercase font-bold text-slate-500">Buwan</Label>
+        <Select name="birthday-month" value={month} onValueChange={setMonth}>
+          <SelectTrigger id="birthday-month" className={cn("h-14 bg-white", error && "border-destructive")}>
             <SelectValue placeholder="Buwan" />
           </SelectTrigger>
           <SelectContent className="max-h-[250px]">
@@ -98,9 +99,9 @@ export function BirthdayPicker({ value, onChange, error }: BirthdayPickerProps) 
       </div>
 
       <div className="space-y-1.5">
-        <Label className="text-[10px] uppercase font-bold text-slate-500">Araw</Label>
-        <Select value={day} onValueChange={setDay} disabled={!month}>
-          <SelectTrigger className={cn("h-14 bg-white", error && "border-destructive")}>
+        <Label htmlFor="birthday-day" className="text-[10px] uppercase font-bold text-slate-500">Araw</Label>
+        <Select name="birthday-day" value={day} onValueChange={setDay} disabled={!month}>
+          <SelectTrigger id="birthday-day" className={cn("h-14 bg-white", error && "border-destructive")}>
             <SelectValue placeholder="Araw" />
           </SelectTrigger>
           <SelectContent className="max-h-[250px]">
@@ -114,9 +115,9 @@ export function BirthdayPicker({ value, onChange, error }: BirthdayPickerProps) 
       </div>
 
       <div className="space-y-1.5">
-        <Label className="text-[10px] uppercase font-bold text-slate-500">Taon</Label>
-        <Select value={year} onValueChange={setYear}>
-          <SelectTrigger className={cn("h-14 bg-white", error && "border-destructive")}>
+        <Label htmlFor="birthday-year" className="text-[10px] uppercase font-bold text-slate-500">Taon</Label>
+        <Select name="birthday-year" value={year} onValueChange={setYear}>
+          <SelectTrigger id="birthday-year" className={cn("h-14 bg-white", error && "border-destructive")}>
             <SelectValue placeholder="Taon" />
           </SelectTrigger>
           <SelectContent className="max-h-[250px]">
