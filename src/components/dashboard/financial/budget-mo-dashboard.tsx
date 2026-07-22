@@ -28,6 +28,14 @@ import {
 import { BudgetTransaction, Debt, SavingsGoal, BudgetEnvelope } from '@/lib/schemas/budget';
 import { Button } from '@/components/ui/button';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import { IncomeModal } from './modals/income-modal';
+import { ExpenseModal } from './modals/expense-modal';
+import { DebtModal } from './modals/debt-modal';
+import { PayDebtModal } from './modals/pay-debt-modal';
+import { GoalModal } from './modals/goal-modal';
+import { EnvelopeModal } from './modals/envelope-modal';
+import { SettingsModal } from './modals/settings-modal';
+import { WrapUpModal } from './modals/wrap-up-modal';
 import { VerificationPrompt } from '@/components/common/verification-prompt';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -1358,55 +1366,22 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
       />
 
       {/* Basic HTML Modals for brevity in MVP */}
-      {showIncomeModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
-          <form onSubmit={handleIncomeSubmit} className="bg-white p-6 rounded-[32px] w-full max-w-sm shadow-2xl">
-            <h3 className="font-black text-xl mb-4">Log Income</h3>
-            <input required name="amount" type="number" step="0.01" placeholder="Amount (₱)" className="w-full bg-slate-50 p-4 rounded-2xl mb-3 font-medium outline-none border border-slate-100 focus:border-emerald-500" />
-            <div className="mb-3 space-y-2">
-              <input required name="category" value={incomeCategory} onChange={(e) => setIncomeCategory(e.target.value)} placeholder="Category (e.g. Salary, Gift)" className="w-full bg-slate-50 p-4 rounded-2xl font-medium outline-none border border-slate-100 focus:border-emerald-500" />
-              <div className="flex flex-wrap gap-2">
-                {(persona === 'student' ? ['Allowance', 'Raket', 'Gift', 'Scholarship'] : persona === 'freelancer' ? ['Client Payment', 'Gig', 'Sales', 'Other'] : ['Salary', 'Business', 'Bonus', 'Investment']).map(cat => (
-                  <button key={cat} type="button" onClick={() => setIncomeCategory(cat)} className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${incomeCategory === cat ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
-                    {cat}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <input name="date" type="date" className="w-full bg-slate-50 p-4 rounded-2xl mb-3 font-medium outline-none border border-slate-100 focus:border-emerald-500 text-slate-500" />
-            <textarea required name="note" placeholder="Mandatory Note (e.g. June Salary)" className="w-full bg-slate-50 p-4 rounded-2xl mb-4 font-medium outline-none border border-slate-100 focus:border-emerald-500 h-24 resize-none" />
-            <div className="flex gap-2">
-              <Button type="button" disabled={isSubmitting} variant="ghost" onClick={() => setShowIncomeModal(false)} className="flex-1 rounded-xl">Cancel</Button>
-              <Button type="submit" disabled={isSubmitting} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold">Save</Button>
-            </div>
-          </form>
-        </div>
-      )}
+      <IncomeModal 
+        isOpen={showIncomeModal} 
+        onClose={() => setShowIncomeModal(false)} 
+        tenantId={currentTenant?.id || ''} 
+        persona={persona} 
+        onAllocationPrompt={(data) => setShowAllocationPrompt(data)} 
+      />
 
-      {showExpenseModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
-          <form onSubmit={handleExpenseSubmit} className="bg-white p-6 rounded-[32px] w-full max-w-sm shadow-2xl">
-            <h3 className="font-black text-xl mb-4">Log Expense</h3>
-            <input required name="amount" type="number" step="0.01" placeholder="Amount (₱)" className="w-full bg-slate-50 p-4 rounded-2xl mb-3 font-medium outline-none border border-slate-100 focus:border-rose-500" />
-            <div className="mb-3 space-y-2">
-              <input required name="category" value={expenseCategory} onChange={(e) => setExpenseCategory(e.target.value)} placeholder="Category (e.g. Food, Transportation)" className="w-full bg-slate-50 p-4 rounded-2xl font-medium outline-none border border-slate-100 focus:border-rose-500" />
-              <div className="flex flex-wrap gap-2">
-                {(envelopes.length > 0 ? envelopes.map(e => e.category) : persona === 'student' ? ['Food', 'Pamasahe', 'School Project', 'Dorm/Rent', 'Load', 'Gala'] : persona === 'freelancer' ? ['Internet', 'Software/Tools', 'Food', 'Pamasahe', 'Coffee Shop'] : ['Groceries', 'Rent', 'Utilities/Bills', 'Pamasahe', 'Dining Out']).map(cat => (
-                  <button key={cat} type="button" onClick={() => setExpenseCategory(cat)} className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${expenseCategory === cat ? 'bg-rose-500 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
-                    {cat}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <input name="date" type="date" className="w-full bg-slate-50 p-4 rounded-2xl mb-3 font-medium outline-none border border-slate-100 focus:border-rose-500 text-slate-500" />
-            <textarea required name="note" placeholder="Mandatory Note (e.g. Tricycle to work)" className="w-full bg-slate-50 p-4 rounded-2xl mb-4 font-medium outline-none border border-slate-100 focus:border-rose-500 h-24 resize-none" />
-            <div className="flex gap-2">
-              <Button type="button" disabled={isSubmitting} variant="ghost" onClick={() => setShowExpenseModal(false)} className="flex-1 rounded-xl">Cancel</Button>
-              <Button type="submit" disabled={isSubmitting} className="flex-1 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold">Save</Button>
-            </div>
-          </form>
-        </div>
-      )}
+      <ExpenseModal 
+        isOpen={showExpenseModal} 
+        onClose={() => setShowExpenseModal(false)} 
+        tenantId={currentTenant?.id || ''} 
+        persona={persona} 
+        envelopes={envelopes} 
+        masterBalance={masterBalance} 
+      />
 
       {editingTx && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
@@ -1429,268 +1404,45 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
         </div>
       )}
 
-      {showDebtModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
-          <form onSubmit={async (e) => {
-            e.preventDefault();
-            if(!currentTenant?.id) return;
-            const fd = new FormData(e.currentTarget);
-            try {
-              await addDebtRecord(
-                currentTenant.id, 
-                fd.get('creditor') as string, 
-                Number(fd.get('amount'))*100, 
-                fd.get('due') as string,
-                undefined,
-                fd.get('isRecurring') === 'on'
-              );
-              toast({title: 'Record Added'});
-              setShowDebtModal(false);
-            } catch(e:any) { toast({title: 'Error', description: e.message, variant: 'destructive'}) }
-          }} className="bg-white p-6 rounded-[32px] w-full max-w-sm shadow-2xl">
-            <h3 className="font-black text-xl mb-4">Add Bill or Debt</h3>
-            <input required name="creditor" placeholder="Name (e.g. Rent, Credit Card)" className="w-full bg-slate-50 p-4 rounded-2xl mb-3 font-medium outline-none border border-slate-100 focus:border-rose-500" />
-            <input required name="amount" type="number" step="0.01" placeholder="Amount (₱)" className="w-full bg-slate-50 p-4 rounded-2xl mb-3 font-medium outline-none border border-slate-100 focus:border-rose-500" />
-            <input required name="due" type="date" className="w-full bg-slate-50 p-4 rounded-2xl mb-4 font-medium outline-none border border-slate-100 focus:border-rose-500 text-slate-500" />
-            <div className="flex items-center gap-2 mb-4 px-2">
-              <input type="checkbox" name="isRecurring" id="isRecurring" className="w-4 h-4 accent-rose-500 rounded border-slate-300" />
-              <label htmlFor="isRecurring" className="text-sm font-bold text-slate-700">This is a recurring monthly bill</label>
-            </div>
-            <div className="flex gap-2">
-              <Button type="button" variant="ghost" onClick={() => setShowDebtModal(false)} className="flex-1 rounded-xl">Cancel</Button>
-              <Button type="submit" className="flex-1 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold">Save</Button>
-            </div>
-          </form>
-        </div>
-      )}
+      <DebtModal 
+        isOpen={showDebtModal} 
+        onClose={() => setShowDebtModal(false)} 
+        tenantId={currentTenant?.id || ''} 
+      />
 
-      {showGoalModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
-          <form id="goal-form" onSubmit={async (e) => {
-            e.preventDefault();
-            if(!currentTenant?.id) return;
-            const fd = new FormData(e.currentTarget);
-            try {
-              await addSavingsGoal(currentTenant.id, fd.get('name') as string, Number(fd.get('amount'))*100);
-              toast({title: 'Goal Added'});
-              setShowGoalModal(false);
-            } catch(e:any) { toast({title: 'Error', description: e.message, variant: 'destructive'}) }
-          }} className="bg-white p-6 rounded-[32px] w-full max-w-sm shadow-2xl">
-            <h3 className="font-black text-xl mb-4">New Savings Goal</h3>
-            <div className="flex gap-2 overflow-x-auto pb-2 mb-3 scrollbar-hide">
-              {(persona === 'student' ? [
-                {name: 'Concert Ticket', amt: 5000},
-                {name: 'New Phone', amt: 20000},
-                {name: 'Tuition Fund', amt: 15000}
-              ] : persona === 'freelancer' ? [
-                {name: 'Tax Fund', amt: 40000},
-                {name: 'New Laptop', amt: 60000},
-                {name: 'Business Capital', amt: 50000}
-              ] : persona === 'business' ? [
-                {name: 'Equipment Upgrade', amt: 50000},
-                {name: 'Tax Reserve', amt: 80000},
-                {name: 'Emergency Payroll', amt: 100000}
-              ] : [
-                {name: 'Emergency Fund', amt: 50000},
-                {name: 'Vacation', amt: 30000},
-                {name: 'Car Downpayment', amt: 100000}
-              ]).map(template => (
-                <button key={template.name} type="button" 
-                  onClick={() => {
-                    const form = document.getElementById('goal-form') as HTMLFormElement;
-                    if(form) {
-                      (form.elements.namedItem('name') as HTMLInputElement).value = template.name;
-                      (form.elements.namedItem('amount') as HTMLInputElement).value = template.amt.toString();
-                    }
-                  }}
-                  className="whitespace-nowrap px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 text-xs font-bold transition-colors">
-                  {template.name}
-                </button>
-              ))}
-            </div>
-            <input required name="name" placeholder="Goal Name (e.g. Emergency Fund)" className="w-full bg-slate-50 p-4 rounded-2xl mb-3 font-medium outline-none border border-slate-100 focus:border-indigo-500" />
-            <input required name="amount" type="number" step="0.01" placeholder="Target Amount (₱)" className="w-full bg-slate-50 p-4 rounded-2xl mb-4 font-medium outline-none border border-slate-100 focus:border-indigo-500" />
-            <div className="flex gap-2">
-              <Button type="button" variant="ghost" onClick={() => setShowGoalModal(false)} className="flex-1 rounded-xl">Cancel</Button>
-              <Button type="submit" className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-bold">Save</Button>
-            </div>
-          </form>
-        </div>
-      )}
+      <GoalModal 
+        isOpen={showGoalModal} 
+        onClose={() => setShowGoalModal(false)} 
+        tenantId={currentTenant?.id || ''} 
+        persona={persona} 
+      />
 
-      {showEnvelopeModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
-          <form id="envelope-form" onSubmit={async (e) => {
-            e.preventDefault();
-            if(!currentTenant?.id) return;
-            const fd = new FormData(e.currentTarget);
-            try {
-              await addBudgetEnvelope(currentTenant.id, fd.get('category') as string, Number(fd.get('amount'))*100);
-              toast({title: 'Envelope Added'});
-              setShowEnvelopeModal(false);
-            } catch(e:any) { toast({title: 'Error', description: e.message, variant: 'destructive'}) }
-          }} className="bg-white p-6 rounded-[32px] w-full max-w-sm shadow-2xl">
-            <h3 className="font-black text-xl mb-4">New Category Budget</h3>
-            <p className="text-xs text-slate-500 mb-3">Set a strict limit for a specific spending category.</p>
-            <input required name="category" placeholder="Category (e.g. Food)" className="w-full bg-slate-50 p-4 rounded-2xl mb-3 font-medium outline-none border border-slate-100 focus:border-violet-500" />
-            <input required name="amount" type="number" step="0.01" placeholder="Limit Amount (₱)" className="w-full bg-slate-50 p-4 rounded-2xl mb-4 font-medium outline-none border border-slate-100 focus:border-violet-500" />
-            <div className="flex gap-2">
-              <Button type="button" variant="ghost" onClick={() => setShowEnvelopeModal(false)} className="flex-1 rounded-xl">Cancel</Button>
-              <Button type="submit" className="flex-1 bg-violet-500 hover:bg-violet-600 text-white rounded-xl font-bold">Save Envelope</Button>
-            </div>
-          </form>
-        </div>
-      )}
+      <EnvelopeModal 
+        isOpen={showEnvelopeModal} 
+        onClose={() => setShowEnvelopeModal(false)} 
+        tenantId={currentTenant?.id || ''} 
+      />
 
-      {showSettingsModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
-          <form onSubmit={(e) => {
-             e.preventDefault();
-             safeSetStorage('budgetSensePersona', persona || 'worker');
-             safeSetStorage('budgetSenseCycleType', cycleType);
-             safeSetStorage('budgetSensePayday', paydayCycle.toString());
-             safeSetStorage('budgetSenseSecondPayday', secondPaydayCycle.toString());
-             toast({title: 'Settings Saved', description: 'Your persona and cycle have been updated.'});
-             setShowSettingsModal(false);
-          }} className="bg-white p-6 rounded-[32px] w-full max-w-sm shadow-2xl">
-            <h3 className="font-black text-xl mb-1">Budget Settings</h3>
-            <p className="text-xs text-slate-500 mb-4">Set your preferences to improve your budgeting experience.</p>
-            
-            <label className="block text-sm font-bold text-slate-800 mb-2">Your Profile</label>
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              <button type="button" onClick={() => { setPersona('student'); setCycleType('weekly'); }} className={`p-2 rounded-xl border text-center transition-all flex flex-col items-center justify-center ${persona === 'student' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}>
-                <div className="text-xl mb-1">🎓</div>
-                <div className="text-[10px]">Student</div>
-              </button>
-              <button type="button" onClick={() => { setPersona('worker'); setCycleType('15-days'); }} className={`p-2 rounded-xl border text-center transition-all flex flex-col items-center justify-center ${persona === 'worker' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}>
-                <div className="text-xl mb-1">💼</div>
-                <div className="text-[10px]">Worker</div>
-              </button>
-              <button type="button" onClick={() => { setPersona('freelancer'); setCycleType('monthly'); }} className={`p-2 rounded-xl border text-center transition-all flex flex-col items-center justify-center ${persona === 'freelancer' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}>
-                <div className="text-xl mb-1">💻</div>
-                <div className="text-[10px]">Freelance</div>
-              </button>
-              <button type="button" onClick={() => { setPersona('business'); setCycleType('monthly'); }} className={`p-2 rounded-xl border text-center transition-all flex flex-col items-center justify-center ${persona === 'business' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}>
-                <div className="text-xl mb-1">🏢</div>
-                <div className="text-[10px]">Business</div>
-              </button>
-            </div>
+      <SettingsModal 
+        isOpen={showSettingsModal} 
+        onClose={() => setShowSettingsModal(false)} 
+        persona={persona} 
+        setPersona={setPersona} 
+        cycleType={cycleType} 
+        setCycleType={setCycleType} 
+        paydayCycle={paydayCycle} 
+        setPaydayCycle={setPaydayCycle} 
+        secondPaydayCycle={secondPaydayCycle} 
+        setSecondPaydayCycle={setSecondPaydayCycle} 
+      />
 
-            <label className="block text-sm font-bold text-slate-800 mb-2">Cycle Type</label>
-            <select value={cycleType} onChange={(e) => setCycleType(e.target.value as CycleType)} className="w-full bg-slate-50 p-4 rounded-2xl mb-4 font-medium outline-none border border-slate-100 focus:border-emerald-500">
-              <option value="monthly">Monthly</option>
-              <option value="15-days">15 Days</option>
-              <option value="weekly">Weekly</option>
-            </select>
-
-            <label className="block text-sm font-bold text-slate-800 mb-1">
-              {persona === 'student' ? 'Allowance Reset Day' : 
-               persona === 'worker' ? (cycleType === '15-days' ? 'Salary Days (1-31)' : 'Payday Date (1-31)') :
-               persona === 'freelancer' ? 'Monthly Tracking Start Date' :
-               persona === 'business' ? 'Accounting Cycle Start (1-31)' :
-               cycleType === 'weekly' ? 'Reset Day' : cycleType === '15-days' ? 'Reset Dates (1-31)' : 'Reset Date (1-31)'}
-            </label>
-            <p className="text-[10px] text-slate-500 mb-3 leading-relaxed">
-              {persona === 'student' ? 'Track your weekly allowance and school expenses.' :
-               persona === 'worker' ? 'Track your salary and regular bills.' :
-               persona === 'freelancer' ? 'Manage irregular income and monthly project budgets.' :
-               persona === 'business' ? 'Track operational expenses and revenue cycles.' : ''}
-            </p>
-            {cycleType === 'weekly' ? (
-              <select value={paydayCycle} onChange={(e) => setPaydayCycle(Number(e.target.value))} className="w-full bg-slate-50 p-4 rounded-2xl mb-6 font-medium outline-none border border-slate-100 focus:border-emerald-500">
-                <option value={0}>Sunday</option>
-                <option value={1}>Monday</option>
-                <option value={2}>Tuesday</option>
-                <option value={3}>Wednesday</option>
-                <option value={4}>Thursday</option>
-                <option value={5}>Friday</option>
-                <option value={6}>Saturday</option>
-              </select>
-            ) : cycleType === '15-days' ? (
-              <div className="flex gap-2 mb-6">
-                <div className="flex-1">
-                  <span className="text-[9px] font-black uppercase text-slate-400 mb-1 block">1st</span>
-                  <input required type="number" min={1} max={31} value={paydayCycle} onChange={(e) => setPaydayCycle(Number(e.target.value))} className="w-full bg-slate-50 p-4 rounded-2xl font-medium outline-none border border-slate-100 focus:border-emerald-500" />
-                </div>
-                <div className="flex-1">
-                  <span className="text-[9px] font-black uppercase text-slate-400 mb-1 block">2nd</span>
-                  <input required type="number" min={1} max={31} value={secondPaydayCycle} onChange={(e) => setSecondPaydayCycle(Number(e.target.value))} className="w-full bg-slate-50 p-4 rounded-2xl font-medium outline-none border border-slate-100 focus:border-emerald-500" />
-                </div>
-              </div>
-            ) : (
-              <input required type="number" min={1} max={31} value={paydayCycle} onChange={(e) => setPaydayCycle(Number(e.target.value))} className="w-full bg-slate-50 p-4 rounded-2xl mb-6 font-medium outline-none border border-slate-100 focus:border-emerald-500" />
-            )}
-            
-            <div className="flex gap-2">
-              <Button type="button" variant="ghost" onClick={() => setShowSettingsModal(false)} className="flex-1 rounded-xl">Cancel</Button>
-              <Button type="submit" className="flex-1 bg-black hover:bg-slate-800 text-white rounded-xl font-bold">Save</Button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {showWrapUpModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
-          <div className="bg-white p-6 rounded-[32px] w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-300">
-            <div className="text-center mb-6">
-              <div className="text-6xl mb-4">🎉</div>
-              <h3 className="font-black text-2xl mb-2 text-slate-800">You Survived!</h3>
-              <p className="text-slate-500 font-medium leading-relaxed">
-                You finished your last cycle with extra cash! Great job!
-              </p>
-              <div className="mt-4 p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
-                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Total Saved</p>
-                <p className="text-3xl font-black text-emerald-700 tracking-tighter">{formatPesos(wrapUpSavingsAmount)}</p>
-              </div>
-            </div>
-            
-            <div className="space-y-3">
-              {goals.length > 0 ? (
-                <Button 
-                  className="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold p-6 flex flex-col gap-1 h-auto"
-                  onClick={async () => {
-                    if(!currentTenant?.id || !goals[0]?.id) return;
-                    try {
-                      await allocateToSavings(currentTenant.id, goals[0].id, wrapUpSavingsAmount * 100);
-                      toast({title: 'Savings Boosted!', description: 'You successfully rolled over your savings.'});
-                      const wrapUpKey = `budgetSenseWrapUp_${previousCycleStart.toISOString()}`;
-                      safeSetStorage(wrapUpKey, 'true');
-                      setShowWrapUpModal(false);
-                    } catch(e:any) { toast({title: 'Error', description: e.message, variant: 'destructive'}) }
-                  }}
-                >
-                  <span className="text-lg">Add to "{goals[0].name}"</span>
-                  <span className="text-xs font-medium opacity-80">Highly Recommended</span>
-                </Button>
-              ) : (
-                <Button 
-                  className="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold p-6 h-auto"
-                  onClick={() => {
-                    const wrapUpKey = `budgetSenseWrapUp_${previousCycleStart.toISOString()}`;
-                    safeSetStorage(wrapUpKey, 'true');
-                    setShowWrapUpModal(false);
-                    toast({title: 'Rolled Over!', description: 'Money added to your new cycle balance.'});
-                  }}
-                >
-                  <span className="text-lg">Roll it over to this cycle!</span>
-                </Button>
-              )}
-              
-              <Button 
-                variant="ghost" 
-                className="w-full text-slate-400 hover:bg-slate-50 rounded-xl"
-                onClick={() => {
-                  const wrapUpKey = `budgetSenseWrapUp_${previousCycleStart.toISOString()}`;
-                  safeSetStorage(wrapUpKey, 'true');
-                  setShowWrapUpModal(false);
-                }}
-              >
-                Dismiss
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <WrapUpModal 
+        isOpen={showWrapUpModal} 
+        onClose={() => setShowWrapUpModal(false)} 
+        tenantId={currentTenant?.id || ''} 
+        goals={goals} 
+        wrapUpSavingsAmount={wrapUpSavingsAmount} 
+      />
       {showHealthScoreInfo && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
           <div className="bg-white p-6 rounded-[32px] w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-300">
@@ -1725,54 +1477,11 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
         </div>
       )}
 
-      {showPayDebtModal && (
-        <Dialog open={!!showPayDebtModal} onOpenChange={(open) => !open && setShowPayDebtModal(null)}>
-          <DialogContent className="rounded-2xl">
-            <DialogHeader>
-              <DialogTitle>Pay {showPayDebtModal.creditorName}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <p className="text-sm text-slate-500">
-                How much are you paying today? Your remaining balance is {formatMoney(showPayDebtModal.remainingAmountCentavos)}.
-              </p>
-              <div className="space-y-2">
-                <Label>Payment Amount (₱)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  id="debtPaymentAmount"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowPayDebtModal(null)}>Cancel</Button>
-              <Button 
-                onClick={async () => {
-                  const input = document.getElementById('debtPaymentAmount') as HTMLInputElement;
-                  const val = input?.value;
-                  if (!val || isNaN(Number(val)) || !currentTenant?.id || !showPayDebtModal?.id) return;
-                  setIsSubmitting(true);
-                  try {
-                    const amtC = Number(val) * 100;
-                    await logDebtPayment(currentTenant.id, showPayDebtModal.id, amtC, `Payment towards ${showPayDebtModal.creditorName}`);
-                    toast({ title: 'Payment Logged' });
-                    setShowPayDebtModal(null);
-                  } catch (e: any) {
-                    toast({ title: 'Error', description: e.message, variant: 'destructive' });
-                  } finally {
-                    setIsSubmitting(false);
-                  }
-                }}
-                disabled={isSubmitting}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white"
-              >
-                Log Payment
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+      <PayDebtModal 
+        debt={showPayDebtModal} 
+        onClose={() => setShowPayDebtModal(null)} 
+        tenantId={currentTenant?.id || ''} 
+      />
 
       {editingDebt && (
         <Dialog open={!!editingDebt} onOpenChange={(open) => !open && setEditingDebt(null)}>

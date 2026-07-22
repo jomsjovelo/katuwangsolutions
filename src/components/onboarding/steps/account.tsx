@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 import { AccountSchema } from '@/lib/schemas/onboarding';
 import { getActiveAppById } from '@/lib/app-data';
@@ -23,11 +23,12 @@ interface AccountStepProps {
   data: any;
   onUpdate: (update: any) => void;
   onNext: () => void;
+  isLoading?: boolean;
 }
 
 
 
-export function AccountStep({ data, onUpdate, onNext }: AccountStepProps) {
+export function AccountStep({ data, onUpdate, onNext, isLoading }: AccountStepProps) {
   const [errors, setErrors] = useState<any>({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -162,10 +163,10 @@ export function AccountStep({ data, onUpdate, onNext }: AccountStepProps) {
 
         <Button 
           type="submit" 
-          disabled={!data.termsAccepted}
-          className="w-full h-14 rounded-2xl text-base font-bold shadow-xl active:scale-[0.98] transition-transform disabled:opacity-50 disabled:active:scale-100"
+          disabled={!data.termsAccepted || isLoading}
+          className="w-full h-14 rounded-2xl text-base font-bold shadow-xl active:scale-[0.98] transition-transform flex items-center justify-center gap-2 disabled:opacity-50 disabled:active:scale-100"
         >
-          Gawa na ang Account
+          {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Gawa na ang Account'}
         </Button>
       </form>
 

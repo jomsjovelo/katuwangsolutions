@@ -5,22 +5,77 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2 } from 'lucide-react';
+import { BirthdayPicker } from '@/components/ui/birthday-picker';
 
 import { BusinessInfoSchema } from '@/lib/schemas/onboarding';
+import { z } from 'zod';
 
 interface BusinessInfoStepProps {
   data: any;
   onUpdate: (update: any) => void;
   onNext: () => void;
+  isLoading?: boolean;
 }
 
-export function BusinessInfoStep({ data, onUpdate, onNext }: BusinessInfoStepProps) {
-  const [errors, setErrors] = useState<any>({});
+// Partial schemas for each sub-step
+const SubStepASchema = z.object({
+  fullName: z.string().min(2, 'Kailangan ang buong pangalan mo'),
+  birthday: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Kailangan ang kaarawan mo').refine(val => {
+    const today = new Date();
+    const [year, month, day] = val.split('-').map(Number);
+    const birthDate = new Date(year, month - 1, day);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age >= 18;
+  }, { message: 'Kailangan ay 18 taon pataas.' }),
+  gender: z.enum(['Lalaki', 'Babae', 'Iba pa', 'Prefer not to say']),
+});
 
-  const handleSubmit = (e: React.FormEvent) => {
+const SubStepBSchema = z.object({
+  address: z.string().min(5, 'Kailangan ng kumpletong tirahan'),
+  businessName: z.string().min(2, 'Kailangan ang pangalan ng negosyo').max(100),
+});
+
+
+export function BusinessInfoStep({ data, onUpdate, onNext, isLoading }: BusinessInfoStepProps) {
+  const [subStep, setSubStep] = useState<'A' | 'B'>('A');
+  const [errors, setErrors] = useState<any>({});
+  
+  // Local submitting state for sub-step transitions
+  const [isLocalSubmitting, setIsLocalSubmitting] = useState(false);
+
+  const handleNextSubStep = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLocalSubmitting || isLoading) return;
     
-    const result = BusinessInfoSchema.safeParse(data);
+    const result = SubStepASchema.safeParse(data);
+    if (!result.success) {
+      const fieldErrors: any = {};
+      result.error.issues.forEach((issue) => {
+        fieldErrors[issue.path[0]] = issue.message;
+      });
+      setErrors(fieldErrors);
+      return;
+    }
+    
+    setErrors({});
+    setIsLocalSubmitting(true);
+    // slight delay for visual feedback
+    setTimeout(() => {
+      setSubStep('B');
+      setIsLocalSubmitting(false);
+    }, 150);
+  };
+
+  const handleSubmitFinal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isLoading) return;
+    
+    const result = SubStepBSchema.safeParse(data);
     if (!result.success) {
       const fieldErrors: any = {};
       result.error.issues.forEach((issue) => {
@@ -36,84 +91,133 @@ export function BusinessInfoStep({ data, onUpdate, onNext }: BusinessInfoStepPro
 
   return (
     <div className="p-6 space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-      <div className="space-y-1">
-        <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900">Simulan natin!</h2>
-        <p className="text-slate-600 text-sm font-medium">Ano'ng pangalan mo at ng tindahan mo?</p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="fullName" className="text-xs font-bold uppercase tracking-widest text-slate-500">Buong Pangalan</Label>
-            <Input 
-              id="fullName"
-              placeholder="Halimbawa: Juan dela Cruz"
-              value={data.fullName || ''}
-              onChange={(e) => onUpdate({ fullName: e.target.value })}
-              className={errors.fullName ? "border-destructive" : ""}
-            />
-            {errors.fullName && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.fullName}</p>}
+      
+      {subStep === 'A' && (
+        <>
+          <div className="space-y-1">
+            <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900">Sino Ka?</h2>
+            <p className="text-slate-600 text-sm font-medium">Mga simpleng detalye tungkol sa iyo.</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="birthday" className="text-xs font-bold uppercase tracking-widest text-slate-500">Birthday (18+)</Label>
-              <Input 
-                id="birthday"
-                type="date"
-                value={data.birthday || ''}
-                onChange={(e) => onUpdate({ birthday: e.target.value })}
-                className={errors.birthday ? "border-destructive" : ""}
-              />
-              {errors.birthday && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.birthday}</p>}
+          <form onSubmit={handleNextSubStep} className="space-y-6">
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="fullName" className="text-xs font-bold uppercase tracking-widest text-slate-500">Buong Pangalan</Label>
+                <Input 
+                  id="fullName"
+                  placeholder="Halimbawa: Juan dela Cruz"
+                  value={data.fullName || ''}
+                  onChange={(e) => onUpdate({ fullName: e.target.value })}
+                  className={errors.fullName ? "border-destructive h-14" : "h-14"}
+                />
+                {errors.fullName && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.fullName}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex flex-col gap-0.5">
+                  <Label className="text-xs font-bold uppercase tracking-widest text-slate-500">Kaarawan</Label>
+                  <span className="text-[10px] text-slate-400 font-medium">Kailangan ay 18 taon pataas</span>
+                </div>
+                <BirthdayPicker 
+                  value={data.birthday} 
+                  onChange={(val) => onUpdate({ birthday: val })}
+                  error={!!errors.birthday}
+                />
+                {errors.birthday && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.birthday}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="gender" className="text-xs font-bold uppercase tracking-widest text-slate-500">Kasarian</Label>
+                <Select value={data.gender || 'Prefer not to say'} onValueChange={(val) => onUpdate({ gender: val })}>
+                  <SelectTrigger className={errors.gender ? "border-destructive h-14" : "h-14"}>
+                    <SelectValue placeholder="Pumili..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Lalaki">Lalaki</SelectItem>
+                    <SelectItem value="Babae">Babae</SelectItem>
+                    <SelectItem value="Iba pa">Iba pa</SelectItem>
+                    <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
+                  </SelectContent>
+                </Select>
+                {errors.gender && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.gender}</p>}
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="gender" className="text-xs font-bold uppercase tracking-widest text-slate-500">Gender</Label>
-              <Select value={data.gender || 'Prefer not to say'} onValueChange={(val) => onUpdate({ gender: val })}>
-                <SelectTrigger className={errors.gender ? "border-destructive" : ""}>
-                  <SelectValue placeholder="Pumili..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Lalaki">Lalaki</SelectItem>
-                  <SelectItem value="Babae">Babae</SelectItem>
-                  <SelectItem value="Iba pa">Iba pa</SelectItem>
-                  <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.gender && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.gender}</p>}
+            <Button 
+              type="submit" 
+              disabled={isLocalSubmitting || isLoading}
+              className="w-full h-14 rounded-2xl text-base font-bold shadow-xl active:scale-[0.98] transition-transform flex items-center justify-center gap-2 disabled:opacity-70"
+            >
+              {isLocalSubmitting || isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Susunod'}
+            </Button>
+          </form>
+        </>
+      )}
+
+      {subStep === 'B' && (
+        <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+          <div className="space-y-1 mb-8">
+            <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900">Saan at Ano?</h2>
+            <p className="text-slate-600 text-sm font-medium">Mga detalye ng iyong tindahan o negosyo.</p>
+          </div>
+
+          <form onSubmit={handleSubmitFinal} className="space-y-6">
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <div className="flex flex-col gap-0.5">
+                  <Label htmlFor="address" className="text-xs font-bold uppercase tracking-widest text-slate-500">Tirahan</Label>
+                  <span className="text-[10px] text-slate-400 font-medium">Bahay No., Kalye, Barangay, Lungsod</span>
+                </div>
+                <Input 
+                  id="address"
+                  placeholder="Hal: 123 Rizal St., Brgy. San Jose"
+                  value={data.address || ''}
+                  onChange={(e) => onUpdate({ address: e.target.value })}
+                  className={errors.address ? "border-destructive h-14" : "h-14"}
+                />
+                {errors.address && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.address}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex flex-col gap-0.5">
+                  <Label htmlFor="businessName" className="text-xs font-bold uppercase tracking-widest text-slate-500">Pangalan ng Negosyo</Label>
+                  <span className="text-[10px] text-slate-400 font-medium">Halimbawa: Aling Nena's Store</span>
+                </div>
+                <Input 
+                  id="businessName"
+                  placeholder="Halimbawa: Aling Nena's Store"
+                  value={data.businessName || ''}
+                  onChange={(e) => onUpdate({ businessName: e.target.value })}
+                  className={errors.businessName ? "border-destructive h-14" : "h-14"}
+                />
+                {errors.businessName && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.businessName}</p>}
+              </div>
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="address" className="text-xs font-bold uppercase tracking-widest text-slate-500">Kumpletong Address</Label>
-            <Input 
-              id="address"
-              placeholder="House No., Street, Brgy., City, Province"
-              value={data.address || ''}
-              onChange={(e) => onUpdate({ address: e.target.value })}
-              className={errors.address ? "border-destructive" : ""}
-            />
-            {errors.address && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.address}</p>}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="businessName" className="text-xs font-bold uppercase tracking-widest text-slate-500">Pangalan ng Tindahan</Label>
-            <Input 
-              id="businessName"
-              placeholder="Halimbawa: Aling Nena's Store"
-              value={data.businessName || ''}
-              onChange={(e) => onUpdate({ businessName: e.target.value })}
-              className={errors.businessName ? "border-destructive" : ""}
-            />
-            {errors.businessName && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.businessName}</p>}
-          </div>
+            <div className="space-y-3">
+              <Button 
+                type="submit" 
+                disabled={isLoading}
+                className="w-full h-14 rounded-2xl text-base font-bold shadow-xl active:scale-[0.98] transition-transform flex items-center justify-center gap-2 disabled:opacity-70"
+              >
+                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Tuloy Natin'}
+              </Button>
+              <Button 
+                type="button" 
+                variant="ghost"
+                disabled={isLoading}
+                onClick={() => {
+                  setErrors({});
+                  setSubStep('A');
+                }}
+                className="w-full h-12 rounded-xl text-slate-400 font-bold hover:text-slate-600 uppercase tracking-widest text-xs"
+              >
+                Bumalik
+              </Button>
+            </div>
+          </form>
         </div>
-
-        <Button type="submit" className="w-full h-14 rounded-2xl text-base font-bold shadow-xl active:scale-[0.98] transition-transform">
-          Tuloy Natin
-        </Button>
-      </form>
+      )}
     </div>
   );
 }

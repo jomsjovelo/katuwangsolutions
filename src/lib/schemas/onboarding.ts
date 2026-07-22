@@ -2,9 +2,10 @@ import { z } from 'zod';
 
 export const BusinessInfoSchema = z.object({
   fullName: z.string().min(2, 'Kailangan ang buong pangalan mo'),
-  birthday: z.string().min(1, 'Kailangan ang birthday mo').refine(val => {
+  birthday: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format').refine(val => {
     const today = new Date();
-    const birthDate = new Date(val);
+    const [year, month, day] = val.split('-').map(Number);
+    const birthDate = new Date(year, month - 1, day);
     let age = today.getFullYear() - birthDate.getFullYear();
     const m = today.getMonth() - birthDate.getMonth();
     if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {

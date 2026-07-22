@@ -248,6 +248,7 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
             data={data}
             onUpdate={update}
             onNext={next}
+            isLoading={isLoading}
           />
         )}
         {step === 'account' && (
@@ -255,6 +256,7 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
             data={data}
             onUpdate={update}
             onNext={next}
+            isLoading={isLoading}
           />
         )}
         {step === 'success' && (
