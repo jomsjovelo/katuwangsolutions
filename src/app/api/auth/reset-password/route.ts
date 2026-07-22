@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { adminAuth } from '@/firebase/admin';
+import { getAdminAuth } from '@/firebase/admin';
 import nodemailer from 'nodemailer';
 
 const transporter = nodemailer.createTransport({
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     // For security, we usually don't want to leak whether an email exists, but Firebase handles it safely.
     let firebaseLink;
     try {
-      firebaseLink = await adminAuth.generatePasswordResetLink(email, actionCodeSettings);
+      firebaseLink = await getAdminAuth().generatePasswordResetLink(email, actionCodeSettings);
     } catch (e: any) {
       if (e.code === 'auth/user-not-found') {
         // Silently succeed to prevent email enumeration attacks

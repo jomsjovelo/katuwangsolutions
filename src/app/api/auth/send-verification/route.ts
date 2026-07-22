@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { adminAuth } from '@/firebase/admin';
+import { getAdminAuth } from '@/firebase/admin';
 import nodemailer from 'nodemailer';
 
 const transporter = nodemailer.createTransport({
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
       handleCodeInApp: false,
     };
     
-    const firebaseLink = await adminAuth.generateEmailVerificationLink(email, actionCodeSettings);
+    const firebaseLink = await getAdminAuth().generateEmailVerificationLink(email, actionCodeSettings);
     
     // 1.5 Rewrite the URL to use our custom domain instead of firebaseapp.com
     const verificationLink = firebaseLink.replace(
