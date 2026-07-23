@@ -210,17 +210,11 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
         if (data.cycleType) setCycleType(data.cycleType as CycleType);
         if (data.paydayCycle) setPaydayCycle(Number(data.paydayCycle));
         if (data.secondPaydayCycle) setSecondPaydayCycle(Number(data.secondPaydayCycle));
-      } else {
-        // Fallback to local storage migration
-        const savedPersona = safeGetStorage('budgetSensePersona') as BudgetPersona;
-        if (savedPersona) {
-           setPersona(savedPersona);
-           setCycleType(safeGetStorage('budgetSenseCycleType') as CycleType || 'monthly');
-           setPaydayCycle(Number(safeGetStorage('budgetSensePayday') || 15));
-           setSecondPaydayCycle(Number(safeGetStorage('budgetSenseSecondPayday') || 30));
-        } else {
-           setPersona(null);
-        }
+        // Default to worker/universal settings
+        setPersona('worker');
+        setCycleType(safeGetStorage('budgetSenseCycleType') as CycleType || 'monthly');
+        setPaydayCycle(Number(safeGetStorage('budgetSensePayday') || 15));
+        setSecondPaydayCycle(Number(safeGetStorage('budgetSenseSecondPayday') || 30));
       }
       setIsInitializing(false);
     });
@@ -267,17 +261,9 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
   const totalIncome = cycleTransactions.filter(t => t.type === 'income').reduce((acc, t) => acc + (t.amountCentavos || 0), 0) / 100;
   const totalExpense = cycleTransactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + (t.amountCentavos || 0), 0) / 100;
 
-  // Smart Split Logic
-  let splitRatios = { needs: 0.5, wants: 0.3, savings: 0.2 };
-  let splitLabels = { needs: 'Needs (50%)', wants: 'Wants (30%)', savings: 'Savings (20%)' };
-  
-  if (persona === 'business') {
-    splitRatios = { needs: 0.7, wants: 0.0, savings: 0.3 };
-    splitLabels = { needs: 'Operations (70%)', wants: '', savings: 'Profit (30%)' };
-  } else if (persona === 'student') {
-    splitRatios = { needs: 0.7, wants: 0.1, savings: 0.2 };
-    splitLabels = { needs: 'Essentials (70%)', wants: 'Fun (10%)', savings: 'Savings (20%)' };
-  }
+  // Universal Split Ratios (50/30/20 Rule)
+  const splitRatios = { needs: 0.5, wants: 0.3, savings: 0.2 };
+  const splitLabels = { needs: 'Needs (50%)', wants: 'Wants (30%)', savings: 'Savings (20%)' };
 
   
   // Insights Data Separation
@@ -374,8 +360,8 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
   
   const pacingPercentage = Math.min(100, (actualDailySpend / (idealDailySpend || 1)) * 50);
 
-  // Financial Health Score
-  let healthScore = 500;
+  // Universal Financial Health Score (3 Clean Metrics: Savings Rate, Spending Pace, Debt Status)
+  let healthScore = 200; // Base score
   const healthBreakdown: { label: string; desc: string; points: number; isNegative: boolean }[] = [];
   const addPoints = (label: string, desc: string, points: number) => {
     healthScore += points;
@@ -384,64 +370,23 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
   
   const savingsRate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0;
   
-  switch(persona) {
-    case 'student':
-      if (safeToSpend > 0) addPoints('Under Budget (Crucial)', 'You have cash left for the week.', 200);
-      
-      if (pacingColor === 'bg-indigo-500') addPoints('Pacing (Saving heavily)', 'Spending much slower than your daily allowance.', 150);
-      else if (pacingColor === 'bg-emerald-500') addPoints('Pacing (On track)', 'Spending right on track with your daily allowance.', 100);
-      else if (pacingColor === 'bg-rose-500') addPoints('Overspending Pacing', 'Spending faster than your allowance can handle.', -150);
-      
-      if (savingsRate >= 10) addPoints('Savings Rate (>10%)', 'Saved a good chunk of your allowance.', 50);
-      else if (savingsRate > 0) addPoints('Savings Rate (>0%)', 'Managed to save some allowance.', 25);
-      break;
-      
-    case 'freelancer':
-      const hasBuffer = masterBalance > (idealDailySpend * 30 * 100);
-      if (hasBuffer) addPoints('Cash Buffer (>1 Month)', 'You have enough cash to survive a dry month.', 200);
-      else if (masterBalance > 0) addPoints('Positive Cash Balance', 'You have some cash reserves.', 50);
-      
-      const overBudgetEnvelopes = envelopes.filter(env => {
-        const spent = cycleTransactions.filter(t => t.type === 'expense' && t.category.toLowerCase() === env.category.toLowerCase()).reduce((acc, t) => acc + (t.amountCentavos || 0), 0);
-        return spent > env.limitCentavos;
-      }).length;
-      
-      if (overBudgetEnvelopes === 0 && envelopes.length > 0) addPoints('Envelopes Under Budget', 'Strictly followed all your project/category budgets.', 100);
-      else if (overBudgetEnvelopes > 0) addPoints(`${overBudgetEnvelopes} Envelopes Over Budget`, 'Exceeded some of your strict category budgets.', overBudgetEnvelopes * -50);
-      
-      if (urgentDebtCentavos === 0) addPoints('No Urgent Debts', 'All your upcoming bills are paid.', 200);
-      break;
-      
-    case 'business':
-      const profitMargin = savingsRate; 
-      if (profitMargin >= 20) addPoints('Profit Margin (>20%)', 'Excellent operational profit margin.', 200);
-      else if (profitMargin >= 10) addPoints('Profit Margin (>10%)', 'Healthy operational profit margin.', 100);
-      else if (profitMargin > 0) addPoints('Positive Cashflow', 'Bringing in more than you spend.', 50);
-      else if (totalExpense > 0) addPoints('Negative Cashflow', 'Burning more cash than you are making.', -100);
-      
-      if (pacingColor === 'bg-indigo-500') addPoints('Low Burn Rate', 'Operating expenses are very low.', 100);
-      else if (pacingColor === 'bg-emerald-500') addPoints('On Target Burn Rate', 'Operating expenses are on budget.', 50);
-      else if (pacingColor === 'bg-rose-500') addPoints('High Burn Rate', 'Burning cash faster than budgeted.', -150);
-      
-      if (urgentDebtCentavos === 0) addPoints('Liabilities Managed', 'No urgent payable liabilities.', 100);
-      else if (urgentDebtCentavos > masterBalance) addPoints('Liabilities Exceed Assets', 'You owe more than you currently have.', -200);
-      break;
-      
-    case 'worker':
-    default:
-      if (savingsRate >= 20) addPoints('Savings Rate (>20%)', 'Hit the golden 20% savings rule.', 200);
-      else if (savingsRate >= 10) addPoints('Savings Rate (>10%)', 'Saved a decent amount of your salary.', 100);
-      else if (savingsRate > 0) addPoints('Savings Rate (>0%)', 'Managed to save some money.', 50);
+  // 1. Savings Rate Metric (Max +350 pts)
+  if (savingsRate >= 30) addPoints('Savings Rate (>30%)', 'Outstanding savings discipline.', 350);
+  else if (savingsRate >= 20) addPoints('Savings Rate (>20%)', 'Hit the golden 20% savings rule.', 250);
+  else if (savingsRate >= 10) addPoints('Savings Rate (>10%)', 'Good savings progress this cycle.', 150);
+  else if (savingsRate > 0) addPoints('Savings Rate (>0%)', 'Kept cash flow positive.', 75);
+  else if (totalExpense > 0 && totalIncome === 0) addPoints('Uncovered Spending', 'Expenses logged with zero income this cycle.', -100);
 
-      if (safeToSpend > 0) addPoints('Under Budget', 'You have cash left to spend.', 100);
+  // 2. Spending Pace Metric (Max +350 pts)
+  if (pacingColor === 'bg-indigo-500') addPoints('Spending Pace (Under Budget)', 'Spending significantly slower than daily budget.', 350);
+  else if (pacingColor === 'bg-emerald-500') addPoints('Spending Pace (On Track)', 'Daily spending is balanced and on budget.', 250);
+  else if (pacingColor === 'bg-amber-500') addPoints('Spending Pace (Slightly Fast)', 'Spending slightly above recommended daily pace.', 100);
+  else if (pacingColor === 'bg-rose-500') addPoints('Spending Pace (Overspending)', 'Spending faster than recommended daily pace.', -150);
 
-      if (pacingColor === 'bg-indigo-500') addPoints('Pacing (Saving)', 'Spending much slower than your daily budget.', 100);
-      else if (pacingColor === 'bg-emerald-500') addPoints('Pacing (On track)', 'Spending right on track.', 50);
-      else if (pacingColor === 'bg-rose-500') addPoints('Overspending Pacing', 'Spending faster than recommended.', -100);
-
-      if (urgentDebtCentavos === 0) addPoints('No Urgent Debts', 'All your upcoming bills are paid.', 100);
-      break;
-  }
+  // 3. Debt Status Metric (Max +300 pts)
+  if (urgentDebtCentavos === 0) addPoints('Debt Status (Zero Urgent Debts)', 'No pending or overdue debt payments.', 300);
+  else if (urgentDebtCentavos <= masterBalance) addPoints('Debt Status (Covered)', 'Urgent debts exist but master balance covers them.', 150);
+  else addPoints('Debt Status (Overdue / Uncovered)', 'Urgent debts exceed available cash balance.', -200);
 
   healthScore = Math.max(0, Math.min(1000, healthScore));
 
@@ -478,14 +423,10 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
     ? ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][paydayCycle]
     : `the ${paydayCycle}${[1, 21, 31].includes(paydayCycle) ? 'st' : [2, 22].includes(paydayCycle) ? 'nd' : [3, 23].includes(paydayCycle) ? 'rd' : 'th'}`;
   
-  const resetTerm = persona === 'student' ? 'Allowance Reset' : persona === 'freelancer' ? 'Cycle Reset' : 'Payday';
-  const allowanceTerm = persona === 'student' ? 'Daily Allowance' : persona === 'freelancer' ? 'Safe to Spend' : 'Safe to Spend Today';
+  const resetTerm = 'Payday';
+  const allowanceTerm = 'Safe to Spend Today';
 
-  const theme = persona === 'student' ? {
-    bg: 'bg-indigo-50', border: 'border-indigo-100', text: 'text-indigo-600', textDark: 'text-indigo-700', textDarker: 'text-indigo-800', hoverBg: 'hover:bg-indigo-100', bgDarker: 'bg-indigo-100/50'
-  } : persona === 'freelancer' ? {
-    bg: 'bg-amber-50', border: 'border-amber-100', text: 'text-amber-600', textDark: 'text-amber-700', textDarker: 'text-amber-800', hoverBg: 'hover:bg-amber-100', bgDarker: 'bg-amber-100/50'
-  } : {
+  const theme = {
     bg: 'bg-emerald-50', border: 'border-emerald-100', text: 'text-emerald-600', textDark: 'text-emerald-700', textDarker: 'text-emerald-800', hoverBg: 'hover:bg-emerald-100', bgDarker: 'bg-emerald-100/50'
   };
 
@@ -614,61 +555,7 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
   return (
     <div className="h-full bg-slate-50 flex flex-col pb-24 overflow-y-auto">
       
-      {persona === null && (
-        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white p-8 rounded-[32px] w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-300">
-            <h2 className="text-2xl font-black text-slate-800 tracking-tighter mb-2">Welcome to Budget Mo</h2>
-            <p className="text-slate-500 text-sm font-medium mb-6 leading-relaxed">To give you the best financial experience, please select your primary profile:</p>
-            
-            <div className="space-y-3">
-              <button onClick={() => {
-                setPersona('student');
-                setCycleType('weekly');
-                setPaydayCycle(1); // Default to Monday
-                safeSetStorage('budgetSensePersona', 'student');
-                safeSetStorage('budgetSenseCycleType', 'weekly');
-                safeSetStorage('budgetSensePayday', '1');
-              }} className="w-full bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 p-4 rounded-2xl flex items-center gap-4 transition-all text-left group">
-                <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform text-2xl">🎓</div>
-                <div>
-                  <h4 className="font-bold text-slate-800">Student</h4>
-                  <p className="text-xs text-slate-500">Weekly allowance, school expenses</p>
-                </div>
-              </button>
-              
-              <button onClick={() => {
-                setPersona('worker');
-                setCycleType('monthly');
-                setPaydayCycle(15);
-                safeSetStorage('budgetSensePersona', 'worker');
-                safeSetStorage('budgetSenseCycleType', 'monthly');
-                safeSetStorage('budgetSensePayday', '15');
-              }} className="w-full bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 p-4 rounded-2xl flex items-center gap-4 transition-all text-left group">
-                <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform text-2xl">💼</div>
-                <div>
-                  <h4 className="font-bold text-slate-800">Professional</h4>
-                  <p className="text-xs text-slate-500">Monthly salary, bills & rent</p>
-                </div>
-              </button>
 
-              <button onClick={() => {
-                setPersona('freelancer');
-                setCycleType('monthly');
-                setPaydayCycle(1);
-                safeSetStorage('budgetSensePersona', 'freelancer');
-                safeSetStorage('budgetSenseCycleType', 'monthly');
-                safeSetStorage('budgetSensePayday', '1');
-              }} className="w-full bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 p-4 rounded-2xl flex items-center gap-4 transition-all text-left group">
-                <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform text-2xl">💻</div>
-                <div>
-                  <h4 className="font-bold text-slate-800">Freelancer</h4>
-                  <p className="text-xs text-slate-500">Irregular income, project based</p>
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* HEADER BANNER - FOR DASHBOARD AND BENTA (WHICH ACTS AS INCOME LOG) */}
       {(activeTab === 'home' || activeTab === 'benta') && (
