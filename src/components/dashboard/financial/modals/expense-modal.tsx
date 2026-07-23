@@ -18,6 +18,9 @@ export function ExpenseModal({ isOpen, onClose, tenantId, persona, envelopes, ma
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [expenseCategory, setExpenseCategory] = useState('Transportation / Pamasahe');
+
+  if (!isOpen) return null;
+
   const handleExpenseSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!tenantId) return;
