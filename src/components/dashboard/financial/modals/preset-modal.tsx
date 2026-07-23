@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Zap, Trash2, Plus } from 'lucide-react';
+import { Zap, Trash2, Plus, Pencil, Check, X } from 'lucide-react';
 import { BudgetPreset } from '@/lib/schemas/budget';
 import { useToast } from '@/hooks/use-toast';
 
@@ -22,6 +22,7 @@ export function PresetModal({
   onSavePresets,
 }: PresetModalProps) {
   const { toast } = useToast();
+  const [editingPreset, setEditingPreset] = useState<BudgetPreset | null>(null);
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
@@ -30,35 +31,74 @@ export function PresetModal({
 
   if (!isOpen) return null;
 
-  const handleAddPreset = async (e: React.FormEvent) => {
+  const handleStartEdit = (preset: BudgetPreset) => {
+    setEditingPreset(preset);
+    setTitle(preset.title);
+    setAmount((preset.amountCentavos / 100).toString());
+    setCategory(preset.category);
+    setIcon(preset.icon || '🚌');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingPreset(null);
+    setTitle('');
+    setAmount('');
+    setCategory('');
+    setIcon('🚌');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !amount || !category) return;
-    if (presets.length >= 20) {
-      toast({
-        title: 'Limit Reached',
-        description: 'You can have a maximum of 20 quick-log presets.',
-        variant: 'destructive',
-      });
-      return;
-    }
 
-    const newPreset: BudgetPreset = {
-      id: `preset_${Date.now()}`,
-      icon: icon || '⚡',
-      title: title.trim(),
-      amountCentavos: Math.round(parseFloat(amount) * 100),
-      category: category.trim(),
-      type: 'expense',
-    };
+    const amountCentavos = Math.round(parseFloat(amount) * 100);
 
     try {
       setIsSubmitting(true);
-      const updated = [...presets, newPreset];
-      await onSavePresets(updated);
-      toast({ title: 'Preset Added', description: `"${title}" is now available in 1-Tap Presets.` });
-      setTitle('');
-      setAmount('');
-      setCategory('');
+
+      if (editingPreset) {
+        // Edit existing preset
+        const updated = presets.map((p) =>
+          p.id === editingPreset.id
+            ? {
+                ...p,
+                icon: icon || '⚡',
+                title: title.trim(),
+                amountCentavos,
+                category: category.trim(),
+              }
+            : p
+        );
+        await onSavePresets(updated);
+        toast({ title: 'Preset Updated', description: `"${title}" has been updated.` });
+        handleCancelEdit();
+      } else {
+        // Add new preset
+        if (presets.length >= 20) {
+          toast({
+            title: 'Limit Reached',
+            description: 'You can have a maximum of 20 quick-log presets.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        const newPreset: BudgetPreset = {
+          id: `preset_${Date.now()}`,
+          icon: icon || '⚡',
+          title: title.trim(),
+          amountCentavos,
+          category: category.trim(),
+          type: 'expense',
+        };
+
+        const updated = [...presets, newPreset];
+        await onSavePresets(updated);
+        toast({ title: 'Preset Added', description: `"${title}" is now available in 1-Tap Presets.` });
+        setTitle('');
+        setAmount('');
+        setCategory('');
+      }
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
@@ -69,6 +109,9 @@ export function PresetModal({
   const handleDeletePreset = async (presetId: string) => {
     try {
       setIsSubmitting(true);
+      if (editingPreset?.id === presetId) {
+        handleCancelEdit();
+      }
       const updated = presets.filter((p) => p.id !== presetId);
       await onSavePresets(updated);
       toast({ title: 'Preset Removed' });
@@ -99,7 +142,14 @@ export function PresetModal({
             <p className="text-xs text-slate-400 text-center py-3">No custom presets added yet. Add one below!</p>
           ) : (
             presets.map((preset) => (
-              <div key={preset.id} className="bg-slate-50 border border-slate-200/60 rounded-xl p-2.5 flex items-center justify-between">
+              <div
+                key={preset.id}
+                className={`border rounded-xl p-2.5 flex items-center justify-between transition-all ${
+                  editingPreset?.id === preset.id
+                    ? 'bg-amber-50/70 border-amber-300 shadow-sm'
+                    : 'bg-slate-50 border-slate-200/60'
+                }`}
+              >
                 <div className="flex items-center gap-2">
                   <span className="text-base">{preset.icon || '⚡'}</span>
                   <div>
@@ -107,24 +157,50 @@ export function PresetModal({
                     <p className="text-[10px] text-slate-500">{preset.category} • ₱{(preset.amountCentavos / 100).toLocaleString()}</p>
                   </div>
                 </div>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  disabled={isSubmitting}
-                  onClick={() => handleDeletePreset(preset.id)}
-                  className="h-7 w-7 text-slate-400 hover:text-rose-600 rounded-lg"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    disabled={isSubmitting}
+                    onClick={() => handleStartEdit(preset)}
+                    className="h-7 w-7 text-slate-400 hover:text-indigo-600 rounded-lg"
+                    title="Edit Preset"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    disabled={isSubmitting}
+                    onClick={() => handleDeletePreset(preset.id)}
+                    className="h-7 w-7 text-slate-400 hover:text-rose-600 rounded-lg"
+                    title="Delete Preset"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
             ))
           )}
         </div>
 
-        {/* Add Preset Form */}
-        {presets.length < 20 && (
-          <form onSubmit={handleAddPreset} className="space-y-3 pt-3 border-t border-slate-100">
-            <p className="text-xs font-bold text-slate-700">Add New Preset</p>
+        {/* Preset Form (Add or Edit) */}
+        {(editingPreset || presets.length < 20) && (
+          <form onSubmit={handleSubmit} className="space-y-3 pt-3 border-t border-slate-100">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold text-slate-700">
+                {editingPreset ? `Editing "${editingPreset.title}"` : 'Add New Preset'}
+              </p>
+              {editingPreset && (
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="text-[10px] text-slate-400 hover:text-slate-600 font-bold flex items-center gap-0.5"
+                >
+                  <X className="h-3 w-3" /> Cancel
+                </button>
+              )}
+            </div>
             
             <div className="flex gap-2">
               <div className="w-16">
@@ -187,9 +263,19 @@ export function PresetModal({
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-slate-900 hover:bg-slate-800 text-white rounded-xl py-2 text-xs font-bold flex items-center justify-center gap-1 mt-2"
+              className={`w-full text-white rounded-xl py-2 text-xs font-bold flex items-center justify-center gap-1 mt-2 ${
+                editingPreset ? 'bg-amber-600 hover:bg-amber-700' : 'bg-slate-900 hover:bg-slate-800'
+              }`}
             >
-              <Plus className="h-3.5 w-3.5" /> Add Preset
+              {editingPreset ? (
+                <>
+                  <Check className="h-3.5 w-3.5" /> Save Changes
+                </>
+              ) : (
+                <>
+                  <Plus className="h-3.5 w-3.5" /> Add Preset
+                </>
+              )}
             </Button>
           </form>
         )}
