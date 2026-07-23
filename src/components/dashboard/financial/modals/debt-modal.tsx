@@ -34,9 +34,12 @@ export function DebtModal({ isOpen, onClose, tenantId }: DebtModalProps) {
         } catch(e:any) { toast({title: 'Error', description: e.message, variant: 'destructive'}) }
       }} className="bg-white p-6 rounded-[32px] w-full max-w-sm shadow-2xl">
         <h3 className="font-black text-xl mb-4">Add Bill or Debt</h3>
-        <input required name="creditor" placeholder="Name (e.g. Rent, Credit Card)" className="w-full bg-slate-50 p-4 rounded-2xl mb-3 font-medium outline-none border border-slate-100 focus:border-rose-500" />
-        <input required name="amount" type="number" step="0.01" placeholder="Amount (₱)" className="w-full bg-slate-50 p-4 rounded-2xl mb-3 font-medium outline-none border border-slate-100 focus:border-rose-500" />
-        <input required name="due" type="date" className="w-full bg-slate-50 p-4 rounded-2xl mb-4 font-medium outline-none border border-slate-100 focus:border-rose-500 text-slate-500" />
+        <label htmlFor="debt-creditor" className="block text-xs font-bold text-slate-700 mb-1">Name</label>
+        <input id="debt-creditor" required name="creditor" placeholder="Name (e.g. Rent, Credit Card)" className="w-full bg-slate-50 p-4 rounded-2xl mb-3 font-medium outline-none border border-slate-100 focus:border-rose-500" />
+        <label htmlFor="debt-amount" className="block text-xs font-bold text-slate-700 mb-1">Amount (₱)</label>
+        <input id="debt-amount" required name="amount" type="number" step="0.01" placeholder="0.00" className="w-full bg-slate-50 p-4 rounded-2xl mb-3 font-medium outline-none border border-slate-100 focus:border-rose-500" />
+        <label htmlFor="debt-due" className="block text-xs font-bold text-slate-700 mb-1">Due Date</label>
+        <input id="debt-due" required name="due" type="date" className="w-full bg-slate-50 p-4 rounded-2xl mb-4 font-medium outline-none border border-slate-100 focus:border-rose-500 text-slate-500" />
         <div className="flex items-center gap-2 mb-4 px-2">
           <input type="checkbox" name="isRecurring" id="isRecurring" className="w-4 h-4 accent-rose-500 rounded border-slate-300" />
           <label htmlFor="isRecurring" className="text-sm font-bold text-slate-700">This is a recurring monthly bill</label>

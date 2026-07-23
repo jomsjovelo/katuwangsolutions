@@ -49,9 +49,11 @@ export function IncomeModal({ isOpen, onClose, tenantId, persona, onAllocationPr
     <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
       <form onSubmit={handleIncomeSubmit} className="bg-white p-6 rounded-[32px] w-full max-w-sm shadow-2xl">
         <h3 className="font-black text-xl mb-4">Log Income</h3>
-        <input required name="amount" type="number" step="0.01" placeholder="Amount (₱)" className="w-full bg-slate-50 p-4 rounded-2xl mb-3 font-medium outline-none border border-slate-100 focus:border-emerald-500" />
+        <label htmlFor="income-amount" className="block text-xs font-bold text-slate-700 mb-1">Amount (₱)</label>
+        <input id="income-amount" required name="amount" type="number" step="0.01" placeholder="0.00" className="w-full bg-slate-50 p-4 rounded-2xl mb-3 font-medium outline-none border border-slate-100 focus:border-emerald-500" />
         <div className="mb-3 space-y-2">
-          <input required name="category" value={incomeCategory} onChange={(e) => setIncomeCategory(e.target.value)} placeholder="Category (e.g. Salary, Gift)" className="w-full bg-slate-50 p-4 rounded-2xl font-medium outline-none border border-slate-100 focus:border-emerald-500" />
+          <label htmlFor="income-category" className="block text-xs font-bold text-slate-700 mb-1">Category</label>
+          <input id="income-category" required name="category" value={incomeCategory} onChange={(e) => setIncomeCategory(e.target.value)} placeholder="Category (e.g. Salary, Gift)" className="w-full bg-slate-50 p-4 rounded-2xl font-medium outline-none border border-slate-100 focus:border-emerald-500" />
           <div className="flex flex-wrap gap-2">
             {(persona === 'student' ? ['Allowance', 'Raket', 'Gift', 'Scholarship'] : persona === 'freelancer' ? ['Client Payment', 'Gig', 'Sales', 'Other'] : ['Salary', 'Business', 'Bonus', 'Investment']).map(cat => (
               <button key={cat} type="button" onClick={() => setIncomeCategory(cat)} className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${incomeCategory === cat ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
@@ -60,8 +62,10 @@ export function IncomeModal({ isOpen, onClose, tenantId, persona, onAllocationPr
             ))}
           </div>
         </div>
-        <input name="date" type="date" className="w-full bg-slate-50 p-4 rounded-2xl mb-3 font-medium outline-none border border-slate-100 focus:border-emerald-500 text-slate-500" />
-        <textarea required name="note" placeholder="Mandatory Note (e.g. June Salary)" className="w-full bg-slate-50 p-4 rounded-2xl mb-4 font-medium outline-none border border-slate-100 focus:border-emerald-500 h-24 resize-none" />
+        <label htmlFor="income-date" className="block text-xs font-bold text-slate-700 mb-1">Date</label>
+        <input id="income-date" name="date" type="date" className="w-full bg-slate-50 p-4 rounded-2xl mb-3 font-medium outline-none border border-slate-100 focus:border-emerald-500 text-slate-500" />
+        <label htmlFor="income-note" className="block text-xs font-bold text-slate-700 mb-1">Mandatory Note</label>
+        <textarea id="income-note" required name="note" placeholder="Mandatory Note (e.g. June Salary)" className="w-full bg-slate-50 p-4 rounded-2xl mb-4 font-medium outline-none border border-slate-100 focus:border-emerald-500 h-24 resize-none" />
         <div className="flex gap-2">
           <Button type="button" disabled={isSubmitting} variant="ghost" onClick={onClose} className="flex-1 rounded-xl">Cancel</Button>
           <Button type="submit" disabled={isSubmitting} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold">Save</Button>

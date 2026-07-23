@@ -60,8 +60,10 @@ export function GoalModal({ isOpen, onClose, tenantId, persona }: GoalModalProps
             </button>
           ))}
         </div>
-        <input required name="name" placeholder="Goal Name (e.g. Emergency Fund)" className="w-full bg-slate-50 p-4 rounded-2xl mb-3 font-medium outline-none border border-slate-100 focus:border-indigo-500" />
-        <input required name="amount" type="number" step="0.01" placeholder="Target Amount (₱)" className="w-full bg-slate-50 p-4 rounded-2xl mb-4 font-medium outline-none border border-slate-100 focus:border-indigo-500" />
+        <label htmlFor="goal-name" className="block text-xs font-bold text-slate-700 mb-1">Goal Name</label>
+        <input id="goal-name" required name="name" placeholder="Goal Name (e.g. Emergency Fund)" className="w-full bg-slate-50 p-4 rounded-2xl mb-3 font-medium outline-none border border-slate-100 focus:border-indigo-500" />
+        <label htmlFor="goal-amount" className="block text-xs font-bold text-slate-700 mb-1">Target Amount (₱)</label>
+        <input id="goal-amount" required name="amount" type="number" step="0.01" placeholder="0.00" className="w-full bg-slate-50 p-4 rounded-2xl mb-4 font-medium outline-none border border-slate-100 focus:border-indigo-500" />
         <div className="flex gap-2">
           <Button type="button" variant="ghost" onClick={onClose} className="flex-1 rounded-xl">Cancel</Button>
           <Button type="submit" className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-bold">Save</Button>

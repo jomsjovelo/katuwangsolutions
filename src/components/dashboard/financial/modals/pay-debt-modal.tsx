@@ -37,11 +37,12 @@ export function PayDebtModal({ debt, onClose, tenantId }: PayDebtModalProps) {
             toast({title: 'Error', description: err.message, variant: 'destructive'});
           }
         }}>
-          <div className="py-4">
-            <p className="text-sm text-slate-500 mb-4">
+          <div className="py-4 space-y-2">
+            <p className="text-sm text-slate-500 mb-2">
               How much are you paying today? Your remaining balance is {formatPeso(debt.remainingAmountCentavos / 100)}.
             </p>
-            <Input required name="amount" type="number" step="0.01" placeholder="Amount (₱)" max={(debt.remainingAmountCentavos / 100).toString()} />
+            <label htmlFor="pay-debt-amount" className="block text-xs font-bold text-slate-700">Amount (₱)</label>
+            <Input id="pay-debt-amount" required name="amount" type="number" step="0.01" placeholder="0.00" max={(debt.remainingAmountCentavos / 100).toString()} />
           </div>
           <DialogFooter>
             <Button variant="outline" type="button" onClick={onClose}>Cancel</Button>
