@@ -36,12 +36,11 @@ export async function addBudgetTransaction(
     delete payload.date;
   }
 
-  await setDoc(newDocRef, payload);
-
-  // Also update master-cash for overall balance, because Budget Mo tracks actual cash.
   const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
-  
+
   await runTransactionResilient(db, async (transaction) => {
+    transaction.set(newDocRef, payload);
+
     const masterAccountSnap = await transaction.get(masterAccountRef);
     if (!masterAccountSnap.exists()) {
       transaction.set(masterAccountRef, {

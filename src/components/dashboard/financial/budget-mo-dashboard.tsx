@@ -231,9 +231,10 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
         if (data.cycleType) setCycleType(data.cycleType as CycleType);
         if (data.paydayCycle) setPaydayCycle(Number(data.paydayCycle));
         if (data.secondPaydayCycle) setSecondPaydayCycle(Number(data.secondPaydayCycle));
-        // Default to worker/universal settings
-        setPersona('worker');
-        setCycleType(safeGetStorage('budgetSenseCycleType') as CycleType || 'monthly');
+      } else {
+        // Fallback to localStorage or defaults if no Firestore settings document exists yet
+        setPersona((safeGetStorage('budgetSensePersona') as BudgetPersona) || 'worker');
+        setCycleType((safeGetStorage('budgetSenseCycleType') as CycleType) || 'monthly');
         setPaydayCycle(Number(safeGetStorage('budgetSensePayday') || 15));
         setSecondPaydayCycle(Number(safeGetStorage('budgetSenseSecondPayday') || 30));
       }
@@ -353,7 +354,7 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
     .reduce((acc, d) => acc + (d.remainingAmountCentavos || 0), 0);
 
   const availableCashAfterDebtsCentavos = Math.max(0, masterBalance - urgentDebtCentavos);
-  const safeToSpend = availableCashAfterDebtsCentavos / 100 / daysRemaining;
+  const safeToSpend = availableCashAfterDebtsCentavos / 100 / Math.max(1, daysRemaining);
 
   // Pacing Speedometer Math
   const daysElapsedInCycle = Math.max(1, Math.ceil((new Date().getTime() - cycleStart.getTime()) / (1000 * 3600 * 24)));
