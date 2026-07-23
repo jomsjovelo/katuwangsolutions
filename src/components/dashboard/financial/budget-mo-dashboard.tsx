@@ -43,6 +43,7 @@ import { WrapUpModal } from './modals/wrap-up-modal';
 import { AllocationModal } from './modals/allocation-modal';
 import { BillsModal } from './modals/bills-modal';
 import { PresetModal } from './modals/preset-modal';
+import { DepositGoalModal } from './modals/deposit-goal-modal';
 import { VerificationPrompt } from '@/components/common/verification-prompt';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -77,6 +78,27 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showBillsModal, setShowBillsModal] = useState(false);
   const [showPresetModal, setShowPresetModal] = useState(false);
+  const [depositGoalModal, setDepositGoalModal] = useState<SavingsGoal | null>(null);
+  const [debtFilter, setDebtFilter] = useState<'all' | 'i_owe' | 'owed_to_me'>('all');
+  
+  const [ipon52Week, setIpon52Week] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('budgetSense52WeekProgress');
+      return saved ? parseInt(saved, 10) : 12;
+    } catch {
+      return 12;
+    }
+  });
+
+  const [coffeeStreak, setCoffeeStreak] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('budgetSenseCoffeeStreak');
+      return saved ? parseInt(saved, 10) : 18;
+    } catch {
+      return 18;
+    }
+  });
+
   const [showAllocationPrompt, setShowAllocationPrompt] = useState<{amount: number} | null>(null);
   
   const [presets, setPresets] = useState<BudgetPreset[]>(() => {
@@ -1247,175 +1269,315 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
 
 
       {/* SAVINGS TAB (STOCK) */}
-      {activeTab === 'stock' && (
-        <div className="px-4 py-6 space-y-6">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Savings & Debts</h1>
-            <PiggyBank className="h-6 w-6 text-primary" />
-          </div>
+      {activeTab === 'stock' && (() => {
+        const totalSavingsCentavos = goals.reduce((acc, g) => acc + (g.currentAmountCentavos || 0), 0);
+        const totalDebtsCentavos = debts.filter(d => d.direction !== 'owed_to_me').reduce((acc, d) => acc + (d.remainingAmountCentavos || 0), 0);
+        const totalReceivablesCentavos = debts.filter(d => d.direction === 'owed_to_me').reduce((acc, d) => acc + (d.remainingAmountCentavos || 0), 0);
+        const netPositionCentavos = masterBalance + totalSavingsCentavos + totalReceivablesCentavos - totalDebtsCentavos;
 
-          {/* Debt Manager */}
-          <div className="bg-rose-50/50 rounded-2xl border border-rose-100 overflow-hidden">
-            <div className="p-4 border-b border-rose-100 flex justify-between items-center bg-white">
-              <h3 className="text-[10px] font-black text-rose-600 uppercase tracking-widest">Personal Debts (Utang)</h3>
-              <Button size="sm" variant="outline" className="h-7 text-xs text-rose-600 border-rose-200 hover:bg-rose-50" onClick={() => setShowDebtModal(true)}>
-                + Add Debt
-              </Button>
-            </div>
-            
-            <div className="p-4">
-              {debts.length === 0 ? (
-                <div className="text-center text-sm text-slate-400 py-4">You have no active debts recorded. Nice!</div>
-              ) : (
-                <div className="space-y-3">
-                  {debts.map(debt => (
-                    <div key={debt.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <h4 className="font-bold text-sm text-slate-800">{debt.creditorName}</h4>
-                          <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md mt-1 inline-block bg-rose-100 text-rose-700`}>
-                            I Borrowed
-                          </span>
-                        </div>
-                        <div className="flex gap-2 items-start">
-                          <div className="text-right">
-                            <p className="font-black text-lg text-slate-800">{formatMoney(debt.remainingAmountCentavos)}</p>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Remaining</p>
-                          </div>
-                          <div className="flex flex-col gap-1 -mt-1 -mr-1">
-                            <Button size="icon" variant="ghost" className="h-6 w-6 text-slate-400 hover:text-indigo-600" onClick={() => setEditingDebt(debt)}><Settings className="h-3 w-3" /></Button>
-                            <Button size="icon" variant="ghost" className="h-6 w-6 text-slate-400 hover:text-rose-600" onClick={() => setDebtToDelete(debt)}><Trash2 className="h-3 w-3" /></Button>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-rose-500 rounded-full transition-all"
-                            style={{ width: `${Math.min(100, ((debt.totalAmountCentavos - debt.remainingAmountCentavos) / debt.totalAmountCentavos) * 100)}%` }}
-                          />
-                        </div>
-                        <Button size="sm" variant="ghost" className="h-8 text-xs font-bold text-primary" onClick={() => setShowPayDebtModal(debt)}>
-                          Pay
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+        const filteredDebts = debts.filter(d => {
+          if (debtFilter === 'i_owe') return d.direction !== 'owed_to_me';
+          if (debtFilter === 'owed_to_me') return d.direction === 'owed_to_me';
+          return true;
+        });
 
-          {/* Ipon Challenge Gamification Streaks */}
-          <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-2xl p-5 text-white shadow-lg space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center">
-                  <Trophy className="h-4 w-4 text-amber-300" />
-                </div>
+        const week52SavingsPesos = (ipon52Week * (ipon52Week + 1) / 2) * 50;
+        const coffeeSavingsPesos = coffeeStreak * 120;
+
+        return (
+          <div className="px-4 py-6 space-y-6">
+            <div className="flex items-center justify-between mb-2">
+              <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Savings & Debts</h1>
+              <PiggyBank className="h-6 w-6 text-primary" />
+            </div>
+
+            {/* Top Net Position Summary Banner */}
+            <div className="bg-slate-900 text-white rounded-3xl p-5 shadow-xl border border-slate-800 space-y-4">
+              <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="font-black text-sm tracking-tight uppercase">Ipon Challenge Streaks</h3>
-                  <p className="text-[10px] opacity-80">Fun gamified savings habits</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Net Position Impact</p>
+                  <h2 className="text-2xl font-black tracking-tight text-white">{formatMoney(netPositionCentavos)}</h2>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-xs font-black tracking-wider uppercase ${netPositionCentavos >= 0 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}`}>
+                  {netPositionCentavos >= 0 ? '✓ Solid Position' : '⚠️ Debt Heavy'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800">
+                <div className="bg-slate-800/60 p-2.5 rounded-2xl border border-slate-700/50">
+                  <p className="text-[9px] font-black uppercase text-emerald-400">Total Savings</p>
+                  <p className="font-bold text-sm text-white">{formatMoney(totalSavingsCentavos)}</p>
+                </div>
+                <div className="bg-slate-800/60 p-2.5 rounded-2xl border border-slate-700/50">
+                  <p className="text-[9px] font-black uppercase text-rose-400">Total Utang (I Owe)</p>
+                  <p className="font-bold text-sm text-white">{formatMoney(totalDebtsCentavos)}</p>
+                </div>
+                <div className="bg-slate-800/60 p-2.5 rounded-2xl border border-slate-700/50">
+                  <p className="text-[9px] font-black uppercase text-amber-400">Pautang (Receivable)</p>
+                  <p className="font-bold text-sm text-white">{formatMoney(totalReceivablesCentavos)}</p>
                 </div>
               </div>
-              <span className="bg-amber-400 text-slate-900 font-black text-[10px] px-2.5 py-1 rounded-full uppercase tracking-wider">🔥 Active</span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-1">
-              <div className="bg-white/10 border border-white/15 rounded-xl p-3">
-                <p className="text-xs font-bold text-amber-200">52-Week ₱50 Challenge</p>
-                <p className="text-lg font-black text-white">Week 12 / 52</p>
-                <p className="text-[10px] opacity-80 mt-0.5">₱3,900 Saved 🐷</p>
-              </div>
-              <div className="bg-white/10 border border-white/15 rounded-xl p-3">
-                <p className="text-xs font-bold text-indigo-200">30-Day Coffee Limit</p>
-                <p className="text-lg font-black text-white">18 Days Streak 🔥</p>
-                <p className="text-[10px] opacity-80 mt-0.5">₱2,160 Saved ☕</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Savings Goals */}
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-            <div className="p-4 border-b border-slate-100 flex justify-between items-center">
-              <h3 className="text-[10px] font-black text-primary uppercase tracking-widest">Savings Goals</h3>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="h-7 text-xs text-primary border-primary-100 hover:bg-primary-50" onClick={() => setShowGoalModal(true)}>
-                  + Goal
-                </Button>
-                {goals.length > 0 && masterBalance > 0 && (
-                  <Button size="sm" className="h-7 text-xs font-bold" onClick={() => setShowAllocationPrompt({amount: masterBalance})}>
-                    Smart Allocate
+            {/* Debt & Receivables Manager */}
+            <div className="bg-rose-50/40 rounded-2xl border border-rose-100 overflow-hidden">
+              <div className="p-4 border-b border-rose-100 bg-white flex flex-col gap-3">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="text-[10px] font-black text-rose-600 uppercase tracking-widest">Debts & Receivables</h3>
+                    <p className="text-xs text-slate-500">Track money you owe vs money owed to you</p>
+                  </div>
+                  <Button size="sm" variant="outline" className="h-8 text-xs text-rose-600 border-rose-200 hover:bg-rose-50 font-bold rounded-xl" onClick={() => setShowDebtModal(true)}>
+                    + Add Record
                   </Button>
+                </div>
+
+                {/* Filter Pills */}
+                <div className="flex gap-1.5 bg-slate-100 p-1 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setDebtFilter('all')}
+                    className={`flex-1 py-1 text-[11px] font-bold rounded-lg transition-all ${debtFilter === 'all' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  >
+                    All ({debts.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDebtFilter('i_owe')}
+                    className={`flex-1 py-1 text-[11px] font-bold rounded-lg transition-all ${debtFilter === 'i_owe' ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  >
+                    Utang Ko ({debts.filter(d => d.direction !== 'owed_to_me').length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDebtFilter('owed_to_me')}
+                    className={`flex-1 py-1 text-[11px] font-bold rounded-lg transition-all ${debtFilter === 'owed_to_me' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  >
+                    Pautang Ko ({debts.filter(d => d.direction === 'owed_to_me').length})
+                  </button>
+                </div>
+              </div>
+              
+              <div className="p-4">
+                {filteredDebts.length === 0 ? (
+                  <div className="text-center text-sm text-slate-400 py-4">No debt or receivable records in this view.</div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredDebts.map(debt => {
+                      const isOwedToMe = debt.direction === 'owed_to_me';
+                      return (
+                        <div key={debt.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <h4 className="font-bold text-sm text-slate-800">{debt.creditorName}</h4>
+                              <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md mt-1 inline-block ${isOwedToMe ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-700'}`}>
+                                {isOwedToMe ? 'Pautang Ko (Owed to Me)' : 'Utang Ko (I Owe)'}
+                              </span>
+                            </div>
+                            <div className="flex gap-2 items-start">
+                              <div className="text-right">
+                                <p className="font-black text-lg text-slate-800">{formatMoney(debt.remainingAmountCentavos)}</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Remaining</p>
+                              </div>
+                              <div className="flex flex-col gap-1 -mt-1 -mr-1">
+                                <Button size="icon" variant="ghost" className="h-6 w-6 text-slate-400 hover:text-indigo-600" onClick={() => setEditingDebt(debt)}><Settings className="h-3 w-3" /></Button>
+                                <Button size="icon" variant="ghost" className="h-6 w-6 text-slate-400 hover:text-rose-600" onClick={() => setDebtToDelete(debt)}><Trash2 className="h-3 w-3" /></Button>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full rounded-full transition-all ${isOwedToMe ? 'bg-emerald-500' : 'bg-rose-500'}`}
+                                style={{ width: `${Math.min(100, ((debt.totalAmountCentavos - debt.remainingAmountCentavos) / debt.totalAmountCentavos) * 100)}%` }}
+                              />
+                            </div>
+                            <Button size="sm" variant="ghost" className={`h-8 text-xs font-bold ${isOwedToMe ? 'text-emerald-600 hover:bg-emerald-50' : 'text-rose-600 hover:bg-rose-50'}`} onClick={() => setShowPayDebtModal(debt)}>
+                              {isOwedToMe ? 'Collect' : 'Pay'}
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             </div>
-            
-            <div className="p-4">
-              {goals.length === 0 ? (
-                <div className="text-center text-sm text-slate-400 py-4">No savings goals yet. Start dreaming!</div>
-              ) : (
-                <div className="space-y-4">
-                  {goals.map(goal => {
-                    const progress = Math.min(100, (goal.currentAmountCentavos / goal.targetAmountCentavos) * 100);
-                    
-                    let projectionText = "";
-                    if (monthlySavingsRateCentavos > 0) {
-                      const remainingCentavos = Math.max(0, goal.targetAmountCentavos - goal.currentAmountCentavos);
-                      const monthsLeft = Math.ceil(remainingCentavos / monthlySavingsRateCentavos);
-                      if (monthsLeft > 0) {
-                        const targetDate = new Date();
-                        targetDate.setMonth(targetDate.getMonth() + monthsLeft);
-                        projectionText = `At your current rate, you could reach this by ${targetDate.toLocaleString('default', { month: 'short', year: 'numeric' })}! 🎯`;
-                      } else {
-                        projectionText = `Goal Reached! 🎉`;
-                      }
-                    } else {
-                      projectionText = `Tip: Start allocating savings to see when you'll hit your goal!`;
-                    }
 
-                    return (
-                      <div key={goal.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <h4 className="font-bold text-sm text-slate-800">{goal.name}</h4>
-                            <p className="text-xs text-slate-500 font-medium">{formatMoney(goal.currentAmountCentavos)} / {formatMoney(goal.targetAmountCentavos)}</p>
-                          </div>
-                          <div className="flex gap-2 items-start">
-                            <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-black text-xs">
-                              {Math.floor(progress)}%
-                            </div>
-                            <div className="flex flex-col gap-1 -mt-1 -mr-1">
-                              <Button size="icon" variant="ghost" className="h-6 w-6 text-slate-400 hover:text-indigo-600" onClick={() => setEditingGoal(goal)}><Settings className="h-3 w-3" /></Button>
-                              <Button size="icon" variant="ghost" className="h-6 w-6 text-slate-400 hover:text-rose-600" onClick={() => setGoalToDelete(goal)}><Trash2 className="h-3 w-3" /></Button>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="w-full h-3 bg-slate-100 rounded-full mt-3 mb-2 overflow-hidden">
-                          <div 
-                            className="h-full bg-indigo-500 rounded-full transition-all duration-1000"
-                            style={{ width: `${progress}%` }}
-                          />
-                        </div>
-                        
-                        <p className="text-[10px] font-bold text-slate-400 mt-2">{projectionText}</p>
-                        
-                        {goal.currentAmountCentavos >= goal.targetAmountCentavos && (
-                          <div className="absolute inset-0 bg-indigo-500/90 backdrop-blur-sm flex items-center justify-center text-white font-black tracking-widest uppercase">
-                            Goal Reached! 🎉
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+            {/* Interactive Ipon Challenge Gamification Streaks */}
+            <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-2xl p-5 text-white shadow-lg space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center">
+                    <Trophy className="h-4 w-4 text-amber-300" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-sm tracking-tight uppercase">Ipon Challenge Streaks</h3>
+                    <p className="text-[10px] opacity-80">Interactive gamified savings habits</p>
+                  </div>
                 </div>
-              )}
+                <span className="bg-amber-400 text-slate-900 font-black text-[10px] px-2.5 py-1 rounded-full uppercase tracking-wider">🔥 Active</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                {/* 52-Week Challenge */}
+                <div className="bg-white/10 border border-white/15 rounded-2xl p-4 flex flex-col justify-between space-y-3">
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <p className="text-xs font-bold text-amber-200">52-Week ₱50 Challenge</p>
+                      <span className="text-[10px] font-black text-amber-300 bg-black/20 px-2 py-0.5 rounded-full">Week {ipon52Week} / 52</span>
+                    </div>
+                    <p className="text-xl font-black text-white">₱{week52SavingsPesos.toLocaleString('en-US')} Saved 🐷</p>
+                    <div className="w-full h-2 bg-white/20 rounded-full mt-2 overflow-hidden">
+                      <div className="h-full bg-amber-400 rounded-full transition-all duration-300" style={{ width: `${(ipon52Week / 52) * 100}%` }} />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = Math.min(52, ipon52Week + 1);
+                        setIpon52Week(next);
+                        localStorage.setItem('budgetSense52WeekProgress', next.toString());
+                        toast({ title: `Week ${next} Checked Off!`, description: `Accumulated ₱${((next * (next + 1) / 2) * 50).toLocaleString()} saved.` });
+                      }}
+                      disabled={ipon52Week >= 52}
+                      className="flex-1 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded-xl active:scale-95 transition-all"
+                    >
+                      {ipon52Week >= 52 ? '🎉 Completed!' : `+ Check Off Week ${ipon52Week + 1}`}
+                    </button>
+                    {ipon52Week > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIpon52Week(1);
+                          localStorage.setItem('budgetSense52WeekProgress', '1');
+                        }}
+                        className="px-2.5 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl"
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* 30-Day Habit Streak */}
+                <div className="bg-white/10 border border-white/15 rounded-2xl p-4 flex flex-col justify-between space-y-3">
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <p className="text-xs font-bold text-indigo-200">30-Day Coffee Limit Habit</p>
+                      <span className="text-[10px] font-black text-indigo-300 bg-black/20 px-2 py-0.5 rounded-full">{coffeeStreak} Days</span>
+                    </div>
+                    <p className="text-xl font-black text-white">{coffeeStreak} Days Streak 🔥</p>
+                    <p className="text-xs text-indigo-100 opacity-90 mt-1">Estimated ₱{coffeeSavingsPesos.toLocaleString('en-US')} Saved ☕</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = coffeeStreak + 1;
+                        setCoffeeStreak(next);
+                        localStorage.setItem('budgetSenseCoffeeStreak', next.toString());
+                        toast({ title: '🔥 Streak Increased!', description: `You reached ${next} days streak!` });
+                      }}
+                      className="flex-1 py-2 bg-indigo-400 hover:bg-indigo-300 text-slate-950 font-black text-xs rounded-xl active:scale-95 transition-all"
+                    >
+                      +1 Day Streak
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Savings Goals */}
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+              <div className="p-4 border-b border-slate-100 flex justify-between items-center">
+                <h3 className="text-[10px] font-black text-primary uppercase tracking-widest">Savings Goals</h3>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className="h-8 text-xs text-primary border-primary-100 hover:bg-primary-50 font-bold rounded-xl" onClick={() => setShowGoalModal(true)}>
+                    + Goal
+                  </Button>
+                  {goals.length > 0 && masterBalance > 0 && (
+                    <Button size="sm" className="h-8 text-xs font-bold rounded-xl" onClick={() => setShowAllocationPrompt({amount: masterBalance})}>
+                      Smart Allocate
+                    </Button>
+                  )}
+                </div>
+              </div>
+              
+              <div className="p-4">
+                {goals.length === 0 ? (
+                  <div className="text-center text-sm text-slate-400 py-4">No savings goals yet. Start dreaming!</div>
+                ) : (
+                  <div className="space-y-4">
+                    {goals.map(goal => {
+                      const progress = Math.min(100, (goal.currentAmountCentavos / goal.targetAmountCentavos) * 100);
+                      
+                      let projectionText = "";
+                      if (monthlySavingsRateCentavos > 0) {
+                        const remainingCentavos = Math.max(0, goal.targetAmountCentavos - goal.currentAmountCentavos);
+                        const monthsLeft = Math.ceil(remainingCentavos / monthlySavingsRateCentavos);
+                        if (monthsLeft > 0) {
+                          const targetDate = new Date();
+                          targetDate.setMonth(targetDate.getMonth() + monthsLeft);
+                          projectionText = `At your current rate, you could reach this by ${targetDate.toLocaleString('default', { month: 'short', year: 'numeric' })}! 🎯`;
+                        } else {
+                          projectionText = `Goal Reached! 🎉`;
+                        }
+                      } else {
+                        projectionText = `Tip: Start allocating savings to see when you'll hit your goal!`;
+                      }
+
+                      return (
+                        <div key={goal.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <h4 className="font-bold text-sm text-slate-800">{goal.name}</h4>
+                              <p className="text-xs text-slate-500 font-medium">{formatMoney(goal.currentAmountCentavos)} / {formatMoney(goal.targetAmountCentavos)}</p>
+                            </div>
+                            <div className="flex gap-2 items-center">
+                              <Button
+                                size="sm"
+                                className="h-7 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-black text-xs rounded-xl border border-indigo-200"
+                                onClick={() => setDepositGoalModal(goal)}
+                              >
+                                + Deposit
+                              </Button>
+                              <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-black text-xs">
+                                {Math.floor(progress)}%
+                              </div>
+                              <div className="flex flex-col gap-1 -mt-1 -mr-1">
+                                <Button size="icon" variant="ghost" className="h-6 w-6 text-slate-400 hover:text-indigo-600" onClick={() => setEditingGoal(goal)}><Settings className="h-3 w-3" /></Button>
+                                <Button size="icon" variant="ghost" className="h-6 w-6 text-slate-400 hover:text-rose-600" onClick={() => setGoalToDelete(goal)}><Trash2 className="h-3 w-3" /></Button>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="w-full h-3 bg-slate-100 rounded-full mt-3 mb-2 overflow-hidden">
+                            <div 
+                              className="h-full bg-indigo-500 rounded-full transition-all duration-1000"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                          
+                          <p className="text-[10px] font-bold text-slate-400 mt-2">{projectionText}</p>
+                          
+                          {goal.currentAmountCentavos >= goal.targetAmountCentavos && (
+                            <div className="absolute inset-0 bg-indigo-500/90 backdrop-blur-sm flex items-center justify-center text-white font-black tracking-widest uppercase">
+                              Goal Reached! 🎉
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* INSIGHTS TAB (ULAT) */}
       {activeTab === 'ulat' && (
@@ -1708,6 +1870,14 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
         onClose={() => setShowGoalModal(false)} 
         tenantId={currentTenant?.id || ''} 
         persona={persona} 
+      />
+
+      <DepositGoalModal
+        isOpen={!!depositGoalModal}
+        onClose={() => setDepositGoalModal(null)}
+        tenantId={currentTenant?.id || ''}
+        goal={depositGoalModal}
+        masterBalance={masterBalance}
       />
 
       <EnvelopeModal 

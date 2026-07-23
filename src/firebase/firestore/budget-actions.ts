@@ -232,7 +232,8 @@ export async function addDebtRecord(
   totalAmountCentavos: number,
   dueDate?: string,
   note?: string,
-  isRecurring?: boolean
+  isRecurring?: boolean,
+  direction: 'i_owe' | 'owed_to_me' = 'i_owe'
 ) {
   const db = getKatuwangDb();
   
@@ -243,7 +244,8 @@ export async function addDebtRecord(
     dueDate,
     note,
     status: 'active',
-    isRecurring: isRecurring || false
+    isRecurring: isRecurring || false,
+    direction
   });
 
   const debtsRef = collection(db, 'tenants', tenantId, 'budget_debts');
@@ -280,6 +282,8 @@ export async function logDebtPayment(
     const data = debtSnap.data();
     if (data.status === 'paid') throw new Error("Debt is already paid");
 
+    const isOwedToMe = data.direction === 'owed_to_me';
+
     const newRemaining = data.isRecurring 
       ? data.remainingAmountCentavos 
       : Math.max(0, data.remainingAmountCentavos - amountCentavos);
@@ -291,9 +295,11 @@ export async function logDebtPayment(
       updatedAt: serverTimestamp()
     });
 
+    const cashDelta = isOwedToMe ? amountCentavos : -amountCentavos;
+
     if (masterSnap.exists()) {
       transaction.update(masterAccountRef, {
-        balance: increment(-amountCentavos),
+        balance: increment(cashDelta),
         updatedAt: serverTimestamp()
       });
     } else {
@@ -302,7 +308,7 @@ export async function logDebtPayment(
         tenantId,
         name: 'Main Cash Register',
         type: 'asset',
-        balance: -amountCentavos,
+        balance: cashDelta,
         isActive: true,
         createdAt: serverTimestamp(),
       });
@@ -312,10 +318,10 @@ export async function logDebtPayment(
     const newTxRef = doc(transactionsRef);
     transaction.set(newTxRef, {
       id: newTxRef.id,
-      type: 'expense',
+      type: isOwedToMe ? 'income' : 'expense',
       amountCentavos,
-      category: `Payment: ${data.creditorName}`,
-      note: note || `Payment to ${data.creditorName}`,
+      category: isOwedToMe ? `Collected: ${data.creditorName}` : `Payment: ${data.creditorName}`,
+      note: note || (isOwedToMe ? `Collected payment from ${data.creditorName}` : `Payment to ${data.creditorName}`),
       createdAt: serverTimestamp(),
     });
   });
@@ -324,7 +330,7 @@ export async function logDebtPayment(
 export async function editDebtRecord(
   tenantId: string,
   debtId: string,
-  updates: { creditorName?: string, totalAmountCentavos?: number, remainingAmountCentavos?: number, dueDate?: string, note?: string, isRecurring?: boolean }
+  updates: { creditorName?: string, totalAmountCentavos?: number, remainingAmountCentavos?: number, dueDate?: string, note?: string, isRecurring?: boolean, direction?: 'i_owe' | 'owed_to_me' }
 ) {
   const db = getKatuwangDb();
   const debtRef = doc(db, 'tenants', tenantId, 'budget_debts', debtId);
