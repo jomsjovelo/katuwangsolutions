@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Wallet, TrendingUp, TrendingDown, PiggyBank, Target, 
-  Plus, CalendarDays, Receipt, AlertCircle, ArrowRight, Settings, Trash2, Download
+  Plus, CalendarDays, Receipt, AlertCircle, ArrowRight, Settings, Trash2, Download, Zap, Printer
 } from 'lucide-react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { collection, onSnapshot, query, orderBy, doc, where } from 'firebase/firestore';
@@ -24,11 +24,12 @@ import {
   addBudgetEnvelope,
   deleteBudgetEnvelope,
   updateBudgetSettings,
-  addAutoAllocationEnvelopes
+  addAutoAllocationEnvelopes,
+  updateBudgetPresets
 } from '@/firebase/firestore/budget-actions';
-import { BudgetTransaction, Debt, SavingsGoal, BudgetEnvelope } from '@/lib/schemas/budget';
+import { BudgetTransaction, Debt, SavingsGoal, BudgetEnvelope, BudgetPreset } from '@/lib/schemas/budget';
 import { Button } from '@/components/ui/button';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { IncomeModal } from './modals/income-modal';
 import { ExpenseModal } from './modals/expense-modal';
 import { DebtModal } from './modals/debt-modal';
@@ -39,6 +40,7 @@ import { SettingsModal } from './modals/settings-modal';
 import { WrapUpModal } from './modals/wrap-up-modal';
 import { AllocationModal } from './modals/allocation-modal';
 import { BillsModal } from './modals/bills-modal';
+import { PresetModal } from './modals/preset-modal';
 import { VerificationPrompt } from '@/components/common/verification-prompt';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -72,7 +74,22 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
   const [showEnvelopeModal, setShowEnvelopeModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showBillsModal, setShowBillsModal] = useState(false);
+  const [showPresetModal, setShowPresetModal] = useState(false);
   const [showAllocationPrompt, setShowAllocationPrompt] = useState<{amount: number} | null>(null);
+  
+  const [presets, setPresets] = useState<BudgetPreset[]>(() => {
+    try {
+      const saved = localStorage.getItem('budgetSensePresets');
+      return saved ? JSON.parse(saved) : [
+        { id: 'p1', icon: '🚌', title: 'Pamasahe', amountCentavos: 2000, category: 'Transportation', type: 'expense' },
+        { id: 'p2', icon: '🍱', title: 'Lunch', amountCentavos: 8000, category: 'Food', type: 'expense' },
+        { id: 'p3', icon: '☕', title: 'Kape', amountCentavos: 12000, category: 'Food', type: 'expense' },
+        { id: 'p4', icon: '📱', title: 'Load', amountCentavos: 9900, category: 'Utilities', type: 'expense' },
+      ];
+    } catch {
+      return [];
+    }
+  });
   const [showWrapUpModal, setShowWrapUpModal] = useState(false);
   const [showHealthScoreInfo, setShowHealthScoreInfo] = useState(false);
   const [wrapUpSavingsAmount, setWrapUpSavingsAmount] = useState(0);
@@ -252,7 +269,13 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
       setEnvelopes(snap.docs.map(d => ({ id: d.id, ...d.data() }) as BudgetEnvelope));
     });
 
-    return () => { unsubSettings(); masterUnsub(); txUnsub(); debtUnsub(); goalUnsub(); envUnsub(); };
+    const presetsUnsub = onSnapshot(doc(db, 'tenants', currentTenant.id, 'settings', 'budget_presets'), (docSnap) => {
+      if (docSnap.exists() && Array.isArray(docSnap.data().items)) {
+        setPresets(docSnap.data().items);
+      }
+    });
+
+    return () => { unsubSettings(); masterUnsub(); txUnsub(); debtUnsub(); goalUnsub(); envUnsub(); presetsUnsub(); };
   }, [currentTenant?.id, db, fetchMinDate.getTime()]);
 
   const cycleTransactions = transactions.filter(t => {
@@ -448,6 +471,112 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
     toast({ title: 'Statement Exported', description: 'CSV file downloaded successfully.' });
   };
 
+  const printPdfStatement = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Budget Mo Statement - ${new Date().toISOString().split('T')[0]}</title>
+          <style>
+            body { font-family: system-ui, -apple-system, sans-serif; padding: 32px; color: #1e293b; }
+            .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 16px; margin-bottom: 24px; }
+            .title { font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.5px; color: #0f172a; }
+            .subtitle { font-size: 12px; color: #64748b; font-weight: 600; }
+            .summary-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+            .card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 12px; }
+            .card-title { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 4px; }
+            .card-value { font-size: 20px; font-weight: 900; color: #0f172a; }
+            table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+            th { text-align: left; font-size: 10px; font-weight: 800; text-transform: uppercase; color: #64748b; padding: 10px; border-bottom: 2px solid #e2e8f0; }
+            td { font-size: 12px; padding: 12px 10px; border-bottom: 1px solid #f1f5f9; }
+            .income { color: #059669; font-weight: 700; }
+            .expense { color: #dc2626; font-weight: 700; }
+            @media print { body { padding: 0; } }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <div class="title">Budget Mo Statement</div>
+              <div class="subtitle">Personal & MSME Financial Report • ${new Date().toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+            </div>
+            <div style="font-size: 12px; font-weight: 800; color: #059669;">Katuwang Solutions</div>
+          </div>
+
+          <div class="summary-cards">
+            <div class="card">
+              <div class="card-title">Available Cash</div>
+              <div class="card-value">₱${(masterBalance / 100).toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+            </div>
+            <div class="card">
+              <div class="card-title">Cycle Income</div>
+              <div class="card-value" style="color: #059669;">+₱${totalIncome.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+            </div>
+            <div class="card">
+              <div class="card-title">Cycle Expenses</div>
+              <div class="card-value" style="color: #dc2626;">-₱${totalExpense.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+            </div>
+          </div>
+
+          <div style="font-size: 14px; font-weight: 800; margin-bottom: 8px;">Transaction Activity</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Category</th>
+                <th>Note</th>
+                <th style="text-align: right;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${transactions.map(t => `
+                <tr>
+                  <td>${t.createdAt?.toDate ? new Date(t.createdAt.toDate()).toLocaleDateString('en-PH') : 'Recent'}</td>
+                  <td><span class="${t.type}">${t.type.toUpperCase()}</span></td>
+                  <td><strong>${t.category}</strong></td>
+                  <td>${t.note || '-'}</td>
+                  <td style="text-align: right;" class="${t.type}">${t.type === 'income' ? '+' : '-'}₱${(t.amountCentavos / 100).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <script>window.onload = function() { window.print(); }</script>
+        </body>
+      </html>
+    `;
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
+  const handleSavePresets = async (newPresets: BudgetPreset[]) => {
+    setPresets(newPresets);
+    try { localStorage.setItem('budgetSensePresets', JSON.stringify(newPresets)); } catch {}
+    if (currentTenant?.id) {
+      await updateBudgetPresets(currentTenant.id, newPresets);
+    }
+  };
+
+  const handleQuickLogPreset = async (preset: BudgetPreset) => {
+    if (!currentTenant?.id) return;
+    if (masterBalance < preset.amountCentavos && preset.type === 'expense') {
+      toast({ title: 'Insufficient Funds', description: 'Available cash is lower than preset amount.', variant: 'destructive' });
+      return;
+    }
+    try {
+      await addBudgetTransaction(currentTenant.id, preset.type, preset.amountCentavos, preset.category, `Quick Log: ${preset.title}`);
+      toast({ title: `${preset.icon || '⚡'} Logged!`, description: `${preset.title} (₱${(preset.amountCentavos / 100).toLocaleString()}) recorded.` });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const uniqueCategories = Array.from(new Set(transactions.map(t => t.category).filter(Boolean)));
+  const uniqueNotes = Array.from(new Set(transactions.map(t => t.note).filter(Boolean)));
+
   const handleConfirmAllocation = async (needsCentavos: number, wantsCentavos: number, savingsCentavos: number) => {
     if (!currentTenant?.id) return;
     await addAutoAllocationEnvelopes(currentTenant.id, needsCentavos, wantsCentavos, savingsCentavos);
@@ -586,7 +715,13 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
   return (
     <div className="h-full bg-slate-50 flex flex-col pb-24 overflow-y-auto">
       
-
+      {/* Autocomplete Datalists for Smart Memory */}
+      <datalist id="category-history-list">
+        {uniqueCategories.map(cat => <option key={cat} value={cat} />)}
+      </datalist>
+      <datalist id="note-history-list">
+        {uniqueNotes.map(note => <option key={note} value={note} />)}
+      </datalist>
 
       {/* HEADER BANNER - FOR DASHBOARD AND BENTA (WHICH ACTS AS INCOME LOG) */}
       {(activeTab === 'home' || activeTab === 'benta') && (
@@ -622,19 +757,53 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
               </div>
 
               {activeTab === 'home' && (
-                <div className="flex gap-3">
-                  <Button 
-                    onClick={() => setShowIncomeModal(true)}
-                    className="flex-1 bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-md rounded-xl font-bold active:scale-95 transition-all"
-                  >
-                    + Income
-                  </Button>
-                  <Button 
-                    onClick={() => setShowExpenseModal(true)}
-                    className="flex-1 bg-black/20 hover:bg-black/30 text-white border-0 backdrop-blur-md rounded-xl font-bold active:scale-95 transition-all"
-                  >
-                    - Expense
-                  </Button>
+                <div className="space-y-3">
+                  <div className="flex gap-3">
+                    <Button 
+                      onClick={() => setShowIncomeModal(true)}
+                      className="flex-1 bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-md rounded-xl font-bold active:scale-95 transition-all"
+                    >
+                      + Income
+                    </Button>
+                    <Button 
+                      onClick={() => setShowExpenseModal(true)}
+                      className="flex-1 bg-black/20 hover:bg-black/30 text-white border-0 backdrop-blur-md rounded-xl font-bold active:scale-95 transition-all"
+                    >
+                      - Expense
+                    </Button>
+                  </div>
+
+                  {/* 1-Tap Quick Presets Bar */}
+                  <div className="pt-2">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-primary-foreground/80 flex items-center gap-1">
+                        <Zap className="h-3 w-3 text-amber-300" /> 1-Tap Presets ({presets.length}/20)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setShowPresetModal(true)}
+                        className="text-[10px] font-bold text-white hover:underline opacity-90"
+                      >
+                        + Manage
+                      </button>
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                      {presets.map((preset) => (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => handleQuickLogPreset(preset)}
+                          className="bg-white/20 hover:bg-white/30 border border-white/20 backdrop-blur-md px-3 py-1.5 rounded-xl flex items-center gap-2 shadow-sm transition-all active:scale-95 shrink-0 text-white"
+                        >
+                          <span className="text-sm">{preset.icon || '⚡'}</span>
+                          <div className="text-left">
+                            <p className="font-bold text-xs leading-tight">{preset.title}</p>
+                            <p className="text-[10px] opacity-80 font-black">₱{(preset.amountCentavos / 100).toLocaleString()}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -885,14 +1054,24 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
                 <div className="flex flex-col gap-4 mb-6">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Transaction History</h3>
-                    <Button 
-                      onClick={exportCsvStatement} 
-                      size="sm" 
-                      variant="outline" 
-                      className="h-7 text-[11px] font-bold gap-1 rounded-lg text-slate-700 border-slate-200 hover:bg-slate-50"
-                    >
-                      <Download className="h-3 w-3" /> Export CSV
-                    </Button>
+                    <div className="flex gap-1.5">
+                      <Button 
+                        onClick={exportCsvStatement} 
+                        size="sm" 
+                        variant="outline" 
+                        className="h-7 text-[11px] font-bold gap-1 rounded-lg text-slate-700 border-slate-200 hover:bg-slate-50"
+                      >
+                        <Download className="h-3 w-3" /> CSV
+                      </Button>
+                      <Button 
+                        onClick={printPdfStatement} 
+                        size="sm" 
+                        variant="outline" 
+                        className="h-7 text-[11px] font-bold gap-1 rounded-lg text-slate-700 border-slate-200 hover:bg-slate-50"
+                      >
+                        <Printer className="h-3 w-3" /> PDF
+                      </Button>
+                    </div>
                   </div>
                   
                   <div className="flex gap-2">
@@ -1592,6 +1771,14 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
         isOpen={showBillsModal}
         onClose={() => setShowBillsModal(false)}
         tenantId={currentTenant?.id || ''}
+      />
+
+      {/* Preset Modal for 1-Tap Shortcuts */}
+      <PresetModal
+        isOpen={showPresetModal}
+        onClose={() => setShowPresetModal(false)}
+        presets={presets}
+        onSavePresets={handleSavePresets}
       />
     </div>
   );

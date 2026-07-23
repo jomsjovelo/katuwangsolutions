@@ -53,7 +53,7 @@ export function IncomeModal({ isOpen, onClose, tenantId, persona, onAllocationPr
         <input id="income-amount" required name="amount" type="number" step="0.01" placeholder="0.00" className="w-full bg-slate-50 p-4 rounded-2xl mb-3 font-medium outline-none border border-slate-100 focus:border-emerald-500" />
         <div className="mb-3 space-y-2">
           <label htmlFor="income-category" className="block text-xs font-bold text-slate-700 mb-1">Category</label>
-          <input id="income-category" required name="category" value={incomeCategory} onChange={(e) => setIncomeCategory(e.target.value)} placeholder="Category (e.g. Salary, Gift)" className="w-full bg-slate-50 p-4 rounded-2xl font-medium outline-none border border-slate-100 focus:border-emerald-500" />
+          <input id="income-category" list="category-history-list" required name="category" value={incomeCategory} onChange={(e) => setIncomeCategory(e.target.value)} placeholder="Category (e.g. Salary, Gift)" className="w-full bg-slate-50 p-4 rounded-2xl font-medium outline-none border border-slate-100 focus:border-emerald-500" />
           <div className="flex flex-wrap gap-2">
             {(persona === 'student' ? ['Allowance', 'Raket', 'Gift', 'Scholarship'] : persona === 'freelancer' ? ['Client Payment', 'Gig', 'Sales', 'Other'] : ['Salary', 'Business', 'Bonus', 'Investment']).map(cat => (
               <button key={cat} type="button" onClick={() => setIncomeCategory(cat)} className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${incomeCategory === cat ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>

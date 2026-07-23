@@ -52,3 +52,13 @@ export type BudgetEnvelope = z.infer<typeof BudgetEnvelopeSchema> & {
   createdAt?: any;
   updatedAt?: any;
 };
+
+export interface BudgetPreset {
+  id: string;
+  icon?: string;
+  title: string;
+  amountCentavos: number;
+  category: string;
+  type: 'expense' | 'income';
+}
+

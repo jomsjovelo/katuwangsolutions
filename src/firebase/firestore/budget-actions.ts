@@ -403,3 +403,13 @@ export async function addAutoAllocationEnvelopes(
   }
 }
 
+export async function updateBudgetPresets(
+  tenantId: string,
+  presets: any[]
+) {
+  const db = getKatuwangDb();
+  const presetsRef = doc(db, 'tenants', tenantId, 'settings', 'budget_presets');
+  await setDoc(presetsRef, { items: presets, updatedAt: serverTimestamp() });
+}
+
+
