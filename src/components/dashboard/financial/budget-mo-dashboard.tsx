@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Wallet, TrendingUp, TrendingDown, PiggyBank, Target, 
-  Plus, CalendarDays, Receipt, AlertCircle, ArrowRight, Settings, Trash2
+  Plus, CalendarDays, Receipt, AlertCircle, ArrowRight, Settings, Trash2, Download
 } from 'lucide-react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { collection, onSnapshot, query, orderBy, doc, where } from 'firebase/firestore';
@@ -23,7 +23,8 @@ import {
   editBudgetTransaction,
   addBudgetEnvelope,
   deleteBudgetEnvelope,
-  updateBudgetSettings
+  updateBudgetSettings,
+  addAutoAllocationEnvelopes
 } from '@/firebase/firestore/budget-actions';
 import { BudgetTransaction, Debt, SavingsGoal, BudgetEnvelope } from '@/lib/schemas/budget';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,8 @@ import { GoalModal } from './modals/goal-modal';
 import { EnvelopeModal } from './modals/envelope-modal';
 import { SettingsModal } from './modals/settings-modal';
 import { WrapUpModal } from './modals/wrap-up-modal';
+import { AllocationModal } from './modals/allocation-modal';
+import { BillsModal } from './modals/bills-modal';
 import { VerificationPrompt } from '@/components/common/verification-prompt';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -68,6 +71,7 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
   const [goalToDelete, setGoalToDelete] = useState<SavingsGoal | null>(null);
   const [showEnvelopeModal, setShowEnvelopeModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showBillsModal, setShowBillsModal] = useState(false);
   const [showAllocationPrompt, setShowAllocationPrompt] = useState<{amount: number} | null>(null);
   const [showWrapUpModal, setShowWrapUpModal] = useState(false);
   const [showHealthScoreInfo, setShowHealthScoreInfo] = useState(false);
@@ -423,6 +427,33 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
     ? ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][paydayCycle]
     : `the ${paydayCycle}${[1, 21, 31].includes(paydayCycle) ? 'st' : [2, 22].includes(paydayCycle) ? 'nd' : [3, 23].includes(paydayCycle) ? 'rd' : 'th'}`;
   
+  const exportCsvStatement = () => {
+    if (!transactions.length) {
+      toast({ title: 'No Data', description: 'No transactions found to export.' });
+      return;
+    }
+    const headers = ['ID,Type,Amount (PHP),Category,Note,Date'];
+    const rows = transactions.map(t => {
+      const dateStr = t.createdAt ? (t.createdAt.toDate ? t.createdAt.toDate().toISOString() : new Date(t.createdAt).toISOString()) : '';
+      return `"${t.id}","${t.type}",${(t.amountCentavos / 100).toFixed(2)},"${t.category || ''}","${(t.note || '').replace(/"/g, '""')}","${dateStr}"`;
+    });
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers, ...rows].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `BudgetMo_Statement_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: 'Statement Exported', description: 'CSV file downloaded successfully.' });
+  };
+
+  const handleConfirmAllocation = async (needsCentavos: number, wantsCentavos: number, savingsCentavos: number) => {
+    if (!currentTenant?.id) return;
+    await addAutoAllocationEnvelopes(currentTenant.id, needsCentavos, wantsCentavos, savingsCentavos);
+    toast({ title: 'Salary Auto-Split Complete! 🎉', description: '50/30/20 budget envelopes created & updated.' });
+  };
+
   const resetTerm = 'Payday';
   const allowanceTerm = 'Safe to Spend Today';
 
@@ -677,10 +708,44 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
               {urgentDebtCentavos > 0 && (
                 <div className={`bg-white/50 rounded-xl p-2.5 text-[10px] font-bold ${theme.textDarker} flex items-center gap-2`}>
                   <AlertCircle className="h-3 w-3 text-rose-500 shrink-0" />
-                  <span>Smart Math: Deducted {formatMoney(urgentDebtCentavos)} of upcoming debts from this calculation to keep you safe! 🛡️</span>
+                  <span>Smart Math: Deducted {formatMoney(urgentDebtCentavos)} of upcoming debts/bills before next payday! 🛡️</span>
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Upcoming Bills & Subscriptions Card */}
+          <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-[10px] font-black text-amber-800 uppercase tracking-widest flex items-center gap-1.5">
+                <Receipt className="h-3.5 w-3.5 text-amber-600" />
+                Upcoming Bills & Subscriptions
+              </h3>
+              <Button
+                onClick={() => setShowBillsModal(true)}
+                size="sm"
+                variant="ghost"
+                className="h-6 text-[10px] font-bold text-amber-700 hover:bg-amber-100/60 rounded-lg px-2"
+              >
+                + Add Bill
+              </Button>
+            </div>
+            
+            {debts.filter(d => d.isRecurring).length === 0 ? (
+              <p className="text-xs text-amber-700/80 font-medium">No recurring bills added yet. Add Meralco, Rent, Internet, etc.</p>
+            ) : (
+              <div className="space-y-2">
+                {debts.filter(d => d.isRecurring).map(bill => (
+                  <div key={bill.id} className="bg-white/80 p-2.5 rounded-xl border border-amber-200/50 flex items-center justify-between">
+                    <div>
+                      <p className="font-bold text-xs text-slate-800">{bill.creditorName}</p>
+                      <p className="text-[10px] text-slate-500 font-medium">{bill.dueDate ? `Due ${bill.dueDate}` : 'Monthly recurring'}</p>
+                    </div>
+                    <span className="font-black text-xs text-amber-800">{formatMoney(bill.totalAmountCentavos)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Smart Split (50/30/20) */}
@@ -820,7 +885,17 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
             return (
               <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm min-h-[400px]">
                 <div className="flex flex-col gap-4 mb-6">
-                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Transaction History</h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Transaction History</h3>
+                    <Button 
+                      onClick={exportCsvStatement} 
+                      size="sm" 
+                      variant="outline" 
+                      className="h-7 text-[11px] font-bold gap-1 rounded-lg text-slate-700 border-slate-200 hover:bg-slate-50"
+                    >
+                      <Download className="h-3 w-3" /> Export CSV
+                    </Button>
+                  </div>
                   
                   <div className="flex gap-2">
                     <div className="relative flex-1">
@@ -1503,6 +1578,23 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
           }}
         />
       )}
+
+      {/* Allocation Modal for Salary Auto-Split */}
+      {showAllocationPrompt && (
+        <AllocationModal
+          isOpen={true}
+          onClose={() => setShowAllocationPrompt(null)}
+          incomeAmountCentavos={showAllocationPrompt.amount}
+          onConfirmAllocation={handleConfirmAllocation}
+        />
+      )}
+
+      {/* Bills Modal for Recurring Monthly Bills */}
+      <BillsModal
+        isOpen={showBillsModal}
+        onClose={() => setShowBillsModal(false)}
+        tenantId={currentTenant?.id || ''}
+      />
     </div>
   );
 }

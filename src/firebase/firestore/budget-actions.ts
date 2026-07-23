@@ -376,3 +376,30 @@ export async function updateBudgetSettings(
   await setDoc(settingsRef, { ...settings, updatedAt: serverTimestamp() }, { merge: true });
 }
 
+export async function addAutoAllocationEnvelopes(
+  tenantId: string,
+  needsCentavos: number,
+  wantsCentavos: number,
+  savingsCentavos: number
+) {
+  const db = getKatuwangDb();
+  const envRef = collection(db, 'tenants', tenantId, 'budget_envelopes');
+
+  // Create or update 50/30/20 envelopes
+  const items = [
+    { category: 'Needs (Essentials 50%)', limitCentavos: needsCentavos },
+    { category: 'Wants (Lifestyle 30%)', limitCentavos: wantsCentavos },
+    { category: 'Savings & Emergency (20%)', limitCentavos: savingsCentavos }
+  ];
+
+  for (const item of items) {
+    const newDocRef = doc(envRef);
+    await setDoc(newDocRef, {
+      id: newDocRef.id,
+      category: item.category,
+      limitCentavos: item.limitCentavos,
+      createdAt: serverTimestamp()
+    });
+  }
+}
+
