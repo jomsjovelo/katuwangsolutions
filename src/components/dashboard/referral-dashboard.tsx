@@ -337,7 +337,7 @@ export function ReferralDashboard() {
                     <p className="text-xs font-bold">Wala pang earnings history</p>
                   </div>
                 ) : (
-                  <ResponsiveContainer width="100%" height={200}>
+                  <ResponsiveContainer width="100%" height={200} minWidth={0} minHeight={0}>
                     <BarChart
                       data={monthlyData}
                       margin={{ top: 4, right: 4, left: -20, bottom: 0 }}

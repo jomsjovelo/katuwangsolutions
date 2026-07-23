@@ -625,7 +625,7 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
               <p className="text-xs text-emerald-400 font-bold mt-1">{healthMessage}</p>
             </div>
             <div className="relative z-10 h-16 w-16">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <PieChart>
                   <Pie
                     data={[
@@ -1134,7 +1134,7 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
               return (
                 <div className="space-y-4">
                   <div className="h-48 w-full -mt-2">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                       <PieChart>
                         <Pie
                           data={categoryData}
