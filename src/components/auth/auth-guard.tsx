@@ -227,7 +227,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   // (/dashboard, /admin) need to block on authLoading to prevent flashing unauthorized content.
   // Note: onboarding is already excluded because creating an account logs the user in mid-flow.
   if (!isPublicRoute && (authLoading || checking || isLoading || (user && isAdmin === null))) {
-    console.log('AuthGuard is blocking render:', { authLoading, isOnboarding, checking, isLoading, hasUser: !!user, isAdmin });
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-white">
         <div className="relative flex flex-col items-center gap-6">
