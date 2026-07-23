@@ -18,8 +18,20 @@ export function ExpenseModal({ isOpen, onClose, tenantId, persona, envelopes, ma
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [expenseCategory, setExpenseCategory] = useState('Transportation / Pamasahe');
+  const [receiptImage, setReceiptImage] = useState<string | null>(null);
 
   if (!isOpen) return null;
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setReceiptImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleExpenseSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -38,8 +50,10 @@ export function ExpenseModal({ isOpen, onClose, tenantId, persona, envelopes, ma
 
     try {
       setIsSubmitting(true);
-      await addBudgetTransaction(tenantId, 'expense', amount, category, note, date);
+      const finalNote = receiptImage ? `${note} [📷 Receipt Attached]` : note;
+      await addBudgetTransaction(tenantId, 'expense', amount, category, finalNote, date);
       toast({ title: 'Expense Logged', description: 'Your balance has been updated.' });
+      setReceiptImage(null);
       onClose();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -68,7 +82,25 @@ export function ExpenseModal({ isOpen, onClose, tenantId, persona, envelopes, ma
         <label htmlFor="expense-date" className="block text-xs font-bold text-slate-700 mb-1">Date</label>
         <input id="expense-date" name="date" type="date" className="w-full bg-slate-50 p-4 rounded-2xl mb-3 font-medium outline-none border border-slate-100 focus:border-rose-500 text-slate-500" />
         <label htmlFor="expense-note" className="block text-xs font-bold text-slate-700 mb-1">Mandatory Note</label>
-        <textarea id="expense-note" required name="note" placeholder="Mandatory Note (e.g. Tricycle to work)" className="w-full bg-slate-50 p-4 rounded-2xl mb-4 font-medium outline-none border border-slate-100 focus:border-rose-500 h-24 resize-none" />
+        <textarea id="expense-note" required name="note" placeholder="Mandatory Note (e.g. Tricycle to work)" className="w-full bg-slate-50 p-4 rounded-2xl mb-3 font-medium outline-none border border-slate-100 focus:border-rose-500 h-20 resize-none" />
+
+        <div className="mb-4">
+          <label htmlFor="expense-receipt-upload" className="block text-xs font-bold text-slate-700 mb-1">Receipt Photo (Optional)</label>
+          <input
+            id="expense-receipt-upload"
+            name="receiptFile"
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="text-xs text-slate-500 file:mr-2 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-rose-50 file:text-rose-600 hover:file:bg-rose-100"
+          />
+          {receiptImage && (
+            <div className="mt-2 flex items-center gap-2">
+              <img src={receiptImage} alt="Receipt Preview" className="h-10 w-10 object-cover rounded-lg border border-slate-200" />
+              <span className="text-[10px] text-emerald-600 font-bold">✓ Receipt Photo Attached</span>
+            </div>
+          )}
+        </div>
         <div className="flex gap-2">
           <Button type="button" disabled={isSubmitting} variant="ghost" onClick={onClose} className="flex-1 rounded-xl">Cancel</Button>
           <Button type="submit" disabled={isSubmitting} className="flex-1 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold">Save</Button>

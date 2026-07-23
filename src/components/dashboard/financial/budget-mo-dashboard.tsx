@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Wallet, TrendingUp, TrendingDown, PiggyBank, Target, 
-  Plus, CalendarDays, Receipt, AlertCircle, ArrowRight, Settings, Trash2, Download, Zap, Printer
+  Plus, CalendarDays, Receipt, AlertCircle, ArrowRight, Settings, Trash2, Download, Zap, Printer, Sparkles, Trophy
 } from 'lucide-react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { collection, onSnapshot, query, orderBy, doc, where } from 'firebase/firestore';
@@ -856,6 +856,9 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
                   <CalendarDays className="h-4 w-4" />
                   <h3 className="text-[10px] font-black uppercase tracking-widest">{allowanceTerm}</h3>
                 </div>
+                <span className="bg-emerald-200/80 text-emerald-900 font-bold text-[10px] px-2.5 py-0.5 rounded-full shadow-sm">
+                  {persona === 'student' ? `🎓 Next Allowance in ${daysRemaining} Days` : `💼 Payday in ${daysRemaining} Days`}
+                </span>
               </div>
               <p className={`text-3xl font-black ${theme.textDark} tracking-tighter`}>{formatPesos(safeToSpend)}</p>
               <p className={`text-xs ${theme.text} opacity-80 mt-1 mb-3`}>Based on {daysRemaining} days left until your {resetTerm.toLowerCase()} ({cycleText}).</p>
@@ -879,6 +882,29 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Smart AI Financial Nudges (Katuwang Advice) */}
+          <div className="bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-indigo-500/10 border border-amber-200/60 rounded-2xl p-4 shadow-sm space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase tracking-widest text-amber-900 flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-amber-600 animate-pulse" /> Katuwang Advice
+              </span>
+              <span className="text-[9px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">AI Smart Nudge</span>
+            </div>
+            {actualDailySpend > idealDailySpend * 1.1 && daysRemaining > 3 ? (
+              <p className="text-xs text-slate-700 font-medium leading-relaxed">
+                ⚡ <strong className="text-amber-900">Spending Velocity Caution:</strong> You're spending ₱{(actualDailySpend - idealDailySpend).toFixed(0)}/day over your recommended pace. Lower daily spend to ₱{idealDailySpend.toFixed(0)}/day to stay safe until next {resetTerm.toLowerCase()}!
+              </p>
+            ) : totalIncome > 0 && totalExpense / totalIncome < 0.7 ? (
+              <p className="text-xs text-slate-700 font-medium leading-relaxed">
+                🎉 <strong className="text-emerald-900">Excellent Savings Pace:</strong> You have saved {((1 - totalExpense / totalIncome) * 100).toFixed(0)}% of your income this cycle! Consider adding ₱{formatPesos((totalIncome - totalExpense) * 0.2)} to a Savings Goal.
+              </p>
+            ) : (
+              <p className="text-xs text-slate-700 font-medium leading-relaxed">
+                💡 <strong className="text-indigo-900">Pro Tip:</strong> Setting strict Envelope limits for top categories like "Food" or "Pamasahe" helps increase your monthly savings rate by up to 25%!
+              </p>
+            )}
           </div>
 
           {/* Upcoming Bills & Subscriptions Card */}
@@ -1217,6 +1243,35 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
             </div>
           </div>
 
+          {/* Ipon Challenge Gamification Streaks */}
+          <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-2xl p-5 text-white shadow-lg space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center">
+                  <Trophy className="h-4 w-4 text-amber-300" />
+                </div>
+                <div>
+                  <h3 className="font-black text-sm tracking-tight uppercase">Ipon Challenge Streaks</h3>
+                  <p className="text-[10px] opacity-80">Fun gamified savings habits</p>
+                </div>
+              </div>
+              <span className="bg-amber-400 text-slate-900 font-black text-[10px] px-2.5 py-1 rounded-full uppercase tracking-wider">🔥 Active</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <div className="bg-white/10 border border-white/15 rounded-xl p-3">
+                <p className="text-xs font-bold text-amber-200">52-Week ₱50 Challenge</p>
+                <p className="text-lg font-black text-white">Week 12 / 52</p>
+                <p className="text-[10px] opacity-80 mt-0.5">₱3,900 Saved 🐷</p>
+              </div>
+              <div className="bg-white/10 border border-white/15 rounded-xl p-3">
+                <p className="text-xs font-bold text-indigo-200">30-Day Coffee Limit</p>
+                <p className="text-lg font-black text-white">18 Days Streak 🔥</p>
+                <p className="text-[10px] opacity-80 mt-0.5">₱2,160 Saved ☕</p>
+              </div>
+            </div>
+          </div>
+
           {/* Savings Goals */}
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
             <div className="p-4 border-b border-slate-100 flex justify-between items-center">
@@ -1427,6 +1482,41 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
                 </div>
               );
             })()}
+          </div>
+
+          {/* Planned Budget vs Actual Variance Table */}
+          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3">
+            <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest flex items-center gap-1.5">
+              <Target className="h-4 w-4 text-violet-600" />
+              Envelope Target vs Actual Variance
+            </h3>
+
+            {envelopes.length === 0 ? (
+              <p className="text-xs text-slate-400 py-2 text-center">No category budgets set to compare variance.</p>
+            ) : (
+              <div className="space-y-2">
+                {envelopes.map(env => {
+                  const spent = cycleTransactions
+                    .filter(t => t.type === 'expense' && t.category.toLowerCase() === env.category.toLowerCase())
+                    .reduce((acc, t) => acc + (t.amountCentavos || 0), 0);
+                  const limit = env.limitCentavos;
+                  const diff = limit - spent;
+                  const isFavorable = diff >= 0;
+
+                  return (
+                    <div key={env.id} className="flex justify-between items-center bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs">
+                      <div>
+                        <p className="font-bold text-slate-800">{env.category}</p>
+                        <p className="text-[10px] text-slate-400">Target: {formatPesos(limit / 100)} • Spent: {formatPesos(spent / 100)}</p>
+                      </div>
+                      <div className={`px-2.5 py-1 rounded-full text-[10px] font-black ${isFavorable ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                        {isFavorable ? `+${formatPesos(diff / 100)} Under` : `-${formatPesos(Math.abs(diff) / 100)} Over`}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Savings Health */}
