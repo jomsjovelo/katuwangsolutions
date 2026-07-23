@@ -127,6 +127,7 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
   });
 
   const [showCustomizeIponModal, setShowCustomizeIponModal] = useState<boolean>(false);
+  const [txTypeFilter, setTxTypeFilter] = useState<'all' | 'income' | 'expense'>('all');
 
   const [showAllocationPrompt, setShowAllocationPrompt] = useState<{amount: number} | null>(null);
   
@@ -978,6 +979,33 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
               <p className={`text-3xl font-black ${theme.textDark} tracking-tighter`}>{formatPesos(safeToSpend)}</p>
               <p className={`text-xs ${theme.text} opacity-80 mt-1 mb-3`}>Based on {daysRemaining} days left until your {resetTerm.toLowerCase()} ({cycleText}).</p>
               
+              {/* Daily Allowance Progress Meter */}
+              {(() => {
+                const todayStr = new Date().toDateString();
+                const todayExpensesPesos = cycleTransactions
+                  .filter(t => t.type === 'expense' && t.createdAt && (t.createdAt.toDate ? t.createdAt.toDate().toDateString() : new Date(t.createdAt).toDateString()) === todayStr)
+                  .reduce((acc, t) => acc + (t.amountCentavos || 0), 0) / 100;
+                const safeDailyLimit = safeToSpend > 0 ? safeToSpend : 1;
+                const todayPercent = Math.min(100, (todayExpensesPesos / safeDailyLimit) * 100);
+
+                return (
+                  <div className="mt-3 pt-3 border-t border-emerald-200/60 space-y-1.5">
+                    <div className="flex justify-between items-center text-[10px] font-bold text-slate-700">
+                      <span className="flex items-center gap-1">⚡ Today's Spend Gauge</span>
+                      <span className={todayExpensesPesos > safeToSpend ? 'text-rose-600 font-black' : 'text-emerald-800 font-black'}>
+                        {formatPesos(todayExpensesPesos)} / {formatPesos(safeToSpend)} Limit
+                      </span>
+                    </div>
+                    <div className="h-2 w-full bg-emerald-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${todayExpensesPesos > safeToSpend ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                        style={{ width: `${todayPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Pacing Speedometer */}
               {totalBudgetForCycle > 0 && (
                 <div className={`mt-4 pt-3 border-t ${theme.border} border-dashed space-y-1.5`}>
@@ -991,7 +1019,7 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
                 </div>
               )}
               {urgentDebtCentavos > 0 && (
-                <div className={`bg-white/50 rounded-xl p-2.5 text-[10px] font-bold ${theme.textDarker} flex items-center gap-2`}>
+                <div className={`bg-white/50 rounded-xl p-2.5 text-[10px] font-bold ${theme.textDarker} flex items-center gap-2 mt-3`}>
                   <AlertCircle className="h-3 w-3 text-rose-500 shrink-0" />
                   <span>Smart Math: Deducted {formatMoney(urgentDebtCentavos)} of upcoming debts/bills before next payday! 🛡️</span>
                 </div>
@@ -1040,18 +1068,38 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
             </div>
             
             {debts.filter(d => d.isRecurring).length === 0 ? (
-              <p className="text-xs text-amber-700/80 font-medium">No recurring bills added yet. Add Meralco, Rent, Internet, etc.</p>
+              <p className="text-xs text-amber-700/80 font-medium">No upcoming bills or subscriptions tracked yet. Add Meralco, Rent, Internet, etc.</p>
             ) : (
               <div className="space-y-2">
-                {debts.filter(d => d.isRecurring).map(bill => (
-                  <div key={bill.id} className="bg-white/80 p-2.5 rounded-xl border border-amber-200/50 flex items-center justify-between">
-                    <div>
-                      <p className="font-bold text-xs text-slate-800">{bill.creditorName}</p>
-                      <p className="text-[10px] text-slate-500 font-medium">{bill.dueDate ? `Due ${bill.dueDate}` : 'Monthly recurring'}</p>
+                {debts.filter(d => d.isRecurring).map(bill => {
+                  const isVariable = bill.billType === 'variable';
+                  return (
+                    <div key={bill.id} className="bg-white/80 p-3 rounded-xl border border-amber-200/50 flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-xs text-slate-800">{bill.creditorName}</p>
+                          <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${isVariable ? 'bg-indigo-100 text-indigo-800 border border-indigo-200' : 'bg-amber-100 text-amber-800 border border-amber-200'}`}>
+                            {isVariable ? 'Est. Variable' : 'Fixed Amount'}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 font-medium mt-0.5">
+                          {bill.dueDate ? `Due ${bill.dueDate}` : 'Monthly recurring'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-xs text-amber-800">{formatMoney(bill.totalAmountCentavos)}</span>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 text-slate-400 hover:text-indigo-600 rounded-full"
+                          onClick={() => setEditingDebt(bill)}
+                        >
+                          <Settings className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
-                    <span className="font-black text-xs text-amber-800">{formatMoney(bill.totalAmountCentavos)}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1095,9 +1143,32 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
             </div>
             
             {envelopes.length === 0 ? (
-              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-center">
-                <p className="text-xs text-slate-400 font-medium mb-1">No category budgets set.</p>
-                <p className="text-[10px] text-slate-400">Set strict limits for categories like "Food" or "Shopping".</p>
+              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-5 text-center space-y-3">
+                <div>
+                  <p className="text-xs text-slate-600 font-bold mb-1">No category budgets set yet.</p>
+                  <p className="text-[10px] text-slate-400">Set envelope limits for Food, Transport, Utilities, and Shopping.</p>
+                </div>
+                <Button
+                  onClick={async () => {
+                    if (!currentTenant?.id) return;
+                    try {
+                      setIsSubmitting(true);
+                      const incomeToUse = totalIncome > 0 ? totalIncome : 20000;
+                      await addBudgetEnvelope(currentTenant.id, 'Food & Utilities (Needs)', Math.round(incomeToUse * 0.5 * 100));
+                      await addBudgetEnvelope(currentTenant.id, 'Shopping & Leisure (Wants)', Math.round(incomeToUse * 0.3 * 100));
+                      await addBudgetEnvelope(currentTenant.id, 'Savings & Emergency', Math.round(incomeToUse * 0.2 * 100));
+                      toast({ title: '⚡ Envelopes Setup Complete!', description: 'Generated 50/30/20 Smart Split category budgets.' });
+                    } catch (e: any) {
+                      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+                    } finally {
+                      setIsSubmitting(false);
+                    }
+                  }}
+                  disabled={isSubmitting}
+                  className="bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs rounded-xl shadow-sm px-4 py-2"
+                >
+                  ⚡ Auto 50/30/20 Setup
+                </Button>
               </div>
             ) : (
               <div className="grid gap-3">
@@ -1179,7 +1250,12 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
               });
             }
 
-            // 2. Search Filter
+            // 2. Type Filter (All, Income, Expense)
+            if (txTypeFilter !== 'all') {
+              filteredTransactions = filteredTransactions.filter(tx => tx.type === txTypeFilter);
+            }
+
+            // 3. Search Filter
             if (searchTerm.trim() !== '') {
               const q = searchTerm.toLowerCase();
               filteredTransactions = filteredTransactions.filter(tx => 
@@ -1213,6 +1289,31 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
                         <Printer className="h-3 w-3" /> PDF
                       </Button>
                     </div>
+                  </div>
+
+                  {/* Transaction Type Filter Pills */}
+                  <div className="flex gap-1.5 bg-slate-100 p-1 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => setTxTypeFilter('all')}
+                      className={`flex-1 py-1 text-[11px] font-bold rounded-lg transition-all ${txTypeFilter === 'all' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                    >
+                      All ({transactions.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTxTypeFilter('income')}
+                      className={`flex-1 py-1 text-[11px] font-bold rounded-lg transition-all ${txTypeFilter === 'income' ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                    >
+                      Income ({transactions.filter(t => t.type === 'income').length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTxTypeFilter('expense')}
+                      className={`flex-1 py-1 text-[11px] font-bold rounded-lg transition-all ${txTypeFilter === 'expense' ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                    >
+                      Expenses ({transactions.filter(t => t.type === 'expense').length})
+                    </button>
                   </div>
                   
                   <div className="flex gap-2">

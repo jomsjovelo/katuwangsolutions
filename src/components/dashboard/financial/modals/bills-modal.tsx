@@ -20,6 +20,7 @@ export function BillsModal({
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [billType, setBillType] = useState<'fixed' | 'variable'>('fixed');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
@@ -37,16 +38,19 @@ export function BillsModal({
         name,
         amountCentavos,
         dueDate || undefined,
-        'Recurring monthly bill',
-        true // isRecurring = true
+        billType === 'fixed' ? 'Fixed monthly subscription/rent' : 'Variable utility bill',
+        true, // isRecurring = true
+        'i_owe', // direction = i_owe
+        billType
       );
       toast({
         title: 'Bill Added',
-        description: `${name} has been added to your recurring bills.`,
+        description: `${name} has been added to your upcoming bills.`,
       });
       setName('');
       setAmount('');
       setDueDate('');
+      setBillType('fixed');
       onClose();
     } catch (err: any) {
       toast({
@@ -71,9 +75,28 @@ export function BillsModal({
             <Receipt className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="font-black text-lg text-slate-800 tracking-tight">Add Recurring Bill</h3>
-            <p className="text-xs text-slate-500">Track subscriptions & fixed monthly expenses</p>
+            <h3 className="font-black text-lg text-slate-800 tracking-tight">Add Bill or Subscription</h3>
+            <p className="text-xs text-slate-500">Track subscriptions & monthly expenses</p>
           </div>
+        </div>
+
+        {/* Bill Type Segmented Control */}
+        <label className="block text-xs font-bold text-slate-700 mb-1.5">Bill Type</label>
+        <div className="bg-slate-100 p-1 rounded-2xl flex gap-1 mb-4">
+          <button
+            type="button"
+            onClick={() => setBillType('fixed')}
+            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${billType === 'fixed' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+          >
+            Fixed Amount (Internet, Rent)
+          </button>
+          <button
+            type="button"
+            onClick={() => setBillType('variable')}
+            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${billType === 'variable' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+          >
+            Variable Utility (Meralco, Water)
+          </button>
         </div>
 
         <div className="space-y-4 mb-6">
@@ -83,7 +106,7 @@ export function BillsModal({
               id="bill-name-input"
               name="billName"
               required
-              placeholder="e.g. Meralco, Rent, PLDT, Netflix"
+              placeholder={billType === 'fixed' ? "e.g. Netflix, Rent, PLDT" : "e.g. Meralco Electricity, Water Bill"}
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="bg-slate-50 border-slate-200 rounded-xl font-medium"
@@ -91,7 +114,9 @@ export function BillsModal({
           </div>
 
           <div>
-            <Label htmlFor="bill-amount-input" className="text-xs font-bold text-slate-700 mb-1.5 block">Amount (₱)</Label>
+            <Label htmlFor="bill-amount-input" className="text-xs font-bold text-slate-700 mb-1.5 block">
+              {billType === 'fixed' ? "Monthly Amount (₱)" : "Estimated Monthly Amount (₱)"}
+            </Label>
             <Input
               id="bill-amount-input"
               name="billAmount"

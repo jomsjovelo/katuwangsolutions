@@ -19,6 +19,7 @@ export const DebtSchema = z.object({
   status: z.enum(['active', 'paid']),
   isRecurring: z.boolean().optional().default(false),
   direction: z.enum(['i_owe', 'owed_to_me']).optional().default('i_owe'),
+  billType: z.enum(['fixed', 'variable']).optional().default('fixed'),
 });
 
 export const SavingsGoalSchema = z.object({

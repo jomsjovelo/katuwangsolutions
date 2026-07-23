@@ -233,7 +233,8 @@ export async function addDebtRecord(
   dueDate?: string,
   note?: string,
   isRecurring?: boolean,
-  direction: 'i_owe' | 'owed_to_me' = 'i_owe'
+  direction: 'i_owe' | 'owed_to_me' = 'i_owe',
+  billType: 'fixed' | 'variable' = 'fixed'
 ) {
   const db = getKatuwangDb();
   
@@ -245,7 +246,8 @@ export async function addDebtRecord(
     note,
     status: 'active',
     isRecurring: isRecurring || false,
-    direction
+    direction,
+    billType
   });
 
   const debtsRef = collection(db, 'tenants', tenantId, 'budget_debts');
@@ -330,7 +332,7 @@ export async function logDebtPayment(
 export async function editDebtRecord(
   tenantId: string,
   debtId: string,
-  updates: { creditorName?: string, totalAmountCentavos?: number, remainingAmountCentavos?: number, dueDate?: string, note?: string, isRecurring?: boolean, direction?: 'i_owe' | 'owed_to_me' }
+  updates: { creditorName?: string, totalAmountCentavos?: number, remainingAmountCentavos?: number, dueDate?: string, note?: string, isRecurring?: boolean, direction?: 'i_owe' | 'owed_to_me', billType?: 'fixed' | 'variable' }
 ) {
   const db = getKatuwangDb();
   const debtRef = doc(db, 'tenants', tenantId, 'budget_debts', debtId);
