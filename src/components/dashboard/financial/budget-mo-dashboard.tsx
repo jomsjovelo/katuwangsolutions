@@ -25,8 +25,10 @@ import {
   deleteBudgetEnvelope,
   updateBudgetSettings,
   addAutoAllocationEnvelopes,
-  updateBudgetPresets
+  updateBudgetPresets,
+  syncOfflineBudgetQueue
 } from '@/firebase/firestore/budget-actions';
+import { getQueuedTransactions } from '@/lib/offline-budget-queue';
 import { BudgetTransaction, Debt, SavingsGoal, BudgetEnvelope, BudgetPreset } from '@/lib/schemas/budget';
 import { Button } from '@/components/ui/button';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
@@ -121,6 +123,9 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
   // Custom Category States
   const [incomeCategory, setIncomeCategory] = useState('Salary');
   const [expenseCategory, setExpenseCategory] = useState('Transportation / Pamasahe');
+
+  const [offlineQueueCount, setOfflineQueueCount] = useState(0);
+  const [isOffline, setIsOffline] = useState(typeof navigator !== 'undefined' ? !navigator.onLine : false);
 
   // Settings & Personas
   const [persona, setPersona] = useState<BudgetPersona>('worker'); // temporary default before effect
@@ -278,6 +283,43 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
 
     return () => { unsubSettings(); masterUnsub(); txUnsub(); debtUnsub(); goalUnsub(); envUnsub(); presetsUnsub(); };
   }, [currentTenant?.id, db, fetchMinDate.getTime()]);
+
+  // Offline Queue Auto-Sync Engine
+  useEffect(() => {
+    if (!currentTenant?.id) return;
+
+    const refreshQueueStatus = async () => {
+      const items = await getQueuedTransactions(currentTenant.id);
+      setOfflineQueueCount(items.length);
+    };
+
+    refreshQueueStatus();
+
+    const handleOnline = async () => {
+      setIsOffline(false);
+      if (currentTenant?.id) {
+        toast({ title: '📶 Network Restored', description: 'Syncing offline transactions...' });
+        const synced = await syncOfflineBudgetQueue(currentTenant.id);
+        if (synced > 0) {
+          toast({ title: '🎉 Sync Complete', description: `Successfully synced ${synced} offline transaction(s)!` });
+        }
+        refreshQueueStatus();
+      }
+    };
+
+    const handleOffline = () => {
+      setIsOffline(true);
+      toast({ title: '📶 Offline Mode Active', description: 'Transactions will be queued locally and auto-synced when back online.', variant: 'destructive' });
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [currentTenant?.id, toast]);
 
   const cycleTransactions = transactions.filter(t => {
     if (!t.createdAt) return true;
@@ -739,7 +781,28 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
                 <h1 className="text-2xl font-black text-white uppercase tracking-tighter">Budget Mo</h1>
                 <p className="text-primary-foreground/80 text-xs">Clear cash flow, smart savings.</p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
+                {(isOffline || offlineQueueCount > 0) && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (currentTenant?.id && !isOffline) {
+                        const synced = await syncOfflineBudgetQueue(currentTenant.id);
+                        if (synced > 0) {
+                          toast({ title: '🎉 Sync Complete', description: `Synced ${synced} transaction(s)!` });
+                          const items = await getQueuedTransactions(currentTenant.id);
+                          setOfflineQueueCount(items.length);
+                        }
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all ${
+                      isOffline ? 'bg-amber-400 text-slate-900 animate-pulse' : 'bg-emerald-400 text-emerald-950 hover:bg-emerald-300'
+                    }`}
+                  >
+                    <span>📶</span>
+                    <span>{isOffline ? `Offline Queue (${offlineQueueCount})` : `Sync Queue (${offlineQueueCount})`}</span>
+                  </button>
+                )}
                 <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 rounded-xl" onClick={() => setShowSettingsModal(true)}>
                   <Settings className="h-5 w-5" />
                 </Button>
