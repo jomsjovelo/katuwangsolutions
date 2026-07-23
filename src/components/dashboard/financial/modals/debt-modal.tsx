@@ -15,7 +15,7 @@ export function DebtModal({ isOpen, onClose, tenantId }: DebtModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4" onClick={onClose}>
       <form onSubmit={async (e) => {
         e.preventDefault();
         if(!tenantId) return;
@@ -32,7 +32,7 @@ export function DebtModal({ isOpen, onClose, tenantId }: DebtModalProps) {
           toast({title: 'Record Added'});
           onClose();
         } catch(e:any) { toast({title: 'Error', description: e.message, variant: 'destructive'}) }
-      }} className="bg-white p-6 rounded-[32px] w-full max-w-sm shadow-2xl">
+      }} onClick={(e) => e.stopPropagation()} className="bg-white p-6 rounded-[32px] w-full max-w-sm shadow-2xl">
         <h3 className="font-black text-xl mb-4">Add Bill or Debt</h3>
         <label htmlFor="debt-creditor" className="block text-xs font-bold text-slate-700 mb-1">Name</label>
         <input id="debt-creditor" required name="creditor" placeholder="Name (e.g. Rent, Credit Card)" className="w-full bg-slate-50 p-4 rounded-2xl mb-3 font-medium outline-none border border-slate-100 focus:border-rose-500" />
@@ -45,7 +45,7 @@ export function DebtModal({ isOpen, onClose, tenantId }: DebtModalProps) {
           <label htmlFor="isRecurring" className="text-sm font-bold text-slate-700">This is a recurring monthly bill</label>
         </div>
         <div className="flex gap-2">
-          <Button type="button" variant="ghost" onClick={onClose} className="flex-1 rounded-xl">Cancel</Button>
+          <Button type="button" variant="ghost" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }} className="flex-1 rounded-xl">Cancel</Button>
           <Button type="submit" className="flex-1 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold">Save</Button>
         </div>
       </form>

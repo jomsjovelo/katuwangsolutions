@@ -60,9 +60,10 @@ export function BillsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
       <form
         onSubmit={handleSubmit}
+        onClick={(e) => e.stopPropagation()}
         className="bg-white p-6 rounded-[32px] w-full max-w-sm shadow-2xl animate-in fade-in zoom-in-95 duration-200"
       >
         <div className="flex items-center gap-3 mb-4">
@@ -121,7 +122,7 @@ export function BillsModal({
           <Button
             type="button"
             variant="ghost"
-            onClick={onClose}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
             className="flex-1 rounded-xl text-slate-500 font-bold"
           >
             Cancel

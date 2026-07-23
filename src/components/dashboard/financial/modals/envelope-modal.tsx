@@ -15,7 +15,7 @@ export function EnvelopeModal({ isOpen, onClose, tenantId }: EnvelopeModalProps)
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4" onClick={onClose}>
       <form id="envelope-form" onSubmit={async (e) => {
         e.preventDefault();
         if(!tenantId) return;
@@ -25,7 +25,7 @@ export function EnvelopeModal({ isOpen, onClose, tenantId }: EnvelopeModalProps)
           toast({title: 'Envelope Added'});
           onClose();
         } catch(e:any) { toast({title: 'Error', description: e.message, variant: 'destructive'}) }
-      }} className="bg-white p-6 rounded-[32px] w-full max-w-sm shadow-2xl">
+      }} onClick={(e) => e.stopPropagation()} className="bg-white p-6 rounded-[32px] w-full max-w-sm shadow-2xl">
         <h3 className="font-black text-xl mb-4">New Category Budget</h3>
         <p className="text-xs text-slate-500 mb-3">Set a strict limit for a specific spending category.</p>
         <label htmlFor="envelope-category" className="block text-xs font-bold text-slate-700 mb-1">Category</label>
@@ -33,7 +33,7 @@ export function EnvelopeModal({ isOpen, onClose, tenantId }: EnvelopeModalProps)
         <label htmlFor="envelope-amount" className="block text-xs font-bold text-slate-700 mb-1">Limit Amount (₱)</label>
         <input id="envelope-amount" required name="amount" type="number" step="0.01" placeholder="0.00" className="w-full bg-slate-50 p-4 rounded-2xl mb-4 font-medium outline-none border border-slate-100 focus:border-violet-500" />
         <div className="flex gap-2">
-          <Button type="button" variant="ghost" onClick={onClose} className="flex-1 rounded-xl">Cancel</Button>
+          <Button type="button" variant="ghost" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }} className="flex-1 rounded-xl">Cancel</Button>
           <Button type="submit" className="flex-1 bg-violet-500 hover:bg-violet-600 text-white rounded-xl font-bold">Save Envelope</Button>
         </div>
       </form>

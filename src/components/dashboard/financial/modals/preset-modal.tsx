@@ -123,8 +123,8 @@ export function PresetModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white p-6 rounded-[32px] w-full max-w-sm shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white p-6 rounded-[32px] w-full max-w-sm shadow-2xl animate-in fade-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
         
         <div className="flex items-center gap-2 mb-4">
           <div className="w-9 h-9 bg-amber-100 text-amber-700 rounded-xl flex items-center justify-center">
@@ -284,7 +284,7 @@ export function PresetModal({
           <Button
             type="button"
             variant="ghost"
-            onClick={onClose}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
             className="w-full text-slate-500 text-xs font-bold rounded-xl"
           >
             Close

@@ -37,7 +37,7 @@ export function SettingsModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4" onClick={onClose}>
       <form onSubmit={(e) => {
           e.preventDefault();
           safeSetStorage('budgetSensePersona', persona || 'worker');
@@ -46,7 +46,7 @@ export function SettingsModal({
           safeSetStorage('budgetSenseSecondPayday', secondPaydayCycle.toString());
           toast({title: 'Settings Saved', description: 'Your persona and cycle have been updated.'});
           onClose();
-      }} className="bg-white p-6 rounded-[32px] w-full max-w-sm shadow-2xl">
+      }} onClick={(e) => e.stopPropagation()} className="bg-white p-6 rounded-[32px] w-full max-w-sm shadow-2xl">
         <h3 className="font-black text-xl mb-1 text-slate-800 tracking-tight">Budget Cycle Settings</h3>
         <p className="text-xs text-slate-500 mb-5 leading-relaxed">Customize your payday and budget reset cycle.</p>
         
@@ -154,7 +154,7 @@ export function SettingsModal({
         </div>
         
         <div className="flex gap-2 pt-2">
-          <Button type="button" variant="ghost" onClick={onClose} className="flex-1 rounded-xl font-bold text-slate-500">Cancel</Button>
+          <Button type="button" variant="ghost" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }} className="flex-1 rounded-xl font-bold text-slate-500">Cancel</Button>
           <Button type="submit" className="flex-1 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold">Save Settings</Button>
         </div>
       </form>
