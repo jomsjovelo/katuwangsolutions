@@ -90,6 +90,15 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
     }
   });
 
+  const [iponWeeklyAmount, setIponWeeklyAmount] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('budgetSense52WeekAmount');
+      return saved ? parseInt(saved, 10) : 50;
+    } catch {
+      return 50;
+    }
+  });
+
   const [coffeeStreak, setCoffeeStreak] = useState<number>(() => {
     try {
       const saved = localStorage.getItem('budgetSenseCoffeeStreak');
@@ -98,6 +107,26 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
       return 18;
     }
   });
+
+  const [habitDailyAmount, setHabitDailyAmount] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('budgetSenseHabitAmount');
+      return saved ? parseInt(saved, 10) : 120;
+    } catch {
+      return 120;
+    }
+  });
+
+  const [habitName, setHabitName] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem('budgetSenseHabitName');
+      return saved || '30-Day Coffee Limit';
+    } catch {
+      return '30-Day Coffee Limit';
+    }
+  });
+
+  const [showCustomizeIponModal, setShowCustomizeIponModal] = useState<boolean>(false);
 
   const [showAllocationPrompt, setShowAllocationPrompt] = useState<{amount: number} | null>(null);
   
@@ -1281,8 +1310,8 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
           return true;
         });
 
-        const week52SavingsPesos = (ipon52Week * (ipon52Week + 1) / 2) * 50;
-        const coffeeSavingsPesos = coffeeStreak * 120;
+        const week52SavingsPesos = (ipon52Week * (ipon52Week + 1) / 2) * iponWeeklyAmount;
+        const coffeeSavingsPesos = coffeeStreak * habitDailyAmount;
 
         return (
           <div className="px-4 py-6 space-y-6">
@@ -1309,11 +1338,11 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
                   <p className="font-bold text-sm text-white">{formatMoney(totalSavingsCentavos)}</p>
                 </div>
                 <div className="bg-slate-800/60 p-2.5 rounded-2xl border border-slate-700/50">
-                  <p className="text-[9px] font-black uppercase text-rose-400">Total Utang (I Owe)</p>
+                  <p className="text-[9px] font-black uppercase text-rose-400">Total Debts (I Owe)</p>
                   <p className="font-bold text-sm text-white">{formatMoney(totalDebtsCentavos)}</p>
                 </div>
                 <div className="bg-slate-800/60 p-2.5 rounded-2xl border border-slate-700/50">
-                  <p className="text-[9px] font-black uppercase text-amber-400">Pautang (Receivable)</p>
+                  <p className="text-[9px] font-black uppercase text-amber-400">Receivables (Owed to Me)</p>
                   <p className="font-bold text-sm text-white">{formatMoney(totalReceivablesCentavos)}</p>
                 </div>
               </div>
@@ -1346,14 +1375,14 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
                     onClick={() => setDebtFilter('i_owe')}
                     className={`flex-1 py-1 text-[11px] font-bold rounded-lg transition-all ${debtFilter === 'i_owe' ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                   >
-                    Utang Ko ({debts.filter(d => d.direction !== 'owed_to_me').length})
+                    I Owe ({debts.filter(d => d.direction !== 'owed_to_me').length})
                   </button>
                   <button
                     type="button"
                     onClick={() => setDebtFilter('owed_to_me')}
                     className={`flex-1 py-1 text-[11px] font-bold rounded-lg transition-all ${debtFilter === 'owed_to_me' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                   >
-                    Pautang Ko ({debts.filter(d => d.direction === 'owed_to_me').length})
+                    Owed to Me ({debts.filter(d => d.direction === 'owed_to_me').length})
                   </button>
                 </div>
               </div>
@@ -1371,7 +1400,7 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
                             <div>
                               <h4 className="font-bold text-sm text-slate-800">{debt.creditorName}</h4>
                               <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md mt-1 inline-block ${isOwedToMe ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-700'}`}>
-                                {isOwedToMe ? 'Pautang Ko (Owed to Me)' : 'Utang Ko (I Owe)'}
+                                {isOwedToMe ? 'Owed to Me (Receivable)' : 'I Owe (Debt)'}
                               </span>
                             </div>
                             <div className="flex gap-2 items-start">
@@ -1417,7 +1446,16 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
                     <p className="text-[10px] opacity-80">Interactive gamified savings habits</p>
                   </div>
                 </div>
-                <span className="bg-amber-400 text-slate-900 font-black text-[10px] px-2.5 py-1 rounded-full uppercase tracking-wider">🔥 Active</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomizeIponModal(true)}
+                    className="bg-white/20 hover:bg-white/30 text-white font-bold text-xs px-2.5 py-1 rounded-full flex items-center gap-1 transition-all"
+                  >
+                    <Settings className="h-3 w-3" /> Customize
+                  </button>
+                  <span className="bg-amber-400 text-slate-900 font-black text-[10px] px-2.5 py-1 rounded-full uppercase tracking-wider">🔥 Active</span>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
@@ -1425,7 +1463,7 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
                 <div className="bg-white/10 border border-white/15 rounded-2xl p-4 flex flex-col justify-between space-y-3">
                   <div>
                     <div className="flex justify-between items-center mb-1">
-                      <p className="text-xs font-bold text-amber-200">52-Week ₱50 Challenge</p>
+                      <p className="text-xs font-bold text-amber-200">52-Week ₱{iponWeeklyAmount} Challenge</p>
                       <span className="text-[10px] font-black text-amber-300 bg-black/20 px-2 py-0.5 rounded-full">Week {ipon52Week} / 52</span>
                     </div>
                     <p className="text-xl font-black text-white">₱{week52SavingsPesos.toLocaleString('en-US')} Saved 🐷</p>
@@ -1440,7 +1478,7 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
                         const next = Math.min(52, ipon52Week + 1);
                         setIpon52Week(next);
                         localStorage.setItem('budgetSense52WeekProgress', next.toString());
-                        toast({ title: `Week ${next} Checked Off!`, description: `Accumulated ₱${((next * (next + 1) / 2) * 50).toLocaleString()} saved.` });
+                        toast({ title: `Week ${next} Checked Off!`, description: `Accumulated ₱${((next * (next + 1) / 2) * iponWeeklyAmount).toLocaleString()} saved.` });
                       }}
                       disabled={ipon52Week >= 52}
                       className="flex-1 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded-xl active:scale-95 transition-all"
@@ -1466,7 +1504,7 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
                 <div className="bg-white/10 border border-white/15 rounded-2xl p-4 flex flex-col justify-between space-y-3">
                   <div>
                     <div className="flex justify-between items-center mb-1">
-                      <p className="text-xs font-bold text-indigo-200">30-Day Coffee Limit Habit</p>
+                      <p className="text-xs font-bold text-indigo-200">{habitName}</p>
                       <span className="text-[10px] font-black text-indigo-300 bg-black/20 px-2 py-0.5 rounded-full">{coffeeStreak} Days</span>
                     </div>
                     <p className="text-xl font-black text-white">{coffeeStreak} Days Streak 🔥</p>
@@ -1879,6 +1917,109 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
         goal={depositGoalModal}
         masterBalance={masterBalance}
       />
+
+      {showCustomizeIponModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowCustomizeIponModal(false)}>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const fd = new FormData(e.currentTarget);
+              const wAmt = parseFloat(fd.get('weeklyAmount') as string) || 50;
+              const hAmt = parseFloat(fd.get('habitAmount') as string) || 120;
+              const hName = (fd.get('habitName') as string) || '30-Day Coffee Limit';
+
+              setIponWeeklyAmount(wAmt);
+              setHabitDailyAmount(hAmt);
+              setHabitName(hName);
+
+              localStorage.setItem('budgetSense52WeekAmount', wAmt.toString());
+              localStorage.setItem('budgetSenseHabitAmount', hAmt.toString());
+              localStorage.setItem('budgetSenseHabitName', hName);
+
+              toast({ title: 'Challenge Customized!', description: 'Your savings challenge goals have been updated.' });
+              setShowCustomizeIponModal(false);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white p-6 rounded-[32px] w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200 space-y-4"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-indigo-100 text-indigo-700 rounded-xl flex items-center justify-center">
+                <Trophy className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-black text-lg text-slate-800 tracking-tight">Customize Challenge</h3>
+                <p className="text-xs text-slate-500">Set custom amounts for your savings habits</p>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="ipon-weekly-step" className="text-xs font-bold text-slate-700 mb-1 block">
+                52-Week Base Weekly Step (₱)
+              </Label>
+              <Input
+                id="ipon-weekly-step"
+                name="weeklyAmount"
+                type="number"
+                step="5"
+                min="5"
+                required
+                defaultValue={iponWeeklyAmount}
+                className="bg-slate-50 border-slate-200 rounded-xl font-bold"
+              />
+              <p className="text-[10px] text-slate-400 mt-1">
+                At ₱{iponWeeklyAmount}/week step, Week 52 target = ₱{((52 * 53 / 2) * iponWeeklyAmount).toLocaleString()}.
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="ipon-habit-name" className="text-xs font-bold text-slate-700 mb-1 block">
+                Habit Challenge Name
+              </Label>
+              <Input
+                id="ipon-habit-name"
+                name="habitName"
+                type="text"
+                required
+                defaultValue={habitName}
+                className="bg-slate-50 border-slate-200 rounded-xl font-medium"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="ipon-habit-daily" className="text-xs font-bold text-slate-700 mb-1 block">
+                Daily Habit Savings (₱/day)
+              </Label>
+              <Input
+                id="ipon-habit-daily"
+                name="habitAmount"
+                type="number"
+                step="5"
+                min="1"
+                required
+                defaultValue={habitDailyAmount}
+                className="bg-slate-50 border-slate-200 rounded-xl font-bold"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowCustomizeIponModal(false); }}
+                className="flex-1 rounded-xl text-slate-500 font-bold"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold"
+              >
+                Save Goals
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
 
       <EnvelopeModal 
         isOpen={showEnvelopeModal} 

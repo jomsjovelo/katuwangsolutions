@@ -31,11 +31,11 @@ export function DebtModal({ isOpen, onClose, tenantId }: DebtModalProps) {
             fd.get('isRecurring') === 'on',
             direction
           );
-          toast({title: direction === 'owed_to_me' ? 'Pautang Added' : 'Debt Record Added'});
+          toast({title: direction === 'owed_to_me' ? 'Receivable Record Added' : 'Debt Record Added'});
           onClose();
         } catch(e:any) { toast({title: 'Error', description: e.message, variant: 'destructive'}) }
       }} onClick={(e) => e.stopPropagation()} className="bg-white p-6 rounded-[32px] w-full max-w-sm shadow-2xl">
-        <h3 className="font-black text-xl mb-3">{direction === 'owed_to_me' ? 'Add Pautang (Owed to Me)' : 'Add Bill or Debt'}</h3>
+        <h3 className="font-black text-xl mb-3">{direction === 'owed_to_me' ? 'Add Receivable (Owed to Me)' : 'Add Bill or Debt (I Owe)'}</h3>
         
         {/* Direction Segmented Control */}
         <div className="bg-slate-100 p-1 rounded-2xl flex gap-1 mb-4">
@@ -44,14 +44,14 @@ export function DebtModal({ isOpen, onClose, tenantId }: DebtModalProps) {
             onClick={() => setDirection('i_owe')}
             className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${direction === 'i_owe' ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
           >
-            Utang Ko (I Owe)
+            I Owe (Debt)
           </button>
           <button
             type="button"
             onClick={() => setDirection('owed_to_me')}
             className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${direction === 'owed_to_me' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
           >
-            Pautang Ko (Receivable)
+            Owed to Me (Receivable)
           </button>
         </div>
 
