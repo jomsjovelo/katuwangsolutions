@@ -656,27 +656,25 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
               <p className="text-xs text-emerald-400 font-bold mt-1">{healthMessage}</p>
             </div>
             <div className="relative z-10 h-16 w-16">
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                <PieChart>
-                  <Pie
-                    data={[
-                      { value: healthScore },
-                      { value: 1000 - healthScore }
-                    ]}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={20}
-                    outerRadius={30}
-                    startAngle={90}
-                    endAngle={-270}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    <Cell fill={healthScore >= 750 ? '#10b981' : healthScore >= 500 ? '#f59e0b' : '#f43f5e'} />
-                    <Cell fill="#334155" />
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
+              <PieChart width={64} height={64}>
+                <Pie
+                  data={[
+                    { value: healthScore },
+                    { value: 1000 - healthScore }
+                  ]}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={20}
+                  outerRadius={30}
+                  startAngle={90}
+                  endAngle={-270}
+                  dataKey="value"
+                  stroke="none"
+                >
+                  <Cell fill={healthScore >= 750 ? '#10b981' : healthScore >= 500 ? '#f59e0b' : '#f43f5e'} />
+                  <Cell fill="#334155" />
+                </Pie>
+              </PieChart>
             </div>
           </div>
 

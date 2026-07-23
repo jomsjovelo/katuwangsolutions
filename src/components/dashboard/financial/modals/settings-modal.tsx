@@ -123,12 +123,12 @@ export function SettingsModal({
               </div>
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <span className="text-[9px] font-black uppercase text-slate-400 mb-1 block">1st Payday</span>
-                  <input required type="number" min={1} max={31} value={paydayCycle} onChange={(e) => setPaydayCycle(Number(e.target.value))} className="w-full bg-slate-50 p-3 rounded-xl font-bold text-slate-800 outline-none border border-slate-200 focus:border-emerald-500 text-center" />
+                  <label htmlFor="first-payday-input" className="text-[9px] font-black uppercase text-slate-400 mb-1 block">1st Payday</label>
+                  <input id="first-payday-input" name="paydayCycle" required type="number" min={1} max={31} value={paydayCycle} onChange={(e) => setPaydayCycle(Number(e.target.value))} className="w-full bg-slate-50 p-3 rounded-xl font-bold text-slate-800 outline-none border border-slate-200 focus:border-emerald-500 text-center" />
                 </div>
                 <div className="flex-1">
-                  <span className="text-[9px] font-black uppercase text-slate-400 mb-1 block">2nd Payday</span>
-                  <input required type="number" min={1} max={31} value={secondPaydayCycle} onChange={(e) => setSecondPaydayCycle(Number(e.target.value))} className="w-full bg-slate-50 p-3 rounded-xl font-bold text-slate-800 outline-none border border-slate-200 focus:border-emerald-500 text-center" />
+                  <label htmlFor="second-payday-input" className="text-[9px] font-black uppercase text-slate-400 mb-1 block">2nd Payday</label>
+                  <input id="second-payday-input" name="secondPaydayCycle" required type="number" min={1} max={31} value={secondPaydayCycle} onChange={(e) => setSecondPaydayCycle(Number(e.target.value))} className="w-full bg-slate-50 p-3 rounded-xl font-bold text-slate-800 outline-none border border-slate-200 focus:border-emerald-500 text-center" />
                 </div>
               </div>
             </div>
@@ -147,7 +147,8 @@ export function SettingsModal({
                   </button>
                 ))}
               </div>
-              <input required type="number" min={1} max={31} value={paydayCycle} onChange={(e) => setPaydayCycle(Number(e.target.value))} className="w-full bg-slate-50 p-3 rounded-xl font-bold text-slate-800 outline-none border border-slate-200 focus:border-emerald-500 text-center" />
+              <label htmlFor="monthly-payday-input" className="sr-only">Payday Date</label>
+              <input id="monthly-payday-input" name="paydayCycle" required type="number" min={1} max={31} value={paydayCycle} onChange={(e) => setPaydayCycle(Number(e.target.value))} className="w-full bg-slate-50 p-3 rounded-xl font-bold text-slate-800 outline-none border border-slate-200 focus:border-emerald-500 text-center" />
             </div>
           )}
         </div>

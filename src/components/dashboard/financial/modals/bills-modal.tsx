@@ -77,8 +77,10 @@ export function BillsModal({
 
         <div className="space-y-4 mb-6">
           <div>
-            <Label className="text-xs font-bold text-slate-700 mb-1.5 block">Bill Name</Label>
+            <Label htmlFor="bill-name-input" className="text-xs font-bold text-slate-700 mb-1.5 block">Bill Name</Label>
             <Input
+              id="bill-name-input"
+              name="billName"
               required
               placeholder="e.g. Meralco, Rent, PLDT, Netflix"
               value={name}
@@ -88,8 +90,10 @@ export function BillsModal({
           </div>
 
           <div>
-            <Label className="text-xs font-bold text-slate-700 mb-1.5 block">Amount (₱)</Label>
+            <Label htmlFor="bill-amount-input" className="text-xs font-bold text-slate-700 mb-1.5 block">Amount (₱)</Label>
             <Input
+              id="bill-amount-input"
+              name="billAmount"
               required
               type="number"
               step="0.01"
@@ -101,8 +105,10 @@ export function BillsModal({
           </div>
 
           <div>
-            <Label className="text-xs font-bold text-slate-700 mb-1.5 block">Due Date (Optional)</Label>
+            <Label htmlFor="bill-duedate-input" className="text-xs font-bold text-slate-700 mb-1.5 block">Due Date (Optional)</Label>
             <Input
+              id="bill-duedate-input"
+              name="billDueDate"
               type="date"
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
