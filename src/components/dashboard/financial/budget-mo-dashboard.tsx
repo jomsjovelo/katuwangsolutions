@@ -1027,28 +1027,42 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
             </div>
           </div>
 
-          {/* Smart AI Financial Nudges (Katuwang Advice) */}
-          <div className="bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-indigo-500/10 border border-amber-200/60 rounded-2xl p-4 shadow-sm space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-widest text-amber-900 flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-amber-600 animate-pulse" /> Katuwang Advice
-              </span>
-              <span className="text-[9px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">AI Smart Nudge</span>
-            </div>
-            {actualDailySpend > idealDailySpend * 1.1 && daysRemaining > 3 ? (
-              <p className="text-xs text-slate-700 font-medium leading-relaxed">
-                ⚡ <strong className="text-amber-900">Spending Velocity Caution:</strong> You're spending ₱{(actualDailySpend - idealDailySpend).toFixed(0)}/day over your recommended pace. Lower daily spend to ₱{idealDailySpend.toFixed(0)}/day to stay safe until next {resetTerm.toLowerCase()}!
-              </p>
-            ) : totalIncome > 0 && totalExpense / totalIncome < 0.7 ? (
-              <p className="text-xs text-slate-700 font-medium leading-relaxed">
-                🎉 <strong className="text-emerald-900">Excellent Savings Pace:</strong> You have saved {((1 - totalExpense / totalIncome) * 100).toFixed(0)}% of your income this cycle! Consider adding ₱{formatPesos((totalIncome - totalExpense) * 0.2)} to a Savings Goal.
-              </p>
-            ) : (
-              <p className="text-xs text-slate-700 font-medium leading-relaxed">
-                💡 <strong className="text-indigo-900">Pro Tip:</strong> Setting strict Envelope limits for top categories like "Food" or "Pamasahe" helps increase your monthly savings rate by up to 25%!
-              </p>
-            )}
-          </div>
+          {/* Katuwang Advice */}
+          {(() => {
+            const dailyTips = [
+              'Setting strict Envelope limits for top categories like "Food" or "Pamasahe" helps increase monthly savings by up to 25%!',
+              'Reviewing subscriptions monthly ensures you only pay for services that bring active value to your routine.',
+              'Allocating 20% of income directly to a Savings Goal on payday (Pay Yourself First) builds an emergency fund 2x faster.',
+              'Tracking cash expenses immediately via 1-Tap Presets prevents small daily leaks from adding up silently.',
+              'Planning meal prep or weekly grocery lists with preset budgets cuts food expense waste by up to ₱1,500 every cycle.'
+            ];
+            const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+            const currentDailyTip = dailyTips[dayOfYear % dailyTips.length];
+
+            return (
+              <div className="bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-indigo-500/10 border border-amber-200/60 rounded-2xl p-4 shadow-sm space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-900 flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-600 animate-pulse" /> Katuwang Advice
+                  </span>
+                  <span className="text-[9px] font-bold text-amber-700/80 uppercase tracking-wider">Daily Tip</span>
+                </div>
+                {actualDailySpend > idealDailySpend * 1.1 && daysRemaining > 3 ? (
+                  <p className="text-xs text-slate-700 font-medium leading-relaxed">
+                    ⚡ <strong className="text-amber-900">Spending Velocity Caution:</strong> You're spending ₱{(actualDailySpend - idealDailySpend).toFixed(0)}/day over your recommended pace. Lower daily spend to ₱{idealDailySpend.toFixed(0)}/day to stay safe until next {resetTerm.toLowerCase()}!
+                  </p>
+                ) : totalIncome > 0 && totalExpense / totalIncome < 0.7 ? (
+                  <p className="text-xs text-slate-700 font-medium leading-relaxed">
+                    🎉 <strong className="text-emerald-900">Excellent Savings Pace:</strong> You have saved {((1 - totalExpense / totalIncome) * 100).toFixed(0)}% of your income this cycle! Consider adding ₱{formatPesos((totalIncome - totalExpense) * 0.2)} to a Savings Goal.
+                  </p>
+                ) : (
+                  <p className="text-xs text-slate-700 font-medium leading-relaxed">
+                    💡 <strong className="text-indigo-900">Tip of the Day:</strong> {currentDailyTip}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Upcoming Bills & Subscriptions Card */}
           <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-4 shadow-sm">
