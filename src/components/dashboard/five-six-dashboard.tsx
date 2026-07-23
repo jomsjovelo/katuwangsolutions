@@ -1124,9 +1124,9 @@ export function FiveSixDashboard() {
                                 setLoanPrincipal(e.target.value);
                                 const amt = parseFloat(e.target.value) || 0;
                                 if (interestMode === '20') {
-                                  setLoanInterest((amt * 0.2).toFixed(0));
+                                  setLoanInterest(Number((amt * 0.2).toFixed(2)).toString());
                                 } else if (interestMode === '10') {
-                                  setLoanInterest((amt * 0.1).toFixed(0));
+                                  setLoanInterest(Number((amt * 0.1).toFixed(2)).toString());
                                 }
                               }}
                               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800"
@@ -1163,7 +1163,7 @@ export function FiveSixDashboard() {
                               onClick={() => {
                                 setInterestMode('20');
                                 const amt = parseFloat(loanPrincipal) || 0;
-                                setLoanInterest((amt * 0.2).toFixed(0));
+                                setLoanInterest(Number((amt * 0.2).toFixed(2)).toString());
                               }}
                               className={cn(
                                 "flex-1 h-8 rounded-lg text-xs font-bold transition-all border-none cursor-pointer",
@@ -1178,7 +1178,7 @@ export function FiveSixDashboard() {
                               onClick={() => {
                                 setInterestMode('10');
                                 const amt = parseFloat(loanPrincipal) || 0;
-                                setLoanInterest((amt * 0.1).toFixed(0));
+                                setLoanInterest(Number((amt * 0.1).toFixed(2)).toString());
                               }}
                               className={cn(
                                 "flex-1 h-8 rounded-lg text-xs font-bold transition-all border-none cursor-pointer",
@@ -1321,7 +1321,7 @@ export function FiveSixDashboard() {
                         onClick={() => {
                           setInterestMode('20');
                           const amt = parseFloat(loanPrincipal) || 0;
-                          setLoanInterest((amt * 0.2).toFixed(0));
+                          setLoanInterest(Number((amt * 0.2).toFixed(2)).toString());
                         }}
                         className={cn(
                           "flex-1 h-8 rounded-lg text-xs font-bold transition-all border-none cursor-pointer",
@@ -1336,7 +1336,7 @@ export function FiveSixDashboard() {
                         onClick={() => {
                           setInterestMode('10');
                           const amt = parseFloat(loanPrincipal) || 0;
-                          setLoanInterest((amt * 0.1).toFixed(0));
+                          setLoanInterest(Number((amt * 0.1).toFixed(2)).toString());
                         }}
                         className={cn(
                           "flex-1 h-8 rounded-lg text-xs font-bold transition-all border-none cursor-pointer",
@@ -1382,9 +1382,9 @@ export function FiveSixDashboard() {
                           setLoanPrincipal(e.target.value);
                           const amt = parseFloat(e.target.value) || 0;
                           if (interestMode === '20') {
-                            setLoanInterest((amt * 0.2).toFixed(0));
+                            setLoanInterest(Number((amt * 0.2).toFixed(2)).toString());
                           } else if (interestMode === '10') {
-                            setLoanInterest((amt * 0.1).toFixed(0));
+                            setLoanInterest(Number((amt * 0.1).toFixed(2)).toString());
                           }
                         }}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-slate-300 text-slate-800"
