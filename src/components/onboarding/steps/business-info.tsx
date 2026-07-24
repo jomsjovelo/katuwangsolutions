@@ -83,9 +83,15 @@ export function BusinessInfoStep({ data, onUpdate, onNext, isLoading }: Business
     
     const result = SubStepBSchema.safeParse(data);
     if (!result.success) {
+      const isBudgetMo = data.appId === 'budget-mo';
       const fieldErrors: any = {};
       result.error.issues.forEach((issue) => {
-        fieldErrors[issue.path[0]] = issue.message;
+        const fieldName = issue.path[0];
+        if (fieldName === 'businessName' && isBudgetMo) {
+          fieldErrors[fieldName] = 'Kailangan ang pangalan ng iyong budget account';
+        } else {
+          fieldErrors[fieldName] = issue.message;
+        }
       });
       setErrors(fieldErrors);
       return;
