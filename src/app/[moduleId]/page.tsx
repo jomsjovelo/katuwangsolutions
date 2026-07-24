@@ -17,6 +17,8 @@ type Props = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
+export const dynamicParams = true;
+
 // Generate static routes for all 20 active modules at build time
 export async function generateStaticParams() {
   return activeModules.map((module) => ({
