@@ -108,6 +108,15 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
             updatedData.appId = draftAppId;
           }
 
+          // If a specific module was specified via URL or prop (e.g. /budget-mo/onboarding),
+          // prioritize the URL module and skip the 'apps' picker step!
+          if (resolvedAppId) {
+            updatedData.appId = resolvedAppId;
+            if (updatedStep === 'apps' || updatedStep === 'mode' || !updatedData.appId) {
+              updatedStep = 'business';
+            }
+          }
+
           setStep(updatedStep);
           setData((d) => ({ ...d, ...updatedData }));
           if (draftError) {
@@ -117,9 +126,12 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
       } catch (e) {
         // ignore safely
       }
+    } else if (resolvedAppId) {
+      setStep('business');
+      setData((d) => ({ ...d, appId: resolvedAppId }));
     }
     setIsRecovered(true);
-  }, []);
+  }, [resolvedAppId]);
 
   useEffect(() => {
     if (!isRecovered) return;
