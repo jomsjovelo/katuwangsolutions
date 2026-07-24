@@ -33,10 +33,15 @@ function RegisterSheetContent({ open, onClose, initialAppId = '' }: RegisterShee
   useEffect(() => {
     if (open) {
       setSelectedId(initialAppId);
-      setStep('role');
-      setRole(null);
+      if (initialAppId === 'budget-mo') {
+        onClose();
+        router.push('/budget-mo/onboarding');
+      } else {
+        setStep('role');
+        setRole(null);
+      }
     }
-  }, [open, initialAppId]);
+  }, [open, initialAppId, onClose, router]);
 
   const preSelectedApp = activeModules.find(m => m.id === selectedId);
 
@@ -46,7 +51,7 @@ function RegisterSheetContent({ open, onClose, initialAppId = '' }: RegisterShee
         if (selectedId) {
           // App was ALREADY pre-selected! Go directly to onboarding without asking again!
           onClose();
-          router.push(`/onboarding?app=${selectedId}`);
+          router.push(`/${selectedId}/onboarding`);
         } else {
           setStep('app');
         }
@@ -59,7 +64,7 @@ function RegisterSheetContent({ open, onClose, initialAppId = '' }: RegisterShee
     } else {
       if (!selectedId) return;
       onClose();
-      router.push(`/onboarding?app=${selectedId}`);
+      router.push(`/${selectedId}/onboarding`);
     }
   };
 

@@ -160,45 +160,55 @@ export function BusinessInfoStep({ data, onUpdate, onNext, isLoading }: Business
         </>
       )}
 
-      {subStep === 'B' && (
-        <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-          <div className="space-y-1 mb-8">
-            <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900">Saan at Ano?</h2>
-            <p className="text-slate-600 text-sm font-medium">Mga detalye ng iyong tindahan o negosyo.</p>
-          </div>
-
-          <form onSubmit={handleSubmitFinal} className="space-y-6">
-            <div className="space-y-5">
-              <div className="space-y-2">
-                <div className="flex flex-col gap-0.5">
-                  <Label htmlFor="address" className="text-xs font-bold uppercase tracking-widest text-slate-500">Tirahan</Label>
-                  <span className="text-[10px] text-slate-400 font-medium">Bahay No., Kalye, Barangay, Lungsod</span>
-                </div>
-                <Input 
-                  id="address"
-                  placeholder="Hal: 123 Rizal St., Brgy. San Jose"
-                  value={data.address || ''}
-                  onChange={(e) => onUpdate({ address: e.target.value })}
-                  className={errors.address ? "border-destructive h-14" : "h-14"}
-                />
-                {errors.address && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.address}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex flex-col gap-0.5">
-                  <Label htmlFor="businessName" className="text-xs font-bold uppercase tracking-widest text-slate-500">Pangalan ng Negosyo</Label>
-                  <span className="text-[10px] text-slate-400 font-medium">Halimbawa: Aling Nena's Store</span>
-                </div>
-                <Input 
-                  id="businessName"
-                  placeholder="Halimbawa: Aling Nena's Store"
-                  value={data.businessName || ''}
-                  onChange={(e) => onUpdate({ businessName: e.target.value })}
-                  className={errors.businessName ? "border-destructive h-14" : "h-14"}
-                />
-                {errors.businessName && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.businessName}</p>}
-              </div>
+      {subStep === 'B' && (() => {
+        const isBudgetMo = data.appId === 'budget-mo';
+        return (
+          <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+            <div className="space-y-1 mb-8">
+              <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900">
+                {isBudgetMo ? 'Personal Budget Setup' : 'Saan at Ano?'}
+              </h2>
+              <p className="text-slate-600 text-sm font-medium">
+                {isBudgetMo ? 'Mga detalye para sa iyong personal na badyet at ipon.' : 'Mga detalye ng iyong tindahan o negosyo.'}
+              </p>
             </div>
+
+            <form onSubmit={handleSubmitFinal} className="space-y-6">
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <div className="flex flex-col gap-0.5">
+                    <Label htmlFor="address" className="text-xs font-bold uppercase tracking-widest text-slate-500">Tirahan</Label>
+                    <span className="text-[10px] text-slate-400 font-medium">Bahay No., Kalye, Barangay, Lungsod</span>
+                  </div>
+                  <Input 
+                    id="address"
+                    placeholder="Hal: 123 Rizal St., Brgy. San Jose"
+                    value={data.address || ''}
+                    onChange={(e) => onUpdate({ address: e.target.value })}
+                    className={errors.address ? "border-destructive h-14" : "h-14"}
+                  />
+                  {errors.address && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.address}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex flex-col gap-0.5">
+                    <Label htmlFor="businessName" className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                      {isBudgetMo ? 'Pangalan ng Account / Budget Ledger' : 'Pangalan ng Negosyo'}
+                    </Label>
+                    <span className="text-[10px] text-slate-400 font-medium">
+                      {isBudgetMo ? 'Halimbawa: Aking Personal Budget / Pamilya Budget' : "Halimbawa: Aling Nena's Store"}
+                    </span>
+                  </div>
+                  <Input 
+                    id="businessName"
+                    placeholder={isBudgetMo ? 'Halimbawa: Aking Personal Budget' : "Halimbawa: Aling Nena's Store"}
+                    value={data.businessName || ''}
+                    onChange={(e) => onUpdate({ businessName: e.target.value })}
+                    className={errors.businessName ? "border-destructive h-14" : "h-14"}
+                  />
+                  {errors.businessName && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.businessName}</p>}
+                </div>
+              </div>
 
             <div className="space-y-3">
               <Button 
@@ -223,7 +233,8 @@ export function BusinessInfoStep({ data, onUpdate, onNext, isLoading }: Business
             </div>
           </form>
         </div>
-      )}
+      );
+    })()}
     </div>
   );
 }

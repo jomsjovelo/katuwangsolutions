@@ -57,9 +57,9 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(initialError);
   const [data, setData] = useState({
-    // Business
+    // Business / Personal Ledger Name
     appId: resolvedAppId,
-    businessName: '',
+    businessName: resolvedAppId === 'budget-mo' ? 'Aking Personal Budget' : '',
     businessPhone: '',
     // Personal
     fullName: '',
