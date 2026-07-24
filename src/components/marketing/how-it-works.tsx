@@ -1,34 +1,26 @@
 import React from 'react';
-import { UserPlus, Store, AppWindow, TrendingUp } from 'lucide-react';
+import { UserPlus, AppWindow, TrendingUp } from 'lucide-react';
 import { activeModulesCount } from '@/lib/app-data';
 
 const STEPS = [
   {
     number: '01',
-    icon: UserPlus,
-    title: 'Mag-Register',
-    desc: 'Gumawa ng account sa loob ng 2 minuto. Walang credit card, walang komplikasyon.',
+    icon: AppWindow,
+    title: 'Pumili ng Module',
+    desc: `Pumili sa ${activeModulesCount} specialized business apps tulad ng Benta Snap, Biyahe Sync, o Budget Mo.`,
     color: '#06B6D4',
     bg: 'bg-cyan-50',
   },
   {
     number: '02',
-    icon: Store,
-    title: 'Piliin ang Negosyo Mo',
-    desc: 'Sabihin mo sa amin kung ano ang uri ng negosyo mo — sari-sari, restaurant, laundry, at iba pa.',
-    color: '#F97316',
-    bg: 'bg-orange-50',
-  },
-  {
-    number: '03',
-    icon: AppWindow,
-    title: 'Piliin ang Module',
-    desc: `Pumili sa ${activeModulesCount} na industry-specific na apps na espesyal na dinisenyo para sa iyong negosyo.`,
+    icon: UserPlus,
+    title: 'Mag-Register',
+    desc: 'Ilagay ang pangalan at mobile number sa loob ng 1 minuto. Walang credit card, walang komplikasyon.',
     color: '#8B5CF6',
     bg: 'bg-violet-50',
   },
   {
-    number: '04',
+    number: '03',
     icon: TrendingUp,
     title: 'Simulan ang Pamamahala',
     desc: 'I-track ang benta, stock, utang, at gastos — kahit offline. Ito na ang katuwang mo.',
@@ -42,11 +34,11 @@ export function HowItWorks() {
     <section className="py-14 md:py-24 px-5 bg-slate-50 border-t border-slate-100">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-10 space-y-2">
+        <div className="text-center mb-12 space-y-2">
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Paano Ito Gamitin</p>
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 tracking-tight">
             Magsimula sa{' '}
-            <span className="text-primary">4 na hakbang</span>
+            <span className="text-primary">3 mabilis na hakbang</span>
           </h2>
           <p className="text-slate-500 text-sm max-w-sm mx-auto">
             Simple lang. Hindi mo kailangan ng IT background para gamitin ang Katuwang.
@@ -54,9 +46,9 @@ export function HowItWorks() {
         </div>
 
         {/* Steps */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 relative">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 md:gap-8 relative max-w-3xl mx-auto">
           {/* Connector line (desktop) */}
-          <div className="hidden md:block absolute top-10 left-[12.5%] right-[12.5%] h-px bg-slate-200 z-0" />
+          <div className="hidden sm:block absolute top-10 left-[16.6%] right-[16.6%] h-px bg-slate-200 z-0" />
 
           {STEPS.map(({ number, icon: Icon, title, desc, color, bg }, index) => (
             <div key={number} className="relative z-10 flex flex-col items-center text-center gap-3">
