@@ -1,5 +1,5 @@
 import React from 'react';
-import { Store, Star, PhilippinePeso, WifiOff, RefreshCw, CloudUpload, Users, Smartphone, Zap } from 'lucide-react';
+import { Store, Star, PhilippinePeso, WifiOff, RefreshCw, CloudUpload, Users, Smartphone, Zap, LayoutGrid, CheckCircle2 } from 'lucide-react';
 
 const TRUST_PILLS = [
   { icon: WifiOff, label: 'Works Offline', color: 'text-emerald-400', bg: 'bg-emerald-400/10 border-emerald-400/20' },
@@ -16,7 +16,7 @@ export function SocialProofBar() {
       <div className="max-w-5xl mx-auto px-5">
         {/* Trust label */}
         <p className="text-[10px] md:text-xs text-slate-400 font-black uppercase tracking-[0.2em] text-center mb-8">
-          Pinagkakatiwalaan ng mga palengke at sari-sari store sa buong bansa
+          Isang sistema para sa benta, badyet, at operational tracking
         </p>
 
         {/* Trust pills */}
@@ -36,10 +36,10 @@ export function SocialProofBar() {
         <div className="grid grid-cols-3 gap-2 border-t border-slate-800 pt-8">
           <div className="flex flex-col items-center text-center space-y-1">
             <div className="p-2 bg-slate-800 rounded-full mb-1">
-              <Store className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+              <LayoutGrid className="h-4 w-4 md:h-5 md:w-5 text-primary" />
             </div>
-            <h3 className="text-xl md:text-2xl font-black text-white tracking-tight">500+</h3>
-            <p className="text-[9px] text-white font-bold uppercase tracking-widest">Tindahan</p>
+            <h3 className="text-xl md:text-2xl font-black text-white tracking-tight">20</h3>
+            <p className="text-[9px] text-white font-bold uppercase tracking-widest">Modules Available</p>
           </div>
 
           <div className="flex flex-col items-center text-center space-y-1 border-x border-slate-700">
@@ -52,10 +52,10 @@ export function SocialProofBar() {
 
           <div className="flex flex-col items-center text-center space-y-1">
             <div className="p-2 bg-slate-800 rounded-full mb-1">
-              <PhilippinePeso className="h-4 w-4 md:h-5 md:w-5 text-green-400" />
+              <WifiOff className="h-4 w-4 md:h-5 md:w-5 text-emerald-400" />
             </div>
-            <h3 className="text-xl md:text-2xl font-black text-white tracking-tight">₱10M+</h3>
-            <p className="text-[9px] text-white font-bold uppercase tracking-widest">Na-track na Benta</p>
+            <h3 className="text-xl md:text-2xl font-black text-white tracking-tight">100%</h3>
+            <p className="text-[9px] text-white font-bold uppercase tracking-widest">Works Offline</p>
           </div>
         </div>
       </div>
