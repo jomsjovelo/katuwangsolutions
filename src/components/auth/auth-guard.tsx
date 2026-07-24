@@ -11,6 +11,22 @@ import { ShieldAlert, Loader2, AlertCircle, Copy, Check, ExternalLink } from 'lu
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { useFirestore } from '@/firebase/provider';
 import Image from 'next/image';
+import { isValidActiveModuleId } from '@/lib/app-data';
+
+function isPublicPathname(pathname: string): boolean {
+  if (!pathname || pathname === '/' || pathname === '/admin' || pathname === '/login' || pathname === '/auth') return true;
+  
+  const publicPrefixes = [
+    '/rsvp', '/product', '/terms', '/onboarding', 
+    '/about', '/faq', '/modules', '/privacy'
+  ];
+  if (publicPrefixes.some(prefix => pathname.startsWith(prefix))) return true;
+
+  const firstSegment = pathname.split('/')[1];
+  if (firstSegment && isValidActiveModuleId(firstSegment)) return true;
+
+  return false;
+}
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const db = useFirestore();
@@ -105,7 +121,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (authLoading || isAdmin === null) return;
     if (!user) {
-      const isPublicPath = pathname === '/' || pathname === '/admin' || pathname.startsWith('/rsvp') || pathname.startsWith('/product') || pathname.startsWith('/terms') || pathname.startsWith('/onboarding') || pathname.startsWith('/about') || pathname.startsWith('/faq') || pathname.startsWith('/modules') || pathname.startsWith('/privacy');
+      const isPublicPath = isPublicPathname(pathname);
       if (!isPublicPath) router.push('/');
       return;
     }
@@ -218,7 +234,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId, db]);
 
-  const isPublicRoute = pathname === '/' || pathname === '/admin' || pathname.startsWith('/rsvp') || pathname.startsWith('/product') || pathname.startsWith('/terms') || pathname.startsWith('/onboarding') || pathname.startsWith('/about') || pathname.startsWith('/faq') || pathname.startsWith('/modules') || pathname.startsWith('/privacy');
+  const isPublicRoute = isPublicPathname(pathname);
   const isOnboarding = pathname.startsWith('/onboarding');
 
   // 1. Initial Loading/Hydration State
@@ -470,7 +486,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   // 4. Strict Routing Render Locks (Prevents FOUC)
   const isUnauthorized = 
-    (!user && pathname !== '/' && pathname !== '/admin' && !pathname.startsWith('/rsvp') && !pathname.startsWith('/product') && !pathname.startsWith('/onboarding') && !pathname.startsWith('/terms') && !pathname.startsWith('/about') && !pathname.startsWith('/faq') && !pathname.startsWith('/modules') && !pathname.startsWith('/privacy')) ||
+    (!user && !isPublicRoute) ||
     (user !== null && isAdmin === false && pathname === '/admin') ||
     (isAdmin === true && pathname !== '/admin' && pathname !== '/dashboard' && !pathname.startsWith('/module/'));
 
