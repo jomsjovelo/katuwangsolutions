@@ -64,7 +64,9 @@ export default function ModulesPage() {
                         <app.icon className="h-6 w-6" />
                       </div>
                       <div>
-                        <h3 className="font-bold text-lg text-slate-900 group-hover:text-primary transition-colors">{app.name}</h3>
+                        <Link href={`/${app.id}`}>
+                          <h3 className="font-bold text-lg text-slate-900 group-hover:text-primary transition-colors hover:underline">{app.name}</h3>
+                        </Link>
                         <p className="text-xs text-slate-500 font-medium leading-relaxed mt-1">{app.tagline}</p>
                       </div>
                     </div>
@@ -84,10 +86,15 @@ export default function ModulesPage() {
                           </span>
                         ))}
                       </div>
-                      <Link href={`/onboarding?app=${app.id}`} className="flex items-center justify-between text-sm font-bold text-primary hover:text-primary/80 transition-colors w-full bg-primary/5 hover:bg-primary/10 p-3 rounded-xl">
-                        <span>Gamitin na</span>
-                        <ArrowRight className="h-4 w-4" />
-                      </Link>
+                      <div className="flex gap-2">
+                        <Link href={`/${app.id}`} className="flex-1 text-center text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors p-3 rounded-xl">
+                          Details
+                        </Link>
+                        <Link href={`/${app.id}/onboarding`} className="flex-1 flex items-center justify-center gap-1 text-xs font-bold text-white bg-primary hover:bg-primary/90 transition-colors p-3 rounded-xl shadow-sm">
+                          <span>Gamitin na</span>
+                          <ArrowRight className="h-3.5 w-3.5" />
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 )})}

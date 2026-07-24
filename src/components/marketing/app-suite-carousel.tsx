@@ -180,7 +180,7 @@ export function AppSuiteCarousel() {
                 <span>Register Now</span>
                 <ArrowRight className="h-4 w-4" />
               </button>
-              <Link href={`/product/${activeApp.id}`} className="flex-1">
+              <Link href={`/${activeApp.id}`} className="flex-1">
                 <button className="w-full h-12 rounded-2xl font-bold text-xs text-slate-700 border border-slate-200 bg-slate-50 active:scale-95 transition-transform flex items-center justify-center gap-1 hover:bg-slate-100">
                   Learn More
                   <ChevronRight className="h-4 w-4" />

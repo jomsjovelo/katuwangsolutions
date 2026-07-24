@@ -151,7 +151,7 @@ export function ProblemFirst() {
               </div>
               <div className="flex gap-2">
                 <button
-                  onClick={openSheet}
+                  onClick={() => openSheet(selectedProblem.moduleId)}
                   className="flex-1 h-12 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
                   style={{ backgroundColor: selectedProblem.color }}
                 >
@@ -159,7 +159,7 @@ export function ProblemFirst() {
                   <ChevronRight className="h-4 w-4" />
                 </button>
                 <a
-                  href={`/product/${selectedProblem.moduleId}`}
+                  href={`/${selectedProblem.moduleId}`}
                   className="w-24 flex-shrink-0 h-12 rounded-xl font-bold text-xs flex items-center justify-center gap-1 active:scale-95 transition-all"
                   style={{ color: selectedProblem.color, backgroundColor: `${selectedProblem.color}15` }}
                 >

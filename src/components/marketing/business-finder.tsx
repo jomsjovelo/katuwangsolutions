@@ -109,7 +109,7 @@ export function BusinessFinder() {
               </div>
               <div className="flex flex-col gap-2 flex-shrink-0">
                 <button
-                  onClick={openSheet}
+                  onClick={() => openSheet(selectedIndustry.moduleId)}
                   className="h-9 px-4 rounded-xl font-bold text-[11px] text-white flex items-center justify-center gap-1 active:scale-95 transition-transform"
                   style={{ backgroundColor: selectedIndustry.color }}
                 >
@@ -117,7 +117,7 @@ export function BusinessFinder() {
                   <ChevronRight className="h-3 w-3" />
                 </button>
                 <a
-                  href={`/product/${selectedIndustry.moduleId}`}
+                  href={`/${selectedIndustry.moduleId}`}
                   className="h-8 px-3 rounded-lg font-bold text-[10px] flex items-center justify-center gap-1 active:scale-95 transition-all"
                   style={{ color: selectedIndustry.color, backgroundColor: `${selectedIndustry.color}15` }}
                 >
