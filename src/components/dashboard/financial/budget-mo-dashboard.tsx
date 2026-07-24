@@ -128,6 +128,7 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
 
   const [showCustomizeIponModal, setShowCustomizeIponModal] = useState<boolean>(false);
   const [txTypeFilter, setTxTypeFilter] = useState<'all' | 'income' | 'expense'>('all');
+  const [showAuto503020Modal, setShowAuto503020Modal] = useState<boolean>(false);
 
   const [showAllocationPrompt, setShowAllocationPrompt] = useState<{amount: number} | null>(null);
   
@@ -1163,21 +1164,7 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
                   <p className="text-[10px] text-slate-400">Set envelope limits for Food, Transport, Utilities, and Shopping.</p>
                 </div>
                 <Button
-                  onClick={async () => {
-                    if (!currentTenant?.id) return;
-                    try {
-                      setIsSubmitting(true);
-                      const incomeToUse = totalIncome > 0 ? totalIncome : 20000;
-                      await addBudgetEnvelope(currentTenant.id, 'Food & Utilities (Needs)', Math.round(incomeToUse * 0.5 * 100));
-                      await addBudgetEnvelope(currentTenant.id, 'Shopping & Leisure (Wants)', Math.round(incomeToUse * 0.3 * 100));
-                      await addBudgetEnvelope(currentTenant.id, 'Savings & Emergency', Math.round(incomeToUse * 0.2 * 100));
-                      toast({ title: '⚡ Envelopes Setup Complete!', description: 'Generated 50/30/20 Smart Split category budgets.' });
-                    } catch (e: any) {
-                      toast({ title: 'Error', description: e.message, variant: 'destructive' });
-                    } finally {
-                      setIsSubmitting(false);
-                    }
-                  }}
+                  onClick={() => setShowAuto503020Modal(true)}
                   disabled={isSubmitting}
                   className="bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs rounded-xl shadow-sm px-4 py-2"
                 >
@@ -2130,6 +2117,146 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
                 className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold"
               >
                 Save Goals
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {showAuto503020Modal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowAuto503020Modal(false)}>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!currentTenant?.id) return;
+              const fd = new FormData(e.currentTarget);
+              const customIncome = parseFloat(fd.get('incomeBaseline') as string);
+              const incomeToUse = customIncome > 0 ? customIncome : (totalIncome > 0 ? totalIncome : 25000);
+              
+              try {
+                setIsSubmitting(true);
+                const needsCentavos = Math.round(incomeToUse * 0.5 * 100);
+                const wantsCentavos = Math.round(incomeToUse * 0.3 * 100);
+                const savingsCentavos = Math.round(incomeToUse * 0.2 * 100);
+
+                await addBudgetEnvelope(currentTenant.id, 'Food & Utilities (Needs)', needsCentavos);
+                await addBudgetEnvelope(currentTenant.id, 'Shopping & Leisure (Wants)', wantsCentavos);
+                await addBudgetEnvelope(currentTenant.id, 'Savings & Emergency', savingsCentavos);
+
+                toast({
+                  title: '⚡ 50/30/20 Envelopes Created!',
+                  description: `Needs: ₱${(needsCentavos / 100).toLocaleString()}, Wants: ₱${(wantsCentavos / 100).toLocaleString()}, Savings: ₱${(savingsCentavos / 100).toLocaleString()}`
+                });
+                setShowAuto503020Modal(false);
+              } catch (err: any) {
+                toast({ title: 'Error', description: err.message, variant: 'destructive' });
+              } finally {
+                setIsSubmitting(false);
+              }
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white p-6 rounded-[32px] w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200 space-y-4"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-violet-100 text-violet-700 rounded-xl flex items-center justify-center">
+                <Target className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-black text-lg text-slate-800 tracking-tight">Auto 50/30/20 Setup</h3>
+                <p className="text-xs text-slate-500">Calculate category envelopes from your income</p>
+              </div>
+            </div>
+
+            {totalIncome > 0 && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 flex justify-between items-center">
+                <div>
+                  <p className="text-[10px] font-black uppercase text-emerald-800 tracking-wider">Logged Cycle Income</p>
+                  <p className="font-black text-base text-emerald-950">{formatPesos(totalIncome)}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!currentTenant?.id) return;
+                    try {
+                      setIsSubmitting(true);
+                      await addBudgetEnvelope(currentTenant.id, 'Food & Utilities (Needs)', Math.round(totalIncome * 0.5 * 100));
+                      await addBudgetEnvelope(currentTenant.id, 'Shopping & Leisure (Wants)', Math.round(totalIncome * 0.3 * 100));
+                      await addBudgetEnvelope(currentTenant.id, 'Savings & Emergency', Math.round(totalIncome * 0.2 * 100));
+                      toast({ title: '⚡ 50/30/20 Setup Complete!', description: `Applied to logged ₱${totalIncome.toLocaleString()} income.` });
+                      setShowAuto503020Modal(false);
+                    } catch (e: any) {
+                      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+                    } finally {
+                      setIsSubmitting(false);
+                    }
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-1.5 rounded-xl shadow-sm"
+                >
+                  Use Logged
+                </button>
+              </div>
+            )}
+
+            <div>
+              <Label htmlFor="income-baseline" className="text-xs font-bold text-slate-700 mb-1.5 block">
+                {persona === 'student' ? 'Weekly Allowance Baseline (₱)' : 'Monthly Income / Salary Target (₱)'}
+              </Label>
+              <Input
+                id="income-baseline"
+                name="incomeBaseline"
+                type="number"
+                step="100"
+                placeholder={totalIncome > 0 ? totalIncome.toString() : (persona === 'student' ? '1500' : '25000')}
+                className="bg-slate-50 border-slate-200 rounded-xl font-bold"
+              />
+            </div>
+
+            {/* Quick Income Presets */}
+            <div>
+              <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1.5">Quick Income Presets</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {(persona === 'student' || cycleType === 'weekly' ? [500, 1500, 3000, 5000] : [15000, 25000, 35000, 50000]).map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={async () => {
+                      if (!currentTenant?.id) return;
+                      try {
+                        setIsSubmitting(true);
+                        await addBudgetEnvelope(currentTenant.id, 'Food & Utilities (Needs)', Math.round(preset * 0.5 * 100));
+                        await addBudgetEnvelope(currentTenant.id, 'Shopping & Leisure (Wants)', Math.round(preset * 0.3 * 100));
+                        await addBudgetEnvelope(currentTenant.id, 'Savings & Emergency', Math.round(preset * 0.2 * 100));
+                        toast({ title: '⚡ Envelopes Setup!', description: `Category budgets scaled for ₱${preset.toLocaleString()} baseline.` });
+                        setShowAuto503020Modal(false);
+                      } catch (e: any) {
+                        toast({ title: 'Error', description: e.message, variant: 'destructive' });
+                      } finally {
+                        setIsSubmitting(false);
+                      }
+                    }}
+                    className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs py-2 px-3 rounded-xl transition-all"
+                  >
+                    ₱{preset.toLocaleString()}{persona === 'student' ? '/wk' : '/mo'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setShowAuto503020Modal(false)}
+                className="flex-1 rounded-xl text-slate-500 font-bold"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex-1 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-bold"
+              >
+                {isSubmitting ? 'Saving...' : 'Apply 50/30/20'}
               </Button>
             </div>
           </form>
