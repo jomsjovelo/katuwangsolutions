@@ -49,6 +49,7 @@ export const metadata: Metadata = {
     icon: '/icons/icon-192.png',
   },
   other: {
+    'facebook-domain-verification': 'q0v9szqrbsuvnu0gpdqvfvwzsa85l9',
     'mobile-web-app-capable': 'yes',
     'google': 'notranslate',
     'Content-Language': 'fil',
