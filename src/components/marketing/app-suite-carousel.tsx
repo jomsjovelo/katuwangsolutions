@@ -42,7 +42,7 @@ const MODULE_COLORS: Record<string, string> = {
 };
 
 export function AppSuiteCarousel() {
-  const { open, openSheet, closeSheet } = useRegisterSheet();
+  const { open, openSheet, closeSheet, initialAppId } = useRegisterSheet();
   const [activeCategory, setActiveCategory] = useState('all');
   const [activeModuleId, setActiveModuleId] = useState('benta-snap');
 
@@ -173,7 +173,7 @@ export function AppSuiteCarousel() {
             {/* Actions */}
             <div className="flex gap-2 pt-2">
               <button
-                onClick={openSheet}
+                onClick={() => openSheet(activeApp.id)}
                 className="flex-1 h-12 rounded-2xl font-bold text-xs text-white active:scale-95 transition-transform shadow-md flex items-center justify-center gap-1.5"
                 style={{ backgroundColor: activeAppColor }}
               >
@@ -254,7 +254,7 @@ export function AppSuiteCarousel() {
         </div>
       </section>
 
-      <RegisterSheet open={open} onClose={closeSheet} />
+      <RegisterSheet open={open} onClose={closeSheet} initialAppId={initialAppId} />
     </>
   );
 }

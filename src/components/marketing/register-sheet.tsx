@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-import { appGroups, activeModulesCount } from '@/lib/app-data';
+import { appGroups, activeModulesCount, activeModules } from '@/lib/app-data';
 import { getModulePricing, formatPeso } from '@/lib/pricing';
 
 interface RegisterSheetProps {
@@ -29,7 +29,7 @@ function RegisterSheetContent({ open, onClose, initialAppId = '' }: RegisterShee
   const [step, setStep] = useState<'role' | 'app'>('role');
   const [role, setRole] = useState<'owner' | 'staff' | null>(null);
 
-  // Sync pre-selected app whenever the sheet is opened with a different app
+  // Sync pre-selected app whenever the sheet is opened
   useEffect(() => {
     if (open) {
       setSelectedId(initialAppId);
@@ -38,10 +38,18 @@ function RegisterSheetContent({ open, onClose, initialAppId = '' }: RegisterShee
     }
   }, [open, initialAppId]);
 
+  const preSelectedApp = activeModules.find(m => m.id === selectedId);
+
   const handleContinue = () => {
     if (step === 'role') {
       if (role === 'owner') {
-        setStep('app');
+        if (selectedId) {
+          // App was ALREADY pre-selected! Go directly to onboarding without asking again!
+          onClose();
+          router.push(`/onboarding?app=${selectedId}`);
+        } else {
+          setStep('app');
+        }
       } else if (role === 'staff') {
         onClose();
         setTimeout(() => {
@@ -79,7 +87,9 @@ function RegisterSheetContent({ open, onClose, initialAppId = '' }: RegisterShee
               {step === 'role' ? 'Ano ang role mo?' : 'Anong uri ng negosyo mo?'}
             </h3>
             <p className="text-xs text-slate-500 font-medium">
-              {step === 'role' ? 'Piliin kung ikaw ang may-ari o staff.' : `Pumili sa ${activeModulesCount} apps.`}
+              {step === 'role' 
+                ? (preSelectedApp ? `Nagpaparehistro para sa ${preSelectedApp.name}.` : 'Piliin kung ikaw ang may-ari o staff.')
+                : `Pumili sa ${activeModulesCount} apps.`}
             </p>
           </div>
           <button
@@ -94,6 +104,18 @@ function RegisterSheetContent({ open, onClose, initialAppId = '' }: RegisterShee
         <div className="overflow-y-auto flex-1 px-5 py-4 space-y-6">
           {step === 'role' ? (
             <div className="grid gap-3">
+              {preSelectedApp && (
+                <div className="bg-primary/5 border border-primary/20 rounded-2xl p-3.5 flex items-center gap-3 mb-1">
+                  <div className="h-10 w-10 bg-primary text-white rounded-xl flex items-center justify-center font-bold text-sm">
+                    <preSelectedApp.icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-wider text-primary">Selected Module</p>
+                    <p className="font-bold text-sm text-slate-900">{preSelectedApp.name}</p>
+                  </div>
+                </div>
+              )}
+
               <button
                 onClick={() => setRole('owner')}
                 className={cn(
@@ -208,13 +230,23 @@ export function RegisterSheet(props: RegisterSheetProps) {
 }
 
 /**
- * Hook to open the register sheet from any client component.
+ * Hook to open the register sheet from any client component, passing an optional pre-selected appId.
  */
 export function useRegisterSheet() {
   const [open, setOpen] = useState(false);
+  const [initialAppId, setInitialAppId] = useState<string>('');
+
   return {
     open,
-    openSheet: () => setOpen(true),
-    closeSheet: () => setOpen(false),
+    initialAppId,
+    openSheet: (appId?: string | React.MouseEvent) => {
+      if (typeof appId === 'string') setInitialAppId(appId);
+      else setInitialAppId('');
+      setOpen(true);
+    },
+    closeSheet: () => {
+      setOpen(false);
+      setInitialAppId('');
+    },
   };
 }
