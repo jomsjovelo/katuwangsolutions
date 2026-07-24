@@ -1,7 +1,8 @@
 import React, { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { OnboardingWizard } from '@/components/onboarding/onboarding-wizard';
-import { isValidActiveModuleId, activeModules } from '@/lib/app-data';
+import { isValidActiveModuleId, activeModules, getActiveAppById } from '@/lib/app-data';
+import { OnboardingStartTracker } from '@/components/analytics/meta-events';
 
 type Props = {
   params: Promise<{ moduleId: string }>;
@@ -21,6 +22,8 @@ export default async function DedicatedModuleOnboardingPage({ params }: Props) {
     notFound();
   }
 
+  const selectedModule = getActiveAppById(moduleId);
+
   return (
     <Suspense fallback={
       <div className="fixed inset-0 bg-white z-50 flex items-center justify-center">
@@ -28,6 +31,10 @@ export default async function DedicatedModuleOnboardingPage({ params }: Props) {
       </div>
     }>
       <div className="min-h-screen w-full relative">
+        <OnboardingStartTracker
+          moduleId={moduleId}
+          moduleName={selectedModule?.name}
+        />
         <OnboardingWizard initialAppId={moduleId} />
       </div>
     </Suspense>

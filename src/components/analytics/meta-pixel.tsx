@@ -1,29 +1,49 @@
 'use client';
 
-import { usePathname, useSearchParams } from 'next/navigation';
 import Script from 'next/script';
-import { useEffect } from 'react';
-import { FB_PIXEL_ID, pageview } from '@/lib/meta-pixel';
+import { useEffect, useRef } from 'react';
+import { usePathname } from 'next/navigation';
+import { trackMetaEvent, flushMetaEventQueue } from '@/lib/meta-pixel';
 
-export function MetaPixel() {
+const PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID;
+
+function RoutePageViewTracker() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const isInitialPage = useRef(true);
 
   useEffect(() => {
-    if (FB_PIXEL_ID) {
-      pageview();
+    if (isInitialPage.current) {
+      isInitialPage.current = false;
+      return;
     }
-  }, [pathname, searchParams]);
 
-  if (!FB_PIXEL_ID) {
+    trackMetaEvent('PageView');
+  }, [pathname]);
+
+  return null;
+}
+
+export function MetaPixel() {
+  useEffect(() => {
+    if (PIXEL_ID) {
+      flushMetaEventQueue();
+    }
+  }, []);
+
+  if (!PIXEL_ID) {
     return null;
   }
+
+  const pixelIdLiteral = JSON.stringify(PIXEL_ID);
 
   return (
     <>
       <Script
-        id="fb-pixel"
+        id="meta-pixel"
         strategy="afterInteractive"
+        onLoad={() => {
+          flushMetaEventQueue();
+        }}
         dangerouslySetInnerHTML={{
           __html: `
             !function(f,b,e,v,n,t,s)
@@ -34,20 +54,22 @@ export function MetaPixel() {
             t.src=v;s=b.getElementsByTagName(e)[0];
             s.parentNode.insertBefore(t,s)}(window, document,'script',
             'https://connect.facebook.net/en_US/fbevents.js');
-            fbq('init', '${FB_PIXEL_ID}');
+            fbq('init', ${pixelIdLiteral});
             fbq('track', 'PageView');
           `,
         }}
       />
       <noscript>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           height="1"
           width="1"
           style={{ display: 'none' }}
-          src={`https://www.facebook.com/tr?id=${FB_PIXEL_ID}&ev=PageView&noscript=1`}
+          src={`https://www.facebook.com/tr?id=${PIXEL_ID}&ev=PageView&noscript=1`}
           alt=""
         />
       </noscript>
+      <RoutePageViewTracker />
     </>
   );
 }

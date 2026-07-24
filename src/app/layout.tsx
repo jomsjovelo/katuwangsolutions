@@ -71,7 +71,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fil" translate="no" data-scroll-behavior="smooth" suppressHydrationWarning>
+      <head />
       <body className="font-body antialiased min-h-screen overflow-x-hidden bg-white selection:bg-cyan-500/30" translate="no">
+        <MetaPixel />
         <FirebaseClientProvider>
           <AuthGuard>
             <div className="w-full min-h-screen bg-white relative flex flex-col">
@@ -82,7 +84,6 @@ export default function RootLayout({
             <Toaster />
             <Suspense fallback={null}>
               <ReferralCatcher />
-              <MetaPixel />
             </Suspense>
           </AuthGuard>
         </FirebaseClientProvider>

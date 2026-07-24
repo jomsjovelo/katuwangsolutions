@@ -11,7 +11,7 @@ import {
   RefreshCw, Scan, Bell, FileText, Calendar, Package, ArrowRight, Check, Sparkles, ChevronRight
 } from 'lucide-react';
 import { Metadata } from 'next';
-import { ModuleViewTracker } from '@/components/analytics/module-view-tracker';
+import { ModuleViewTracker } from '@/components/analytics/meta-events';
 
 type Props = {
   params: Promise<{ moduleId: string }>;
@@ -101,8 +101,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
       <ModuleViewTracker
         moduleId={foundApp.id}
         moduleName={foundApp.name}
-        category={foundGroup?.label}
-        price={pricing.promotionalMonthlyPrice}
+        moduleCategory={foundGroup?.label}
       />
       {/* Top Header */}
       <header className="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 px-4 py-3 flex items-center justify-between">

@@ -17,7 +17,7 @@ import { AlertCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 import { normalizeModuleId, isValidActiveModuleId } from '@/lib/app-data';
-import { trackStartOnboarding, trackCompleteRegistration } from '@/lib/meta-pixel';
+import { trackMetaEvent } from '@/lib/meta-pixel';
 
 type Step = 'mode' | 'apps' | 'business' | 'account' | 'success' | 'payment' | 'pending';
 
@@ -77,16 +77,6 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
   });
 
   const update = (patch: Partial<typeof data>) => setData((d) => ({ ...d, ...patch }));
-
-  useEffect(() => {
-    if (data.appId) {
-      trackStartOnboarding({
-        moduleId: data.appId,
-        moduleName: data.appId === 'budget-mo' ? 'Budget Mo' : data.appId,
-        price: data.appId === 'budget-mo' ? 50 : 99,
-      });
-    }
-  }, [data.appId]);
 
   const [isRecovered, setIsRecovered] = useState(false);
 
@@ -151,9 +141,10 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
       try {
         const referredBy = typeof window !== 'undefined' ? localStorage.getItem('katuwang_ref') : null;
         await registerNewTenant({ ...data, referredBy });
-        trackCompleteRegistration({
-          moduleId: data.appId,
-          value: data.appId === 'budget-mo' ? 50 : 99,
+        trackMetaEvent('CompleteRegistration', {
+          content_ids: [data.appId],
+          content_name: data.appId === 'budget-mo' ? 'Budget Mo' : data.appId,
+          content_type: 'product',
         });
         setStep('payment');
       } catch (e) {
