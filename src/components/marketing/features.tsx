@@ -17,7 +17,7 @@ const FEATURES = [
     title: 'Auto Sync',
     desc: 'Automatically nag-a-update ang lahat ng records kapag bumalik na ang internet.',
     highlight: true,
-    badge: 'Pinaka-Gusto ng Masa',
+    badge: 'Pinaka-Popular',
   },
   {
     icon: Smartphone,
@@ -61,7 +61,7 @@ export function Features() {
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Bakit Katuwang?</p>
           <h2 className="text-2xl sm:text-3xl md:text-5xl font-black text-slate-900 tracking-tight">
             Ginawa namin ito<br />
-            <span className="text-primary">para sa masa.</span>
+            <span className="text-primary">para sa bawat Pilipino.</span>
           </h2>
           <p className="text-slate-500 text-sm md:text-lg">
             Simpleng gamitin, walang paligoy-ligoy. Para sa tunay na Pilipinong negosyante.
