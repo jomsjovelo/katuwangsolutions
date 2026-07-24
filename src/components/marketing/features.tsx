@@ -40,7 +40,7 @@ const FEATURES = [
     iconBg: 'bg-green-100',
     iconColor: 'text-green-600',
     title: 'Built for Filipinos',
-    desc: 'Dinisenyo para sa pag-uugali ng Pilipinong negosyante. Taglish, piso, at lahat.',
+    desc: 'Dinisenyo para sa totoong sistema ng negosyong Pilipino — madaling intindihin, naka-Taglish, at nakapiso.',
     highlight: false,
   },
   {
