@@ -573,14 +573,14 @@ export const appGroups: AppGroup[] = [
         id: 'budget-mo',
         name: 'Budget Mo',
         icon: Banknote,
-        tagline: 'Your personal and business budgeting assistant.',
+        tagline: 'Your personal budgeting assistant.',
         imageSrc: '/apps/budget-mo.png',
         features: ['Income Tracking', 'Goal Envelopes', 'Real-time Cash Flow', 'Expense Logging'],
         description: 'Budget Mo helps you monitor every cent. Track your incomes, set goal envelopes, and monitor your cash flow in real-time. Make sure your finances are always on track.',
         benefits: [
           'Visually track all cash flow and expenses',
           'Create strict budget envelopes to limit overspending',
-          'Perfect for both personal use and small business expense tracking'
+          'Perfect for personal expense tracking, ipon goals, and utang management'
         ],
         stats: [
           { value: '100%', label: 'Budget Visibility' },
@@ -591,7 +591,7 @@ export const appGroups: AppGroup[] = [
           { step: 'Set Envelopes', detail: 'Create categories and assign budget limits to them.' },
           { step: 'Track Expenses', detail: 'Log every expense and see your remaining balance.' }
         ],
-        targetUsers: ['Individuals', 'Small Businesses']
+        targetUsers: ['Individuals', 'Employees', 'Students', 'Freelancers']
       }
     ]
   }
