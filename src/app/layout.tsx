@@ -7,6 +7,7 @@ import { Suspense } from 'react';
 import { ReferralCatcher } from '@/components/referral-catcher';
 import { InAppBrowserBlocker } from '@/components/common/in-app-browser-blocker';
 import { IosInstallPrompt } from '@/components/common/ios-install-prompt';
+import { MetaPixel } from '@/components/analytics/meta-pixel';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://katuwangsolutions.com'),
@@ -70,21 +71,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fil" translate="no" data-scroll-behavior="smooth" suppressHydrationWarning>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if (window.location.search.includes('fbclid=')) {
-                try {
-                  var url = new URL(window.location.href);
-                  url.searchParams.delete('fbclid');
-                  window.history.replaceState(null, '', url.toString());
-                } catch(e) {}
-              }
-            `,
-          }}
-        />
-      </head>
       <body className="font-body antialiased min-h-screen overflow-x-hidden bg-white selection:bg-cyan-500/30" translate="no">
         <FirebaseClientProvider>
           <AuthGuard>
@@ -96,8 +82,8 @@ export default function RootLayout({
             <Toaster />
             <Suspense fallback={null}>
               <ReferralCatcher />
+              <MetaPixel />
             </Suspense>
-
           </AuthGuard>
         </FirebaseClientProvider>
       </body>
