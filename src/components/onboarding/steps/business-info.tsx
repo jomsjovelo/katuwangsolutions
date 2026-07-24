@@ -107,8 +107,8 @@ export function BusinessInfoStep({ data, onUpdate, onNext, isLoading }: Business
       {subStep === 'A' && (
         <>
           <div className="space-y-1">
-            <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900">Sino Ka?</h2>
-            <p className="text-slate-600 text-sm font-medium">Mga simpleng detalye tungkol sa iyo.</p>
+            <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900">Mga Detalye Mo</h2>
+            <p className="text-slate-600 text-sm font-medium">Mga simpleng impormasyon tungkol sa iyo.</p>
           </div>
 
           <form onSubmit={handleNextSubStep} className="space-y-6">
@@ -172,7 +172,7 @@ export function BusinessInfoStep({ data, onUpdate, onNext, isLoading }: Business
           <div className="animate-in fade-in slide-in-from-right-4 duration-300">
             <div className="space-y-1 mb-8">
               <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900">
-                {isBudgetMo ? 'Personal Budget Setup' : 'Saan at Ano?'}
+                {isBudgetMo ? 'Personal Budget Setup' : 'Lokasyon at Negosyo'}
               </h2>
               <p className="text-slate-600 text-sm font-medium">
                 {isBudgetMo ? 'Mga detalye para sa iyong personal na badyet at ipon.' : 'Mga detalye ng iyong tindahan o negosyo.'}
