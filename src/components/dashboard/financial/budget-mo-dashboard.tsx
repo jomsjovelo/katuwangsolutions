@@ -31,7 +31,7 @@ import {
 import { getQueuedTransactions } from '@/lib/offline-budget-queue';
 import { BudgetTransaction, Debt, SavingsGoal, BudgetEnvelope, BudgetPreset } from '@/lib/schemas/budget';
 import { Button } from '@/components/ui/button';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { IncomeModal } from './modals/income-modal';
 import { ExpenseModal } from './modals/expense-modal';
 import { DebtModal } from './modals/debt-modal';
@@ -129,6 +129,7 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
   const [showCustomizeIponModal, setShowCustomizeIponModal] = useState<boolean>(false);
   const [txTypeFilter, setTxTypeFilter] = useState<'all' | 'income' | 'expense'>('all');
   const [showAuto503020Modal, setShowAuto503020Modal] = useState<boolean>(false);
+  const [insightsCompareMode, setInsightsCompareMode] = useState<'none' | 'previous_period'>('previous_period');
 
   const [showAllocationPrompt, setShowAllocationPrompt] = useState<{amount: number} | null>(null);
   
@@ -1732,6 +1733,48 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
 
         const avgDailySpend = insightsExpense / rangeDays;
 
+        // 1. Time-series daily aggregation for Trend Chart
+        const trendDays = rangeDays;
+        const trendPoints: { date: string; income: number; expense: number }[] = [];
+        const now = new Date();
+
+        for (let i = trendDays - 1; i >= 0; i--) {
+          const d = new Date(now);
+          d.setDate(d.getDate() - i);
+          const dateStr = d.toDateString();
+          const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+          const dayIncome = insightsTransactions
+            .filter(t => t.type === 'income' && t.createdAt && (t.createdAt.toDate ? t.createdAt.toDate().toDateString() : new Date(t.createdAt).toDateString()) === dateStr)
+            .reduce((acc, t) => acc + (t.amountCentavos || 0), 0) / 100;
+
+          const dayExpense = insightsTransactions
+            .filter(t => t.type === 'expense' && t.createdAt && (t.createdAt.toDate ? t.createdAt.toDate().toDateString() : new Date(t.createdAt).toDateString()) === dateStr)
+            .reduce((acc, t) => acc + (t.amountCentavos || 0), 0) / 100;
+
+          trendPoints.push({ date: label, income: dayIncome, expense: dayExpense });
+        }
+
+        // 2. Previous Period Comparison Calculation
+        const prevPeriodCutoffStart = new Date(now.getTime() - (rangeDays * 2 * 24 * 60 * 60 * 1000));
+        const prevPeriodCutoffEnd = new Date(now.getTime() - (rangeDays * 24 * 60 * 60 * 1000));
+
+        const prevTransactions = transactions.filter(t => {
+          if (!t.createdAt) return false;
+          const tDate = t.createdAt.toDate ? t.createdAt.toDate() : new Date(t.createdAt);
+          return tDate >= prevPeriodCutoffStart && tDate < prevPeriodCutoffEnd;
+        });
+
+        const prevIncome = prevTransactions.filter(t => t.type === 'income').reduce((acc, t) => acc + (t.amountCentavos || 0), 0) / 100;
+        const prevExpense = prevTransactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + (t.amountCentavos || 0), 0) / 100;
+
+        const incomeDeltaPct = prevIncome > 0 ? ((insightsIncome - prevIncome) / prevIncome) * 100 : (insightsIncome > 0 ? 100 : 0);
+        const expenseDeltaPct = prevExpense > 0 ? ((insightsExpense - prevExpense) / prevExpense) * 100 : (insightsExpense > 0 ? 100 : 0);
+
+        const currentSavingsRate = insightsIncome > 0 ? Math.max(0, ((insightsIncome - insightsExpense) / insightsIncome) * 100) : 0;
+        const prevSavingsRate = prevIncome > 0 ? Math.max(0, ((prevIncome - prevExpense) / prevIncome) * 100) : 0;
+        const savingsRateDelta = currentSavingsRate - prevSavingsRate;
+
         const expensesByCategory = insightsTransactions
           .filter(t => t.type === 'expense')
           .reduce((acc, t) => {
@@ -1795,6 +1838,105 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
               <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
                 <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Top Category</p>
                 <p className="font-black text-sm text-slate-800 truncate" title={topCategoryName}>{topCategoryName}</p>
+              </div>
+            </div>
+
+            {/* Period Comparison Controls & Delta Cards */}
+            <div className="bg-slate-900 text-white rounded-2xl p-5 shadow-lg space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-300">Period Comparison</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Compare performance against previous window</p>
+                </div>
+                <div className="flex bg-slate-800 p-1 rounded-xl gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setInsightsCompareMode('none')}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${insightsCompareMode === 'none' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    Off
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInsightsCompareMode('previous_period')}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${insightsCompareMode === 'previous_period' ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    vs Prev Period
+                  </button>
+                </div>
+              </div>
+
+              {insightsCompareMode === 'previous_period' && (
+                <div className="grid grid-cols-3 gap-2 pt-1 animate-in fade-in duration-200">
+                  <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+                    <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Income Change</p>
+                    <p className={`font-black text-xs mt-0.5 ${incomeDeltaPct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {incomeDeltaPct >= 0 ? `+${incomeDeltaPct.toFixed(1)}%` : `${incomeDeltaPct.toFixed(1)}%`}
+                    </p>
+                    <p className="text-[9px] text-slate-400 mt-0.5">Prev: {formatPesos(prevIncome)}</p>
+                  </div>
+                  <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+                    <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Expense Change</p>
+                    <p className={`font-black text-xs mt-0.5 ${expenseDeltaPct <= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {expenseDeltaPct >= 0 ? `+${expenseDeltaPct.toFixed(1)}%` : `${expenseDeltaPct.toFixed(1)}%`}
+                    </p>
+                    <p className="text-[9px] text-slate-400 mt-0.5">Prev: {formatPesos(prevExpense)}</p>
+                  </div>
+                  <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+                    <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Savings Rate Delta</p>
+                    <p className={`font-black text-xs mt-0.5 ${savingsRateDelta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {savingsRateDelta >= 0 ? `+${savingsRateDelta.toFixed(1)}%` : `${savingsRateDelta.toFixed(1)}%`}
+                    </p>
+                    <p className="text-[9px] text-slate-400 mt-0.5">Prev: {prevSavingsRate.toFixed(1)}%</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Income vs Expense Dual Trend Chart */}
+            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-emerald-600" />
+                  <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Income vs Expense Trend</h3>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1">
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                    <span className="text-[10px] font-bold text-slate-600">Income</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+                    <span className="text-[10px] font-bold text-slate-600">Expense</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-56 w-full -ml-2">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                  <AreaChart data={trendPoints} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.0}/>
+                      </linearGradient>
+                      <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#f43f5e" stopOpacity={0.0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 600 }} />
+                    <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 600 }} tickFormatter={(val) => `₱${val >= 1000 ? `${(val/1000).toFixed(0)}k` : val}`} />
+                    <Tooltip 
+                      formatter={(val: number) => formatPesos(val)}
+                      contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', padding: '12px' }}
+                      itemStyle={{ fontWeight: 'bold' }}
+                    />
+                    <Area type="monotone" dataKey="income" name="Income" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#colorIncome)" />
+                    <Area type="monotone" dataKey="expense" name="Expense" stroke="#f43f5e" strokeWidth={2.5} fillOpacity={1} fill="url(#colorExpense)" />
+                  </AreaChart>
+                </ResponsiveContainer>
               </div>
             </div>
 
