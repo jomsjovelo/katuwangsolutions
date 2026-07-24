@@ -60,3 +60,14 @@ const serwist = new Serwist({
 });
 
 serwist.addEventListeners();
+
+// Auto-purge old caches on activate to clear stale cached responses
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) =>
+      Promise.all(
+        cacheNames.map((cacheName) => caches.delete(cacheName))
+      )
+    )
+  );
+});
