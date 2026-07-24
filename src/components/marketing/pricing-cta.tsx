@@ -4,13 +4,13 @@ import React from 'react';
 import { ChevronRight, Check } from 'lucide-react';
 import { RegisterSheet, useRegisterSheet } from '@/components/marketing/register-sheet';
 
-import { activeModulesCount } from '@/lib/app-data';
+import { standardModulesCount } from '@/lib/app-data';
 
 export function PricingCta() {
   const { open, openSheet, closeSheet } = useRegisterSheet();
 
   const inclusions = [
-    `${activeModulesCount} business modules na mapagpipilian`,
+    `19 na business modules + Budget Mo personal finance`,
     'Works Offline — kahit walang internet',
     'Auto Sync kapag bumalik ang koneksyon',
     'Secure Cloud Backup — walang nawawala',

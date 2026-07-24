@@ -48,7 +48,7 @@ export function Hero() {
           {/* Badge */}
           <div className="inline-flex items-center gap-1.5 bg-secondary/90 text-yellow-900 px-4 py-1.5 rounded-full">
             <Zap className="h-3 w-3" />
-            <span className="text-[10px] font-black uppercase tracking-[0.15em]">✨ 20 Business Modules · All-in-One Ecosystem</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.15em]">✨ 19 Business Modules + Budget Mo · Isang Ecosystem para sa Lahat</span>
           </div>
 
           {/* Main Headline */}
@@ -83,7 +83,7 @@ export function Hero() {
               </div>
             </div>
             <p className="text-[11px] text-white/60 font-medium tracking-wide">
-              Kumpletong 20 Specialized Modules. <span className="text-white/80">Budget Mo promo: ₱50/buwan · regular ₱100</span>
+              19 Business Modules (₱99/mo). <span className="text-white/80">Budget Mo promo: ₱50/buwan · regular ₱100</span>
             </p>
           </div>
 
