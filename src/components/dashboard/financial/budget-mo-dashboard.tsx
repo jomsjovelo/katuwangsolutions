@@ -1720,117 +1720,158 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
       })()}
 
       {/* INSIGHTS TAB (ULAT) */}
-      {activeTab === 'ulat' && (
-        <div className="px-4 py-6 space-y-6">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Insights</h1>
-            <Target className="h-6 w-6 text-primary" />
-          </div>
+      {activeTab === 'ulat' && (() => {
+        const netCashFlow = insightsIncome - insightsExpense;
+        
+        let rangeDays = 1;
+        if (insightsRange === 'today') rangeDays = 1;
+        else if (insightsRange === 'last7') rangeDays = 7;
+        else if (insightsRange === 'last15') rangeDays = 15;
+        else if (insightsRange === 'last30') rangeDays = 30;
+        else rangeDays = Math.max(1, daysRemaining);
 
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Date Range</h3>
-              <select 
-                value={insightsRange} 
-                onChange={(e) => setInsightsRange(e.target.value as any)}
-                className="text-xs font-bold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-2 outline-none focus:border-emerald-500"
-              >
-                <option value="cycle">Current Cycle</option>
-                <option value="today">Today</option>
-                <option value="last7">Last 7 Days</option>
-                <option value="last15">Last 15 Days</option>
-                <option value="last30">Last 30 Days</option>
-                <option value="custom">Custom Range</option>
-              </select>
-            </div>
-            {insightsRange === 'custom' && (
-              <div className="flex gap-2 animate-in slide-in-from-top-2">
-                <input type="date" value={customStartDate} onChange={e => setCustomStartDate(e.target.value)} className="flex-1 text-xs font-medium text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-2 outline-none focus:border-emerald-500" />
-                <input type="date" value={customEndDate} onChange={e => setCustomEndDate(e.target.value)} className="flex-1 text-xs font-medium text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-2 outline-none focus:border-emerald-500" />
-              </div>
-            )}
-          </div>
+        const avgDailySpend = insightsExpense / rangeDays;
 
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-            <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-4">Cash Flow Overview</h3>
-            
-            <div className="flex items-center justify-between mb-6">
-              <div className="space-y-1">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Income</p>
-                <p className="text-xl font-black text-emerald-600">+{formatPesos(insightsIncome)}</p>
-              </div>
-              <div className="space-y-1 text-right">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Expenses</p>
-                <p className="text-xl font-black text-rose-600">-{formatPesos(insightsExpense)}</p>
-              </div>
+        const expensesByCategory = insightsTransactions
+          .filter(t => t.type === 'expense')
+          .reduce((acc, t) => {
+            acc[t.category] = (acc[t.category] || 0) + (t.amountCentavos || 0);
+            return acc;
+          }, {} as Record<string, number>);
+
+        const categoryData = Object.entries(expensesByCategory)
+          .map(([name, value]) => ({ name, value: value as number }))
+          .sort((a, b) => b.value - a.value);
+
+        const totalCategorized = categoryData.reduce((acc, curr) => acc + curr.value, 0);
+        const topCategoryName = categoryData.length > 0 ? categoryData[0].name : 'None yet';
+
+        const COLORS = ['#f43f5e', '#f97316', '#eab308', '#6366f1', '#8b5cf6', '#d946ef', '#14b8a6', '#06b6d4'];
+
+        return (
+          <div className="px-4 py-6 space-y-6">
+            <div className="flex items-center justify-between mb-2">
+              <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Insights</h1>
+              <Target className="h-6 w-6 text-primary" />
             </div>
 
-            <div className="w-full h-4 rounded-full overflow-hidden flex">
-              <div 
-                className="h-full bg-emerald-500 transition-all duration-1000" 
-                style={{ width: `${insightsIncome === 0 && insightsExpense === 0 ? 50 : (insightsIncome / (insightsIncome + insightsExpense)) * 100}%` }}
-              />
-              <div 
-                className="h-full bg-rose-500 transition-all duration-1000" 
-                style={{ width: `${insightsIncome === 0 && insightsExpense === 0 ? 50 : (insightsExpense / (insightsIncome + insightsExpense)) * 100}%` }}
-              />
+            {/* Date Range Selector */}
+            <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Date Range</h3>
+                <select 
+                  value={insightsRange} 
+                  onChange={(e) => setInsightsRange(e.target.value as any)}
+                  className="text-xs font-bold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-2 outline-none focus:border-emerald-500"
+                >
+                  <option value="cycle">Current Cycle</option>
+                  <option value="today">Today</option>
+                  <option value="last7">Last 7 Days</option>
+                  <option value="last15">Last 15 Days</option>
+                  <option value="last30">Last 30 Days</option>
+                  <option value="custom">Custom Range</option>
+                </select>
+              </div>
+              {insightsRange === 'custom' && (
+                <div className="flex gap-2 animate-in slide-in-from-top-2">
+                  <input type="date" value={customStartDate} onChange={e => setCustomStartDate(e.target.value)} className="flex-1 text-xs font-medium text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-2 outline-none focus:border-emerald-500" />
+                  <input type="date" value={customEndDate} onChange={e => setCustomEndDate(e.target.value)} className="flex-1 text-xs font-medium text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-2 outline-none focus:border-emerald-500" />
+                </div>
+              )}
             </div>
-          </div>
 
-          {/* Category Breakdown */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-            <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <PiggyBank className="h-4 w-4 text-rose-500" />
-              Spending by Category
-            </h3>
-            
-            {(() => {
-              const expensesByCategory = insightsTransactions
-                .filter(t => t.type === 'expense')
-                .reduce((acc, t) => {
-                  acc[t.category] = (acc[t.category] || 0) + (t.amountCentavos || 0);
-                  return acc;
-                }, {} as Record<string, number>);
+            {/* Top Key Metric Summary Cards */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
+                <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Net Cash Flow</p>
+                <p className={`font-black text-sm ${netCashFlow >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {netCashFlow >= 0 ? `+${formatPesos(netCashFlow)}` : formatPesos(netCashFlow)}
+                </p>
+              </div>
+              <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
+                <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Avg Daily Spend</p>
+                <p className="font-black text-sm text-slate-800">{formatPesos(avgDailySpend)}/day</p>
+              </div>
+              <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
+                <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Top Category</p>
+                <p className="font-black text-sm text-slate-800 truncate" title={topCategoryName}>{topCategoryName}</p>
+              </div>
+            </div>
 
-              const categoryData = Object.entries(expensesByCategory)
-                .map(([name, value]) => ({ name, value: value as number }))
-                .sort((a, b) => b.value - a.value);
+            {/* Cash Flow Overview Bar */}
+            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+              <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-4">Cash Flow Overview</h3>
+              
+              <div className="flex items-center justify-between mb-6">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Income</p>
+                  <p className="text-xl font-black text-emerald-600">+{formatPesos(insightsIncome)}</p>
+                </div>
+                <div className="space-y-1 text-right">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Expenses</p>
+                  <p className="text-xl font-black text-rose-600">-{formatPesos(insightsExpense)}</p>
+                </div>
+              </div>
 
-              const totalCategorized = categoryData.reduce((acc, curr) => acc + curr.value, 0);
+              <div className="w-full h-4 rounded-full overflow-hidden flex bg-slate-100">
+                <div 
+                  className="h-full bg-emerald-500 transition-all duration-1000" 
+                  style={{ width: `${insightsIncome === 0 && insightsExpense === 0 ? 50 : (insightsIncome / (insightsIncome + insightsExpense)) * 100}%` }}
+                />
+                <div 
+                  className="h-full bg-rose-500 transition-all duration-1000" 
+                  style={{ width: `${insightsIncome === 0 && insightsExpense === 0 ? 50 : (insightsExpense / (insightsIncome + insightsExpense)) * 100}%` }}
+                />
+              </div>
+            </div>
 
-              if (categoryData.length === 0) {
-                return <p className="text-sm text-slate-400 text-center py-4">No expenses logged yet.</p>;
-              }
-
-              const COLORS = ['#f43f5e', '#f97316', '#eab308', '#6366f1', '#8b5cf6', '#d946ef', '#14b8a6', '#06b6d4'];
-
-              return (
-                <div className="space-y-4">
-                  <div className="h-48 w-full -mt-2">
-                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                      <PieChart>
-                        <Pie
-                          data={categoryData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={50}
-                          outerRadius={75}
-                          paddingAngle={3}
-                          dataKey="value"
-                          stroke="none"
-                        >
-                          {categoryData.map((entry, index) => (
+            {/* Spending by Category (Always-Visible PieChart) */}
+            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+              <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <PiggyBank className="h-4 w-4 text-rose-500" />
+                Spending by Category
+              </h3>
+              
+              <div className="space-y-4">
+                <div className="h-52 w-full -mt-2 relative flex items-center justify-center">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                    <PieChart>
+                      <Pie
+                        data={categoryData.length > 0 ? categoryData : [{ name: 'No Expenses Recorded', value: 1 }]}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={75}
+                        paddingAngle={categoryData.length > 0 ? 3 : 0}
+                        dataKey="value"
+                        stroke="none"
+                      >
+                        {categoryData.length > 0 ? (
+                          categoryData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
+                          ))
+                        ) : (
+                          <Cell fill="#e2e8f0" />
+                        )}
+                      </Pie>
+                      {categoryData.length > 0 && (
                         <Tooltip 
                           formatter={(value: number) => formatPesos(value / 100)}
                           contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)', padding: '12px' }}
                           itemStyle={{ color: '#1e293b', fontWeight: 'bold' }}
                         />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
+                      )}
+                    </PieChart>
+                  </ResponsiveContainer>
+                  
+                  {categoryData.length === 0 && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">No Expenses Recorded</p>
+                    </div>
+                  )}
+                </div>
+
+                {categoryData.length > 0 ? (
                   <div className="grid grid-cols-2 gap-y-3 gap-x-2">
                     {categoryData.map((cat, i) => {
                       const percentage = totalCategorized > 0 ? (cat.value / totalCategorized) * 100 : 0;
@@ -1845,73 +1886,87 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
                       );
                     })}
                   </div>
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* Planned Budget vs Actual Variance Table */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3">
-            <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest flex items-center gap-1.5">
-              <Target className="h-4 w-4 text-violet-600" />
-              Envelope Target vs Actual Variance
-            </h3>
-
-            {envelopes.length === 0 ? (
-              <p className="text-xs text-slate-400 py-2 text-center">No category budgets set to compare variance.</p>
-            ) : (
-              <div className="space-y-2">
-                {envelopes.map(env => {
-                  const spent = cycleTransactions
-                    .filter(t => t.type === 'expense' && t.category.toLowerCase() === env.category.toLowerCase())
-                    .reduce((acc, t) => acc + (t.amountCentavos || 0), 0);
-                  const limit = env.limitCentavos;
-                  const diff = limit - spent;
-                  const isFavorable = diff >= 0;
-
-                  return (
-                    <div key={env.id} className="flex justify-between items-center bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs">
-                      <div>
-                        <p className="font-bold text-slate-800">{env.category}</p>
-                        <p className="text-[10px] text-slate-400">Target: {formatPesos(limit / 100)} • Spent: {formatPesos(spent / 100)}</p>
-                      </div>
-                      <div className={`px-2.5 py-1 rounded-full text-[10px] font-black ${isFavorable ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                        {isFavorable ? `+${formatPesos(diff / 100)} Under` : `-${formatPesos(Math.abs(diff) / 100)} Over`}
-                      </div>
-                    </div>
-                  );
-                })}
+                ) : (
+                  <p className="text-xs text-slate-400 text-center font-medium">Log expense transactions to see automatic category percentage breakdown!</p>
+                )}
               </div>
-            )}
-          </div>
+            </div>
 
-          {/* Savings Health */}
-          <div className="bg-emerald-50 rounded-2xl p-5 border border-emerald-100 shadow-sm">
-             <h3 className="text-[10px] font-black text-emerald-800 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Savings Health
-            </h3>
-            {(() => {
-               if (totalIncome === 0) return <p className="text-sm text-emerald-600/70">Log some income to see your savings rate!</p>;
-               const savingsRate = ((totalIncome - totalExpense) / totalIncome) * 100;
-               let message = "";
-               if (savingsRate >= 20) message = "Excellent! You're saving a highly recommended 20%+ of your income.";
-               else if (savingsRate > 0) message = "Good start! You're keeping your expenses below your income.";
-               else message = "Warning: Your expenses currently exceed your logged income.";
+            {/* Planned Budget vs Actual Variance Table */}
+            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3">
+              <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest flex items-center gap-1.5">
+                <Target className="h-4 w-4 text-violet-600" />
+                Envelope Target vs Actual Variance
+              </h3>
 
-               return (
-                 <div>
-                   <div className="flex items-end gap-2 mb-2">
-                     <span className="text-3xl font-black text-emerald-700 tracking-tighter">{savingsRate.toFixed(1)}%</span>
-                     <span className="text-xs font-bold text-emerald-600/70 mb-1.5 uppercase tracking-widest">Savings Rate</span>
-                   </div>
-                   <p className="text-xs text-emerald-700/80 font-medium leading-relaxed">{message}</p>
-                 </div>
-               )
-            })()}
+              {envelopes.length === 0 ? (
+                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-center space-y-3">
+                  <p className="text-xs text-slate-500 font-medium">No category budgets set to compare variance.</p>
+                  <Button
+                    onClick={() => setShowAuto503020Modal(true)}
+                    className="bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs rounded-xl shadow-sm px-4 py-2"
+                  >
+                    ⚡ Auto 50/30/20 Setup
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {envelopes.map(env => {
+                    const spent = cycleTransactions
+                      .filter(t => t.type === 'expense' && t.category.toLowerCase() === env.category.toLowerCase())
+                      .reduce((acc, t) => acc + (t.amountCentavos || 0), 0);
+                    const limit = env.limitCentavos;
+                    const diff = limit - spent;
+                    const isFavorable = diff >= 0;
+
+                    return (
+                      <div key={env.id} className="flex justify-between items-center bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs">
+                        <div>
+                          <p className="font-bold text-slate-800">{env.category}</p>
+                          <p className="text-[10px] text-slate-400">Target: {formatPesos(limit / 100)} • Spent: {formatPesos(spent / 100)}</p>
+                        </div>
+                        <div className={`px-2.5 py-1 rounded-full text-[10px] font-black ${isFavorable ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                          {isFavorable ? `+${formatPesos(diff / 100)} Under` : `-${formatPesos(Math.abs(diff) / 100)} Over`}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Savings Health */}
+            <div className="bg-emerald-50 rounded-2xl p-5 border border-emerald-100 shadow-sm space-y-3">
+              <h3 className="text-[10px] font-black text-emerald-800 uppercase tracking-widest flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Savings Health
+              </h3>
+
+              {(() => {
+                const savingsRate = totalIncome > 0 ? Math.max(0, ((totalIncome - totalExpense) / totalIncome) * 100) : 0;
+                let message = "";
+                if (totalIncome === 0) message = "Log income or salary to calculate your real-time savings rate!";
+                else if (savingsRate >= 20) message = "Excellent! You're saving a highly recommended 20%+ of your income.";
+                else if (savingsRate > 0) message = "Good start! You're keeping your expenses below your income.";
+                else message = "Warning: Your expenses currently exceed your logged income.";
+
+                return (
+                  <div>
+                    <div className="flex items-end gap-2 mb-2">
+                      <span className="text-3xl font-black text-emerald-700 tracking-tighter">{savingsRate.toFixed(1)}%</span>
+                      <span className="text-xs font-bold text-emerald-600/70 mb-1.5 uppercase tracking-widest">Savings Rate</span>
+                    </div>
+                    <div className="w-full h-2 bg-emerald-100 rounded-full overflow-hidden mb-2">
+                      <div className="h-full bg-emerald-500 rounded-full transition-all duration-1000" style={{ width: `${Math.min(100, savingsRate)}%` }} />
+                    </div>
+                    <p className="text-xs text-emerald-700/80 font-medium leading-relaxed">{message}</p>
+                  </div>
+                );
+              })()}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {showAllocationPrompt && goals.length > 0 && (
         <div className="fixed inset-x-4 bottom-24 z-50 bg-gradient-to-r from-amber-400 to-amber-500 p-5 rounded-[24px] shadow-md text-white animate-in slide-in-from-top-4">
