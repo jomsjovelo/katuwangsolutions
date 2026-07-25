@@ -17,29 +17,31 @@ interface AppMarketplaceProps {
 }
 
 const APPS = [
+  { id: 'budget-mo', name: 'Budget Mo', category: 'Finance', desc: 'Personal finance & cash flow management', price: 100 },
   { id: 'benta-snap', name: 'Benta Snap', category: 'Retail', desc: 'Retail POS & Sari-Sari Store checkout', price: 199 },
-  { id: 'fresh-tally', name: 'Fresh Tally', category: 'Retail', desc: 'Palengke and fresh goods inventory', price: 149 },
-  { id: 'build-stack', name: 'Build Stack', category: 'Retail', desc: 'Hardware and construction supplies', price: 299 },
-  { id: '5-6-tracker', name: '5-6 Tracker', category: 'Finance', desc: 'Micro-lending and collection tracker', price: 149 },
+  { id: 'fresh-tally', name: 'Fresh Tally', category: 'Retail', desc: 'Palengke and fresh goods inventory', price: 199 },
+  { id: 'build-stack', name: 'Build Stack', category: 'Retail', desc: 'Hardware and construction supplies', price: 199 },
+  { id: '5-6-tracker', name: '5-6 Tracker', category: 'Finance', desc: 'Micro-lending and collection tracker', price: 199 },
   
-  { id: 'ledger-flow', name: 'Ledger Flow', category: 'Corporate', desc: 'Simple, clear accounting and main cash', price: 299 },
-  { id: 'sahod-flow', name: 'Sahod Flow', category: 'Corporate', desc: 'Automated staff payroll and timesheets', price: 249 },
+  { id: 'ledger-flow', name: 'Ledger Flow', category: 'Corporate', desc: 'Simple, clear accounting and main cash', price: 199 },
+  { id: 'sahod-flow', name: 'Sahod Flow', category: 'Corporate', desc: 'Automated staff payroll and timesheets', price: 199 },
   
-  { id: 'biyahe-sync', name: 'Biyahe Sync', category: 'Trucking', desc: 'Trucking service and hauling fee tracker', price: 349 },
+  { id: 'biyahe-sync', name: 'Biyahe Sync', category: 'Trucking', desc: 'Trucking service and hauling fee tracker', price: 199 },
 
-  { id: 'bite-snap', name: 'Bite Snap', category: 'Food', desc: 'Eatery POS with Kitchen Display (KDS)', price: 299 },
+  { id: 'bite-snap', name: 'Bite Snap', category: 'Food', desc: 'Eatery POS with Kitchen Display (KDS)', price: 199 },
   { id: 'timpla-track', name: 'Timpla Track', category: 'Food', desc: 'Cafe operations and counter orders', price: 199 },
-  { id: 'ganap-master', name: 'Ganap Master', category: 'Events', desc: 'Catering and bulk order management', price: 399 },
+  { id: 'ganap-master', name: 'Ganap Master', category: 'Events', desc: 'Catering and bulk order management', price: 199 },
   
   { id: 'spin-snap', name: 'Spin Snap', category: 'Service', desc: 'Laundry shop washer/dryer tracking', price: 199 },
-  { id: 'hydro-sync', name: 'Hydro Sync', category: 'Service', desc: 'Water station delivery queue management', price: 149 },
-  { id: 'auto-boss', name: 'Auto Boss', category: 'Service', desc: 'Car wash slots and package detailing', price: 249 },
+  { id: 'hydro-sync', name: 'Hydro Sync', category: 'Service', desc: 'Water station delivery queue management', price: 199 },
+  { id: 'auto-boss', name: 'Auto Boss', category: 'Service', desc: 'Car wash slots and package detailing', price: 199 },
   { id: 'wellness-pro', name: 'Wellness', category: 'Service', desc: 'Spa and wellness booking center', price: 199 },
-  { id: 'trim-track', name: 'Trim Track', category: 'Service', desc: 'Salon and barbershop chair tracking', price: 149 },
-  { id: 'rep-sync', name: 'Rep Sync', category: 'Service', desc: 'Gym membership and daily walk-ins', price: 299 },
+  { id: 'trim-track', name: 'Trim Track', category: 'Service', desc: 'Salon and barbershop chair tracking', price: 199 },
+  { id: 'rep-sync', name: 'Rep Sync', category: 'Service', desc: 'Gym membership and daily walk-ins', price: 199 },
   { id: 'service-master', name: 'Service Master', category: 'Service', desc: 'General repair and handyman tracking', price: 199 },
   
-  { id: 'rental', name: 'Rental', category: 'Service', desc: 'Equipment and vehicle rentals', price: 249 },
+  { id: 'rental', name: 'Rental', category: 'Service', desc: 'Equipment and vehicle rentals', price: 199 },
+  { id: 'farm-track', name: 'Farm Track', category: 'Agriculture', desc: 'Agricultural crop & livestock tracker', price: 199 },
 ];
 
 export function AppMarketplace({ isOpen, onClose }: AppMarketplaceProps) {

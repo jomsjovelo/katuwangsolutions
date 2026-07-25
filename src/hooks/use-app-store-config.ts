@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
+import { getModulePricing } from '@/lib/pricing';
 
 export interface AppStoreConfig {
   defaultAppPrice: number;
@@ -47,23 +48,23 @@ export function useAppStoreConfig() {
   }, [db]);
 
   // Helper to calculate the final price for a specific app
-  const getAppPrice = (appId: string, baseHardcodedPrice: number = 0) => {
-    // 1. Check if there's a specific promotion for this app
+  const getAppPrice = (appId: string, _baseHardcodedPrice: number = 0) => {
+    // 1. Check if there's a specific dynamic promotion override in Firestore
     if (config.promotions && typeof config.promotions[appId] === 'number') {
+      const canonical = getModulePricing(appId);
       return { 
         price: config.promotions[appId], 
         isPromo: true, 
-        originalPrice: baseHardcodedPrice > 0 ? baseHardcodedPrice : config.defaultAppPrice 
+        originalPrice: canonical.regularMonthlyPrice
       };
     }
     
-    // 2. Otherwise return the base hardcoded price or global default price
-    const finalPrice = baseHardcodedPrice > 0 ? baseHardcodedPrice : config.defaultAppPrice;
-    
+    // 2. Canonical pricing rule: Budget Mo = ₱50/mo (regular ₱100), all 19 other modules = ₱99/mo (regular ₱199)
+    const canonical = getModulePricing(appId);
     return { 
-      price: finalPrice, 
-      isPromo: false, 
-      originalPrice: finalPrice 
+      price: canonical.promotionalMonthlyPrice, 
+      isPromo: canonical.promotional, 
+      originalPrice: canonical.regularMonthlyPrice
     };
   };
 
