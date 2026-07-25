@@ -19,11 +19,12 @@ interface AdminTenantDetailsProps {
   updateNextBillingDate: (id: string, date: Date | null) => Promise<void>;
   processTenantRenewal?: (tenant: Tenant) => Promise<void>;
   toggleTenantModule?: (id: string, current: string[] | undefined, moduleId: string) => Promise<void>;
+  onUpdateStatus?: (tenant: Tenant, status: any) => Promise<void>;
 }
 
 const AVAILABLE_MODULES = ['budget-mo', 'benta-snap', 'fresh-tally', 'build-stack', '5-6-tracker', 'ledger-flow', 'sahod-flow', 'biyahe-sync', 'bite-snap', 'timpla-track', 'ganap-master', 'spin-snap', 'hydro-sync', 'auto-boss', 'wellness-pro', 'trim-track', 'rep-sync', 'rental', 'service-master'];
 
-export function AdminTenantDetails({ tenant, isOpen, onClose, updateNextBillingDate, processTenantRenewal, toggleTenantModule }: AdminTenantDetailsProps) {
+export function AdminTenantDetails({ tenant, isOpen, onClose, updateNextBillingDate, processTenantRenewal, toggleTenantModule, onUpdateStatus }: AdminTenantDetailsProps) {
   const [isSendingReset, setIsSendingReset] = useState(false);
   const [isUpdatingDate, setIsUpdatingDate] = useState(false);
   const [isRenewing, setIsRenewing] = useState(false);
@@ -85,6 +86,7 @@ export function AdminTenantDetails({ tenant, isOpen, onClose, updateNextBillingD
       case 'active': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
       case 'pending': return 'bg-amber-100 text-amber-700 border-amber-200';
       case 'suspended': return 'bg-rose-100 text-rose-700 border-rose-200';
+      case 'expired': return 'bg-rose-500 text-white border-rose-600 font-black animate-pulse';
       default: return 'bg-slate-100 text-slate-700 border-slate-200';
     }
   };
@@ -391,6 +393,22 @@ export function AdminTenantDetails({ tenant, isOpen, onClose, updateNextBillingD
                 <Key className="h-4 w-4 mr-2 text-primary" />
                 {isSendingReset ? 'Sending...' : 'Send Password Reset Email'}
               </Button>
+
+              {onUpdateStatus && tenant.subscriptionStatus !== 'expired' && (
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start font-bold h-12 rounded-xl text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+                  onClick={async () => {
+                    if (confirm(`Mark subscription for ${tenant.name} as EXPIRED? This will lock out the user and display the renewal screen.`)) {
+                      await onUpdateStatus(tenant, 'expired');
+                      alert("Tenant status updated to EXPIRED.");
+                    }
+                  }}
+                >
+                  <ShieldAlert className="h-4 w-4 mr-2 text-rose-600" />
+                  Mark Account Status as EXPIRED
+                </Button>
+              )}
             </div>
           </div>
         </div>

@@ -145,6 +145,18 @@ export function AdminOwnerRow({
                             <span className="font-bold text-slate-800 flex items-center gap-1">
                               <Layers className="h-3 w-3 text-primary" />
                               {tenant.moduleType.toUpperCase()}
+                              {(() => {
+                                if (!(tenant as any).nextBillingDate) return null;
+                                const billingDate = new Date(typeof (tenant as any).nextBillingDate === 'object' && (tenant as any).nextBillingDate !== null && 'seconds' in (tenant as any).nextBillingDate ? (tenant as any).nextBillingDate.seconds * 1000 : (tenant as any).nextBillingDate as any);
+                                if (!isNaN(billingDate.getTime()) && billingDate < new Date()) {
+                                  return (
+                                    <Badge className="bg-rose-500 text-white text-[9px] uppercase tracking-wider font-black ml-1 animate-pulse">
+                                      Overdue
+                                    </Badge>
+                                  );
+                                }
+                                return null;
+                              })()}
                             </span>
                             <span className="text-[10px] text-slate-400 font-mono mt-0.5">{tenant.id}</span>
                           </div>
@@ -197,7 +209,8 @@ export function AdminOwnerRow({
                               <span className={cn(
                                 "text-xs font-bold uppercase tracking-wider w-16 text-right md:text-left",
                                 tenant.subscriptionStatus === 'active' ? "text-emerald-600" :
-                                tenant.subscriptionStatus === 'pending' ? "text-amber-600" : "text-destructive"
+                                tenant.subscriptionStatus === 'pending' ? "text-amber-600" :
+                                tenant.subscriptionStatus === 'expired' ? "text-rose-600 font-black animate-pulse" : "text-destructive"
                               )}>
                                 {tenant.subscriptionStatus}
                               </span>

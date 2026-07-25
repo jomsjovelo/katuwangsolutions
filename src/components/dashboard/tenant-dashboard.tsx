@@ -63,7 +63,11 @@ import {
   ChevronRight,
   LogOut,
   CreditCard,
-  WifiOff
+  WifiOff,
+  ShieldAlert,
+  Copy,
+  MessageSquare,
+  Send
 } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -199,6 +203,100 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
   };
 
   const isIndustryTab = !['profile', 'stock', 'ulat', 'home', 'kita', 'rooms'].includes(activeTab || 'home');
+
+  const isExpired = (() => {
+    if (!currentTenant) return false;
+    if (profile?.role === 'admin') return false;
+    if (currentTenant.subscriptionStatus === 'expired') return true;
+    if (currentTenant.nextBillingDate && currentTenant.subscriptionStatus !== 'pending') {
+      const billingDate = new Date(
+        typeof currentTenant.nextBillingDate === 'object' && currentTenant.nextBillingDate !== null && 'seconds' in currentTenant.nextBillingDate 
+          ? (currentTenant.nextBillingDate as any).seconds * 1000 
+          : currentTenant.nextBillingDate as any
+      );
+      if (!isNaN(billingDate.getTime())) {
+        const diffDays = (Date.now() - billingDate.getTime()) / (1000 * 60 * 60 * 24);
+        if (diffDays > 1) return true;
+      }
+    }
+    return false;
+  })();
+
+  if (isExpired && activeTab !== 'kita') {
+    const theme = getModuleTheme(currentTenant?.moduleType);
+    const renewalPrice = currentTenant?.moduleType === 'budget-mo' ? 50 : 99;
+
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 md:p-6">
+        <div className="max-w-md w-full bg-white rounded-3xl p-6 md:p-8 border border-slate-200 shadow-xl space-y-6 animate-in zoom-in-95">
+          <div className="text-center space-y-3">
+            <div className="h-16 w-16 rounded-2xl bg-rose-100 text-rose-600 mx-auto flex items-center justify-center shadow-inner">
+              <ShieldAlert className="h-8 w-8 animate-pulse" />
+            </div>
+            <Badge className="bg-rose-500 text-white font-black text-[10px] uppercase tracking-widest px-3 py-1">
+              Subscription Expired
+            </Badge>
+            <h2 className="text-2xl font-black text-slate-800 font-headline uppercase tracking-tight">
+              Mag-renew ng Subscription
+            </h2>
+            <p className="text-xs text-slate-500 leading-relaxed font-medium">
+              Magandang araw! Ang inyong subscription sa <strong className="text-slate-800 uppercase font-black">{theme.name}</strong> ({currentTenant.name}) ay nag-expire na. Upang maipagpatuloy ang pag-access sa inyong tindahan at ulat, mangyaring mag-renew.
+            </p>
+          </div>
+
+          <div className="bg-amber-500/10 border-2 border-amber-400 p-4 rounded-2xl space-y-3">
+            <div className="flex justify-between items-center text-xs font-bold text-amber-900">
+              <span>PROMO MONTHLY RENEWAL</span>
+              <span className="text-sm font-black text-amber-900">₱{renewalPrice}/month</span>
+            </div>
+            <p className="text-[10px] text-amber-700 font-medium">
+              Bayaran ang renewal via GCash o Maya at i-submit ang reference number para agad ma-activate.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Payment Accounts (GCash / Maya)</h4>
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-black text-slate-800">GCash / Maya</p>
+                  <p className="text-[11px] font-bold text-slate-500">Stellah Ijalga (09915998634)</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    navigator.clipboard.writeText('09915998634');
+                    alert('Copied 09915998634 to clipboard!');
+                  }}
+                  className="h-8 text-[10px] font-bold border-slate-200"
+                >
+                  <Copy className="h-3 w-3 mr-1" /> Copy
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2 pt-2">
+            <Button
+              onClick={() => onTabChange?.('profile')}
+              className="w-full h-12 rounded-xl text-xs font-black uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg flex items-center justify-center gap-2"
+            >
+              <Send className="h-4 w-4" /> Submit Renewal Payment Proof
+            </Button>
+            <a
+              href="https://m.me/stellahija"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full h-12 rounded-xl text-xs font-black uppercase tracking-wider bg-blue-500 hover:bg-blue-600 text-white shadow-md flex items-center justify-center gap-2"
+            >
+              <MessageSquare className="h-4 w-4" /> Chat Admin sa Messenger
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <ShiftGate activeTab={activeTab} onGoToProfile={() => onTabChange?.('profile')}>

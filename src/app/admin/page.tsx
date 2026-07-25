@@ -511,6 +511,7 @@ export default function AdminKillSwitch() {
                 updateNextBillingDate={updateNextBillingDate}
                 processTenantRenewal={processTenantRenewal}
                 toggleTenantModule={toggleTenantModule}
+                onUpdateStatus={updateTenantStatus}
               />
             </>
           )}
