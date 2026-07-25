@@ -134,16 +134,16 @@ export default function AdminKillSwitch() {
       }
       
       return group.tenants.some(t => {
-        const primaryState = getLifecycleState(t.nextBillingDate, t.subscriptionStatus).state;
+        const primaryState = getLifecycleState(t.nextBillingDate, t.subscriptionStatus, t.createdAt).state;
         
         if (statusFilter === 'expired') {
           if (primaryState === 'EXPIRED') return true;
-          return (t.unlockedModules || []).some(mod => getLifecycleState(t.nextBillingDate, t.moduleStatuses?.[mod] || 'active').state === 'EXPIRED');
+          return (t.unlockedModules || []).some(mod => getLifecycleState(t.nextBillingDate, t.moduleStatuses?.[mod] || 'active', t.createdAt).state === 'EXPIRED');
         }
         if (statusFilter === 'expiring') {
           if (primaryState === 'DUE_TODAY' || primaryState === 'EXPIRING_SOON') return true;
           return (t.unlockedModules || []).some(mod => {
-            const st = getLifecycleState(t.nextBillingDate, t.moduleStatuses?.[mod] || 'active').state;
+            const st = getLifecycleState(t.nextBillingDate, t.moduleStatuses?.[mod] || 'active', t.createdAt).state;
             return st === 'DUE_TODAY' || st === 'EXPIRING_SOON';
           });
         }

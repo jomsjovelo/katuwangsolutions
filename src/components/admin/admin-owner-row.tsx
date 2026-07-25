@@ -29,13 +29,29 @@ interface AdminOwnerRowProps {
   onUpdateNextBillingDate?: (tenantId: string, date: Date | null) => Promise<void>;
 }
 
-export function getLifecycleState(nextBillingDate: any, status: string) {
+export function getEffectiveNextBillingDate(nextBillingDate: any, createdAt: any): Date | null {
+  if (nextBillingDate) {
+    const d = new Date(typeof nextBillingDate === 'object' && nextBillingDate !== null && 'seconds' in nextBillingDate ? (nextBillingDate as any).seconds * 1000 : nextBillingDate as any);
+    if (!isNaN(d.getTime())) return d;
+  }
+  if (createdAt) {
+    const created = new Date(typeof createdAt === 'object' && createdAt !== null && 'seconds' in createdAt ? (createdAt as any).seconds * 1000 : createdAt as any);
+    if (!isNaN(created.getTime())) {
+      const fallback = new Date(created);
+      fallback.setDate(fallback.getDate() + 30);
+      return fallback;
+    }
+  }
+  return null;
+}
+
+export function getLifecycleState(nextBillingDate: any, status: string, createdAt?: any) {
   if (status === 'expired' || status === 'suspended') {
     return { state: 'EXPIRED', label: '🚨 EXPIRED', badgeClass: 'bg-rose-500 text-white font-black animate-pulse border-rose-600' };
   }
-  if (!nextBillingDate) return { state: 'HEALTHY', label: 'NO DATE', badgeClass: 'bg-slate-100 text-slate-700 border-slate-200 font-bold' };
-  const date = new Date(typeof nextBillingDate === 'object' && nextBillingDate !== null && 'seconds' in nextBillingDate ? nextBillingDate.seconds * 1000 : nextBillingDate);
-  if (isNaN(date.getTime())) return { state: 'HEALTHY', label: 'NO DATE', badgeClass: 'bg-slate-100 text-slate-700 border-slate-200 font-bold' };
+  
+  const date = getEffectiveNextBillingDate(nextBillingDate, createdAt);
+  if (!date) return { state: 'HEALTHY', label: 'NO DATE', badgeClass: 'bg-slate-100 text-slate-700 border-slate-200 font-bold' };
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -219,7 +235,8 @@ export function AdminOwnerRow({
                 {/* Responsive Body */}
                 <div className="divide-y divide-secondary">
                   {group.tenants.map(tenant => {
-                    const lifecycle = getLifecycleState(tenant.nextBillingDate, tenant.subscriptionStatus);
+                    const effectiveDate = getEffectiveNextBillingDate(tenant.nextBillingDate, tenant.createdAt);
+                    const lifecycle = getLifecycleState(tenant.nextBillingDate, tenant.subscriptionStatus, tenant.createdAt);
                     return (
                       <React.Fragment key={tenant.id}>
                         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 md:gap-4 p-4 hover:bg-slate-50/50 items-center">
@@ -262,7 +279,7 @@ export function AdminOwnerRow({
                               <div className="flex flex-col gap-1">
                                 <span className="text-xs font-bold text-slate-700 font-mono flex items-center gap-1">
                                   <Calendar className="h-3 w-3 text-slate-400" />
-                                  {tenant.nextBillingDate ? new Date(typeof tenant.nextBillingDate === 'object' && tenant.nextBillingDate !== null && 'seconds' in tenant.nextBillingDate ? (tenant.nextBillingDate as any).seconds * 1000 : tenant.nextBillingDate as any).toLocaleDateString() : 'N/A'}
+                                  {effectiveDate ? effectiveDate.toLocaleDateString() : 'N/A'}
                                 </span>
                                 <Badge className={cn("text-[9px] px-2 py-0.5 uppercase tracking-wider w-fit border shadow-none", lifecycle.badgeClass)}>
                                   {lifecycle.label}
@@ -309,7 +326,7 @@ export function AdminOwnerRow({
                                 <Button
                                   size="sm"
                                   onClick={async () => {
-                                    const currentExpiry = tenant.nextBillingDate ? new Date(typeof tenant.nextBillingDate === 'object' && tenant.nextBillingDate !== null && 'seconds' in tenant.nextBillingDate ? (tenant.nextBillingDate as any).seconds * 1000 : tenant.nextBillingDate as any) : new Date();
+                                    const currentExpiry = effectiveDate || new Date();
                                     const baseDate = (currentExpiry > new Date()) ? currentExpiry : new Date();
                                     const newExpiry = new Date(baseDate.getTime() + 30 * 24 * 60 * 60 * 1000);
                                     
