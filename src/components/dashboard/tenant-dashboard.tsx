@@ -260,14 +260,14 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-black text-slate-800">GCash / Maya</p>
-                  <p className="text-[11px] font-bold text-slate-500">Stellah Ijalga (09915998634)</p>
+                  <p className="text-[11px] font-bold text-slate-500">Stellah Ijalga (0995 166 5423)</p>
                 </div>
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => {
-                    navigator.clipboard.writeText('09915998634');
-                    alert('Copied 09915998634 to clipboard!');
+                    navigator.clipboard.writeText('09951665423');
+                    alert('Copied 09951665423 to clipboard!');
                   }}
                   className="h-8 text-[10px] font-bold border-slate-200"
                 >
