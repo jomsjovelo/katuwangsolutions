@@ -223,9 +223,62 @@ export function AdminOwnerRow({
 
                       </div>
 
-                      {/* Render Pending Add-on Requests for this tenant */}
+                      {/* Render Active Unlocked Add-on Modules */}
+                      {(tenant.unlockedModules || []).filter(mod => mod !== tenant.moduleType).map(mod => (
+                        <div key={mod} className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-4 p-4 bg-emerald-500/5 border border-emerald-200/60 rounded-xl items-center my-1">
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-800 flex items-center gap-1.5 text-xs">
+                              <Layers className="h-3.5 w-3.5 text-emerald-600" />
+                              {mod.toUpperCase()}
+                              <Badge className="bg-emerald-600 text-white text-[9px] uppercase tracking-wider font-bold ml-1">
+                                Unlocked Add-on
+                              </Badge>
+                            </span>
+                            <span className="text-[10px] text-emerald-600 font-mono mt-0.5">Purchased Add-on Module</span>
+                          </div>
+
+                          <div className="flex items-center">
+                            <Badge variant="outline" className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs font-bold">
+                              {mod === 'budget-mo' ? 'PROMO (₱50/mo)' : 'PROMO (₱99/mo)'}
+                            </Badge>
+                          </div>
+
+                          <div className="flex items-center">
+                            <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
+                              ● ACTIVE
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-end gap-2">
+                            {toggleTenantModule && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={updatingStatusFor === tenant.id}
+                                onClick={async () => {
+                                  if (confirm(`Remove unlocked add-on module ${mod}?`)) {
+                                    setUpdatingStatusFor(tenant.id);
+                                    try {
+                                      await toggleTenantModule(tenant.id, tenant.unlockedModules, mod);
+                                    } catch (e: any) {
+                                      alert('Failed to remove module: ' + e.message);
+                                    } finally {
+                                      setUpdatingStatusFor(null);
+                                    }
+                                  }
+                                }}
+                                className="border-destructive/30 text-destructive hover:bg-destructive hover:text-white font-bold text-xs h-8 px-3"
+                              >
+                                Remove Add-on
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Render Pending Add-on Requests for this tenant (excluding already unlocked modules) */}
                       {((tenant.pendingModuleRequests && tenant.pendingModuleRequests.length > 0)
-                        ? tenant.pendingModuleRequests
+                        ? tenant.pendingModuleRequests.filter(r => !(tenant.unlockedModules || []).includes(r.moduleId))
                         : (tenant.lastPaymentRequestedModule && !(tenant.unlockedModules || []).includes(tenant.lastPaymentRequestedModule))
                           ? [{ moduleId: tenant.lastPaymentRequestedModule, moduleName: tenant.lastPaymentRequestedModule, price: tenant.lastPaymentRequestedModule === 'budget-mo' ? 50 : 99 }]
                           : []

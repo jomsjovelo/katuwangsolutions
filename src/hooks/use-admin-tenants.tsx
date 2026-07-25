@@ -333,14 +333,21 @@ export function useAdminTenants(enabled: boolean = true) {
       const adminUser = auth.currentUser;
       const tenantRef = doc(db, 'tenants', tenantId);
 
-      const { arrayUnion, writeBatch, serverTimestamp, collection } = await import('firebase/firestore');
+      const { arrayUnion, writeBatch, serverTimestamp, collection, deleteField, getDoc } = await import('firebase/firestore');
+
+      const tenantSnap = await getDoc(tenantRef);
+      const tenantData = tenantSnap.exists() ? tenantSnap.data() : {};
+      const currentPending = (tenantData.pendingModuleRequests || []) as any[];
+      const updatedPending = currentPending.filter((r: any) => r.moduleId !== requestItem.moduleId && r.id !== requestItem.moduleId);
 
       const batch = writeBatch(db);
       
-      // 1. Add module to unlockedModules and set subscriptionStatus to active
+      // 1. Add module to unlockedModules, update pendingModuleRequests, delete lastPaymentRequestedModule, set subscriptionStatus to active
       batch.update(tenantRef, {
         unlockedModules: arrayUnion(requestItem.moduleId),
-        subscriptionStatus: 'active'
+        subscriptionStatus: 'active',
+        pendingModuleRequests: updatedPending,
+        lastPaymentRequestedModule: deleteField()
       });
 
       // 2. Add billing log entry
@@ -372,12 +379,12 @@ export function useAdminTenants(enabled: boolean = true) {
       setTenants(prev => prev.map(t => {
         if (t.id === tenantId) {
           const unlocked = t.unlockedModules || [];
-          const updatedRequests = (t.pendingModuleRequests || []).filter(r => r.moduleId !== requestItem.moduleId);
           return {
             ...t,
             subscriptionStatus: 'active',
             unlockedModules: unlocked.includes(requestItem.moduleId) ? unlocked : [...unlocked, requestItem.moduleId],
-            pendingModuleRequests: updatedRequests
+            pendingModuleRequests: updatedPending,
+            lastPaymentRequestedModule: undefined
           };
         }
         return t;
