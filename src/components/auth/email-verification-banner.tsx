@@ -62,11 +62,16 @@ export function EmailVerificationBanner() {
   return (
     <div className="w-full bg-amber-50 border-b border-amber-200 px-4 py-3 text-amber-900 text-sm font-medium z-50">
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
-          <p>
-            I-verify ang iyong email address para maprotektahan ang account. I-check ang <strong>{user.email}</strong> para sa aming link.
-          </p>
+        <div className="flex items-start gap-2.5">
+          <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex flex-col">
+            <p>
+              I-verify ang iyong email address para maprotektahan ang account. I-check ang <strong>{user.email}</strong> para sa aming link.
+            </p>
+            <p className="text-[11px] text-amber-800/90 font-medium mt-0.5">
+              💡 <strong>Paalala:</strong> Paki-check din ang inyong Spam / Junk folder. Kung nag-error, mag-antay ng 1–2 minuto bago mag-click ulit ng "Magpadala Ulit".
+            </p>
+          </div>
         </div>
         
         <div className="flex items-center gap-4 shrink-0">
