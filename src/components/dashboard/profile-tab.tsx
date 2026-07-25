@@ -590,6 +590,7 @@ export function ProfileTab() {
                   currentTenant.id === 'demo' || 
                   currentTenant.name.toLowerCase().includes('demo') || 
                   key === currentTenant.moduleType || 
+                  key === currentTenant.primaryModuleType ||
                   currentTenant.unlockedModules?.includes(key)
                 ).map(([key, modTheme]) => {
                   const themeObj = modTheme as ModuleTheme;

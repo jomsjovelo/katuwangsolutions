@@ -11,6 +11,7 @@ export interface Tenant {
   ownerUid: string;
   staffUids: string[];
   moduleType: string;
+  primaryModuleType?: string;
   unlockedModules?: string[]; // Array of additional purchased apps
   pendingModuleRequests?: Array<{ moduleId: string; moduleName?: string; price?: number; requestedAt?: string }>;
   lastPaymentRequestedModule?: string;

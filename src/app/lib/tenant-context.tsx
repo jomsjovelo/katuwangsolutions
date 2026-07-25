@@ -43,6 +43,7 @@ export function useTenant() {
       ...activeTenant,
       ...liveTenantData,
       id: effectiveTenantId,
+      primaryModuleType: activeTenant.moduleType,
       moduleType
     };
   }, [activeTenant, activeModuleOverride, seededTenants, allTenants]);
