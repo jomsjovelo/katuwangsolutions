@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { AdminTenant } from '@/hooks/use-admin-tenants';
 import { PricingTier, SubscriptionStatus } from '@/store/use-tenant-store';
 import { TableRow, TableCell } from '@/components/ui/table';
@@ -22,6 +22,8 @@ interface AdminOwnerRowProps {
   onUpdateStatus: (tenant: AdminTenant, status: SubscriptionStatus) => Promise<void>;
   onShowDetails: (tenant: AdminTenant) => void;
   onPurge: (tenant: AdminTenant) => void;
+  toggleTenantModule?: (tenantId: string, currentModules: string[] | undefined, moduleId: string) => Promise<void>;
+  approvePendingModuleRequest?: (tenantId: string, requestItem: { moduleId: string; price?: number }) => Promise<void>;
 }
 
 export function AdminOwnerRow({
@@ -30,7 +32,9 @@ export function AdminOwnerRow({
   onUpdatePricing,
   onUpdateStatus,
   onShowDetails,
-  onPurge
+  onPurge,
+  toggleTenantModule,
+  approvePendingModuleRequest
 }: AdminOwnerRowProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [updatingStatusFor, setUpdatingStatusFor] = useState<string | null>(null);
@@ -38,7 +42,12 @@ export function AdminOwnerRow({
   const activeCount = group.tenants.filter(t => t.subscriptionStatus === 'active').length;
   const pendingCount = group.tenants.filter(t => t.subscriptionStatus === 'pending').length;
   const suspendedCount = group.tenants.filter(t => t.subscriptionStatus === 'suspended').length;
-  const pendingRequestCount = group.tenants.reduce((acc, t) => acc + (t.pendingModuleRequests?.length || 0), 0);
+  const pendingRequestCount = group.tenants.reduce((acc, t) => {
+    const reqs = t.pendingModuleRequests?.length 
+      ? t.pendingModuleRequests.length 
+      : (t.lastPaymentRequestedModule && !(t.unlockedModules || []).includes(t.lastPaymentRequestedModule)) ? 1 : 0;
+    return acc + reqs;
+  }, 0);
 
   return (
     <>
@@ -124,94 +133,161 @@ export function AdminOwnerRow({
                 {/* Responsive Body */}
                 <div className="divide-y divide-secondary">
                   {group.tenants.map(tenant => (
-                    <div key={tenant.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-4 p-4 hover:bg-slate-50/50 items-center">
-                      
-                        {/* Module ID */}
-                        <div className="flex flex-col">
-                          <span className="font-bold text-slate-800 flex items-center gap-1">
-                            <Layers className="h-3 w-3 text-primary" />
-                            {tenant.moduleType.toUpperCase()}
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-mono mt-0.5">{tenant.id}</span>
-                        </div>
+                    <React.Fragment key={tenant.id}>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-4 p-4 hover:bg-slate-50/50 items-center">
                         
-                        {/* Pricing Tier */}
-                        <div className="flex items-center justify-between md:justify-start">
-                          <span className="md:hidden text-[10px] font-bold text-slate-400 uppercase tracking-wider w-24">Pricing:</span>
-                          <div className="relative inline-block w-full md:w-40 flex-1">
-                            {updatingPricingFor === tenant.id && (
-                              <div className="absolute inset-0 flex items-center justify-center bg-white/70 rounded-lg z-10">
-                                <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                              </div>
-                            )}
-                            <select
-                              value={tenant.pricingTier}
-                              onChange={(e) => onUpdatePricing(tenant.id, e.target.value as PricingTier)}
-                              className="w-full text-xs font-bold uppercase tracking-wider bg-secondary/20 border-secondary rounded-lg px-3 py-2 text-slate-700 outline-none focus:ring-2 focus:ring-primary appearance-none cursor-pointer"
-                            >
-                              <option value="foc">Free Of Charge (FOC)</option>
-                              <option value="promo_50">Budget Promo (₱50)</option>
-                              <option value="promo_99">Promo (₱99)</option>
-                              <option value="standard_199">Standard (₱199)</option>
-                              <option value="enterprise">Enterprise (₱499)</option>
-                            </select>
+                          {/* Module ID */}
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-800 flex items-center gap-1">
+                              <Layers className="h-3 w-3 text-primary" />
+                              {tenant.moduleType.toUpperCase()}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-mono mt-0.5">{tenant.id}</span>
                           </div>
-                        </div>
-                        
-                        {/* Status */}
-                        <div className="flex items-center justify-between md:justify-start">
-                          <span className="md:hidden text-[10px] font-bold text-slate-400 uppercase tracking-wider w-24">Status:</span>
-                          <div className="flex items-center gap-3 flex-1 justify-end md:justify-start relative">
-                            {updatingStatusFor === tenant.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                            ) : (
-                              <Switch 
-                                checked={tenant.subscriptionStatus === 'active'}
-                                onCheckedChange={async (checked) => {
-                                  setUpdatingStatusFor(tenant.id);
-                                  try {
-                                    await onUpdateStatus(tenant, checked ? 'active' : 'suspended');
-                                  } catch (e: any) {
-                                    alert('Failed to update status: ' + e.message);
-                                  } finally {
-                                    setUpdatingStatusFor(null);
-                                  }
-                                }}
-                                className="data-[state=checked]:bg-emerald-500"
-                              />
-                            )}
-                            <span className={cn(
-                              "text-xs font-bold uppercase tracking-wider w-16 text-right md:text-left",
-                              tenant.subscriptionStatus === 'active' ? "text-emerald-600" :
-                              tenant.subscriptionStatus === 'pending' ? "text-amber-600" : "text-destructive"
-                            )}>
-                              {tenant.subscriptionStatus}
+                          
+                          {/* Pricing Tier */}
+                          <div className="flex items-center justify-between md:justify-start">
+                            <span className="md:hidden text-[10px] font-bold text-slate-400 uppercase tracking-wider w-24">Pricing:</span>
+                            <div className="relative inline-block w-full md:w-40 flex-1">
+                              {updatingPricingFor === tenant.id && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-white/70 rounded-lg z-10">
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                                </div>
+                              )}
+                              <select
+                                value={tenant.pricingTier}
+                                onChange={(e) => onUpdatePricing(tenant.id, e.target.value as PricingTier)}
+                                className="w-full text-xs font-bold uppercase tracking-wider bg-secondary/20 border-secondary rounded-lg px-3 py-2 text-slate-700 outline-none focus:ring-2 focus:ring-primary appearance-none cursor-pointer"
+                              >
+                                <option value="foc">Free Of Charge (FOC)</option>
+                                <option value="promo_50">Budget Promo (₱50)</option>
+                                <option value="promo_99">Promo (₱99)</option>
+                                <option value="standard_199">Standard (₱199)</option>
+                                <option value="enterprise">Enterprise (₱499)</option>
+                              </select>
+                            </div>
+                          </div>
+                          
+                          {/* Status */}
+                          <div className="flex items-center justify-between md:justify-start">
+                            <span className="md:hidden text-[10px] font-bold text-slate-400 uppercase tracking-wider w-24">Status:</span>
+                            <div className="flex items-center gap-3 flex-1 justify-end md:justify-start relative">
+                              {updatingStatusFor === tenant.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                              ) : (
+                                <Switch 
+                                  checked={tenant.subscriptionStatus === 'active'}
+                                  onCheckedChange={async (checked) => {
+                                    setUpdatingStatusFor(tenant.id);
+                                    try {
+                                      await onUpdateStatus(tenant, checked ? 'active' : 'suspended');
+                                    } catch (e: any) {
+                                      alert('Failed to update status: ' + e.message);
+                                    } finally {
+                                      setUpdatingStatusFor(null);
+                                    }
+                                  }}
+                                  className="data-[state=checked]:bg-emerald-500"
+                                />
+                              )}
+                              <span className={cn(
+                                "text-xs font-bold uppercase tracking-wider w-16 text-right md:text-left",
+                                tenant.subscriptionStatus === 'active' ? "text-emerald-600" :
+                                tenant.subscriptionStatus === 'pending' ? "text-amber-600" : "text-destructive"
+                              )}>
+                                {tenant.subscriptionStatus}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {/* Actions */}
+                          <div className="flex items-center justify-end gap-2 border-t border-secondary/50 md:border-t-0 pt-3 md:pt-0 mt-2 md:mt-0">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onShowDetails(tenant)}
+                              className="bg-primary/10 text-primary hover:bg-primary hover:text-white font-bold text-xs"
+                            >
+                              Details
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onPurge(tenant)}
+                              className="h-8 w-8 text-destructive hover:bg-destructive hover:text-white transition-colors"
+                              title="Purge Tenant Data"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+
+                      </div>
+
+                      {/* Render Pending Add-on Requests for this tenant */}
+                      {((tenant.pendingModuleRequests && tenant.pendingModuleRequests.length > 0)
+                        ? tenant.pendingModuleRequests
+                        : (tenant.lastPaymentRequestedModule && !(tenant.unlockedModules || []).includes(tenant.lastPaymentRequestedModule))
+                          ? [{ moduleId: tenant.lastPaymentRequestedModule, moduleName: tenant.lastPaymentRequestedModule, price: tenant.lastPaymentRequestedModule === 'budget-mo' ? 50 : 99 }]
+                          : []
+                      ).map((req: any) => (
+                        <div key={req.moduleId} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-amber-500/10 border-2 border-amber-400 rounded-xl items-center my-2 shadow-sm">
+                          <div className="flex flex-col">
+                            <span className="font-black text-amber-900 flex items-center gap-1.5 text-sm uppercase">
+                              <Layers className="h-4 w-4 text-amber-600 animate-pulse" />
+                              {req.moduleName || req.moduleId}
+                              <Badge className="bg-amber-500 text-white text-[9px] uppercase tracking-wider font-black ml-1">
+                                Requested Add-on
+                              </Badge>
+                            </span>
+                            <span className="text-[10px] text-amber-700 font-bold mt-0.5">Payment Submitted · Pending Verification</span>
+                          </div>
+
+                          <div className="flex items-center">
+                            <Badge variant="outline" className="bg-amber-100 text-amber-900 border-amber-300 text-xs font-black">
+                              ₱{req.price || (req.moduleId === 'budget-mo' ? 50 : 99)}/mo
+                            </Badge>
+                          </div>
+
+                          <div className="flex items-center">
+                            <span className="text-xs font-black text-amber-700 uppercase tracking-wider bg-amber-100/80 px-2.5 py-1 rounded-full border border-amber-300">
+                              Status: PENDING
                             </span>
                           </div>
-                        </div>
-                        
-                        {/* Actions */}
-                        <div className="flex items-center justify-end gap-2 border-t border-secondary/50 md:border-t-0 pt-3 md:pt-0 mt-2 md:mt-0">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onShowDetails(tenant)}
-                            className="bg-primary/10 text-primary hover:bg-primary hover:text-white font-bold text-xs"
-                          >
-                            Details
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onPurge(tenant)}
-                            className="h-8 w-8 text-destructive hover:bg-destructive hover:text-white transition-colors"
-                            title="Purge Tenant Data"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
 
-                    </div>
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              size="sm"
+                              disabled={updatingStatusFor === tenant.id}
+                              onClick={async () => {
+                                setUpdatingStatusFor(tenant.id);
+                                try {
+                                  if (approvePendingModuleRequest) {
+                                    await approvePendingModuleRequest(tenant.id, req);
+                                  } else if (toggleTenantModule) {
+                                    await toggleTenantModule(tenant.id, tenant.unlockedModules, req.moduleId);
+                                    const { doc, updateDoc, arrayRemove, deleteField } = await import('firebase/firestore');
+                                    const { initializeFirebase } = await import('@/firebase');
+                                    const { db } = initializeFirebase();
+                                    await updateDoc(doc(db, 'tenants', tenant.id), {
+                                      pendingModuleRequests: arrayRemove(req),
+                                      lastPaymentRequestedModule: deleteField(),
+                                      subscriptionStatus: 'active'
+                                    });
+                                  }
+                                } catch (e: any) {
+                                  alert('Approval failed: ' + e.message);
+                                } finally {
+                                  setUpdatingStatusFor(null);
+                                }
+                              }}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md rounded-lg h-9 px-4 uppercase tracking-wider"
+                            >
+                              Approve & Unlock
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </React.Fragment>
                   ))}
                 </div>
               </div>
