@@ -46,6 +46,9 @@ export function getEffectiveNextBillingDate(nextBillingDate: any, createdAt: any
 }
 
 export function getLifecycleState(nextBillingDate: any, status: string, createdAt?: any) {
+  if (status === 'pending') {
+    return { state: 'PENDING', label: '⏳ PENDING', badgeClass: 'bg-amber-100 text-amber-900 border-amber-300 font-bold' };
+  }
   if (status === 'expired' || status === 'suspended') {
     return { state: 'EXPIRED', label: '🚨 EXPIRED', badgeClass: 'bg-rose-500 text-white font-black animate-pulse border-rose-600' };
   }

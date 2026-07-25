@@ -428,9 +428,13 @@ export function useAdminTenants(enabled: boolean = true) {
 
       const batch = writeBatch(db);
       
-      const autoBillingDate = tenantData.nextBillingDate 
-        ? tenantData.nextBillingDate 
-        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      const currentExpiry = tenantData.nextBillingDate 
+        ? new Date(typeof tenantData.nextBillingDate === 'object' && tenantData.nextBillingDate !== null && 'seconds' in tenantData.nextBillingDate ? tenantData.nextBillingDate.seconds * 1000 : tenantData.nextBillingDate)
+        : new Date();
+
+      // If registered previously or expired, start full 30 days from TODAY when approved!
+      const baseDate = (currentExpiry > new Date()) ? currentExpiry : new Date();
+      const autoBillingDate = new Date(baseDate.getTime() + 30 * 24 * 60 * 60 * 1000);
 
       // 1. Add module to unlockedModules, update pendingModuleRequests, delete lastPaymentRequestedModule, set subscriptionStatus to active, auto-set nextBillingDate if missing
       batch.update(tenantRef, {
