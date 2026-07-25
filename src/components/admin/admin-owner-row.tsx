@@ -43,14 +43,33 @@ export function AdminOwnerRow({
   const [isExpanded, setIsExpanded] = useState(false);
   const [updatingStatusFor, setUpdatingStatusFor] = useState<string | null>(null);
 
-  const activeCount = group.tenants.filter(t => t.subscriptionStatus === 'active').length;
+  const activeCount = group.tenants.reduce((acc, t) => {
+    const primaryActive = t.subscriptionStatus === 'active' ? 1 : 0;
+    const unlockedActive = (t.unlockedModules || [])
+      .filter(mod => mod !== t.moduleType && (t.moduleStatuses?.[mod] || 'active') === 'active')
+      .length;
+    return acc + primaryActive + unlockedActive;
+  }, 0);
+
   const pendingCount = group.tenants.filter(t => t.subscriptionStatus === 'pending').length;
-  const suspendedCount = group.tenants.filter(t => t.subscriptionStatus === 'suspended').length;
+
+  const suspendedCount = group.tenants.reduce((acc, t) => {
+    const primarySuspended = t.subscriptionStatus === 'suspended' ? 1 : 0;
+    const unlockedSuspended = (t.unlockedModules || [])
+      .filter(mod => mod !== t.moduleType && t.moduleStatuses?.[mod] === 'suspended')
+      .length;
+    return acc + primarySuspended + unlockedSuspended;
+  }, 0);
+
   const pendingRequestCount = group.tenants.reduce((acc, t) => {
-    const reqs = t.pendingModuleRequests?.length 
-      ? t.pendingModuleRequests.length 
-      : (t.lastPaymentRequestedModule && !(t.unlockedModules || []).includes(t.lastPaymentRequestedModule)) ? 1 : 0;
-    return acc + reqs;
+    const validPending = (t.pendingModuleRequests || []).filter(
+      r => !(t.unlockedModules || []).includes(r.moduleId)
+    );
+    if (validPending.length > 0) return acc + validPending.length;
+    if (t.lastPaymentRequestedModule && !(t.unlockedModules || []).includes(t.lastPaymentRequestedModule)) {
+      return acc + 1;
+    }
+    return acc;
   }, 0);
 
   return (
