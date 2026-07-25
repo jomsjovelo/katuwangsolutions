@@ -307,13 +307,15 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
     });
 
     const txUnsub = onSnapshot(
-      query(
-        collection(db, 'tenants', currentTenant.id, 'budget_transactions'), 
-        where('createdAt', '>=', fetchMinDate),
-        orderBy('createdAt', 'desc')
-      ), 
+      collection(db, 'tenants', currentTenant.id, 'budget_transactions'), 
       (snap) => {
-        setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() }) as BudgetTransaction));
+        const fetched = snap.docs.map(d => ({ id: d.id, ...d.data() }) as BudgetTransaction);
+        fetched.sort((a, b) => {
+          const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : a.createdAt ? new Date(a.createdAt).getTime() : Date.now();
+          const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : b.createdAt ? new Date(b.createdAt).getTime() : Date.now();
+          return timeB - timeA;
+        });
+        setTransactions(fetched);
       }
     );
 
@@ -338,42 +340,11 @@ export function BudgetMoDashboard({ activeTab = 'home', onTabChange }: { activeT
     return () => { unsubSettings(); masterUnsub(); txUnsub(); debtUnsub(); goalUnsub(); envUnsub(); presetsUnsub(); };
   }, [currentTenant?.id, db, fetchMinDate.getTime()]);
 
-  // Offline Queue Auto-Sync Engine
+  // Silent Background Legacy Queue Auto-Sync
   useEffect(() => {
     if (!currentTenant?.id) return;
-
-    const refreshQueueStatus = async () => {
-      const items = await getQueuedTransactions(currentTenant.id);
-      setOfflineQueueCount(items.length);
-    };
-
-    refreshQueueStatus();
-
-    const handleOnline = async () => {
-      setIsOffline(false);
-      if (currentTenant?.id) {
-        toast({ title: '📶 Network Restored', description: 'Syncing offline transactions...' });
-        const synced = await syncOfflineBudgetQueue(currentTenant.id);
-        if (synced > 0) {
-          toast({ title: '🎉 Sync Complete', description: `Successfully synced ${synced} offline transaction(s)!` });
-        }
-        refreshQueueStatus();
-      }
-    };
-
-    const handleOffline = () => {
-      setIsOffline(true);
-      toast({ title: '📶 Offline Mode Active', description: 'Transactions will be queued locally and auto-synced when back online.', variant: 'destructive' });
-    };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, [currentTenant?.id, toast]);
+    syncOfflineBudgetQueue(currentTenant.id).catch(() => {});
+  }, [currentTenant?.id]);
 
   const cycleTransactions = transactions.filter(t => {
     if (!t.createdAt) return true;

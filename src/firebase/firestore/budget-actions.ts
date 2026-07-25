@@ -15,21 +15,6 @@ export async function addBudgetTransaction(
   note: string,
   date?: string
 ) {
-  const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
-
-  if (isOffline) {
-    console.log('[Budget Mo] Device offline. Enqueueing transaction locally to IndexedDB...');
-    const queueId = await enqueueOfflineTransaction({
-      tenantId,
-      type,
-      amountCentavos,
-      category,
-      note,
-      date,
-    });
-    return queueId;
-  }
-
   const db = getKatuwangDb();
   
   const validated = BudgetTransactionSchema.parse({
@@ -43,10 +28,14 @@ export async function addBudgetTransaction(
   const transactionsRef = collection(db, 'tenants', tenantId, 'budget_transactions');
   const newDocRef = doc(transactionsRef);
 
+  const createdAtTimestamp = validated.date
+    ? Timestamp.fromDate(new Date(`${validated.date}T12:00:00`))
+    : serverTimestamp();
+
   const payload: any = {
     ...validated,
     id: newDocRef.id,
-    createdAt: validated.date ? Timestamp.fromDate(new Date(validated.date)) : serverTimestamp(),
+    createdAt: createdAtTimestamp,
   };
 
   if (payload.date === undefined) {
@@ -55,43 +44,29 @@ export async function addBudgetTransaction(
 
   const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
 
-  try {
-    await runTransactionResilient(db, async (transaction) => {
-      transaction.set(newDocRef, payload);
+  await runTransactionResilient(db, async (transaction) => {
+    transaction.set(newDocRef, payload);
 
-      const masterAccountSnap = await transaction.get(masterAccountRef);
-      if (!masterAccountSnap.exists()) {
-        transaction.set(masterAccountRef, {
-          id: 'master-cash',
-          tenantId,
-          name: 'Main Cash Register',
-          type: 'asset',
-          balance: type === 'income' ? amountCentavos : -amountCentavos,
-          isActive: true,
-          createdAt: serverTimestamp(),
-        });
-      } else {
-        transaction.update(masterAccountRef, {
-          balance: increment(type === 'income' ? amountCentavos : -amountCentavos),
-          updatedAt: serverTimestamp()
-        });
-      }
-    });
+    const masterAccountSnap = await transaction.get(masterAccountRef);
+    if (!masterAccountSnap.exists()) {
+      transaction.set(masterAccountRef, {
+        id: 'master-cash',
+        tenantId,
+        name: 'Main Cash Register',
+        type: 'asset',
+        balance: type === 'income' ? amountCentavos : -amountCentavos,
+        isActive: true,
+        createdAt: serverTimestamp(),
+      });
+    } else {
+      transaction.update(masterAccountRef, {
+        balance: increment(type === 'income' ? amountCentavos : -amountCentavos),
+        updatedAt: serverTimestamp()
+      });
+    }
+  });
 
-    return newDocRef.id;
-  } catch (err) {
-    // If execution failed due to network unavailability, fall back to offline queue
-    console.warn('[Budget Mo] Online transaction failed, queueing offline:', err);
-    const queueId = await enqueueOfflineTransaction({
-      tenantId,
-      type,
-      amountCentavos,
-      category,
-      note,
-      date,
-    });
-    return queueId;
-  }
+  return newDocRef.id;
 }
 
 export async function syncOfflineBudgetQueue(tenantId: string): Promise<number> {
