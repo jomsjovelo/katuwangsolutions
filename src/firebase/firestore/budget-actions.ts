@@ -166,9 +166,13 @@ export async function editBudgetTransaction(
   const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
 
   await runTransactionResilient(db, async (transaction) => {
+    // 1. ALL READS FIRST
     const txSnap = await transaction.get(txRef);
+    const masterSnap = await transaction.get(masterAccountRef);
+
     if (!txSnap.exists()) throw new Error("Transaction not found");
 
+    // 2. ALL WRITES SECOND
     const txData = txSnap.data();
     let masterCashDelta = 0;
 
@@ -178,14 +182,11 @@ export async function editBudgetTransaction(
       masterCashDelta = txData.type === 'income' ? (newAmount - oldAmount) : -(newAmount - oldAmount);
     }
 
-    if (masterCashDelta !== 0) {
-      const masterSnap = await transaction.get(masterAccountRef);
-      if (masterSnap.exists()) {
-        transaction.update(masterAccountRef, {
-          balance: increment(masterCashDelta),
-          updatedAt: serverTimestamp()
-        });
-      }
+    if (masterCashDelta !== 0 && masterSnap.exists()) {
+      transaction.update(masterAccountRef, {
+        balance: increment(masterCashDelta),
+        updatedAt: serverTimestamp()
+      });
     }
 
     const payload: any = {
@@ -193,7 +194,7 @@ export async function editBudgetTransaction(
       updatedAt: serverTimestamp()
     };
     if (payload.date) {
-      payload.createdAt = Timestamp.fromDate(new Date(payload.date));
+      payload.createdAt = Timestamp.fromDate(new Date(`${payload.date}T12:00:00`));
     }
     if (payload.date === undefined) delete payload.date;
 
