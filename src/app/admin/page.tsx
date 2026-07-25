@@ -82,7 +82,7 @@ interface SystemConfig {
 
 export default function AdminKillSwitch() {
   const { user, loading: authLoading } = useUser();
-  const { tenants, loading, error, fetchTenants, searchTenants, hasNextPage, hasPrevPage, updateTenantStatus, updateTenantPricing, updateModulePricingTier, updateNextBillingDate, processTenantRenewal, toggleTenantModule, approvePendingModuleRequest, annihilateTenant, pendingCount } = useAdminTenants(!!user);
+  const { tenants, loading, error, fetchTenants, searchTenants, hasNextPage, hasPrevPage, updateTenantStatus, updateModuleStatus, updateTenantPricing, updateModulePricingTier, updateNextBillingDate, processTenantRenewal, toggleTenantModule, approvePendingModuleRequest, annihilateTenant, pendingCount } = useAdminTenants(!!user);
   const { stats, loading: statsLoading } = useAdminStats(!!user);
   
   const [search, setSearch] = useState("");
@@ -454,6 +454,7 @@ export default function AdminKillSwitch() {
                           onUpdatePricing={handlePricingChange}
                           onUpdateModulePricing={updateModulePricingTier}
                           onUpdateStatus={updateTenantStatus}
+                          onUpdateModuleStatus={updateModuleStatus}
                           onShowDetails={setSelectedTenant}
                           onPurge={(t) => { setPurgeDialogTenant(t); setPurgeConfirmInput(''); }}
                           toggleTenantModule={toggleTenantModule}

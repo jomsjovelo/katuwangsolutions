@@ -176,7 +176,17 @@ export function AdminTenantDetails({ tenant, isOpen, onClose, updateNextBillingD
                   <Input 
                     type="date"
                     className="flex-1 text-sm font-bold border border-slate-200 rounded-xl h-12 px-3 focus:ring-2 focus:ring-primary focus:outline-none"
-                    defaultValue={tenant.nextBillingDate ? new Date(typeof tenant.nextBillingDate === 'object' && tenant.nextBillingDate !== null && 'seconds' in tenant.nextBillingDate ? (tenant.nextBillingDate as any).seconds * 1000 : tenant.nextBillingDate as any).toISOString().split('T')[0] : ''}
+                    value={(() => {
+                      if (tenant.nextBillingDate) {
+                        return new Date(typeof tenant.nextBillingDate === 'object' && tenant.nextBillingDate !== null && 'seconds' in tenant.nextBillingDate ? (tenant.nextBillingDate as any).seconds * 1000 : tenant.nextBillingDate as any).toISOString().split('T')[0];
+                      }
+                      const createdDate = tenant.createdAt 
+                        ? new Date(typeof tenant.createdAt === 'object' && tenant.createdAt !== null && 'seconds' in tenant.createdAt ? (tenant.createdAt as any).seconds * 1000 : tenant.createdAt as any)
+                        : new Date();
+                      const fallback = new Date(createdDate);
+                      fallback.setDate(fallback.getDate() + 30);
+                      return fallback.toISOString().split('T')[0];
+                    })()}
                     onChange={(e) => {
                       if (!e.target.value) return;
                       setIsUpdatingDate(true);

@@ -21,6 +21,7 @@ interface AdminOwnerRowProps {
   onUpdatePricing: (tenantId: string, tier: PricingTier) => void;
   onUpdateModulePricing?: (tenantId: string, moduleId: string, tier: PricingTier) => void;
   onUpdateStatus: (tenant: AdminTenant, status: SubscriptionStatus) => Promise<void>;
+  onUpdateModuleStatus?: (tenantId: string, moduleId: string, status: SubscriptionStatus) => Promise<void>;
   onShowDetails: (tenant: AdminTenant) => void;
   onPurge: (tenant: AdminTenant) => void;
   toggleTenantModule?: (tenantId: string, currentModules: string[] | undefined, moduleId: string) => Promise<void>;
@@ -33,6 +34,7 @@ export function AdminOwnerRow({
   onUpdatePricing,
   onUpdateModulePricing,
   onUpdateStatus,
+  onUpdateModuleStatus,
   onShowDetails,
   onPurge,
   toggleTenantModule,
@@ -257,35 +259,46 @@ export function AdminOwnerRow({
                             </div>
                           </div>
 
-                          <div className="flex items-center">
-                            <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
-                              ● ACTIVE
-                            </span>
-                          </div>
-
-                          <div className="flex items-center justify-end gap-2">
-                            {toggleTenantModule && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={updatingStatusFor === tenant.id}
-                                onClick={async () => {
-                                  if (confirm(`Remove unlocked add-on module ${mod}?`)) {
-                                    setUpdatingStatusFor(tenant.id);
-                                    try {
-                                      await toggleTenantModule(tenant.id, tenant.unlockedModules, mod);
-                                    } catch (e: any) {
-                                      alert('Failed to remove module: ' + e.message);
-                                    } finally {
-                                      setUpdatingStatusFor(null);
+                          {/* Active / Suspended Toggle Switch */}
+                          <div className="flex items-center justify-between md:justify-start gap-2">
+                            <span className="md:hidden text-[10px] font-bold text-slate-400 uppercase tracking-wider w-24">Status:</span>
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={(tenant.moduleStatuses?.[mod] || 'active') === 'active'}
+                                disabled={updatingStatusFor === `${tenant.id}_${mod}`}
+                                onCheckedChange={async (checked) => {
+                                  const newStatus: SubscriptionStatus = checked ? 'active' : 'suspended';
+                                  setUpdatingStatusFor(`${tenant.id}_${mod}`);
+                                  try {
+                                    if (onUpdateModuleStatus) {
+                                      await onUpdateModuleStatus(tenant.id, mod, newStatus);
                                     }
+                                  } catch (e: any) {
+                                    alert('Failed to update status: ' + e.message);
+                                  } finally {
+                                    setUpdatingStatusFor(null);
                                   }
                                 }}
-                                className="border-destructive/30 text-destructive hover:bg-destructive hover:text-white font-bold text-xs h-8 px-3"
-                              >
-                                Remove Add-on
-                              </Button>
-                            )}
+                              />
+                              <span className={cn(
+                                "text-xs font-bold uppercase tracking-wider",
+                                (tenant.moduleStatuses?.[mod] || 'active') === 'active' ? "text-emerald-600" : "text-destructive"
+                              )}>
+                                {(tenant.moduleStatuses?.[mod] || 'active') === 'active' ? 'ACTIVE' : 'SUSPENDED'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Actions: Details Button */}
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onShowDetails(tenant)}
+                              className="border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs h-8 px-3"
+                            >
+                              Details
+                            </Button>
                           </div>
                         </div>
                       ))}

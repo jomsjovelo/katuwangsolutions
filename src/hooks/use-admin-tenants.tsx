@@ -331,6 +331,49 @@ export function useAdminTenants(enabled: boolean = true) {
     }
   };
 
+  const updateModuleStatus = async (tenantId: string, moduleId: string, status: SubscriptionStatus) => {
+    try {
+      const { db } = initializeFirebase();
+      const auth = getAuth();
+      const adminUser = auth.currentUser;
+      const tenantRef = doc(db, 'tenants', tenantId);
+
+      const tenantObj = tenants.find(t => t.id === tenantId);
+      const isPrimary = tenantObj?.moduleType === moduleId;
+
+      await updateDoc(tenantRef, {
+        [`moduleStatuses.${moduleId}`]: status,
+        ...(isPrimary && { subscriptionStatus: status })
+      });
+
+      if (adminUser) {
+        await addDoc(collection(db, 'admin_logs'), {
+          adminUid: adminUser.uid,
+          adminEmail: adminUser.email || 'Unknown',
+          action: 'UPDATE_MODULE_STATUS',
+          details: `Changed status for module ${moduleId} to ${status} for tenant ${tenantId}`,
+          targetId: tenantId,
+          timestamp: serverTimestamp()
+        });
+      }
+
+      setTenants(prev => prev.map(t => {
+        if (t.id === tenantId) {
+          const currentStatuses = t.moduleStatuses || {};
+          return {
+            ...t,
+            subscriptionStatus: isPrimary ? status : t.subscriptionStatus,
+            moduleStatuses: { ...currentStatuses, [moduleId]: status }
+          };
+        }
+        return t;
+      }));
+    } catch (err) {
+      console.error('Failed to update module status:', err);
+      throw err;
+    }
+  };
+
   const toggleTenantModule = async (id: string, currentModules: string[] | undefined, moduleId: string) => {
     try {
       const { db } = initializeFirebase();
@@ -385,10 +428,15 @@ export function useAdminTenants(enabled: boolean = true) {
 
       const batch = writeBatch(db);
       
-      // 1. Add module to unlockedModules, update pendingModuleRequests, delete lastPaymentRequestedModule, set subscriptionStatus to active
+      const autoBillingDate = tenantData.nextBillingDate 
+        ? tenantData.nextBillingDate 
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+      // 1. Add module to unlockedModules, update pendingModuleRequests, delete lastPaymentRequestedModule, set subscriptionStatus to active, auto-set nextBillingDate if missing
       batch.update(tenantRef, {
         unlockedModules: arrayUnion(requestItem.moduleId),
         subscriptionStatus: 'active',
+        nextBillingDate: autoBillingDate,
         pendingModuleRequests: updatedPending,
         lastPaymentRequestedModule: deleteField()
       });
@@ -627,6 +675,7 @@ export function useAdminTenants(enabled: boolean = true) {
     hasNextPage: !!lastVisible,
     pendingCount: tenants.filter(t => t.subscriptionStatus === 'pending').length,
     updateTenantStatus, 
+    updateModuleStatus,
     updateTenantPricing, 
     updateModulePricingTier,
     toggleTenantModule, 

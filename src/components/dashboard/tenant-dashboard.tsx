@@ -215,6 +215,38 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
         
         <EmailVerificationBanner />
         
+        {/* 3-Day Expiry Warning Banner */}
+        {(() => {
+          if (!currentTenant?.nextBillingDate) return null;
+          const billingDate = new Date(
+            typeof currentTenant.nextBillingDate === 'object' && currentTenant.nextBillingDate !== null && 'seconds' in currentTenant.nextBillingDate 
+              ? (currentTenant.nextBillingDate as any).seconds * 1000 
+              : currentTenant.nextBillingDate as any
+          );
+          if (isNaN(billingDate.getTime())) return null;
+          const diffTime = billingDate.getTime() - Date.now();
+          const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          if (daysLeft > 3) return null;
+
+          return (
+            <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white px-4 py-3 text-xs font-bold flex flex-wrap items-center justify-between gap-2 shadow-md animate-in slide-in-from-top">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 animate-bounce text-amber-100 shrink-0" />
+                <span>
+                  ⚠️ <strong>Paalala:</strong> Ang inyong subscription ay mag-e-expire sa {daysLeft <= 0 ? 'ngayon' : `loob ng ${daysLeft} araw`} ({billingDate.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}). Mag-renew nang maaga para hindi ma-interrupt ang negosyo.
+                </span>
+              </div>
+              <Button 
+                size="sm" 
+                onClick={() => onTabChange?.('profile')}
+                className="bg-white text-orange-600 hover:bg-orange-50 font-black text-[10px] uppercase tracking-wider h-8 px-3 rounded-lg shadow-sm shrink-0"
+              >
+                Mag-renew Ngayon
+              </Button>
+            </div>
+          );
+        })()}
+        
         <div className={activeTab === 'profile' ? 'block' : 'hidden'}>
           <ProfileTab />
         </div>

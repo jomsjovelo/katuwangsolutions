@@ -18,6 +18,7 @@ export interface Tenant {
   pricingTier: PricingTier;
   modulePricingTiers?: Record<string, PricingTier>;
   subscriptionStatus: SubscriptionStatus;
+  moduleStatuses?: Record<string, SubscriptionStatus>;
   createdAt: string | number | Date | null;
   ownerEmail?: string; // Appended for admin dashboards
   nextBillingDate?: string | number | Date | null;
