@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { X, CheckCircle2, ChevronRight, Grid, CreditCard } from 'lucide-react';
+import { X, CheckCircle2, ChevronRight, Grid, CreditCard, Copy, Check } from 'lucide-react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { useTenantStore } from '@/store/use-tenant-store';
 import { getModuleTheme } from '@/lib/theme-utils';
@@ -51,6 +51,44 @@ export function AppMarketplace({ isOpen, onClose }: AppMarketplaceProps) {
   const unlockModule = useTenantStore(state => state.unlockModule);
   const [checkoutApp, setCheckoutApp] = useState<{id: string, name: string, price: number} | null>(null);
   const { getAppPrice } = useAppStoreConfig();
+  const [copiedNumber, setCopiedNumber] = useState<string | null>(null);
+  const [submittingPayment, setSubmittingPayment] = useState(false);
+
+  const PAYMENT_NUMBER = '09951665423';
+  const PAYMENT_NUMBER_DISPLAY = '0995 166 5423';
+
+  const copyPaymentNumber = (type: string) => {
+    navigator.clipboard.writeText(PAYMENT_NUMBER).catch(() => {});
+    setCopiedNumber(type);
+    setTimeout(() => setCopiedNumber(null), 2500);
+  };
+
+  const handlePaymentSent = async () => {
+    if (!currentTenant || !checkoutApp) return;
+    setSubmittingPayment(true);
+    try {
+      const tenantRef = doc(db, 'tenants', currentTenant.id);
+      await updateDoc(tenantRef, {
+        subscriptionStatus: 'pending',
+        lastPaymentRequestedModule: checkoutApp.id,
+        updatedAt: new Date()
+      });
+      toast({
+        title: "Payment Request Sent! 🎉",
+        description: "Admin has been notified. Your module will be activated as soon as payment is verified.",
+      });
+      setCheckoutApp(null);
+      onClose();
+    } catch (e: any) {
+      toast({
+        title: "Submission Error",
+        description: e.message || "Failed to notify admin. Please message us on Messenger.",
+        variant: "destructive"
+      });
+    } finally {
+      setSubmittingPayment(false);
+    }
+  };
 
   if (!isOpen || !currentTenant) return null;
 
@@ -67,6 +105,22 @@ export function AppMarketplace({ isOpen, onClose }: AppMarketplaceProps) {
   const handleOpenApp = (appId: string) => {
     switchActiveModule(appId);
     onClose();
+  };
+
+  const getMessengerUrl = (appId: string, appName: string, price: number) => {
+    const text = [
+      'Bayad ko na po para sa bagong module!',
+      '',
+      `Email: ${currentTenant.ownerEmail || ''}`,
+      `Negosyo: ${currentTenant.name || ''}`,
+      `Module ID: ${appId}`,
+      `Module Name: ${appName}`,
+      `Halaga: ₱${price}`,
+      '',
+      '(Screenshot attached below 👇)'
+    ].join('\n');
+
+    return `https://m.me/katuwangsolutions?text=${encodeURIComponent(text)}`;
   };
 
   return (
@@ -115,46 +169,99 @@ export function AppMarketplace({ isOpen, onClose }: AppMarketplaceProps) {
         </div>
 
         {checkoutApp ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-6 animate-in slide-in-from-right-4">
-            <div className="w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 mb-2">
-              <CreditCard className="h-8 w-8" />
-            </div>
-            <div>
-              <h3 className="font-black text-xl text-slate-800 uppercase tracking-tight mb-2">Unlock {checkoutApp.name}</h3>
-              <p className="text-sm text-slate-500 font-medium leading-relaxed">
-                To unlock this module, please send <strong className="text-slate-800">₱{checkoutApp.id === 'budget-mo' ? '50' : '99'}</strong> via GCash or Maya.
+          <div className="flex-1 flex flex-col items-center justify-start overflow-y-auto p-4 space-y-5 animate-in slide-in-from-right-4">
+            <div className="text-center">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-2">
+                <CreditCard className="h-6 w-6" />
+              </div>
+              <h3 className="font-black text-xl text-slate-800 uppercase tracking-tight">Unlock {checkoutApp.name}</h3>
+              <p className="text-xs text-slate-500 font-medium mt-1">
+                Magbayad lamang ng <strong className="text-emerald-600 text-sm font-black">₱{checkoutApp.price}/mo</strong> via GCash o Maya.
               </p>
             </div>
-            
-            <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl w-full space-y-3">
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest text-left">Instructions</p>
-              <ul className="text-left text-sm text-slate-600 space-y-2 font-medium">
-                <li className="flex items-start gap-2">
-                  <span className="font-black text-indigo-500">1.</span> Send payment to our official GCash/Maya account.
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="font-black text-indigo-500">2.</span> Take a screenshot of the successful transfer.
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="font-black text-indigo-500">3.</span> Send the screenshot to our Facebook Messenger page along with your Business Name.
-                </li>
-              </ul>
+
+            {/* Payment Number Cards */}
+            <div className="w-full space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-left">Official Payment Account</p>
+              <div className="grid grid-cols-2 gap-2.5">
+                {/* GCash */}
+                <div className="bg-blue-50/80 border border-blue-100 p-3 rounded-2xl flex flex-col items-center text-center">
+                  <span className="text-[10px] font-black text-[#007DFE] uppercase tracking-wider mb-1">GCash</span>
+                  <p className="text-sm font-black text-slate-800 tracking-wider mb-2 tabular-nums">{PAYMENT_NUMBER_DISPLAY}</p>
+                  <Button
+                    size="sm"
+                    className="w-full h-8 text-[11px] font-bold bg-[#007DFE] hover:bg-blue-700 text-white rounded-xl"
+                    onClick={() => copyPaymentNumber('gcash')}
+                  >
+                    {copiedNumber === 'gcash' ? (
+                      <><Check className="h-3 w-3 mr-1" /> Copied!</>
+                    ) : (
+                      <><Copy className="h-3 w-3 mr-1" /> Copy Number</>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Maya */}
+                <div className="bg-emerald-50/80 border border-emerald-100 p-3 rounded-2xl flex flex-col items-center text-center">
+                  <span className="text-[10px] font-black text-[#00A14B] uppercase tracking-wider mb-1">Maya</span>
+                  <p className="text-sm font-black text-slate-800 tracking-wider mb-2 tabular-nums">{PAYMENT_NUMBER_DISPLAY}</p>
+                  <Button
+                    size="sm"
+                    className="w-full h-8 text-[11px] font-bold bg-[#00A14B] hover:bg-emerald-700 text-white rounded-xl"
+                    onClick={() => copyPaymentNumber('maya')}
+                  >
+                    {copiedNumber === 'maya' ? (
+                      <><Check className="h-3 w-3 mr-1" /> Copied!</>
+                    ) : (
+                      <><Copy className="h-3 w-3 mr-1" /> Copy Number</>
+                    )}
+                  </Button>
+                </div>
+              </div>
             </div>
 
-            <div className="pt-4 w-full space-y-3">
+            {/* Clear Steps */}
+            <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl w-full space-y-2 text-left">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Mga Hakbang sa Pagbayad</p>
+              <div className="space-y-2 text-xs font-medium text-slate-600">
+                <div className="flex gap-2 items-start">
+                  <span className="font-black text-indigo-600">1.</span>
+                  <span>Mag-send ng <strong>₱{checkoutApp.price}</strong> sa GCash/Maya number sa itaas.</span>
+                </div>
+                <div className="flex gap-2 items-start">
+                  <span className="font-black text-indigo-600">2.</span>
+                  <span>Kunan ng <strong>Screenshot</strong> ang resibo ng GCash/Maya.</span>
+                </div>
+                <div className="flex gap-2 items-start">
+                  <span className="font-black text-indigo-600">3.</span>
+                  <span>I-click ang button sa ibaba para ma-isend ang screenshot sa Messenger.</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="w-full space-y-2 pt-2">
               <Button 
-                className="w-full rounded-xl h-12 font-bold text-white shadow-md active:scale-95 transition-transform"
+                className="w-full rounded-2xl h-12 font-bold text-white shadow-lg active:scale-95 transition-transform bg-[#0099FF] hover:bg-blue-600"
                 onClick={() => {
-                  window.open('https://m.me/katuwangsolutions', '_blank');
-                  onClose();
-                  setCheckoutApp(null);
+                  window.open(getMessengerUrl(checkoutApp.id, checkoutApp.name, checkoutApp.price), '_blank');
                 }}
               >
-                Message us on Messenger
+                Send Screenshot on Messenger 💬
               </Button>
+
+              <Button 
+                variant="outline"
+                className="w-full rounded-2xl h-11 font-bold text-slate-700 border-slate-200"
+                disabled={submittingPayment}
+                onClick={handlePaymentSent}
+              >
+                {submittingPayment ? "Notifying Admin..." : "I've Sent My Payment → Notify Admin"}
+              </Button>
+
               <Button 
                 variant="ghost" 
-                className="w-full rounded-xl h-12 font-bold text-slate-500"
+                className="w-full rounded-xl h-9 text-xs font-bold text-slate-400 hover:text-slate-600"
                 onClick={() => setCheckoutApp(null)}
               >
                 Go Back

@@ -144,6 +144,7 @@ export function AdminOwnerRow({
                               className="w-full text-xs font-bold uppercase tracking-wider bg-secondary/20 border-secondary rounded-lg px-3 py-2 text-slate-700 outline-none focus:ring-2 focus:ring-primary appearance-none cursor-pointer"
                             >
                               <option value="foc">Free Of Charge (FOC)</option>
+                              <option value="promo_50">Budget Promo (₱50)</option>
                               <option value="promo_99">Promo (₱99)</option>
                               <option value="standard_199">Standard (₱199)</option>
                               <option value="enterprise">Enterprise (₱499)</option>

@@ -21,7 +21,7 @@ interface AdminTenantDetailsProps {
   toggleTenantModule?: (id: string, current: string[] | undefined, moduleId: string) => Promise<void>;
 }
 
-const AVAILABLE_MODULES = ['benta-snap', 'fresh-tally', 'build-stack', '5-6-tracker', 'ledger-flow', 'sahod-flow', 'biyahe-sync', 'bite-snap', 'timpla-track', 'ganap-master', 'spin-snap', 'hydro-sync', 'auto-boss', 'wellness-pro', 'trim-track', 'rep-sync', 'rental', 'service-master'];
+const AVAILABLE_MODULES = ['budget-mo', 'benta-snap', 'fresh-tally', 'build-stack', '5-6-tracker', 'ledger-flow', 'sahod-flow', 'biyahe-sync', 'bite-snap', 'timpla-track', 'ganap-master', 'spin-snap', 'hydro-sync', 'auto-boss', 'wellness-pro', 'trim-track', 'rep-sync', 'rental', 'service-master'];
 
 export function AdminTenantDetails({ tenant, isOpen, onClose, updateNextBillingDate, processTenantRenewal, toggleTenantModule }: AdminTenantDetailsProps) {
   const [isSendingReset, setIsSendingReset] = useState(false);
