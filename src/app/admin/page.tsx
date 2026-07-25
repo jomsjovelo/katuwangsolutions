@@ -20,7 +20,7 @@ import { AdminTenantDetails } from '@/components/admin/admin-tenant-details';
 import { AdminTickets } from '@/components/admin/admin-tickets';
 import { AdminPnL } from '@/components/admin/admin-pnl';
 import { AdminWithdrawals } from '@/components/admin/admin-withdrawals';
-import { AdminOwnerRow, OwnerGroup } from '@/components/admin/admin-owner-row';
+import { AdminOwnerRow, OwnerGroup, getLifecycleState } from '@/components/admin/admin-owner-row';
 import { AdminStaffApprovals } from '@/components/admin/admin-staff-approvals';
 import { AdminStaffDirectory } from '@/components/admin/admin-staff-directory';
 import { cn } from "@/lib/utils";
@@ -87,6 +87,7 @@ export default function AdminKillSwitch() {
   
   const [search, setSearch] = useState("");
   const [showPendingOnly, setShowPendingOnly] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'expiring' | 'expired' | 'pending' | 'active'>('all');
   const [activeTab, setActiveTab] = useState<"dashboard" | "directory" | "staff_directory" | "pnl" | "announcements" | "billing" | "activity" | "support" | "admins" | "settings" | "withdrawals" | "staff">("dashboard");
   const [selectedTenant, setSelectedTenant] = useState<any | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -124,6 +125,38 @@ export default function AdminKillSwitch() {
     });
     return Object.values(groups);
   }, [tenants, showPendingOnly]);
+
+  const filteredGroupedTenants = React.useMemo(() => {
+    return groupedTenants.filter(group => {
+      if (statusFilter === 'all' && !showPendingOnly) return true;
+      if (showPendingOnly) {
+        return group.tenants.some(t => t.subscriptionStatus === 'pending' || (t.pendingModuleRequests && t.pendingModuleRequests.length > 0));
+      }
+      
+      return group.tenants.some(t => {
+        const primaryState = getLifecycleState(t.nextBillingDate, t.subscriptionStatus).state;
+        
+        if (statusFilter === 'expired') {
+          if (primaryState === 'EXPIRED') return true;
+          return (t.unlockedModules || []).some(mod => getLifecycleState(t.nextBillingDate, t.moduleStatuses?.[mod] || 'active').state === 'EXPIRED');
+        }
+        if (statusFilter === 'expiring') {
+          if (primaryState === 'DUE_TODAY' || primaryState === 'EXPIRING_SOON') return true;
+          return (t.unlockedModules || []).some(mod => {
+            const st = getLifecycleState(t.nextBillingDate, t.moduleStatuses?.[mod] || 'active').state;
+            return st === 'DUE_TODAY' || st === 'EXPIRING_SOON';
+          });
+        }
+        if (statusFilter === 'pending') {
+          return t.subscriptionStatus === 'pending' || (t.pendingModuleRequests && t.pendingModuleRequests.length > 0);
+        }
+        if (statusFilter === 'active') {
+          return t.subscriptionStatus === 'active';
+        }
+        return true;
+      });
+    });
+  }, [groupedTenants, statusFilter, showPendingOnly]);
 
   const router = useRouter();
 
@@ -434,6 +467,61 @@ export default function AdminKillSwitch() {
 
           {!loading && !error && (
             <>
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                <Button
+                  size="sm"
+                  variant={statusFilter === 'all' ? 'default' : 'outline'}
+                  onClick={() => setStatusFilter('all')}
+                  className="font-bold text-xs rounded-xl"
+                >
+                  All ({groupedTenants.length})
+                </Button>
+                <Button
+                  size="sm"
+                  variant={statusFilter === 'expiring' ? 'default' : 'outline'}
+                  onClick={() => setStatusFilter('expiring')}
+                  className={cn(
+                    "font-bold text-xs rounded-xl",
+                    statusFilter === 'expiring' ? "bg-amber-500 hover:bg-amber-600 text-white" : "border-amber-300 text-amber-800 hover:bg-amber-50"
+                  )}
+                >
+                  ⚠️ Expiring Soon / Due Today
+                </Button>
+                <Button
+                  size="sm"
+                  variant={statusFilter === 'expired' ? 'default' : 'outline'}
+                  onClick={() => setStatusFilter('expired')}
+                  className={cn(
+                    "font-bold text-xs rounded-xl",
+                    statusFilter === 'expired' ? "bg-rose-600 hover:bg-rose-700 text-white" : "border-rose-300 text-rose-800 hover:bg-rose-50"
+                  )}
+                >
+                  🚨 Expired / Overdue
+                </Button>
+                <Button
+                  size="sm"
+                  variant={statusFilter === 'pending' ? 'default' : 'outline'}
+                  onClick={() => setStatusFilter('pending')}
+                  className={cn(
+                    "font-bold text-xs rounded-xl",
+                    statusFilter === 'pending' ? "bg-amber-600 text-white" : "border-amber-300 text-amber-800 hover:bg-amber-50"
+                  )}
+                >
+                  ⏳ Pending Requests ({pendingCount})
+                </Button>
+                <Button
+                  size="sm"
+                  variant={statusFilter === 'active' ? 'default' : 'outline'}
+                  onClick={() => setStatusFilter('active')}
+                  className={cn(
+                    "font-bold text-xs rounded-xl",
+                    statusFilter === 'active' ? "bg-emerald-600 text-white" : "border-emerald-300 text-emerald-800 hover:bg-emerald-50"
+                  )}
+                >
+                  ✅ Active
+                </Button>
+              </div>
+
               <div className="bg-card rounded-2xl border border-secondary/50 shadow-2xl overflow-hidden mb-6">
                 <div className="overflow-x-auto min-w-full">
                   <Table>
@@ -446,7 +534,7 @@ export default function AdminKillSwitch() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {groupedTenants.map((group) => (
+                      {filteredGroupedTenants.map((group) => (
                         <AdminOwnerRow 
                           key={group.id} 
                           group={group} 
@@ -459,6 +547,7 @@ export default function AdminKillSwitch() {
                           onPurge={(t) => { setPurgeDialogTenant(t); setPurgeConfirmInput(''); }}
                           toggleTenantModule={toggleTenantModule}
                           approvePendingModuleRequest={approvePendingModuleRequest}
+                          onUpdateNextBillingDate={updateNextBillingDate}
                         />
                       ))}
                     </TableBody>
