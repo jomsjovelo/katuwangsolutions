@@ -67,7 +67,8 @@ import {
   ShieldAlert,
   Copy,
   MessageSquare,
-  Send
+  Send,
+  ExternalLink
 } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -226,6 +227,19 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
     const theme = getModuleTheme(currentTenant?.moduleType);
     const renewalPrice = currentTenant?.moduleType === 'budget-mo' ? 50 : 99;
 
+    const messengerMessage = [
+      'Bayad ko na po (Renewal)!',
+      '',
+      `Email: ${profile?.email || user?.email || ''}`,
+      `Negosyo: ${currentTenant?.name || ''}`,
+      `Module: ${theme.name}`,
+      `Halaga: ₱${renewalPrice}`,
+      '',
+      '(Screenshot attached below 👇)',
+    ].join('\n');
+
+    const messengerUrl = `https://m.me/katuwangsolutions?text=${encodeURIComponent(messengerMessage)}`;
+
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 md:p-6">
         <div className="max-w-md w-full bg-white rounded-3xl p-6 md:p-8 border border-slate-200 shadow-xl space-y-6 animate-in zoom-in-95">
@@ -250,17 +264,17 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
               <span className="text-sm font-black text-amber-900">₱{renewalPrice}/month</span>
             </div>
             <p className="text-[10px] text-amber-700 font-medium">
-              Bayaran ang renewal via GCash o Maya at i-submit ang reference number para agad ma-activate.
+              Bayaran ang renewal via GCash o Maya at mag-send ng screenshot sa Messenger para agad ma-activate.
             </p>
           </div>
 
           <div className="space-y-3">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Payment Accounts (GCash / Maya)</h4>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Send Payment To (GCash / Maya)</p>
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-black text-slate-800">GCash / Maya</p>
-                  <p className="text-[11px] font-bold text-slate-500">Stellah Ijalga (0995 166 5423)</p>
+                  <p className="text-base font-black text-slate-900 tracking-widest leading-tight tabular-nums">0995 166 5423</p>
                 </div>
                 <Button
                   size="sm"
@@ -271,28 +285,44 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
                   }}
                   className="h-8 text-[10px] font-bold border-slate-200"
                 >
-                  <Copy className="h-3 w-3 mr-1" /> Copy
+                  <Copy className="h-3 w-3 mr-1" /> Copy Number
                 </Button>
               </div>
             </div>
           </div>
 
-          <div className="space-y-2 pt-2">
-            <Button
-              onClick={() => onTabChange?.('profile')}
-              className="w-full h-12 rounded-xl text-xs font-black uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg flex items-center justify-center gap-2"
-            >
-              <Send className="h-4 w-4" /> Submit Renewal Payment Proof
-            </Button>
-            <a
-              href="https://m.me/stellahija"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full h-12 rounded-xl text-xs font-black uppercase tracking-wider bg-blue-500 hover:bg-blue-600 text-white shadow-md flex items-center justify-center gap-2"
-            >
-              <MessageSquare className="h-4 w-4" /> Chat Admin sa Messenger
-            </a>
-          </div>
+          {/* Onboarding Style Messenger CTA Button */}
+          <a
+            href={messengerUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full h-14 rounded-2xl text-white font-bold text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-xl"
+            style={{ background: '#0099FF' }}
+          >
+            <ExternalLink className="h-5 w-5" />
+            Send Screenshot on Messenger
+          </a>
+
+          {/* Already Sent Button */}
+          <button
+            onClick={async () => {
+              if (confirm("Nai-send mo na ba ang iyong bayad via GCash/Maya? Awtomatikong iche-check ng admin ang iyong resibo.")) {
+                if (currentTenant?.id) {
+                  const { getFirestore, doc, updateDoc, serverTimestamp } = await import('firebase/firestore');
+                  const db = getFirestore();
+                  await updateDoc(doc(db, 'tenants', currentTenant.id), {
+                    subscriptionStatus: 'pending',
+                    lastPaymentRequestedModule: currentTenant.moduleType,
+                    updatedAt: serverTimestamp()
+                  });
+                  alert("Salamat! Naka-receive na kami ng notification. I-verify ito ng Admin para sa inyong activation.");
+                }
+              }
+            }}
+            className="w-full text-center text-sm font-semibold text-slate-400 hover:text-slate-600 transition-colors py-2"
+          >
+            I've already sent my payment →
+          </button>
         </div>
       </div>
     );
