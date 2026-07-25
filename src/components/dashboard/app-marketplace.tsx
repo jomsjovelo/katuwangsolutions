@@ -78,13 +78,18 @@ export function AppMarketplace({ isOpen, onClose }: AppMarketplaceProps) {
     try {
       const tenantRef = doc(db, 'tenants', currentTenant.id);
       await updateDoc(tenantRef, {
-        subscriptionStatus: 'pending',
+        pendingModuleRequests: arrayUnion({
+          moduleId: checkoutApp.id,
+          moduleName: checkoutApp.name,
+          price: checkoutApp.price,
+          requestedAt: new Date().toISOString()
+        }),
         lastPaymentRequestedModule: checkoutApp.id,
         updatedAt: new Date()
       });
       toast({
         title: "Payment Request Sent! 🎉",
-        description: "Admin has been notified. Your module will be activated as soon as payment is verified.",
+        description: `Admin has been notified for ${checkoutApp.name}. Your module will be activated as soon as payment is verified.`,
       });
       setCheckoutApp(null);
       onClose();

@@ -38,6 +38,7 @@ export function AdminOwnerRow({
   const activeCount = group.tenants.filter(t => t.subscriptionStatus === 'active').length;
   const pendingCount = group.tenants.filter(t => t.subscriptionStatus === 'pending').length;
   const suspendedCount = group.tenants.filter(t => t.subscriptionStatus === 'suspended').length;
+  const pendingRequestCount = group.tenants.reduce((acc, t) => acc + (t.pendingModuleRequests?.length || 0), 0);
 
   return (
     <>
@@ -85,7 +86,12 @@ export function AdminOwnerRow({
         <TableCell className="hidden md:table-cell">
           <div className="flex flex-col gap-1 text-xs font-medium">
             {activeCount > 0 && <span className="text-emerald-600">{activeCount} Active</span>}
-            {pendingCount > 0 && <span className="text-amber-600">{pendingCount} Pending</span>}
+            {pendingCount > 0 && <span className="text-amber-600">{pendingCount} Pending Approval</span>}
+            {pendingRequestCount > 0 && (
+              <span className="text-amber-600 font-bold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full inline-block text-[10px] uppercase tracking-wider">
+                ⚠️ {pendingRequestCount} Add-on Request{pendingRequestCount > 1 ? 's' : ''}
+              </span>
+            )}
             {suspendedCount > 0 && <span className="text-destructive">{suspendedCount} Suspended</span>}
           </div>
         </TableCell>

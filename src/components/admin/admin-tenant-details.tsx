@@ -201,6 +201,49 @@ export function AdminTenantDetails({ tenant, isOpen, onClose, updateNextBillingD
                 </div>
               </div>
               <div className="pt-2 border-t border-slate-200">
+                {/* Pending Module Requests */}
+                {tenant.pendingModuleRequests && tenant.pendingModuleRequests.length > 0 && (
+                  <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+                    <span className="text-[10px] font-black uppercase text-amber-700 tracking-widest block">
+                      ⚠️ Pending Module Activation Requests ({tenant.pendingModuleRequests.length})
+                    </span>
+                    {tenant.pendingModuleRequests.map(req => (
+                      <div key={req.moduleId} className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-amber-200 shadow-sm">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-xs text-slate-800 uppercase">{req.moduleName || req.moduleId}</span>
+                          <span className="text-[10px] text-amber-600 font-bold">₱{req.price || 99}/mo · Pending Verification</span>
+                        </div>
+                        {toggleTenantModule && (
+                          <Button
+                            size="sm"
+                            disabled={isTogglingModule}
+                            className="h-8 px-3 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm"
+                            onClick={async () => {
+                              setIsTogglingModule(true);
+                              try {
+                                await toggleTenantModule(tenant.id, tenant.unlockedModules, req.moduleId);
+                                const { doc, updateDoc, arrayRemove } = await import('firebase/firestore');
+                                const { initializeFirebase } = await import('@/firebase');
+                                const { db } = initializeFirebase();
+                                await updateDoc(doc(db, 'tenants', tenant.id), {
+                                  pendingModuleRequests: arrayRemove(req),
+                                  subscriptionStatus: 'active'
+                                });
+                              } catch (e: any) {
+                                alert('Approval failed: ' + e.message);
+                              } finally {
+                                setIsTogglingModule(false);
+                              }
+                            }}
+                          >
+                            Approve & Unlock
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <span className="text-xs font-bold uppercase text-slate-500 mb-2 block">Unlocked Add-ons</span>
                 
                 {/* Existing Modules */}

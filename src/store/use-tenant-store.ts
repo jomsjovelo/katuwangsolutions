@@ -12,6 +12,7 @@ export interface Tenant {
   staffUids: string[];
   moduleType: string;
   unlockedModules?: string[]; // Array of additional purchased apps
+  pendingModuleRequests?: Array<{ moduleId: string; moduleName?: string; price?: number; requestedAt?: string }>;
   pricingTier: PricingTier;
   subscriptionStatus: SubscriptionStatus;
   createdAt: string | number | Date | null;

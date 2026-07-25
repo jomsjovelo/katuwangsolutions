@@ -326,6 +326,68 @@ export function useAdminTenants(enabled: boolean = true) {
     }
   };
 
+  const approvePendingModuleRequest = async (tenantId: string, requestItem: { moduleId: string; price?: number }) => {
+    try {
+      const { db } = initializeFirebase();
+      const auth = getAuth();
+      const adminUser = auth.currentUser;
+      const tenantRef = doc(db, 'tenants', tenantId);
+
+      const { arrayUnion, writeBatch, serverTimestamp, collection } = await import('firebase/firestore');
+
+      const batch = writeBatch(db);
+      
+      // 1. Add module to unlockedModules and set subscriptionStatus to active
+      batch.update(tenantRef, {
+        unlockedModules: arrayUnion(requestItem.moduleId),
+        subscriptionStatus: 'active'
+      });
+
+      // 2. Add billing log entry
+      const logRef = doc(collection(db, 'billing_logs'));
+      const tenantObj = tenants.find(t => t.id === tenantId);
+      batch.set(logRef, {
+        tenantId,
+        tenantName: tenantObj?.name || 'Katuwang Store',
+        pricingTier: requestItem.moduleId === 'budget-mo' ? 'promo_50' : 'promo_99',
+        amount: requestItem.price || (requestItem.moduleId === 'budget-mo' ? 50 : 99),
+        type: 'module_activation',
+        timestamp: serverTimestamp()
+      });
+
+      if (adminUser) {
+        const adminLogRef = doc(collection(db, 'admin_logs'));
+        batch.set(adminLogRef, {
+          adminUid: adminUser.uid,
+          adminEmail: adminUser.email || 'Unknown',
+          action: 'APPROVE_MODULE_REQUEST',
+          details: `Approved and unlocked module ${requestItem.moduleId} for tenant ${tenantId}`,
+          targetId: tenantId,
+          timestamp: serverTimestamp()
+        });
+      }
+
+      await batch.commit();
+
+      setTenants(prev => prev.map(t => {
+        if (t.id === tenantId) {
+          const unlocked = t.unlockedModules || [];
+          const updatedRequests = (t.pendingModuleRequests || []).filter(r => r.moduleId !== requestItem.moduleId);
+          return {
+            ...t,
+            subscriptionStatus: 'active',
+            unlockedModules: unlocked.includes(requestItem.moduleId) ? unlocked : [...unlocked, requestItem.moduleId],
+            pendingModuleRequests: updatedRequests
+          };
+        }
+        return t;
+      }));
+    } catch (err) {
+      console.error('Failed to approve module request:', err);
+      throw err;
+    }
+  };
+
   const annihilateTenant = async (id: string) => {
     try {
       const { db } = initializeFirebase();
@@ -517,6 +579,7 @@ export function useAdminTenants(enabled: boolean = true) {
     updateTenantStatus, 
     updateTenantPricing, 
     toggleTenantModule, 
+    approvePendingModuleRequest,
     updateNextBillingDate, 
     processTenantRenewal, 
     annihilateTenant 
