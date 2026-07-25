@@ -45,9 +45,12 @@ export async function addBudgetTransaction(
   const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
 
   await runTransactionResilient(db, async (transaction) => {
+    // 1. ALL READS FIRST
+    const masterAccountSnap = await transaction.get(masterAccountRef);
+
+    // 2. ALL WRITES SECOND
     transaction.set(newDocRef, payload);
 
-    const masterAccountSnap = await transaction.get(masterAccountRef);
     if (!masterAccountSnap.exists()) {
       transaction.set(masterAccountRef, {
         id: 'master-cash',
@@ -92,7 +95,7 @@ export async function syncOfflineBudgetQueue(tenantId: string): Promise<number> 
         ...validated,
         id: newDocRef.id,
         createdAt: item.date
-          ? Timestamp.fromDate(new Date(item.date))
+          ? Timestamp.fromDate(new Date(`${item.date}T12:00:00`))
           : Timestamp.fromDate(new Date(item.createdAtTimestamp)),
       };
       if (payload.date === undefined) delete payload.date;
@@ -100,8 +103,12 @@ export async function syncOfflineBudgetQueue(tenantId: string): Promise<number> 
       const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
 
       await runTransactionResilient(db, async (transaction) => {
-        transaction.set(newDocRef, payload);
+        // 1. ALL READS FIRST
         const masterAccountSnap = await transaction.get(masterAccountRef);
+
+        // 2. ALL WRITES SECOND
+        transaction.set(newDocRef, payload);
+
         if (!masterAccountSnap.exists()) {
           transaction.set(masterAccountRef, {
             id: 'master-cash',
