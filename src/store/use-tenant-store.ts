@@ -16,6 +16,7 @@ export interface Tenant {
   pendingModuleRequests?: Array<{ moduleId: string; moduleName?: string; price?: number; requestedAt?: string }>;
   lastPaymentRequestedModule?: string;
   pricingTier: PricingTier;
+  modulePricingTiers?: Record<string, PricingTier>;
   subscriptionStatus: SubscriptionStatus;
   createdAt: string | number | Date | null;
   ownerEmail?: string; // Appended for admin dashboards

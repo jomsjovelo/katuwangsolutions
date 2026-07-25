@@ -288,6 +288,49 @@ export function useAdminTenants(enabled: boolean = true) {
     }
   };
 
+  const updateModulePricingTier = async (tenantId: string, moduleId: string, tier: PricingTier) => {
+    try {
+      const { db } = initializeFirebase();
+      const auth = getAuth();
+      const adminUser = auth.currentUser;
+      const tenantRef = doc(db, 'tenants', tenantId);
+
+      const tenantObj = tenants.find(t => t.id === tenantId);
+      const isPrimary = tenantObj?.moduleType === moduleId;
+
+      await updateDoc(tenantRef, {
+        [`modulePricingTiers.${moduleId}`]: tier,
+        ...(isPrimary && { pricingTier: tier })
+      });
+
+      if (adminUser) {
+        await addDoc(collection(db, 'admin_logs'), {
+          adminUid: adminUser.uid,
+          adminEmail: adminUser.email || 'Unknown',
+          action: 'UPDATE_MODULE_PRICING',
+          details: `Changed pricing for module ${moduleId} to ${tier} for tenant ${tenantId}`,
+          targetId: tenantId,
+          timestamp: serverTimestamp()
+        });
+      }
+
+      setTenants(prev => prev.map(t => {
+        if (t.id === tenantId) {
+          const currentTiers = t.modulePricingTiers || {};
+          return {
+            ...t,
+            pricingTier: isPrimary ? tier : t.pricingTier,
+            modulePricingTiers: { ...currentTiers, [moduleId]: tier }
+          };
+        }
+        return t;
+      }));
+    } catch (err) {
+      console.error('Failed to update module pricing:', err);
+      throw err;
+    }
+  };
+
   const toggleTenantModule = async (id: string, currentModules: string[] | undefined, moduleId: string) => {
     try {
       const { db } = initializeFirebase();
@@ -585,6 +628,7 @@ export function useAdminTenants(enabled: boolean = true) {
     pendingCount: tenants.filter(t => t.subscriptionStatus === 'pending').length,
     updateTenantStatus, 
     updateTenantPricing, 
+    updateModulePricingTier,
     toggleTenantModule, 
     approvePendingModuleRequest,
     updateNextBillingDate, 

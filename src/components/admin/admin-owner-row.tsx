@@ -19,6 +19,7 @@ interface AdminOwnerRowProps {
   group: OwnerGroup;
   updatingPricingFor: string | null;
   onUpdatePricing: (tenantId: string, tier: PricingTier) => void;
+  onUpdateModulePricing?: (tenantId: string, moduleId: string, tier: PricingTier) => void;
   onUpdateStatus: (tenant: AdminTenant, status: SubscriptionStatus) => Promise<void>;
   onShowDetails: (tenant: AdminTenant) => void;
   onPurge: (tenant: AdminTenant) => void;
@@ -30,6 +31,7 @@ export function AdminOwnerRow({
   group,
   updatingPricingFor,
   onUpdatePricing,
+  onUpdateModulePricing,
   onUpdateStatus,
   onShowDetails,
   onPurge,
@@ -237,10 +239,22 @@ export function AdminOwnerRow({
                             <span className="text-[10px] text-emerald-600 font-mono mt-0.5">Purchased Add-on Module</span>
                           </div>
 
-                          <div className="flex items-center">
-                            <Badge variant="outline" className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs font-bold">
-                              {mod === 'budget-mo' ? 'PROMO (₱50/mo)' : 'PROMO (₱99/mo)'}
-                            </Badge>
+                          {/* Pricing Tier */}
+                          <div className="flex items-center justify-between md:justify-start">
+                            <span className="md:hidden text-[10px] font-bold text-slate-400 uppercase tracking-wider w-24">Pricing:</span>
+                            <div className="relative inline-block w-full md:w-40 flex-1">
+                              <select
+                                value={tenant.modulePricingTiers?.[mod] || (mod === 'budget-mo' ? 'promo_50' : 'promo_99')}
+                                onChange={(e) => onUpdateModulePricing ? onUpdateModulePricing(tenant.id, mod, e.target.value as PricingTier) : onUpdatePricing(tenant.id, e.target.value as PricingTier)}
+                                className="w-full text-xs font-bold uppercase tracking-wider bg-emerald-500/10 border-emerald-300 rounded-lg px-3 py-2 text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 appearance-none cursor-pointer"
+                              >
+                                <option value="foc">Free Of Charge (FOC)</option>
+                                <option value="promo_50">Budget Promo (₱50)</option>
+                                <option value="promo_99">Promo (₱99)</option>
+                                <option value="standard_199">Standard (₱199)</option>
+                                <option value="enterprise">Enterprise (₱499)</option>
+                              </select>
+                            </div>
                           </div>
 
                           <div className="flex items-center">
