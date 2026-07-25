@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, CheckCircle2, ChevronRight, Grid, CreditCard, Copy, Check } from 'lucide-react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { useTenantStore } from '@/store/use-tenant-store';
@@ -53,14 +53,21 @@ export function AppMarketplace({ isOpen, onClose }: AppMarketplaceProps) {
   const unlockModule = useTenantStore(state => state.unlockModule);
   const [checkoutApp, setCheckoutApp] = useState<{id: string, name: string, price: number} | null>(null);
   const { getAppPrice } = useAppStoreConfig();
+  const [isMounted, setIsMounted] = useState(false);
   const [copiedNumber, setCopiedNumber] = useState<string | null>(null);
   const [submittingPayment, setSubmittingPayment] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const PAYMENT_NUMBER = '09951665423';
   const PAYMENT_NUMBER_DISPLAY = '0995 166 5423';
 
   const copyPaymentNumber = (type: string) => {
-    navigator.clipboard.writeText(PAYMENT_NUMBER).catch(() => {});
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(PAYMENT_NUMBER).catch(() => {});
+    }
     setCopiedNumber(type);
     setTimeout(() => setCopiedNumber(null), 2500);
   };
@@ -92,7 +99,7 @@ export function AppMarketplace({ isOpen, onClose }: AppMarketplaceProps) {
     }
   };
 
-  if (!isOpen || !currentTenant) return null;
+  if (!isMounted || !isOpen || !currentTenant) return null;
 
   const baseTheme = getModuleTheme(currentTenant.moduleType);
   const unlocked = currentTenant.unlockedModules || [];
