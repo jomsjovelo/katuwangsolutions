@@ -59,3 +59,5 @@ export function ModuleStickyBar({ moduleId, moduleName, priceText, accentColor =
     </div>
   );
 }
+
+export default ModuleStickyBar;

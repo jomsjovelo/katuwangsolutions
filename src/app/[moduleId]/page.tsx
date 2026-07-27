@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { Metadata } from 'next';
 import { ModuleViewTracker } from '@/components/analytics/meta-events';
-import { ModuleStickyBar } from '@/components/landing/module-sticky-bar';
+import ModuleStickyBar from '@/components/landing/module-sticky-bar';
 
 type Props = {
   params: Promise<{ moduleId: string }>;
