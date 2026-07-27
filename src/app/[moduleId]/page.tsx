@@ -124,13 +124,13 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
           {/* Promo Badge */}
           <div className="inline-flex items-center gap-2 bg-amber-500/20 border border-amber-400/40 px-4 py-1.5 rounded-full text-amber-300 text-xs font-black uppercase tracking-widest animate-pulse">
             <Sparkles className="h-4 w-4 text-amber-400" />
-            <span>🔥 SPECIAL PROMO RATE: ₱50/MONTH ONLY</span>
-            <span className="line-through opacity-60 font-medium text-[10px]">₱199/mo</span>
+            <span>🔥 SPECIAL PROMO RATE: {formatPeso(pricing.promotionalMonthlyPrice)}/MONTH ONLY</span>
+            <span className="line-through opacity-60 font-medium text-[10px]">{formatPeso(pricing.regularMonthlyPrice)}/mo</span>
           </div>
 
           <h1 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight leading-tight max-w-3xl">
             {isBudgetMo ? (
-              <>Hinto sa pagtataka kung saan napunta ang <span className="text-cyan-400 underline decoration-cyan-500/50 decoration-wavy">sweldo mo.</span></>
+              <>Huwag nang manghula kung saan napunta ang <span className="text-cyan-400 underline decoration-cyan-500/50 decoration-wavy">sweldo mo.</span></>
             ) : (
               foundApp.name
             )}
@@ -261,7 +261,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
               {/* Dati (Manual / Mental) */}
               <div className="bg-rose-50 border border-rose-200 p-6 rounded-3xl space-y-4">
                 <div className="flex items-center gap-2 text-rose-700 font-black text-base uppercase tracking-wider">
-                  <span className="text-lg">❌</span> DATI (Manual / Mental Badyet)
+                  <span className="text-lg">❌</span> DATI (Manual / Mental Budget)
                 </div>
                 <ul className="space-y-3 text-xs text-rose-950 font-semibold">
                   <li className="flex items-start gap-2">
@@ -363,7 +363,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-32 opacity-20 blur-3xl pointer-events-none" style={{ backgroundColor: accent }} />
             
             <h2 className="text-2xl sm:text-4xl font-black tracking-tight mb-3 relative z-10">
-              {isBudgetMo ? 'Simulan ang pag-ipon at pagbadyet ngayon!' : `Handa ka na bang palaguin ang iyong negosyo?`}
+              {isBudgetMo ? 'Simulan ang pag-ipon at pag-Budget ngayon!' : `Handa ka na bang palaguin ang iyong negosyo?`}
             </h2>
             <p className="text-slate-300 text-sm mb-8 relative z-10">
               {isBudgetMo ? 'Subukan ang Budget Mo — ₱50/buwan lang sa ating special promo.' : `Simulan ang paggamit ng ${foundApp.name} sa loob ng 1 minuto.`}
@@ -403,7 +403,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
               Tingnan ang iba pang modules ng Katuwang
             </h3>
             <p className="text-xs sm:text-sm text-slate-500 max-w-lg mx-auto">
-              Pumili sa 19 na business modules para sa tindahan, kainan, at serbisyo — plus ang Budget Mo para sa personal mong badyet.
+              Pumili sa 19 na business modules para sa tindahan, kainan, at serbisyo — plus ang Budget Mo para sa personal mong Budget.
             </p>
           </div>
 
