@@ -8,10 +8,11 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { 
   ArrowLeft, CheckCircle2, Zap, Star, Users, 
-  RefreshCw, Scan, Bell, FileText, Calendar, Package, ArrowRight, Check, Sparkles, ChevronRight
+  RefreshCw, Scan, Bell, FileText, Calendar, Package, ArrowRight, Check, Sparkles, ChevronRight, ShieldCheck, Wallet, PieChart, TrendingUp, HelpCircle
 } from 'lucide-react';
 import { Metadata } from 'next';
 import { ModuleViewTracker } from '@/components/analytics/meta-events';
+import { ModuleStickyBar } from '@/components/landing/module-sticky-bar';
 
 type Props = {
   params: Promise<{ moduleId: string }>;
@@ -35,13 +36,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const isBudgetMo = foundApp.id === 'budget-mo';
   const pageTitle = isBudgetMo 
-    ? `${foundApp.name} Personal Budgeting Assistant | Katuwang Solutions`
+    ? `Budget Mo - Personal Cash Flow & Savings Tracker | Katuwang Solutions`
     : `${foundApp.name} POS & Management System | Katuwang Solutions`;
 
   return {
     title: pageTitle,
-    description: foundApp.tagline,
-    keywords: `${foundApp.name}, Katuwang Solutions, Philippines, ${foundApp.tagline.split(' ').slice(0, 4).join(', ')}`,
+    description: isBudgetMo 
+      ? 'Hinto sa pagtataka kung saan napunta ang sweldo mo. I-track ang daily expenses, ipon, at cash flow sa iisang simpleng app sa ₱50/buwan lang!'
+      : foundApp.tagline,
+    keywords: `${foundApp.name}, Katuwang Solutions, Philippines, budgeting app, gcash, maya, ipon tracker, sweldo tracker`,
     openGraph: {
       title: `${foundApp.name} by Katuwang Solutions`,
       description: foundApp.tagline,
@@ -88,7 +91,6 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
   // Get cross-sell recommendations from OTHER categories
   const otherGroupApps = activeModules.filter(a => {
     if (a.id === foundApp.id) return false;
-    // Prefer apps from different categories for variety
     const groupOfApp = appGroups.find(g => g.apps.some(x => x.id === a.id));
     return groupOfApp?.id !== foundGroup?.id;
   });
@@ -97,7 +99,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
   const crossSellApps = otherGroupApps.slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans pb-16">
       <ModuleViewTracker
         moduleId={foundApp.id}
         moduleName={foundApp.name}
@@ -114,82 +116,198 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
       </header>
 
       {/* Hero Banner */}
-      <div className="relative w-full h-72 sm:h-80 md:h-96 overflow-hidden">
-        <Image
-          src={foundApp.imageSrc}
-          alt={foundApp.name}
-          fill
-          className="object-cover"
-          sizes="100vw"
-          priority
-        />
-        <div
-          className="absolute inset-0"
-          style={{
-            background: `linear-gradient(to bottom, ${accent}99 0%, ${accent}ee 100%)`,
-          }}
-        />
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 gap-3 pt-6">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-white text-[10px] font-black uppercase tracking-widest border border-white/20">
-            <Sparkles className="h-3 w-3" />
-            <span>{isBudgetMo ? 'Personal Budgeting Assistant' : `${foundGroup?.label || 'Business'} Module`}</span>
+      <div className="relative w-full overflow-hidden bg-slate-900 text-white">
+        <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(#06B6D4_1px,transparent_1px)] [background-size:16px_16px]" />
+        
+        <div className="max-w-4xl mx-auto px-6 pt-10 pb-12 flex flex-col items-center text-center relative z-10 space-y-5">
+          
+          {/* Promo Badge */}
+          <div className="inline-flex items-center gap-2 bg-amber-500/20 border border-amber-400/40 px-4 py-1.5 rounded-full text-amber-300 text-xs font-black uppercase tracking-widest animate-pulse">
+            <Sparkles className="h-4 w-4 text-amber-400" />
+            <span>🔥 SPECIAL PROMO RATE: ₱50/MONTH ONLY</span>
+            <span className="line-through opacity-60 font-medium text-[10px]">₱199/mo</span>
           </div>
 
-          <div
-            className="h-16 w-16 rounded-2xl flex items-center justify-center shadow-2xl mb-1"
-            style={{ backgroundColor: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)' }}
-          >
-            <Icon className="h-9 w-9 text-white" />
-          </div>
-
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight drop-shadow-md">
-            {foundApp.name}
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight leading-tight max-w-3xl">
+            {isBudgetMo ? (
+              <>Hinto sa pagtataka kung saan napunta ang <span className="text-cyan-400 underline decoration-cyan-500/50 decoration-wavy">sweldo mo.</span></>
+            ) : (
+              foundApp.name
+            )}
           </h1>
 
-          <p className="text-sm sm:text-base font-semibold text-white/90 max-w-xl leading-snug drop-shadow">
-            "{foundApp.tagline}"
+          <p className="text-base sm:text-xl text-slate-300 font-medium max-w-2xl leading-relaxed">
+            {isBudgetMo 
+              ? 'I-track ang iyong daily expenses, ipon, at cash flow sa iisang simpleng app. Walang kumplikadong spreadsheet — 1 minuto lang ang setup!'
+              : `"${foundApp.tagline}"`}
           </p>
 
-          {foundApp.targetUsers && foundApp.targetUsers.length > 0 && (
-            <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
-              <span className="text-xs font-bold text-white/90 uppercase tracking-widest mr-1">Para sa:</span>
-              {foundApp.targetUsers.map((user: string, idx: number) => (
-                <span key={idx} className="text-[10px] sm:text-xs font-bold px-3 py-1 rounded-full bg-white/20 text-white backdrop-blur-md border border-white/20 shadow-sm">
-                  {user}
-                </span>
-              ))}
-            </div>
-          )}
+          {/* Micro Trust Chips */}
+          <div className="flex flex-wrap items-center justify-center gap-2.5 text-xs font-bold text-slate-300 pt-1">
+            <span className="bg-white/10 border border-white/10 px-3 py-1 rounded-full flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4 text-emerald-400" /> 1-Minute Setup
+            </span>
+            <span className="bg-white/10 border border-white/10 px-3 py-1 rounded-full flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4 text-emerald-400" /> GCash & Maya Ready
+            </span>
+            <span className="bg-white/10 border border-white/10 px-3 py-1 rounded-full flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4 text-emerald-400" /> No Credit Card Needed
+            </span>
+          </div>
+
+          {/* Main Hero CTA Button */}
+          <div className="pt-4 w-full sm:w-auto">
+            <Link href={`/${foundApp.id}/onboarding`} className="w-full sm:w-auto inline-block">
+              <Button
+                size="lg"
+                className="w-full sm:w-auto h-16 px-10 text-lg font-black text-slate-950 bg-cyan-400 hover:bg-cyan-300 shadow-2xl hover:scale-105 active:scale-95 transition-all rounded-2xl border border-cyan-300"
+              >
+                <span>Simulan ang {foundApp.name} (₱50/mo)</span>
+                <ArrowRight className="h-6 w-6 ml-2" />
+              </Button>
+            </Link>
+            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-2">
+              Instant Access · Cancel anytime · ₱0 setup fee
+            </p>
+          </div>
+
         </div>
       </div>
 
-      {/* Impact Stats */}
-      {foundApp.stats && foundApp.stats.length > 0 && (
-        <div className="bg-white border-b border-slate-100 shadow-sm relative z-10">
-          <div className="max-w-4xl mx-auto px-6 py-6 grid grid-cols-3 divide-x divide-slate-100">
-            {foundApp.stats.map((stat: { value: string; label: string }, i: number) => (
-              <div key={i} className="flex flex-col items-center text-center px-2">
-                <span className="text-2xl sm:text-3xl font-black" style={{ color: accent }}>
-                  {stat.value}
-                </span>
-                <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-500 mt-1 leading-tight">
-                  {stat.label}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Main Content */}
       <main className="flex-1 max-w-4xl mx-auto w-full px-5 md:px-12 py-12 space-y-16">
-        {/* Description */}
-        {foundApp.description && (
-          <section className="max-w-3xl mx-auto text-center space-y-4">
-            <p className="text-lg md:text-xl text-slate-700 leading-relaxed font-medium">
-              {foundApp.description}
-            </p>
+        
+        {/* ── Interactive UI Preview Mockup (Budget Mo Special) ────────────────────────── */}
+        {isBudgetMo && (
+          <section className="space-y-6">
+            <div className="text-center space-y-2">
+              <h2 className="text-xs font-black uppercase tracking-widest text-cyan-600">Actual App Preview</h2>
+              <p className="text-2xl sm:text-3xl font-black text-slate-900">Simple, Malinis, at Mabilis Gamitin</p>
+              <p className="text-slate-500 text-xs sm:text-sm">Ito ang makikita mo sa loob ng Budget Mo dashboard:</p>
+            </div>
+
+            {/* Render High Fidelity Interactive Mockup Box */}
+            <div className="bg-gradient-to-br from-cyan-600 to-blue-700 p-6 sm:p-8 rounded-3xl text-white shadow-2xl space-y-6 border border-cyan-400/30 relative overflow-hidden">
+              <div className="flex justify-between items-center border-b border-white/20 pb-4">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-cyan-200">AVAILABLE CASH BALANCE</span>
+                  <p className="text-3xl sm:text-4xl font-black tracking-tight mt-0.5">₱14,250.00</p>
+                </div>
+                <div className="bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4 text-emerald-300" />
+                  <span>Balanced</span>
+                </div>
+              </div>
+
+              {/* 1-Tap Quick Presets */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-cyan-200">⚡ 1-TAP QUICK EXPENSE PRESETS</span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <div className="bg-white/15 backdrop-blur-md p-3 rounded-xl border border-white/10">
+                    <p className="text-xs font-bold">🚌 Pamasahi</p>
+                    <p className="text-sm font-black text-cyan-200 mt-1">₱20.00</p>
+                  </div>
+                  <div className="bg-white/15 backdrop-blur-md p-3 rounded-xl border border-white/10">
+                    <p className="text-xs font-bold">🍱 Lunch</p>
+                    <p className="text-sm font-black text-cyan-200 mt-1">₱80.00</p>
+                  </div>
+                  <div className="bg-white/15 backdrop-blur-md p-3 rounded-xl border border-white/10">
+                    <p className="text-xs font-bold">☕ Kape</p>
+                    <p className="text-sm font-black text-cyan-200 mt-1">₱120.00</p>
+                  </div>
+                  <div className="bg-white/15 backdrop-blur-md p-3 rounded-xl border border-white/10">
+                    <p className="text-xs font-bold">🛒 Groceries</p>
+                    <p className="text-sm font-black text-cyan-200 mt-1">₱500.00</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Financial Health Score & Savings Target */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <div className="bg-slate-950/40 p-4 rounded-2xl border border-white/10 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-cyan-200">FINANCIAL HEALTH</span>
+                    <p className="text-xl font-black text-emerald-400 mt-0.5">750 / 1000</p>
+                    <p className="text-[10px] text-slate-300 font-bold">Excellent Spending Habits</p>
+                  </div>
+                  <div className="h-10 w-10 rounded-full bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-300 font-black text-xs">
+                    75%
+                  </div>
+                </div>
+
+                <div className="bg-slate-950/40 p-4 rounded-2xl border border-white/10 flex flex-col justify-between">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-cyan-200">MONTHLY SAVINGS TARGET</span>
+                    <span className="text-xs font-bold text-emerald-300">₱4,000 / ₱5,000</span>
+                  </div>
+                  <div className="w-full bg-white/20 h-2.5 rounded-full overflow-hidden mt-3">
+                    <div className="bg-emerald-400 h-full w-[80%] rounded-full" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ── Before vs After Comparison (Budget Mo Special) ────────────────────────── */}
+        {isBudgetMo && (
+          <section className="space-y-6">
+            <div className="text-center space-y-2">
+              <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">Bakit Kailangan Mo Ito</h2>
+              <p className="text-2xl font-black text-slate-900">Dati vs. Sa Budget Mo</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Dati (Manual / Mental) */}
+              <div className="bg-rose-50 border border-rose-200 p-6 rounded-3xl space-y-4">
+                <div className="flex items-center gap-2 text-rose-700 font-black text-base uppercase tracking-wider">
+                  <span className="text-lg">❌</span> DATI (Manual / Mental Badyet)
+                </div>
+                <ul className="space-y-3 text-xs text-rose-950 font-semibold">
+                  <li className="flex items-start gap-2">
+                    <span>•</span>
+                    <span>Nagugulat ka na lang kapag ubos na ang pera bago mag-katapusan.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span>•</span>
+                    <span>Walang malinaw na listahan kung saan napupunta ang maliliit na gastos araw-araw.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span>•</span>
+                    <span>Mahirap mag-ipon dahil laging sumosobra sa pamimili at luho.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span>•</span>
+                    <span>Matagal at nakakatamad mag-tala sa notebook o Excel spreadsheet.</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Sa Budget Mo */}
+              <div className="bg-emerald-50 border-2 border-emerald-300 p-6 rounded-3xl space-y-4 shadow-sm">
+                <div className="flex items-center gap-2 text-emerald-800 font-black text-base uppercase tracking-wider">
+                  <span className="text-lg">✅</span> SA BUDGET MO
+                </div>
+                <ul className="space-y-3 text-xs text-emerald-950 font-bold">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span>Kita agad ang eksaktong **Available Cash Balance** sa bawat segundo.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span>**1-Tap Quick Presets** para sa mabilisang bawas ng pamasahi, kape, at kain.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span>May nakabukod na **Savings Target** at Financial Health Score.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span>Magagamit agad sa phone o laptop kahit saan — ₱50/buwan lang!</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
           </section>
         )}
 
@@ -198,12 +316,12 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
           <section className="space-y-6">
             <div className="text-center space-y-2">
               <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">Paano Ito Gamitin</h2>
-              <p className="text-2xl font-black text-slate-900">Mabilis at simpleng proseso</p>
+              <p className="text-2xl font-black text-slate-900">3 Mabilis na Hakbang</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {foundApp.howItWorks.map((hw: { step: string; detail: string }, idx: number) => (
                 <div key={idx} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-2 relative overflow-hidden">
-                  <div className="text-2xl font-black text-slate-200">0{idx + 1}</div>
+                  <div className="text-2xl font-black text-cyan-500">0{idx + 1}</div>
                   <h3 className="font-bold text-slate-900 text-base">{hw.step}</h3>
                   <p className="text-xs text-slate-500 leading-relaxed">{hw.detail}</p>
                 </div>
@@ -212,18 +330,27 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
           </section>
         )}
 
-        {/* Key Benefits */}
-        {foundApp.benefits && foundApp.benefits.length > 0 && (
-          <section className="space-y-6">
+        {/* Pain-Point FAQ (Budget Mo Special) */}
+        {isBudgetMo && (
+          <section className="space-y-6 pt-4">
             <div className="text-center space-y-2">
-              <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">Bakit Ito Magugustuhan</h2>
-              <p className="text-2xl font-black text-slate-900">Mga Benepisyo</p>
+              <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">Mga Madalas Itanong</h2>
+              <p className="text-2xl font-black text-slate-900">Frequently Asked Questions (FAQ)</p>
             </div>
+
             <div className="grid gap-3">
-              {foundApp.benefits.map((benefit: string, idx: number) => (
-                <div key={idx} className="flex items-center gap-3 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-500 flex-shrink-0" />
-                  <span className="text-slate-700 text-sm font-semibold">{benefit}</span>
+              {[
+                { q: "Kailangan ba ng Credit Card para mag-subscribe?", a: "Hindi! Pwedeng-pwede magbayad sa pamamagitan ng GCash o Maya." },
+                { q: "Magkano ang subscription fee?", a: "Nasa promo rate tayo ngayon na ₱50/buwan lamang. Walang setup fee o anumang hidden charges." },
+                { q: "Pwede ko ba itong gamitin sa aking phone?", a: "Oo! Gumagana ang Budget Mo sa kahit anong smartphone (Android & iPhone) pati na rin sa laptop o PC." },
+                { q: "Gaano katagal bago ko magamit ang app?", a: "Agad-agad! Pagkatapos mag-register at i-send ang payment screenshot sa Messenger, mai-unlock na ang iyong account." },
+              ].map((faq, i) => (
+                <div key={i} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+                  <h3 className="font-black text-slate-900 text-sm flex items-center gap-2">
+                    <HelpCircle className="h-4 w-4 text-cyan-600 shrink-0" />
+                    {faq.q}
+                  </h3>
+                  <p className="text-xs text-slate-600 leading-relaxed pl-6">{faq.a}</p>
                 </div>
               ))}
             </div>
@@ -232,34 +359,33 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
 
         {/* CTA Card */}
         <section className="text-center pt-4">
-          <div className="max-w-2xl mx-auto bg-white rounded-3xl p-8 sm:p-12 shadow-xl border border-slate-200 relative overflow-hidden">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-32 opacity-10 blur-3xl pointer-events-none" style={{ backgroundColor: accent }} />
+          <div className="max-w-2xl mx-auto bg-slate-900 text-white rounded-3xl p-8 sm:p-12 shadow-2xl border border-slate-800 relative overflow-hidden">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-32 opacity-20 blur-3xl pointer-events-none" style={{ backgroundColor: accent }} />
             
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mb-3 relative z-10">
-              {isBudgetMo ? 'Handa ka na bang mag-ipon at magbadyet?' : `Handa ka na bang palaguin ang iyong negosyo?`}
+            <h2 className="text-2xl sm:text-4xl font-black tracking-tight mb-3 relative z-10">
+              {isBudgetMo ? 'Simulan ang pag-ipon at pagbadyet ngayon!' : `Handa ka na bang palaguin ang iyong negosyo?`}
             </h2>
-            <p className="text-slate-500 text-sm mb-8 relative z-10">
-              {isBudgetMo ? 'Subukan ang Budget Mo ngayon — ₱50/buwan lang sa ating special promo.' : `Simulan ang paggamit ng ${foundApp.name} sa loob ng 1 minuto.`}
+            <p className="text-slate-300 text-sm mb-8 relative z-10">
+              {isBudgetMo ? 'Subukan ang Budget Mo — ₱50/buwan lang sa ating special promo.' : `Simulan ang paggamit ng ${foundApp.name} sa loob ng 1 minuto.`}
             </p>
             
             <div className="flex flex-col items-center gap-4 relative z-10">
               <Link href={`/${foundApp.id}/onboarding`} className="w-full sm:w-auto">
                 <Button
                   size="lg"
-                  className="w-full sm:w-auto h-14 px-10 text-base font-black text-white shadow-lg hover:scale-[1.02] active:scale-95 transition-all rounded-2xl"
-                  style={{ backgroundColor: accent }}
+                  className="w-full sm:w-auto h-16 px-10 text-base font-black text-slate-950 bg-cyan-400 hover:bg-cyan-300 shadow-xl hover:scale-105 active:scale-95 transition-all rounded-2xl"
                 >
                   <span>Subukan ang {foundApp.name} Now</span>
                   <ArrowRight className="h-5 w-5 ml-2" />
                 </Button>
               </Link>
 
-              <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-bold text-slate-500 bg-slate-50 px-4 py-2 rounded-full border border-slate-200">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-bold text-slate-300 bg-white/10 px-4 py-2 rounded-full border border-white/10">
+                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                 <span>{formatPeso(pricing.promotionalMonthlyPrice)}/buwan</span>
-                <span className="text-slate-300">•</span>
+                <span className="text-slate-500">•</span>
                 <span>₱0 setup fee</span>
-                <span className="text-slate-300">•</span>
+                <span className="text-slate-500">•</span>
                 <span>No credit card required</span>
               </div>
             </div>
@@ -342,6 +468,14 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
           </p>
         </div>
       </footer>
+
+      {/* Mobile Sticky Conversion Bar */}
+      <ModuleStickyBar
+        moduleId={foundApp.id}
+        moduleName={foundApp.name}
+        priceText={`${formatPeso(pricing.promotionalMonthlyPrice)}/buwan`}
+        accentColor={accent}
+      />
     </div>
   );
 }
