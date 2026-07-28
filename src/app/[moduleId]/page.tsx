@@ -162,7 +162,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
                 size="lg"
                 className="w-full sm:w-auto h-16 px-10 text-lg font-black text-slate-950 bg-cyan-400 hover:bg-cyan-300 shadow-2xl hover:scale-105 active:scale-95 transition-all rounded-2xl border border-cyan-300"
               >
-                <span>Simulan ang {foundApp.name} (₱50/mo)</span>
+                <span>Simulan ang {foundApp.name} ({formatPeso(pricing.promotionalMonthlyPrice)}/mo)</span>
                 <ArrowRight className="h-6 w-6 ml-2" />
               </Button>
             </Link>
