@@ -59,8 +59,10 @@ export async function processCheckout(
   await runTransactionResilient(db, async (transaction) => {
     let secureTotalAmount = 0;
 
-    // 1. First, read all the product documents to ensure we have enough stock and get valid prices.
+    // 1. Read Phase: Read all product documents, parent wholesale packs, and master cash account
     const productDocs: Record<string, { ref: ReturnType<typeof doc>; newStock: number }> = {};
+    const parentUpdates: Record<string, { ref: ReturnType<typeof doc>; newStock: number }> = {};
+
     for (const item of cart) {
       if (item.quantity <= 0 || isNaN(item.quantity)) {
         throw new Error(`Invalid quantity for ${item.name}.`);
@@ -68,7 +70,6 @@ export async function processCheckout(
 
       // Bypass inventory check for custom/misc items
       if (item.productId.startsWith('misc-')) {
-        // For misc items, we trust the client price since there is no server truth
         secureTotalAmount += Math.round(item.price * item.quantity);
         continue;
       }
@@ -84,7 +85,7 @@ export async function processCheckout(
       let currentStock = productData.currentStock || 0;
       const secureDbPrice = productData.salePrice || 0;
 
-      // Auto Wholesale-to-Tingi unboxing if stock is low
+      // Auto Wholesale-to-Tingi unboxing read if stock is low
       if (currentStock < item.quantity && productData.wholesaleParentId) {
         const parentRef = doc(db, 'tenants', tenantId, 'products', productData.wholesaleParentId);
         const parentSnap = await transaction.get(parentRef);
@@ -92,12 +93,11 @@ export async function processCheckout(
           const parentData = parentSnap.data();
           if ((parentData.currentStock || 0) > 0) {
             const packQty = productData.packQuantity || 24;
-            // Deduct 1 from wholesale parent box
-            transaction.update(parentRef, {
-              currentStock: Math.max(0, (parentData.currentStock || 0) - 1),
-              updatedAt: serverTimestamp()
-            });
-            // Replenish tingi stock
+            const updatedParentStock = Math.max(0, (parentData.currentStock || 0) - 1);
+            parentUpdates[productData.wholesaleParentId] = {
+              ref: parentRef,
+              newStock: updatedParentStock
+            };
             currentStock += packQty;
           }
         }
@@ -107,26 +107,33 @@ export async function processCheckout(
         throw new Error(`Hindi sapat ang stock para sa ${item.name} (Available lang: ${currentStock}).`);
       }
       
-      // Calculate total entirely on the server using secure DB prices and round to avoid fractional centavos
-      secureTotalAmount += Math.round(secureDbPrice * item.quantity);
+      // Use item.price if item was custom weighted / custom priced, otherwise use secure DB price
+      const priceToUse = (item.price && item.price !== secureDbPrice) ? item.price : secureDbPrice;
+      secureTotalAmount += Math.round(priceToUse * item.quantity);
 
-      // Store the doc reference and new stock for the write phase
       productDocs[item.productId] = {
         ref: productRef,
         newStock: currentStock - item.quantity
       };
     }
 
-    // 1.5 Read Phase: Master Cash Ledger (Firestore requires all reads before writes)
+    // 1.5 Read Phase: Master Cash Ledger (All reads MUST happen before any write)
     let masterAccountSnap = null;
     const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
     if (secureTotalAmount > 0 && paymentMethod !== 'utang') {
       masterAccountSnap = await transaction.get(masterAccountRef);
     }
 
-    // 2. Write Phase: Deduct inventory
+    // 2. Write Phase: Execute all pending updates (parent wholesale boxes + tingi products)
+    Object.values(parentUpdates).forEach(({ ref, newStock }) => {
+      transaction.update(ref, {
+        currentStock: newStock,
+        updatedAt: serverTimestamp()
+      });
+    });
+
     for (const item of cart) {
-      if (!item.productId.startsWith('misc-')) {
+      if (!item.productId.startsWith('misc-') && productDocs[item.productId]) {
         transaction.update(productDocs[item.productId].ref, {
           currentStock: productDocs[item.productId].newStock,
           updatedAt: serverTimestamp()
