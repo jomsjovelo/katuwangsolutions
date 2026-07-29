@@ -35,6 +35,7 @@ import { ReferralHistorySheet } from '@/components/dashboard/referral-history-sh
 import { StaffShiftCard } from './staff-shift-card';
 import { ManagerPinSetup } from './manager-pin-setup';
 import { ActivityOrganizer } from './activity-organizer';
+import { EmailVerificationBanner } from '@/components/auth/email-verification-banner';
 import { 
   User, 
   Users, 
@@ -498,6 +499,7 @@ export function ProfileTab() {
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-full relative">
       {showOrganizer && <ActivityOrganizer onClose={() => setShowOrganizer(false)} />}
+      <EmailVerificationBanner />
       <main className="p-4 space-y-6 pb-24">
         
         {/* User Card */}

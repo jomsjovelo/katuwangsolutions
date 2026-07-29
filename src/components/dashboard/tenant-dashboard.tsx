@@ -43,7 +43,7 @@ const ReferralDashboard = dynamic(() => import('@/components/dashboard/referral-
 
 import { KatuwangErrorBoundary } from '@/components/common/error-boundary';
 import { SnapDate } from '@/components/snap-date';
-import { EmailVerificationBanner } from '@/components/auth/email-verification-banner';
+
 import { 
   Card, 
   CardContent, 
@@ -341,7 +341,7 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
           </div>
         )}
         
-        <EmailVerificationBanner />
+
         
         {/* 3-Day Expiry Warning Banner */}
         {(() => {
