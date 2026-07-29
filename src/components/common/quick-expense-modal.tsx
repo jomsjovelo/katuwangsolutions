@@ -18,7 +18,7 @@ interface QuickExpenseModalProps {
 }
 
 const EXPENSE_CATEGORIES: Record<string, string[]> = {
-  'benta-snap': ['Kuryente / Tubig', 'Plastic / Packaging', 'Biyahe / Pamasahe', 'Meryenda / Staff', 'Restock / Paninda', 'Iba pa'],
+  'benta-snap': ['Kuryente / Tubig', 'Plastic / Packaging', 'Biyahe / Pamasahe', 'Meryenda / Staff', 'Renta / Puwesto', 'Iba pa'],
   'fresh-tally': ['Yelo / Packaging', 'Kuryente / Tubig', 'Tapon / Spoilage', 'Biyahe / Pamasahe', 'Renta / Puwesto', 'Iba pa'],
   'build-stack': ['Gasolina / Fuel', 'Helper / Arawan', 'Delivery / Hakot', 'Supplier Payout', 'Kuryente / Tubig', 'Iba pa'],
 };
