@@ -23,6 +23,9 @@ import { GCashQrModal } from '@/components/common/gcash-qr-modal';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { DiscountInput } from '@/components/ui/discount-input';
 import { KatuwangErrorBoundary } from '@/components/common/error-boundary';
+import { FreshWeightModal } from '@/components/dashboard/retail/fresh-weight-modal';
+import { SupplierScorecardSheet } from '@/components/dashboard/retail/supplier-scorecard-sheet';
+import { Scale, Award, Flame } from 'lucide-react';
 
 export function FreshTallyDashboard() {
   return (
@@ -142,7 +145,7 @@ const CartItemCard = React.memo(({ item, theme, products, removeFromCart, addToC
 function FreshTallyDashboardContent() {
   const { currentTenant } = useTenant();
   const { products, loading: inventoryLoading } = useInventory();
-  const { cart, addToCart, removeFromCart, clearCart, totalCentavos, totalPesos, cartItemCount } = useCart();
+  const { cart, setCart, addToCart, removeFromCart, clearCart, totalCentavos, totalPesos, cartItemCount } = useCart();
   const { toast } = useToast();
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -159,12 +162,19 @@ function FreshTallyDashboardContent() {
   const [discountValue, setDiscountValue] = useState<string>('');
   const [discountReason, setDiscountReason] = useState<string>('');
 
+  // Niche Feature States
+  const [selectedWeightProduct, setSelectedWeightProduct] = useState<any | null>(null);
+  const [showWeightModal, setShowWeightModal] = useState(false);
+  const [showSupplierScorecard, setShowSupplierScorecard] = useState(false);
+  const [pmClearanceActive, setPmClearanceActive] = useState(false);
+
   let discountCentavos = 0;
-  if (discountValue && !isNaN(parseFloat(discountValue))) {
+  const effectiveDiscountVal = discountValue || (pmClearanceActive ? '20' : '');
+  if (effectiveDiscountVal && !isNaN(parseFloat(effectiveDiscountVal))) {
     if (discountType === 'fixed') {
-      discountCentavos = Math.round(parseFloat(discountValue) * 100);
+      discountCentavos = Math.round(parseFloat(effectiveDiscountVal) * 100);
     } else {
-      discountCentavos = Math.round(totalCentavos * (parseFloat(discountValue) / 100));
+      discountCentavos = Math.round(totalCentavos * (parseFloat(effectiveDiscountVal) / 100));
     }
   }
   const finalTotalCentavos = Math.max(0, totalCentavos - discountCentavos);
@@ -238,21 +248,52 @@ function FreshTallyDashboardContent() {
       
       {/* LEFT PANEL - Product Grid */}
       <div className="flex-1 flex flex-col h-full overflow-hidden pb-24 md:pb-0">
-        <div className="p-4 bg-white border-b border-slate-100 flex-shrink-0 flex items-center justify-between">
+        <div className="p-4 bg-white border-b border-slate-100 flex-shrink-0 flex flex-wrap items-center justify-between gap-2">
           <div>
             <h1 className="text-2xl font-headline font-black uppercase tracking-tighter" style={{ color: theme.primary }}>
               Fresh Tally
             </h1>
             <p className="text-xs text-slate-500 font-medium">Produce & Perishables POS</p>
           </div>
-          <div className="relative w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input 
-              placeholder="Search items..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-10 bg-slate-50 border-slate-200 rounded-xl"
-            />
+
+          <div className="flex items-center gap-2">
+            {/* PM Clearance Toggle */}
+            <button
+              onClick={() => {
+                setPmClearanceActive(!pmClearanceActive);
+                if (!pmClearanceActive) setDiscountReason('Palengke PM Sale (20% Off)');
+              }}
+              className={cn(
+                "px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border transition-all shadow-sm",
+                pmClearanceActive
+                  ? "bg-amber-500 text-white border-amber-600 animate-pulse"
+                  : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
+              )}
+            >
+              <Flame className="h-4 w-4" />
+              <span>{pmClearanceActive ? 'PM Sale Active (20% Off)' : 'Palengke PM Sale'}</span>
+            </button>
+
+            {/* Supplier Scorecard Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowSupplierScorecard(true)}
+              className="rounded-xl h-9 text-xs font-bold border-slate-200 flex items-center gap-1"
+            >
+              <Award className="h-4 w-4 text-emerald-600" />
+              <span>Supplier Rating</span>
+            </Button>
+
+            <div className="relative w-48 sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input 
+                placeholder="Search produce..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-9 bg-slate-50 border-slate-200 rounded-xl text-xs"
+              />
+            </div>
           </div>
         </div>
 
@@ -527,6 +568,30 @@ function FreshTallyDashboardContent() {
           paymentMethod={completedSale.paymentMethod || 'cash'}
         />
       )}
+
+      {/* Fresh Tally Weighted Goods Modal */}
+      <FreshWeightModal
+        product={selectedWeightProduct}
+        isOpen={showWeightModal}
+        onClose={() => {
+          setShowWeightModal(false);
+          setSelectedWeightProduct(null);
+        }}
+        onAddToCart={(prod, qty, customPrice) => {
+          setCart(prev => [...prev, { productId: prod.id, name: `${prod.name} (${qty} ${prod.unit || 'kg'})`, price: customPrice || prod.salePrice, quantity: 1 }]);
+          toast({ title: 'Added to Cart!', description: `Added ${prod.name} to cart.` });
+        }}
+        themeColor={theme.primary}
+      />
+
+      {/* Fresh Tally Supplier Scorecard Sheet */}
+      <SupplierScorecardSheet
+        isOpen={showSupplierScorecard}
+        onClose={() => setShowSupplierScorecard(false)}
+        wasteLogs={[]}
+        batches={products}
+        themeColor={theme.primary}
+      />
     </div>
   );
 }

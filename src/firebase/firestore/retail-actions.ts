@@ -81,8 +81,27 @@ export async function processCheckout(
       }
       
       const productData = productSnap.data();
-      const currentStock = productData.currentStock || 0;
+      let currentStock = productData.currentStock || 0;
       const secureDbPrice = productData.salePrice || 0;
+
+      // Auto Wholesale-to-Tingi unboxing if stock is low
+      if (currentStock < item.quantity && productData.wholesaleParentId) {
+        const parentRef = doc(db, 'tenants', tenantId, 'products', productData.wholesaleParentId);
+        const parentSnap = await transaction.get(parentRef);
+        if (parentSnap.exists()) {
+          const parentData = parentSnap.data();
+          if ((parentData.currentStock || 0) > 0) {
+            const packQty = productData.packQuantity || 24;
+            // Deduct 1 from wholesale parent box
+            transaction.update(parentRef, {
+              currentStock: Math.max(0, (parentData.currentStock || 0) - 1),
+              updatedAt: serverTimestamp()
+            });
+            // Replenish tingi stock
+            currentStock += packQty;
+          }
+        }
+      }
 
       if (currentStock < item.quantity) {
         throw new Error(`Hindi sapat ang stock para sa ${item.name} (Available lang: ${currentStock}).`);

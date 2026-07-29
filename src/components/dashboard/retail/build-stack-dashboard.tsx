@@ -16,11 +16,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { GCashQrModal } from '@/components/common/gcash-qr-modal';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
+import { EstimateModal } from '@/components/dashboard/retail/estimate-modal';
 import { cn } from '@/lib/utils';
 import { getModuleTheme } from '@/lib/theme-utils';
 import { useToast } from '@/hooks/use-toast';
 import { 
-  Package, Plus, Minus, Loader2, Search, Tag, ShoppingCart, Send, Coins, Receipt
+  Package, Plus, Minus, Loader2, Search, Tag, ShoppingCart, Send, Coins, Receipt, FileText
 } from "lucide-react";
 import { KatuwangErrorBoundary } from '@/components/common/error-boundary';
 
@@ -157,6 +158,7 @@ function BuildStackDashboardContent() {
   const [showGCashQr, setShowGCashQr] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
   const [completedSale, setCompletedSale] = useState<any>(null);
+  const [showEstimateModal, setShowEstimateModal] = useState(false);
   
   const theme = getModuleTheme('build-stack');
 
@@ -363,6 +365,16 @@ function BuildStackDashboardContent() {
                 style={{ backgroundColor: '#007aff', boxShadow: '0 8px 16px -4px #007aff40' }}
               >
                 <Receipt className="h-4 w-4" /> GCash
+              </Button>
+
+              <Button 
+                onClick={() => setShowEstimateModal(true)}
+                disabled={cart.length === 0}
+                variant="outline"
+                className="w-full h-11 rounded-xl text-xs font-black tracking-wide border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+              >
+                <FileText className="mr-1.5 h-4 w-4 text-indigo-600" />
+                Bumuo ng Presyo / Estimate
               </Button>
             </div>
           </div>
@@ -590,6 +602,16 @@ function BuildStackDashboardContent() {
         paymentMethod={completedSale?.paymentMethod || "cash"}
         transactionId={completedSale?.saleId || 'PENDING'}
         theme={theme}
+      />
+
+      {/* Build Stack Estimate Quotation Modal */}
+      <EstimateModal
+        isOpen={showEstimateModal}
+        onClose={() => setShowEstimateModal(false)}
+        cartItems={cart}
+        totalCentavos={totalCentavos}
+        tenantName={currentTenant?.name || 'Hardware Store'}
+        themeColor={theme.primary}
       />
     </div>
   );

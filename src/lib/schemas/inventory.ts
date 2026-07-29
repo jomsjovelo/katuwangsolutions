@@ -17,6 +17,12 @@ export const ProductSchema = z.object({
   
   unit: z.string().default('pcs'),
   isActive: z.boolean().default(true),
+
+  // Wholesale-to-Tingi breakdown fields
+  isWholesalePack: z.boolean().default(false),
+  wholesaleParentId: z.string().optional(),
+  packQuantity: z.number().int().default(24),
+
   createdAt: z.any().optional(),
   updatedAt: z.any().optional(),
 });

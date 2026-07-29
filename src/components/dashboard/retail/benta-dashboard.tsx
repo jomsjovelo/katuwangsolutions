@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from '@/lib/utils';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { GCashQrModal } from '@/components/common/gcash-qr-modal';
-import { BarcodeScannerModal } from './barcode-scanner-modal';
+import { BarcodeScannerModal } from '@/components/common/barcode-scanner-modal';
 import { DiscountInput } from '@/components/ui/discount-input';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { 
@@ -894,13 +894,10 @@ function BentaDashboardContent() {
       />
 
       <BarcodeScannerModal
-        open={showScanner}
+        isOpen={showScanner}
         onClose={() => setShowScanner(false)}
-        products={products}
-        onProductScanned={(product) => {
-          addToCart(product);
-        }}
-        theme={theme}
+        onScanResult={(scannedSku) => setSearchQuery(scannedSku)}
+        themeColor={theme.primary}
       />
 
       {/* Tingi / Custom Amount Modal */}
@@ -1096,6 +1093,14 @@ function BentaDashboardContent() {
         isVoiding={isVoiding}
         theme={theme}
         pointsEarned={completedSale?.pointsEarned}
+      />
+
+      {/* Camera Barcode Scanner Modal */}
+      <BarcodeScannerModal
+        isOpen={showScanner}
+        onClose={() => setShowScanner(false)}
+        onScanResult={(scannedSku) => setSearchQuery(scannedSku)}
+        themeColor={theme.primary}
       />
 
     </div>
