@@ -462,3 +462,30 @@ export async function processCreditCheckout(
 
   return saleDocId;
 }
+
+export async function addRetailExpense(
+  tenantId: string,
+  amountCentavos: number,
+  category: string,
+  note?: string,
+  performedBy?: string
+) {
+  if (amountCentavos <= 0) throw new Error('Halaga ng gastos (Amount) must be greater than zero');
+  const db = getKatuwangDb();
+  const txRef = collection(db, 'tenants', tenantId, 'transactions');
+  const newTxRef = doc(txRef);
+
+  await setDoc(newTxRef, {
+    id: newTxRef.id,
+    tenantId,
+    type: 'expense',
+    amount: amountCentavos,
+    category: category || 'General Expense',
+    note: note || '',
+    performedBy: performedBy || 'store-owner',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+
+  return newTxRef.id;
+}

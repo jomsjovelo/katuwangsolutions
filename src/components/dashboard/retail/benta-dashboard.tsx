@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { GCashQrModal } from '@/components/common/gcash-qr-modal';
 import { BarcodeScannerModal } from '@/components/common/barcode-scanner-modal';
+import { QuickExpenseModal } from '@/components/common/quick-expense-modal';
 import { DiscountInput } from '@/components/ui/discount-input';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { 
@@ -202,6 +203,7 @@ function BentaDashboardContent() {
   const [isVoiding, setIsVoiding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
   
   // Search and Category filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -560,8 +562,18 @@ function BentaDashboardContent() {
               onClick={() => setShowTingiModal(true)}
               variant="outline"
               className="h-[46px] w-[46px] p-0 rounded-xl border-slate-200 hover:bg-slate-100 flex items-center justify-center cursor-pointer flex-shrink-0"
+              title="Tingi / Custom Calculator"
             >
               <Calculator className="h-5 w-5 text-slate-500" />
+            </Button>
+            <Button
+              onClick={() => setShowExpenseModal(true)}
+              variant="outline"
+              className="h-[46px] px-3 font-extrabold text-xs rounded-xl border-red-200 text-red-600 hover:bg-red-50 flex items-center justify-center gap-1 cursor-pointer flex-shrink-0"
+              title="Mag-record ng Gastos"
+            >
+              <Receipt className="h-4 w-4" />
+              <span>Gastos</span>
             </Button>
           </div>
 
@@ -1100,6 +1112,15 @@ function BentaDashboardContent() {
         isOpen={showScanner}
         onClose={() => setShowScanner(false)}
         onScanResult={(scannedSku) => setSearchQuery(scannedSku)}
+        themeColor={theme.primary}
+      />
+
+      {/* Quick Expense Modal */}
+      <QuickExpenseModal
+        isOpen={showExpenseModal}
+        onClose={() => setShowExpenseModal(false)}
+        tenantId={currentTenant?.id || ''}
+        moduleType="benta-snap"
         themeColor={theme.primary}
       />
 

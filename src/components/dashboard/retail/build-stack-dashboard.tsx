@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { GCashQrModal } from '@/components/common/gcash-qr-modal';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { EstimateModal } from '@/components/dashboard/retail/estimate-modal';
+import { QuickExpenseModal } from '@/components/common/quick-expense-modal';
 import { cn } from '@/lib/utils';
 import { getModuleTheme } from '@/lib/theme-utils';
 import { useToast } from '@/hooks/use-toast';
@@ -159,6 +160,7 @@ function BuildStackDashboardContent() {
   const [showReceipt, setShowReceipt] = useState(false);
   const [completedSale, setCompletedSale] = useState<any>(null);
   const [showEstimateModal, setShowEstimateModal] = useState(false);
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
   
   const theme = getModuleTheme('build-stack');
 
@@ -240,14 +242,25 @@ function BuildStackDashboardContent() {
             </h1>
             <p className="text-xs text-slate-500 font-medium">Hardware & Construction POS</p>
           </div>
-          <div className="relative w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input 
-              placeholder="Search materials..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-10 bg-slate-50 border-slate-200 rounded-xl"
-            />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowExpenseModal(true)}
+              className="rounded-xl h-10 px-3 text-xs font-bold border-red-200 text-red-600 hover:bg-red-50 flex items-center gap-1.5"
+            >
+              <Receipt className="h-4 w-4" />
+              <span>Gastos</span>
+            </Button>
+            <div className="relative w-48 sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input 
+                placeholder="Search materials..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-10 bg-slate-50 border-slate-200 rounded-xl"
+              />
+            </div>
           </div>
         </div>
 
@@ -611,6 +624,15 @@ function BuildStackDashboardContent() {
         cartItems={cart}
         totalCentavos={totalCentavos}
         tenantName={currentTenant?.name || 'Hardware Store'}
+        themeColor={theme.primary}
+      />
+
+      {/* Quick Expense Modal */}
+      <QuickExpenseModal
+        isOpen={showExpenseModal}
+        onClose={() => setShowExpenseModal(false)}
+        tenantId={currentTenant?.id || ''}
+        moduleType="build-stack"
         themeColor={theme.primary}
       />
     </div>

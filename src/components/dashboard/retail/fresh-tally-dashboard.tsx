@@ -25,6 +25,7 @@ import { DiscountInput } from '@/components/ui/discount-input';
 import { KatuwangErrorBoundary } from '@/components/common/error-boundary';
 import { FreshWeightModal } from '@/components/dashboard/retail/fresh-weight-modal';
 import { SupplierScorecardSheet } from '@/components/dashboard/retail/supplier-scorecard-sheet';
+import { QuickExpenseModal } from '@/components/common/quick-expense-modal';
 import { Scale, Award, Flame } from 'lucide-react';
 
 export function FreshTallyDashboard() {
@@ -167,6 +168,7 @@ function FreshTallyDashboardContent() {
   const [showWeightModal, setShowWeightModal] = useState(false);
   const [showSupplierScorecard, setShowSupplierScorecard] = useState(false);
   const [pmClearanceActive, setPmClearanceActive] = useState(false);
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
 
   let discountCentavos = 0;
   const effectiveDiscountVal = discountValue || (pmClearanceActive ? '20' : '');
@@ -283,6 +285,17 @@ function FreshTallyDashboardContent() {
             >
               <Award className="h-4 w-4 text-emerald-600" />
               <span>Supplier Rating</span>
+            </Button>
+
+            {/* Quick Expense Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowExpenseModal(true)}
+              className="rounded-xl h-9 text-xs font-bold border-red-200 text-red-600 hover:bg-red-50 flex items-center gap-1"
+            >
+              <Receipt className="h-4 w-4" />
+              <span>Gastos</span>
             </Button>
 
             <div className="relative w-48 sm:w-64">
@@ -590,6 +603,15 @@ function FreshTallyDashboardContent() {
         onClose={() => setShowSupplierScorecard(false)}
         wasteLogs={[]}
         batches={products}
+        themeColor={theme.primary}
+      />
+
+      {/* Quick Expense Modal */}
+      <QuickExpenseModal
+        isOpen={showExpenseModal}
+        onClose={() => setShowExpenseModal(false)}
+        tenantId={currentTenant?.id || ''}
+        moduleType="fresh-tally"
         themeColor={theme.primary}
       />
     </div>
