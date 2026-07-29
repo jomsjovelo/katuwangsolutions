@@ -42,7 +42,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: pageTitle,
     description: isBudgetMo 
-      ? 'Hinto sa pagtataka kung saan napunta ang sweldo mo. I-track ang daily expenses, ipon, at cash flow sa iisang simpleng app sa ₱50/buwan lang!'
+      ? 'Huwag nang manghula kung saan napunta ang sweldo mo. I-track ang daily expenses, ipon, at cash flow sa iisang simpleng Budget app sa ₱50/buwan lang!'
       : foundApp.tagline,
     keywords: `${foundApp.name}, Katuwang Solutions, Philippines, budgeting app, gcash, maya, ipon tracker, sweldo tracker`,
     openGraph: {
