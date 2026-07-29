@@ -723,7 +723,7 @@ export function ReportsTab() {
              )}
 
              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-               <span className="text-xs font-bold text-slate-500">Gross Revenue</span>
+              <span className="text-xs font-bold text-slate-500">Gross Revenue</span>
                <span className="text-sm font-black text-slate-800">₱{grossIncomePesos.toLocaleString('en-PH', {minimumFractionDigits: 2})}</span>
              </div>
              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
@@ -736,6 +736,47 @@ export function ReportsTab() {
                  {((grossIncomePesos - totalExpensesPesos) >= 0 ? "+" : "")} ₱{(grossIncomePesos - totalExpensesPesos).toLocaleString('en-PH', {minimumFractionDigits: 2})}
                </span>
              </div>
+          </CardContent>
+        </Card>
+
+        {/* 3-Tier Accounting Breakdown: Assets vs OPEX vs Spoilage */}
+        <Card className="shadow-none border border-slate-200/60 rounded-[28px] overflow-hidden bg-white">
+          <CardHeader className="p-5 pb-0">
+            <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Financial Structure</span>
+            <CardTitle className="text-sm font-headline font-black text-slate-800 mt-1">
+              Asset, OPEX & Waste Breakdown
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-5 pt-3 space-y-3">
+            <div className="p-3 bg-slate-900 text-white rounded-2xl flex items-center justify-between">
+              <div>
+                <span className="text-[9px] font-black uppercase tracking-wider text-cyan-400 block">1. Inventory Asset (Stock Capital)</span>
+                <p className="text-[10px] text-slate-300">Puhunan sa mga paninda sa inventory (Stock Valuation)</p>
+              </div>
+              <span className="text-sm font-black text-white">
+                ₱{inventory.reduce((acc: number, p: any) => acc + ((p.currentStock || 0) * (p.costPrice || 0) / 100), 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+
+            <div className="p-3 bg-rose-50 border border-rose-100 rounded-2xl flex items-center justify-between">
+              <div>
+                <span className="text-[9px] font-black uppercase tracking-wider text-rose-700 block">2. Operating Expenses (OPEX)</span>
+                <p className="text-[10px] text-rose-500">Kuryente, renta, packaging, fuel (Logged via Gastos)</p>
+              </div>
+              <span className="text-sm font-black text-rose-700">
+                ₱{totalExpensesPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+
+            <div className="p-3 bg-amber-50 border border-amber-100 rounded-2xl flex items-center justify-between">
+              <div>
+                <span className="text-[9px] font-black uppercase tracking-wider text-amber-800 block">3. Spoilage & Waste Write-Offs</span>
+                <p className="text-[10px] text-amber-600">Sira o na-spoil na paninda (Logged via Waste/Tapon)</p>
+              </div>
+              <span className="text-sm font-black text-amber-800">
+                ₱{expenseTxs.filter((t: any) => t.category?.toLowerCase().includes('tapon') || t.category?.toLowerCase().includes('spoilage') || t.category?.toLowerCase().includes('waste')).reduce((acc: number, t: any) => acc + (t.totalPesos || 0), 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
           </CardContent>
         </Card>
 

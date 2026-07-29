@@ -98,6 +98,35 @@ export function StockTab() {
     <div className="flex-1 flex flex-col bg-slate-50 min-h-full">
       <main className="p-4 space-y-6 pb-24 animate-in fade-in duration-300">
         
+        {/* Inventory Asset Valuation Card (Owner Only) */}
+        {!isStaff && (
+          <Card className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-none text-white p-4 shadow-md rounded-[24px]">
+            <span className="text-[9px] font-black uppercase tracking-widest text-cyan-400 block mb-1">
+              📦 Inventory Asset Valuation & Profit Potential
+            </span>
+            <div className="grid grid-cols-3 gap-3 pt-2">
+              <div>
+                <span className="text-[8px] font-bold text-slate-400 uppercase block">Puhunan sa Stock (Cost)</span>
+                <span className="text-sm sm:text-base font-black text-white">
+                  ₱{products.reduce((acc, p) => acc + ((p.currentStock || 0) * (p.costPrice || 0) / 100), 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div>
+                <span className="text-[8px] font-bold text-slate-400 uppercase block">Halaga kapag Nabenta</span>
+                <span className="text-sm sm:text-base font-black text-emerald-400">
+                  ₱{products.reduce((acc, p) => acc + ((p.currentStock || 0) * (p.salePrice || 0) / 100), 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div>
+                <span className="text-[8px] font-bold text-slate-400 uppercase block">Inaasahang Tubo</span>
+                <span className="text-sm sm:text-base font-black text-cyan-300">
+                  ₱{Math.max(0, products.reduce((acc, p) => acc + ((p.currentStock || 0) * ((p.salePrice || 0) - (p.costPrice || 0)) / 100), 0)).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* Header Summary */}
         <div className="grid grid-cols-3 gap-2.5">
           <Card className="bg-white border-slate-200 p-3 shadow-sm rounded-2xl text-center">
