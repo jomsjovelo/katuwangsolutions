@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Camera, QrCode, Search, AlertCircle, RefreshCw } from 'lucide-react';
@@ -107,6 +107,9 @@ export function BarcodeScannerModal({
             <Camera className="h-5 w-5" style={{ color: themeColor }} />
             <span>Barcode Scanner</span>
           </DialogTitle>
+          <DialogDescription className="text-xs text-slate-500">
+            I-scan ang barcode ng produkto gamit ang camera o i-type ang SKU.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 my-2">

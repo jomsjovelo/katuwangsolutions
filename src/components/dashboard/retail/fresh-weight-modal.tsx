@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Scale, Banknote, ShoppingCart } from 'lucide-react';
@@ -65,9 +65,9 @@ export function FreshWeightModal({
             <Scale className="h-5 w-5" style={{ color: themeColor }} />
             <span>Kilo at Presyo Calculator</span>
           </DialogTitle>
-          <p className="text-xs font-medium text-slate-500">
+          <DialogDescription className="text-xs font-medium text-slate-500">
             {product.name} — <strong className="text-slate-800">₱{pricePerUnitPesos.toFixed(2)}</strong> / {product.unit || 'kg'}
-          </p>
+          </DialogDescription>
         </DialogHeader>
 
         {/* Mode Selector */}
