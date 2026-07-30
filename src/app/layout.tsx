@@ -73,7 +73,7 @@ export default function RootLayout({
   return (
     <html lang="fil" translate="no" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head />
-      <body className="font-body antialiased min-h-screen overflow-x-hidden bg-white selection:bg-cyan-500/30" translate="no">
+      <body className="font-body antialiased min-h-screen overflow-x-hidden bg-white selection:bg-cyan-500/30" translate="no" suppressHydrationWarning>
         <MetaPixel />
         <FirebaseClientProvider>
           <AuthGuard>

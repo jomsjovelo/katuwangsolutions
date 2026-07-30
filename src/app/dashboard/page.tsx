@@ -1,10 +1,8 @@
 "use client"
 
 import React, { useState } from 'react';
-import dynamic from 'next/dynamic';
 import { useTenantStore } from '@/store/use-tenant-store';
-
-const TenantDashboard = dynamic(() => import('@/components/dashboard/tenant-dashboard').then(mod => mod.TenantDashboard));
+import { TenantDashboard } from '@/components/dashboard/tenant-dashboard';
 import { BottomNav } from '@/components/shell/bottom-nav';
 import { AppHeader } from '@/components/shell/app-header';
 import { BrandLogo } from '@/components/ui/brand-logo';

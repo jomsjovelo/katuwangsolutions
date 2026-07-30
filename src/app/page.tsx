@@ -6,20 +6,18 @@ import { Facebook, MessageCircle, Globe, Mail, FileText, HelpCircle, Info } from
 
 import { activeModulesCount } from '@/lib/app-data';
 
-// Marketing components — all lazily loaded for performance
-const Hero = dynamic(() => import('@/components/marketing/hero').then(mod => mod.Hero));
-const SocialProofBar = dynamic(() => import('@/components/marketing/social-proof-bar').then(mod => mod.SocialProofBar));
-const BusinessFinder = dynamic(() => import('@/components/marketing/business-finder').then(mod => mod.BusinessFinder));
-const ProblemFirst = dynamic(() => import('@/components/marketing/problem-first').then(mod => mod.ProblemFirst));
-const AppSuiteCarousel = dynamic(() => import('@/components/marketing/app-suite-carousel').then(mod => mod.AppSuiteCarousel));
-const Features = dynamic(() => import('@/components/marketing/features').then(mod => mod.Features));
-const HowItWorks = dynamic(() => import('@/components/marketing/how-it-works').then(mod => mod.HowItWorks));
-const Testimonials = dynamic(() => import('@/components/marketing/testimonials').then(mod => mod.Testimonials));
-const ReferralSection = dynamic(() => import('@/components/marketing/referral-section').then(mod => mod.ReferralSection));
-const PricingCta = dynamic(() => import('@/components/marketing/pricing-cta').then(mod => mod.PricingCta));
-const FloatingCta = dynamic(() => import('@/components/marketing/floating-cta').then(mod => mod.FloatingCta));
-const InvitationGuard = dynamic(() => import('@/components/auth/invitation-guard').then(mod => mod.InvitationGuard));
-
+import { Hero } from '@/components/marketing/hero';
+import { SocialProofBar } from '@/components/marketing/social-proof-bar';
+import { BusinessFinder } from '@/components/marketing/business-finder';
+import { ProblemFirst } from '@/components/marketing/problem-first';
+import { AppSuiteCarousel } from '@/components/marketing/app-suite-carousel';
+import { Features } from '@/components/marketing/features';
+import { HowItWorks } from '@/components/marketing/how-it-works';
+import { Testimonials } from '@/components/marketing/testimonials';
+import { ReferralSection } from '@/components/marketing/referral-section';
+import { PricingCta } from '@/components/marketing/pricing-cta';
+import { FloatingCta } from '@/components/marketing/floating-cta';
+import { InvitationGuard } from '@/components/auth/invitation-guard';
 import { MessengerWidget } from '@/components/marketing/messenger-widget';
 
 export default function Home() {
