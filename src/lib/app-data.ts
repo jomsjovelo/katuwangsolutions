@@ -149,7 +149,7 @@ export const appGroups: AppGroup[] = [
         tagline: 'Rapid order queue at barista tracker para sa cafe at milk tea!',
         imageSrc: '/apps/timpla-track.png',
         features: ['Order Queue', 'Beverage Prep Status', 'Quick Checkout', 'Shift Integrity', 'Manager Discounts'],
-        description: 'Ang iyong cafe ay nararapat sa tamang sistema. Ang Timpla Track ay sadyang ginawa para sa mga coffee shop at milk tea bars na may mabilis na order queue para tuloy-tuloy ang timpla ng barista at ligtas ang profit margin.',
+        description: 'Sadyang ginawa para sa mga coffee shop at milk tea bar. Mabilis ang order queue ng barista para walang kalat sa pila at kumpleto ang benta araw-araw.',
         benefits: [
           'Real-time order queue na nakikita kapwa ng cashier at barista',
           'Status tracking para sunod-sunod at tamang inumin ang maihain',

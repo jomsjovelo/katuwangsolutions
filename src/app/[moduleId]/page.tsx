@@ -2,6 +2,7 @@ import React from 'react';
 import { getActiveAppById, appGroups, activeModules, isValidActiveModuleId, normalizeModuleId } from '@/lib/app-data';
 import { getModulePricing, formatPeso } from '@/lib/pricing';
 import { getModuleTheme } from '@/lib/theme-utils';
+import { getModuleLandingCopy } from '@/lib/module-landing-content';
 import { notFound, permanentRedirect } from 'next/navigation';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { Button } from '@/components/ui/button';
@@ -79,6 +80,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
 
   const pricing = getModulePricing(foundApp.id);
   const theme = getModuleTheme(foundApp.id);
+  const landingCopy = getModuleLandingCopy(foundApp.id);
   const isBudgetMo = foundApp.id === 'budget-mo';
 
   let foundGroup: any = null;
@@ -90,6 +92,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
 
   const Icon = foundApp.icon;
   const primaryColor = theme.primary || foundGroup?.accentColor || '#06B6D4';
+  const headlineParts = landingCopy.headline.split(landingCopy.highlightWord);
 
   // Get cross-sell recommendations from OTHER categories
   const otherGroupApps = activeModules.filter(a => {
@@ -152,46 +155,61 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
       <div className="relative w-full overflow-hidden bg-slate-950 text-white">
         {/* Module Color Radial Background Glow */}
         <div 
-          className="absolute inset-0 opacity-25 pointer-events-none" 
+          className="absolute inset-0 opacity-20 pointer-events-none" 
           style={{ 
             backgroundImage: `radial-gradient(${primaryColor} 1.5px, transparent 1.5px)`, 
-            backgroundSize: '20px 20px' 
+            backgroundSize: '22px 22px' 
           }} 
         />
         <div 
-          className="absolute -top-32 left-1/2 -translate-x-1/2 w-[600px] h-[350px] opacity-30 blur-[100px] pointer-events-none rounded-full"
+          className="absolute -top-32 left-1/2 -translate-x-1/2 w-[600px] h-[350px] opacity-25 blur-[100px] pointer-events-none rounded-full"
           style={{ backgroundColor: primaryColor }}
         />
 
-        <div className="max-w-4xl mx-auto px-6 pt-10 pb-14 flex flex-col items-center text-center relative z-10 space-y-6">
+        <div className="max-w-4xl mx-auto px-6 pt-10 pb-14 flex flex-col items-center text-center relative z-10 space-y-5">
           
           {/* Module Icon + Category Badge */}
-          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/15 px-4 py-1.5 rounded-full">
-            <Icon className="h-4 w-4" style={{ color: primaryColor }} />
-            <span className="text-xs font-black uppercase tracking-widest text-slate-200">
-              {foundGroup?.label || 'Katuwang Ecosystem'} · {foundApp.name}
+          <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-800 px-4 py-1.5 rounded-full shadow-lg backdrop-blur-xl">
+            <div className="h-5 w-5 rounded-full flex items-center justify-center" style={{ backgroundColor: `${primaryColor}30` }}>
+              <Icon className="h-3.5 w-3.5" style={{ color: primaryColor }} />
+            </div>
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-300">
+              {foundGroup?.label || 'Katuwang Ecosystem'} · <span className="font-black text-white">{foundApp.name}</span>
             </span>
           </div>
 
           {/* Promo Urgency Badge */}
-          <div className="inline-flex items-center gap-2 bg-amber-500/20 border border-amber-400/40 px-4 py-1.5 rounded-full text-amber-300 text-xs font-black uppercase tracking-widest animate-pulse">
-            <Sparkles className="h-4 w-4 text-amber-400" />
-            <span>🔥 EARLY ADOPTER PROMO: {formatPeso(pricing.promotionalMonthlyPrice)}/MONTH ONLY</span>
-            <span className="line-through opacity-60 font-medium text-[10px]">{formatPeso(pricing.regularMonthlyPrice)}/mo</span>
+          <div 
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border backdrop-blur-md shadow-md"
+            style={{ 
+              backgroundColor: `${primaryColor}15`, 
+              borderColor: `${primaryColor}40`,
+              color: '#FACC15'
+            }}
+          >
+            <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+            <span>EARLY ADOPTER PROMO: {formatPeso(pricing.promotionalMonthlyPrice)}/MONTH ONLY</span>
+            <span className="line-through opacity-60 font-medium text-[10px] text-slate-400">{formatPeso(pricing.regularMonthlyPrice)}/mo</span>
           </div>
 
-          {/* Main Hero Headline */}
-          <h1 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight leading-tight max-w-3xl">
-            {isBudgetMo ? (
-              <>Huwag nang manghula kung saan napunta ang <span style={{ color: primaryColor }} className="underline decoration-wavy">sweldo mo.</span></>
+          {/* Main Hero Headline (NO WAVY UNDERLINE!) */}
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.15] max-w-3xl">
+            {headlineParts.length > 1 ? (
+              <>
+                {headlineParts[0]}
+                <span className="inline-block font-black px-2 py-0.5 rounded-xl bg-white/10 border border-white/15 shadow-sm" style={{ color: primaryColor }}>
+                  {landingCopy.highlightWord}
+                </span>
+                {headlineParts[1]}
+              </>
             ) : (
-              <>Palaguin ang negosyo gamit ang <span style={{ color: primaryColor }} className="underline decoration-wavy">{foundApp.name}.</span></>
+              landingCopy.headline
             )}
           </h1>
 
           {/* Sub-headline */}
-          <p className="text-base sm:text-xl text-slate-300 font-medium max-w-2xl leading-relaxed">
-            {foundApp.description || `"${foundApp.tagline}"`}
+          <p className="text-base sm:text-lg text-slate-300 font-normal max-w-2xl leading-relaxed">
+            {landingCopy.subtitle}
           </p>
 
           {/* Trust Chips */}
@@ -203,26 +221,23 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
               <CheckCircle2 className="h-4 w-4 text-emerald-400" /> GCash & Maya Ready
             </span>
             <span className="bg-white/10 border border-white/10 px-3.5 py-1.5 rounded-full flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400" /> Works Offline
-            </span>
-            <span className="bg-white/10 border border-white/10 px-3.5 py-1.5 rounded-full flex items-center gap-1.5">
               <CheckCircle2 className="h-4 w-4 text-emerald-400" /> No Credit Card Required
             </span>
           </div>
 
           {/* Primary Hero CTA Button */}
-          <div className="pt-4 w-full sm:w-auto">
+          <div className="pt-3 w-full sm:w-auto">
             <Link href={`/${foundApp.id}/onboarding`} className="w-full sm:w-auto inline-block">
               <Button
                 size="lg"
-                className="w-full sm:w-auto h-16 px-10 text-lg font-black text-slate-950 shadow-2xl hover:scale-105 active:scale-95 transition-all rounded-2xl border"
+                className="w-full sm:w-auto h-15 px-9 text-base font-black text-slate-950 shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all rounded-2xl border"
                 style={{ 
                   backgroundColor: primaryColor,
                   borderColor: primaryColor,
                 }}
               >
                 <span>Subukan ang {foundApp.name} ({formatPeso(pricing.promotionalMonthlyPrice)}/mo)</span>
-                <ArrowRight className="h-6 w-6 ml-2" />
+                <ArrowRight className="h-5 w-5 ml-2" />
               </Button>
             </Link>
             <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-2.5">
