@@ -29,7 +29,7 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const resolvedParams = await params;
+  const resolvedParams = (await params) || { moduleId: '' };
   const foundApp = getActiveAppById(resolvedParams.moduleId);
 
   if (!foundApp) return { title: 'Module Not Found | Katuwang Solutions' };
@@ -54,18 +54,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ModuleDedicatedPage({ params, searchParams }: Props) {
-  const resolvedParams = await params;
-  const resolvedSearchParams = await searchParams;
+  const resolvedParams = (await params) || { moduleId: '' };
+  const resolvedSearchParams = (await searchParams) || {};
   const rawId = resolvedParams.moduleId;
 
   // Handle alias redirects (e.g. fleet-sync -> biyahe-sync)
   const canonicalId = normalizeModuleId(rawId);
   if (rawId !== canonicalId && isValidActiveModuleId(canonicalId)) {
     const urlParams = new URLSearchParams();
-    Object.entries(resolvedSearchParams).forEach(([key, val]) => {
-      if (typeof val === 'string') urlParams.set(key, val);
-      else if (Array.isArray(val)) val.forEach(v => urlParams.append(key, v));
-    });
+    if (resolvedSearchParams && typeof resolvedSearchParams === 'object') {
+      Object.entries(resolvedSearchParams).forEach(([key, val]) => {
+        if (typeof val === 'string') urlParams.set(key, val);
+        else if (Array.isArray(val)) val.forEach(v => urlParams.append(key, v));
+      });
+    }
     const queryString = urlParams.toString();
     permanentRedirect(`/${canonicalId}${queryString ? `?${queryString}` : ''}`);
   }
