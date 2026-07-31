@@ -26,6 +26,7 @@ import { TableGrid } from './table-grid';
 import { RunningBillDrawer } from './running-bill-drawer';
 import { useMenu } from '@/hooks/use-menu';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 import { 
   Coffee, 
   Utensils, 
@@ -38,99 +39,130 @@ import {
   Trash2,
   Receipt,
   Coins,
-  AlertCircle
+  AlertCircle,
+  Clock,
+  Flame,
+  TrendingUp
 } from "lucide-react";
 
-const PendingOrderCard = React.memo(({ order, theme, isOwner, handleDeleteOrder, moveOrder, isProcessing }: any) => (
-  <div 
-    className="bg-white border-2 rounded-xl overflow-hidden shadow-sm transition-all duration-300"
-    style={{ borderColor: `${theme.primary}30` }}
-  >
-    <div 
-      className="px-3 py-2 border-b flex items-center justify-between"
-      style={{ backgroundColor: `${theme.primary}08` }}
-    >
-      <div className="flex items-center gap-2">
-        <Badge 
-          className="font-black text-[10px] text-white border-transparent"
-          style={{ backgroundColor: theme.primary }}
-        >
-          NEW
-        </Badge>
-        <span className="font-bold text-sm text-slate-800">#{order.orderNumber}</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="text-[10px] font-bold text-slate-500 uppercase">{order.tableNumber}</span>
-        <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 rounded-full" onClick={() => handleDeleteOrder(order.id)}>
-          <Trash2 className="h-3 w-3" />
-        </Button>
-      </div>
-    </div>
-    <div className="p-3 space-y-2">
-      <ul className="space-y-1">
-        {order.items.map((item: any, i: any) => (
-          <li key={i} className="text-sm flex flex-col border-b border-slate-50 pb-1 last:border-0">
-            <div className="flex justify-between">
-              <span className="font-bold text-slate-700">{item.quantity}x {item.name}</span>
-            </div>
-            {item.notes && <span className="text-[10px] text-red-500 font-bold uppercase pl-4">Note: {item.notes}</span>}
-          </li>
-        ))}
-      </ul>
-      <Button 
-        onClick={() => moveOrder(order.id, 'preparing')} 
-        disabled={isProcessing}
-        className="w-full h-10 mt-2 font-bold uppercase tracking-widest text-[10px] text-white border-none active:scale-95 transition-all"
-        style={{ 
-          backgroundColor: theme.primary, 
-          boxShadow: `0 4px 12px -2px ${theme.primary}30` 
-        }}
-      >
-        Start Preparing
-      </Button>
-    </div>
-  </div>
-));
+const getElapsedMinutes = (timestamp: any) => {
+  if (!timestamp) return 0;
+  const createdDate = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const diffMs = Date.now() - createdDate.getTime();
+  return Math.max(0, Math.floor(diffMs / (1000 * 60)));
+};
 
-const PreparingOrderCard = React.memo(({ order, isOwner, handleDeleteOrder, moveOrder, isProcessing }: any) => (
-  <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm opacity-90">
-    <div className="bg-slate-100 px-3 py-2 border-b border-slate-200 flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <Badge className="font-black text-[10px] bg-slate-500 text-white hover:bg-slate-500">PREPARING</Badge>
-        <span className="font-bold text-sm text-slate-800">#{order.orderNumber}</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="text-[10px] font-bold text-slate-500 uppercase">{order.tableNumber}</span>
-        {isOwner && (
+const PendingOrderCard = React.memo(({ order, theme, isOwner, handleDeleteOrder, moveOrder, isProcessing }: any) => {
+  const elapsed = getElapsedMinutes(order.createdAt);
+  const isRush = elapsed >= 15;
+
+  return (
+    <div 
+      className={cn(
+        "bg-white border-2 rounded-xl overflow-hidden shadow-sm transition-all duration-300",
+        isRush ? "border-red-500 animate-pulse" : ""
+      )}
+      style={{ borderColor: isRush ? undefined : `${theme.primary}30` }}
+    >
+      <div 
+        className="px-3 py-2 border-b flex items-center justify-between"
+        style={{ backgroundColor: isRush ? '#FEF2F2' : `${theme.primary}08` }}
+      >
+        <div className="flex items-center gap-2">
+          <Badge 
+            className="font-black text-[10px] text-white border-transparent"
+            style={{ backgroundColor: isRush ? '#EF4444' : theme.primary }}
+          >
+            {isRush ? "🔥 RUSH ORDER" : "NEW"}
+          </Badge>
+          <span className="font-bold text-sm text-slate-800">#{order.orderNumber}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
+            <Clock className="h-3 w-3 text-slate-400" /> {elapsed}m
+          </span>
+          <span className="text-[10px] font-bold text-slate-500 uppercase">{order.tableNumber}</span>
           <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 rounded-full" onClick={() => handleDeleteOrder(order.id)}>
             <Trash2 className="h-3 w-3" />
           </Button>
-        )}
+        </div>
       </div>
-    </div>
-    <div className="p-3 space-y-2">
-      <ul className="space-y-1">
-        {order.items.map((item: any, i: any) => (
-          <li key={i} className="text-sm flex flex-col">
-            <div className="flex justify-between">
-              <span className="font-medium text-slate-600">{item.quantity}x {item.name}</span>
-            </div>
-            {item.notes && <span className="text-[10px] text-red-400 font-bold uppercase pl-4">Note: {item.notes}</span>}
-          </li>
-        ))}
-      </ul>
-      <div className="flex gap-2 pt-2">
+      <div className="p-3 space-y-2">
+        <ul className="space-y-1">
+          {order.items.map((item: any, i: any) => (
+            <li key={i} className="text-sm flex flex-col border-b border-slate-50 pb-1 last:border-0">
+              <div className="flex justify-between">
+                <span className="font-bold text-slate-700">{item.quantity}x {item.name}</span>
+              </div>
+              {item.notes && <span className="text-[10px] text-red-500 font-bold uppercase pl-4">Note: {item.notes}</span>}
+            </li>
+          ))}
+        </ul>
         <Button 
-          onClick={() => moveOrder(order.id, 'served', order.totalAmount, order.tableNumber)} 
+          onClick={() => moveOrder(order.id, 'preparing')} 
           disabled={isProcessing}
-          className="w-full h-10 font-bold uppercase tracking-widest text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white"
+          className="w-full h-10 mt-2 font-bold uppercase tracking-widest text-[10px] text-white border-none active:scale-95 transition-all"
+          style={{ 
+            backgroundColor: theme.primary, 
+            boxShadow: `0 4px 12px -2px ${theme.primary}30` 
+          }}
         >
-          <CheckCircle2 className="h-4 w-4 mr-1" /> Mark Served
+          Start Preparing
         </Button>
       </div>
     </div>
-  </div>
-));
+  );
+});
+
+const PreparingOrderCard = React.memo(({ order, isOwner, handleDeleteOrder, moveOrder, isProcessing }: any) => {
+  const elapsed = getElapsedMinutes(order.createdAt);
+  const isRush = elapsed >= 15;
+
+  return (
+    <div className={cn("bg-white border rounded-xl overflow-hidden shadow-sm", isRush ? "border-amber-400 bg-amber-50/20" : "border-slate-200 opacity-90")}>
+      <div className="bg-slate-100 px-3 py-2 border-b border-slate-200 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Badge className={cn("font-black text-[10px] text-white", isRush ? "bg-amber-600" : "bg-slate-500")}>
+            {isRush ? "⏱️ 15M+ PREP" : "PREPARING"}
+          </Badge>
+          <span className="font-bold text-sm text-slate-800">#{order.orderNumber}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
+            <Clock className="h-3 w-3 text-slate-400" /> {elapsed}m
+          </span>
+          <span className="text-[10px] font-bold text-slate-500 uppercase">{order.tableNumber}</span>
+          {isOwner && (
+            <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 rounded-full" onClick={() => handleDeleteOrder(order.id)}>
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+      </div>
+      <div className="p-3 space-y-2">
+        <ul className="space-y-1">
+          {order.items.map((item: any, i: any) => (
+            <li key={i} className="text-sm flex flex-col">
+              <div className="flex justify-between">
+                <span className="font-medium text-slate-600">{item.quantity}x {item.name}</span>
+              </div>
+              {item.notes && <span className="text-[10px] text-red-400 font-bold uppercase pl-4">Note: {item.notes}</span>}
+            </li>
+          ))}
+        </ul>
+        <div className="flex gap-2 pt-2">
+          <Button 
+            onClick={() => moveOrder(order.id, 'served', order.totalAmount, order.tableNumber)} 
+            disabled={isProcessing}
+            className="w-full h-10 font-bold uppercase tracking-widest text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white"
+          >
+            <CheckCircle2 className="h-4 w-4 mr-1" /> Mark Served
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+});
 
 export function FoodDashboard() {
   const { currentTenant } = useTenant();
@@ -221,6 +253,23 @@ export function FoodDashboard() {
 
   const pendingOrders = orders.filter((o: any) => o.status === 'pending');
   const preparingOrders = orders.filter((o: any) => o.status === 'preparing');
+
+  const bestSellers = React.useMemo(() => {
+    const counts: Record<string, { count: number; totalCentavos: number }> = {};
+    orders.forEach((o: any) => {
+      (o.items || []).forEach((item: any) => {
+        const name = item.name || 'Dish';
+        if (!counts[name]) counts[name] = { count: 0, totalCentavos: 0 };
+        const qty = item.quantity || 1;
+        counts[name].count += qty;
+        counts[name].totalCentavos += (item.price || 0) * qty;
+      });
+    });
+    return Object.entries(counts)
+      .map(([name, val]) => ({ name, ...val }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [orders]);
 
   // Add Item to Menu
   const handleAddMenuItem = async () => {
@@ -464,6 +513,26 @@ export function FoodDashboard() {
                 <Button variant="ghost" size="sm" className="h-6 text-xs text-orange-600 hover:bg-orange-200" onClick={() => setActiveTableIdForOrder(null)}>Cancel</Button>
               </div>
             )}
+            {/* Top 5 Best Sellers Today */}
+            {bestSellers.length > 0 && (
+              <Card className="bg-amber-500/10 border border-amber-500/20 shadow-sm rounded-xl p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-amber-800 flex items-center gap-1.5">
+                    <TrendingUp className="h-3.5 w-3.5 text-amber-600" /> Top 5 Best-Selling Dishes Today
+                  </h4>
+                  <Badge className="bg-amber-500 text-white border-none text-[9px] font-bold">Kitchen Prep</Badge>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  {bestSellers.map((dish, i) => (
+                    <div key={dish.name} className="bg-white/80 border border-amber-200 p-2 rounded-lg text-center">
+                      <p className="text-[9px] font-black text-amber-700">#{i + 1} {dish.name}</p>
+                      <p className="text-xs font-black text-amber-950 mt-0.5">{dish.count} orders</p>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+
             <div className="flex justify-between items-center">
               <h3 className="font-black uppercase tracking-widest text-slate-500 text-xs">Menu Items</h3>
               <Button size="sm" variant="outline" className="h-8 text-xs font-bold rounded-full" onClick={() => setShowAddMenu(!showAddMenu)}>

@@ -431,6 +431,24 @@ export function GanapDashboard() {
               </div>
 
               {/* Payment Tracking */}
+              {/* Event Countdown & Guest Attendance Progress */}
+              <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-amber-600" />
+                  <span className="text-xs font-black text-amber-900">
+                    {isNaN(new Date(selectedEvent.eventDate).getTime())
+                      ? "Event Schedule Set"
+                      : (Math.ceil((new Date(selectedEvent.eventDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) > 0
+                        ? `⏱️ ${Math.ceil((new Date(selectedEvent.eventDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} Days Countdown`
+                        : "🎉 Event Day / Past Event")}
+                  </span>
+                </div>
+                <Badge className="bg-amber-500 text-white border-none text-[9px] font-bold">
+                  {guests.filter(g => g.checkedIn).length} / {guests.length} Checked In
+                </Badge>
+              </div>
+
+              {/* Milestone Payment Progress */}
               <div className="bg-slate-100 p-3 rounded-lg border border-slate-200 flex flex-col gap-3">
                 <div className="flex justify-between items-center">
                   <div>
@@ -442,6 +460,20 @@ export function GanapDashboard() {
                     <p className="text-lg font-black text-rose-500">
                       ₱{(((selectedEvent.contractPrice || 0) - (selectedEvent.amountPaid || 0)) / 100).toLocaleString()}
                     </p>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                    <span>Downpayment (30%)</span>
+                    <span>Mid-Payment (70%)</span>
+                    <span>Fully Paid (100%)</span>
+                  </div>
+                  <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-emerald-500 transition-all duration-500 rounded-full" 
+                      style={{ width: `${Math.min(100, Math.round(((selectedEvent.amountPaid || 0) / Math.max(1, selectedEvent.contractPrice || 1)) * 100))}%` }} 
+                    />
                   </div>
                 </div>
                 

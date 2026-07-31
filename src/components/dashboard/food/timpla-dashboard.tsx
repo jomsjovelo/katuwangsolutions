@@ -610,6 +610,23 @@ export function TimplaDashboard() {
                             setCart(prev => prev.map(i => i.menuItemId === item.menuItemId ? { ...i, notes: newNotes } : i));
                           }}
                         />
+                        {/* Barista Quick Presets */}
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {['16oz', '22oz', '50% Sugar', 'Less Ice', 'No Sugar', 'Extra Pearl'].map(preset => (
+                            <button
+                              key={preset}
+                              type="button"
+                              onClick={() => {
+                                const current = item.notes || '';
+                                const updated = current ? `${current}, ${preset}` : preset;
+                                setCart(prev => prev.map(i => i.menuItemId === item.menuItemId ? { ...i, notes: updated } : i));
+                              }}
+                              className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[9px] font-bold text-slate-600 transition-colors"
+                            >
+                              +{preset}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     ))}
                   </div>
