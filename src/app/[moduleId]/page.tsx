@@ -2,7 +2,7 @@ import React from 'react';
 import { getActiveAppById, appGroups, activeModules, isValidActiveModuleId, normalizeModuleId } from '@/lib/app-data';
 import { getModulePricing, formatPeso } from '@/lib/pricing';
 import { getModuleTheme } from '@/lib/theme-utils';
-import { getModuleLandingCopy } from '@/lib/module-landing-content';
+import { getModulePartnerCopy } from '@/lib/module-partner-content';
 import { notFound, permanentRedirect } from 'next/navigation';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { Button } from '@/components/ui/button';
@@ -38,14 +38,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const isBudgetMo = foundApp.id === 'budget-mo';
   const pageTitle = isBudgetMo 
     ? `Budget Mo - Personal Cash Flow & Savings Tracker | Katuwang Solutions`
-    : `${foundApp.name} - ${foundApp.tagline} | Katuwang Solutions`;
+    : `${foundApp.name} - Ang Katuwang mo sa Negosyo | Katuwang Solutions`;
 
   return {
     title: pageTitle,
     description: isBudgetMo 
       ? 'Hinto sa pagtataka kung saan napunta ang sweldo mo. I-track ang daily expenses, ipon, at cash flow sa iisang simpleng app sa ₱50/buwan lang!'
-      : `${foundApp.description || foundApp.tagline} Subukan ang ${foundApp.name} sa special promo rate!`,
-    keywords: `${foundApp.name}, Katuwang Solutions, Philippines, ${foundApp.targetUsers?.join(', ')}, pos system, business software, gcash, maya`,
+      : `${foundApp.description || foundApp.tagline} Subukan ang ${foundApp.name} — ang matapat mong Katuwang sa Negosyo sa special promo rate!`,
+    keywords: `${foundApp.name}, Katuwang Solutions, Katuwang mo sa Negosyo, Philippines, ${foundApp.targetUsers?.join(', ')}, pos system, business software, gcash, maya`,
     openGraph: {
       title: `${foundApp.name} by Katuwang Solutions`,
       description: foundApp.tagline,
@@ -80,7 +80,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
 
   const pricing = getModulePricing(foundApp.id);
   const theme = getModuleTheme(foundApp.id);
-  const landingCopy = getModuleLandingCopy(foundApp.id);
+  const partnerCopy = getModulePartnerCopy(foundApp.id);
   const isBudgetMo = foundApp.id === 'budget-mo';
 
   let foundGroup: any = null;
@@ -92,7 +92,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
 
   const Icon = foundApp.icon;
   const primaryColor = theme.primary || foundGroup?.accentColor || '#06B6D4';
-  const headlineParts = landingCopy.headline.split(landingCopy.highlightWord);
+  const headlineParts = partnerCopy.heroHeadline.split(partnerCopy.highlightWord);
 
   // Get cross-sell recommendations from OTHER categories
   const otherGroupApps = activeModules.filter(a => {
@@ -124,7 +124,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
     },
     { 
       q: `Gaano mabilis i-setup ang ${foundApp.name}?`, 
-      a: "Sa loob ng 1 minuto lang! Pagkatapos mag-register, mai-unlock agad ang iyong module dashboard at maaari ka nang mag-benta o mag-monitor." 
+      a: "Sa loob ng 1 minuto lang! Pagkatapos mag-register, mai-unlock agad ang iyong module dashboard at maaari ka nang mag-benta o mag-monitor kasama ang Katuwang mo." 
     },
   ];
 
@@ -145,7 +145,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
         <BrandLogo showText={true} />
         <Link 
           href="/login" 
-          className="text-xs font-black uppercase tracking-wider px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 transition-all text-slate-700"
+          className="text-xs font-black uppercase tracking-wider px-3.5 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 transition-all text-slate-700"
         >
           Login
         </Link>
@@ -168,13 +168,13 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
 
         <div className="max-w-4xl mx-auto px-6 pt-10 pb-14 flex flex-col items-center text-center relative z-10 space-y-5">
           
-          {/* Module Icon + Category Badge */}
+          {/* Module Icon + Partner Category Badge */}
           <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-800 px-4 py-1.5 rounded-full shadow-lg backdrop-blur-xl">
             <div className="h-5 w-5 rounded-full flex items-center justify-center" style={{ backgroundColor: `${primaryColor}30` }}>
               <Icon className="h-3.5 w-3.5" style={{ color: primaryColor }} />
             </div>
             <span className="text-xs font-bold uppercase tracking-widest text-slate-300">
-              {foundGroup?.label || 'Katuwang Ecosystem'} · <span className="font-black text-white">{foundApp.name}</span>
+              🤝 ANG KATUWANG MO SA <span className="font-black text-white">{partnerCopy.partnerCategory.toUpperCase()}</span>
             </span>
           </div>
 
@@ -192,28 +192,31 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
             <span className="line-through opacity-60 font-medium text-[10px] text-slate-400">{formatPeso(pricing.regularMonthlyPrice)}/mo</span>
           </div>
 
-          {/* Main Hero Headline (NO WAVY UNDERLINE!) */}
+          {/* Main Hero Headline (Clean Highlight Box, NO WAVY UNDERLINE) */}
           <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.15] max-w-3xl">
             {headlineParts.length > 1 ? (
               <>
                 {headlineParts[0]}
-                <span className="inline-block font-black px-2 py-0.5 rounded-xl bg-white/10 border border-white/15 shadow-sm" style={{ color: primaryColor }}>
-                  {landingCopy.highlightWord}
+                <span className="inline-block font-black px-2.5 py-0.5 rounded-xl bg-white/10 border border-white/15 shadow-sm" style={{ color: primaryColor }}>
+                  {partnerCopy.highlightWord}
                 </span>
                 {headlineParts[1]}
               </>
             ) : (
-              landingCopy.headline
+              partnerCopy.heroHeadline
             )}
           </h1>
 
           {/* Sub-headline */}
           <p className="text-base sm:text-lg text-slate-300 font-normal max-w-2xl leading-relaxed">
-            {landingCopy.subtitle}
+            {partnerCopy.heroSubtitle}
           </p>
 
-          {/* Trust Chips */}
+          {/* Partner Trust Chips */}
           <div className="flex flex-wrap items-center justify-center gap-2.5 text-xs font-bold text-slate-300 pt-1">
+            <span className="bg-white/10 border border-white/10 px-3.5 py-1.5 rounded-full flex items-center gap-1.5">
+              🤝 Matapat na Katuwang
+            </span>
             <span className="bg-white/10 border border-white/10 px-3.5 py-1.5 rounded-full flex items-center gap-1.5">
               <CheckCircle2 className="h-4 w-4 text-emerald-400" /> 1-Minute Setup
             </span>
@@ -255,7 +258,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
         <section className="space-y-6">
           <div className="text-center space-y-2">
             <h2 className="text-xs font-black uppercase tracking-widest" style={{ color: primaryColor }}>
-              Actual App Preview
+              Tingnan ang Iyong Katuwang sa Action
             </h2>
             <p className="text-2xl sm:text-3xl font-black text-slate-900">Simpleng Gamitin sa Kahit Anong Phone o Laptop</p>
             <p className="text-slate-500 text-xs sm:text-sm">Ito ang makikita mo sa loob ng {foundApp.name} dashboard:</p>
@@ -306,61 +309,41 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
           </div>
         </section>
 
-        {/* ── Problem & Pain Points vs Solution (Dati vs Sa Module) ───────── */}
+        {/* ── Problem & Pain Points vs Solution (Mag-isa Ka Ba Dati? vs May Katuwang Ka Na) ── */}
         <section className="space-y-6">
           <div className="text-center space-y-2">
-            <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">Bakit Kailangan Mo Ito</h2>
-            <p className="text-2xl sm:text-3xl font-black text-slate-900">Dati (Manual Notebook) vs. Sa {foundApp.name}</p>
+            <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">Bakit Kailangan Mo ng Katuwang</h2>
+            <p className="text-2xl sm:text-3xl font-black text-slate-900">Mag-isa Ka Ba Dati? vs. May Katuwang Ka Na sa {foundApp.name}</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Dati (Manual Struggles) */}
+            {/* Dati (Mag-isa Ka Lang) */}
             <div className="bg-rose-50 border border-rose-200 p-6 rounded-3xl space-y-4">
               <div className="flex items-center gap-2 text-rose-700 font-black text-base uppercase tracking-wider">
-                <span className="text-lg">❌</span> DATI (Notebook / Manual Pen & Paper)
+                <span className="text-lg">❌</span> DATI (Mag-isa Ka Lang)
               </div>
               <ul className="space-y-3 text-xs text-rose-950 font-semibold">
-                <li className="flex items-start gap-2">
-                  <X className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
-                  <span>Nawawala o napupunit ang listahan ng benta, paninda, at utang.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <X className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
-                  <span>Matagal mag-kwenta ng kita araw-araw gamit ang calculator.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <X className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
-                  <span>Hindi nalalaman agad kung ano ang paubos na paninda sa bodega.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <X className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
-                  <span>Nalilito sa cashier shift turn-over kapag may kulang o sobra sa pera.</span>
-                </li>
+                {partnerCopy.soloStruggles.map((struggle, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <X className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
+                    <span>{struggle}</span>
+                  </li>
+                ))}
               </ul>
             </div>
 
-            {/* Sa Module (Automated Wins) */}
+            {/* Sa Katuwang (May Kasama Ka Na) */}
             <div className="bg-emerald-50 border-2 border-emerald-300 p-6 rounded-3xl space-y-4 shadow-sm">
               <div className="flex items-center gap-2 text-emerald-800 font-black text-base uppercase tracking-wider">
-                <span className="text-lg">✅</span> SA {foundApp.name.toUpperCase()}
+                <span className="text-lg">🤝</span> MAY KATUWANG KA NA SA {foundApp.name.toUpperCase()}
               </div>
               <ul className="space-y-3 text-xs text-emerald-950 font-bold">
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <span>Awtomatikong naka-save ang transaksyon — ligtas sa kahit anong aksidente.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <span>Instant ang kwenta ng Gross Revenue, Expenses, at Net Profit.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <span>May Low-Stock Alerts para alam mo kung kailan kailangan mag-restock.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <span>Gumagana sa kahit anong phone, tablet, o laptop — kahit offline!</span>
-                </li>
+                {partnerCopy.partnerWins.map((win, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span>{win}</span>
+                  </li>
+                ))}
               </ul>
             </div>
           </div>
@@ -370,9 +353,9 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
         <section className="space-y-6">
           <div className="text-center space-y-2">
             <h2 className="text-xs font-black uppercase tracking-widest" style={{ color: primaryColor }}>
-              Mga Tampok na Feature
+              Paano Ka Tutulungan ng Katuwang Mo
             </h2>
-            <p className="text-2xl sm:text-3xl font-black text-slate-900">Lahat ng Kailangan Mo sa Iisang App</p>
+            <p className="text-2xl sm:text-3xl font-black text-slate-900">Lahat ng Kailangan ng Negosyo Mo sa Iisang App</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -390,7 +373,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
                 <div className="space-y-1">
                   <h3 className="font-black text-slate-900 text-base">{feat}</h3>
                   <p className="text-xs text-slate-500 leading-relaxed">
-                    Dinisenyo para sa mabilis at madaling paggamit araw-araw nang walang kalituhan.
+                    Tutulungan ka ng Katuwang mo para mabilis, malinis, at walang kalituhan ang bawat transaksyon.
                   </p>
                 </div>
               </div>
@@ -401,7 +384,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
           {foundApp.targetUsers && foundApp.targetUsers.length > 0 && (
             <div className="bg-slate-100 p-4 rounded-2xl text-center space-y-2">
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                PERFECT PARA SA:
+                PERFECT NA KATUWANG PARA SA:
               </span>
               <div className="flex flex-wrap items-center justify-center gap-2">
                 {foundApp.targetUsers.map((userType, i) => (
@@ -418,8 +401,8 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
         {foundApp.howItWorks && foundApp.howItWorks.length > 0 && (
           <section className="space-y-6">
             <div className="text-center space-y-2">
-              <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">Paano Ito Gamitin</h2>
-              <p className="text-2xl sm:text-3xl font-black text-slate-900">3 Mabilis na Hakbang</p>
+              <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">Paano Magsimula</h2>
+              <p className="text-2xl sm:text-3xl font-black text-slate-900">3 Mabilis na Hakbang Kasama ang Katuwang Mo</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {foundApp.howItWorks.map((hw: { step: string; detail: string }, idx: number) => (
@@ -436,8 +419,8 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
         {/* ── Comparison Table Matrix ─────────────────────────────────────── */}
         <section className="space-y-6">
           <div className="text-center space-y-2">
-            <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">Perpektong Paghahambing</h2>
-            <p className="text-2xl sm:text-3xl font-black text-slate-900">Bakit Mas Maganda ang {foundApp.name}</p>
+            <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">Paghahambing sa Pamamahala</h2>
+            <p className="text-2xl sm:text-3xl font-black text-slate-900">Bakit Mas Maganda Kapag May Katuwang Ka</p>
           </div>
 
           <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
@@ -446,10 +429,10 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
                 <thead>
                   <tr className="bg-slate-900 text-white text-xs uppercase tracking-wider">
                     <th className="p-4 font-black">Feature / Bentahe</th>
-                    <th className="p-4 font-black opacity-60">Manual Notebook</th>
-                    <th className="p-4 font-black opacity-60">Generic Excel</th>
+                    <th className="p-4 font-black opacity-60">Notebook (Mag-isa Ka)</th>
+                    <th className="p-4 font-black opacity-60">Generic Software</th>
                     <th className="p-4 font-black text-amber-300" style={{ backgroundColor: `${primaryColor}30` }}>
-                      {foundApp.name}
+                      🤝 Katuwang Solutions
                     </th>
                   </tr>
                 </thead>
@@ -501,7 +484,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
         {/* ── FAQ Section ─────────────────────────────────────────────────── */}
         <section className="space-y-6 pt-4">
           <div className="text-center space-y-2">
-            <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">Mga Madalas Itanong</h2>
+            <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">Mga Madalas Itanong ng Negosyante</h2>
             <p className="text-2xl sm:text-3xl font-black text-slate-900">Frequently Asked Questions (FAQ)</p>
           </div>
 
@@ -534,7 +517,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
               Subukan ang {foundApp.name} Ngayon!
             </h2>
             <p className="text-slate-300 text-xs sm:text-sm mb-6 relative z-10 max-w-lg mx-auto">
-              Simulan ang paggamit sa loob ng 1 minuto sa aming promo rate na <strong>{formatPeso(pricing.promotionalMonthlyPrice)}/buwan</strong>. Walang credit card required!
+              Simulan ang paggamit kasama ang iyong Katuwang sa loob ng 1 minuto sa aming promo rate na <strong>{formatPeso(pricing.promotionalMonthlyPrice)}/buwan</strong>. Walang credit card required!
             </p>
             
             <div className="flex flex-col items-center gap-4 relative z-10">
@@ -572,7 +555,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
               <span className="text-[10px] font-black uppercase tracking-wider">Katuwang Ecosystem</span>
             </div>
             <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              Tingnan ang iba pang modules ng Katuwang
+              Tingnan ang iba pang Katuwang sa Negosyo
             </h3>
             <p className="text-xs sm:text-sm text-slate-500 max-w-lg mx-auto">
               Pumili sa 19 na business modules para sa tindahan, kainan, at serbisyo — plus ang Budget Mo para sa personal mong Budget.
@@ -621,7 +604,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
               href="/#products"
               className="inline-flex items-center gap-2 rounded-2xl border border-slate-300 bg-white text-slate-800 font-bold px-6 py-3 text-xs sm:text-sm hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
             >
-              <span>Tingnan ang Lahat ng Modules</span>
+              <span>Tingnan ang Lahat ng Katuwang Modules</span>
               <ArrowRight className="h-4 w-4 text-cyan-600" />
             </Link>
           </div>
@@ -635,7 +618,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
             <BrandLogo theme="dark" />
           </div>
           <p className="text-slate-500 text-[9px] font-bold uppercase tracking-[0.35em] leading-loose">
-            <span translate="no" className="notranslate">Katuwang Solutions</span> · Industrial Framework v1.2<br />
+            <span translate="no" className="notranslate">Katuwang Solutions</span> · Ang Katuwang mo sa Negosyo<br />
             &copy; {new Date().getFullYear()} All Rights Reserved.
           </p>
         </div>
@@ -644,7 +627,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
       {/* Mobile & Desktop Sticky Conversion Bar */}
       <ModuleStickyBar
         moduleId={foundApp.id}
-        moduleName={foundApp.name}
+        moduleName={`Katuwang: ${foundApp.name}`}
         priceText={`${formatPeso(pricing.promotionalMonthlyPrice)}/buwan`}
         accentColor={primaryColor}
       />
