@@ -50,7 +50,9 @@ const AppointmentCard = ({ appointment, actions, isOwner, onDelete }: { appointm
 
   React.useEffect(() => {
     if (appointment.status === 'In Session' && appointment.sessionEndTime) {
-      const endTime = appointment.sessionEndTime.toDate ? appointment.sessionEndTime.toDate().getTime() : new Date(appointment.sessionEndTime).getTime();
+      const endTime = appointment.sessionEndTime?.toDate 
+        ? appointment.sessionEndTime.toDate().getTime() 
+        : new Date(appointment.sessionEndTime || Date.now()).getTime();
       
       const updateTimer = () => {
         const now = Date.now();
