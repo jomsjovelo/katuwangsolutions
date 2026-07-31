@@ -117,14 +117,16 @@ const JobCard = ({ job, moveJob, theme, isProcessing, isOwner, handleDeleteJob, 
         </Button>
       )}
       {job.status === 'in_progress' && (
-        <Button 
-          disabled={isProcessing} 
-          size="sm" 
-          onClick={() => moveJob(job, 'completed_unpaid')} 
-          className="w-full h-8 text-[10px] font-bold uppercase tracking-widest text-emerald-600 border-emerald-200 bg-emerald-50"
-        >
-          Mark Completed
-        </Button>
+        <div className="space-y-1 w-full">
+          <Button 
+            disabled={isProcessing} 
+            size="sm" 
+            onClick={() => moveJob(job, 'completed_unpaid')} 
+            className="w-full h-8 text-[10px] font-bold uppercase tracking-widest text-emerald-600 border-emerald-200 bg-emerald-50"
+          >
+            Mark Completed
+          </Button>
+        </div>
       )}
       {job.status === 'completed_unpaid' && (
         <div className="flex flex-col gap-2 w-full">

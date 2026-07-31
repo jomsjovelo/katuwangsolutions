@@ -154,6 +154,7 @@ export function AutoBossDashboard() {
   // Carwash State
   const { scheduledOrders, queuedOrders, washingOrders, dryingOrders, readyOrders, loading, error: carwashError } = useCarwashOrders();
   const [bayAssignments, setBayAssignments] = useState<Record<string, string>>({});
+  const [searchQuery, setSearchQuery] = useState('');
 
   React.useEffect(() => {
     if (carwashError) {
@@ -389,6 +390,16 @@ export function AutoBossDashboard() {
             <Plus className="h-4 w-4" />
           </Button>
         </section>
+
+        {/* Plate Number Search Bar */}
+        <div className="relative">
+          <Input 
+            placeholder="🔍 Search Plate Number or Customer Name..." 
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="h-10 pl-3 bg-white border-slate-200 text-xs font-bold rounded-xl uppercase"
+          />
+        </div>
 
         {showAddForm && (
           <Card className="shadow-sm border-slate-200 bg-white border-l-4" style={{ borderLeftColor: theme.primary }}>
