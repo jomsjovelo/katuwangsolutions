@@ -64,10 +64,20 @@ const TripCard = React.memo(({
             </Button>
           )}
         </div>
-        <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
-          <Banknote className="h-3 w-3" />
-          ₱{((trip.deliveryFee || 0) / 100).toLocaleString()} Fee
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
+            <Banknote className="h-3 w-3" />
+            ₱{((trip.deliveryFee || 0) / 100).toLocaleString()} Fee
+          </span>
+          {(() => {
+            const netCentavos = (trip.deliveryFee || 0) - (trip.tripExpenses || 0);
+            return (
+              <Badge className={cn("text-[9px] font-black border-none", netCentavos >= 0 ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800")}>
+                {netCentavos >= 0 ? `+₱${(netCentavos/100).toLocaleString()} Net` : `-₱${(Math.abs(netCentavos)/100).toLocaleString()} Loss`}
+              </Badge>
+            );
+          })()}
+        </div>
       </div>
 
       {/* Route Info */}
@@ -152,6 +162,18 @@ const TripCard = React.memo(({
               >
                 Add
               </Button>
+            </div>
+            <div className="flex gap-1 pt-1">
+              {[{ label: '₱500 Fuel', amt: 500 }, { label: '₱200 Toll', amt: 200 }, { label: '₱150 Meals', amt: 150 }].map(preset => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => setExpenseInputForTrip(trip.id, preset.amt)}
+                  className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[9px] font-bold text-slate-600 transition-colors"
+                >
+                  +{preset.label}
+                </button>
+              ))}
             </div>
           </div>
         )}

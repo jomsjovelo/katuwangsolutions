@@ -383,6 +383,28 @@ export function RentalDashboard() {
       {activeTab === 'active' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in zoom-in-95 duration-300">
           <div className="lg:col-span-2 space-y-4">
+            {/* Overdue Alert Banner */}
+            {(() => {
+              const today = new Date();
+              const overdueCount = activeBookings.filter((b: any) => {
+                const endDate = b.endDate && typeof b.endDate === 'object' && 'toDate' in b.endDate ? b.endDate.toDate() : new Date(b.endDate);
+                return today.getTime() > endDate.getTime() + 86400000;
+              }).length;
+
+              if (overdueCount === 0) return null;
+              return (
+                <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-xl flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-red-600" />
+                    <span className="text-xs font-black text-red-900">
+                      ⚠️ {overdueCount} {overdueCount === 1 ? 'Item is' : 'Items are'} Overdue for Return!
+                    </span>
+                  </div>
+                  <Badge className="bg-red-500 text-white border-none text-[9px] font-bold">Action Required</Badge>
+                </div>
+              );
+            })()}
+
             <Card className="shadow-sm border-slate-100">
               <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
                 <div>

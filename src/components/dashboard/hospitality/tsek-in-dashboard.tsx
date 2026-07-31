@@ -176,6 +176,21 @@ export function TsekInRoomsDashboard() {
           </Button>
         </div>
       </div>
+      {/* Room Occupancy Summary Strip */}
+      <div className="bg-slate-100 p-3 rounded-2xl border border-slate-200 flex flex-wrap gap-4 items-center justify-between">
+        <div className="flex gap-4 text-xs font-bold">
+          <span className="flex items-center gap-1.5 text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+            🟢 Available: {rooms.filter(r => r.status === 'Available').length}
+          </span>
+          <span className="flex items-center gap-1.5 text-rose-700 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200">
+            🔴 Occupied: {rooms.filter(r => r.status === 'Occupied').length}
+          </span>
+          <span className="flex items-center gap-1.5 text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+            🟡 Cleaning: {rooms.filter(r => r.status === 'Cleaning').length}
+          </span>
+        </div>
+        <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Total: {rooms.length} Rooms</span>
+      </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
           {roomToDelete && (
