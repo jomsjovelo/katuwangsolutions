@@ -264,6 +264,22 @@ export function LedgerDashboard() {
     return { days: Object.entries(days), maxVal };
   }, [transactions]);
 
+  const categoryBreakdown = React.useMemo(() => {
+    const expenseByCat: Record<string, number> = {};
+    const incomeByCat: Record<string, number> = {};
+
+    transactions.forEach((t: any) => {
+      const cat = t.category || 'Uncategorized';
+      if (t.type === 'expense') {
+        expenseByCat[cat] = (expenseByCat[cat] || 0) + t.amount;
+      } else if (t.type === 'income') {
+        incomeByCat[cat] = (incomeByCat[cat] || 0) + t.amount;
+      }
+    });
+
+    return { expenseByCat, incomeByCat };
+  }, [transactions]);
+
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-screen">
       <main className="p-4 space-y-4 pb-24">
@@ -454,27 +470,53 @@ export function LedgerDashboard() {
           </CardContent>
         </Card>
 
-        {/* Weekly Chart */}
-        <Card className="bg-white border-slate-200 shadow-sm">
-          <CardContent className="p-4">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4">Last 7 Days (Income vs Expense)</h4>
-            <div className="flex items-end justify-between h-32 gap-2">
-              {chartData.days.map(([day, vals]) => {
-                const incHeight = Math.max((vals.inc / chartData.maxVal) * 100, 4);
-                const expHeight = Math.max((vals.exp / chartData.maxVal) * 100, 4);
-                return (
-                  <div key={day} className="flex-1 flex flex-col items-center gap-2">
-                    <div className="w-full flex justify-center gap-1 h-24 items-end">
-                      <div className="w-2.5 bg-emerald-400 rounded-t-sm" style={{ height: `${incHeight}%` }} />
-                      <div className="w-2.5 bg-rose-400 rounded-t-sm" style={{ height: `${expHeight}%` }} />
+        {/* Weekly Chart & Category Breakdown */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Card className="bg-white border-slate-200 shadow-sm">
+            <CardContent className="p-4">
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4">Last 7 Days (Income vs Expense)</h4>
+              <div className="flex items-end justify-between h-32 gap-2">
+                {chartData.days.map(([day, vals]) => {
+                  const incHeight = Math.max((vals.inc / chartData.maxVal) * 100, 4);
+                  const expHeight = Math.max((vals.exp / chartData.maxVal) * 100, 4);
+                  return (
+                    <div key={day} className="flex-1 flex flex-col items-center gap-2">
+                      <div className="w-full flex justify-center gap-1 h-24 items-end">
+                        <div className="w-2.5 bg-emerald-400 rounded-t-sm" style={{ height: `${incHeight}%` }} />
+                        <div className="w-2.5 bg-rose-400 rounded-t-sm" style={{ height: `${expHeight}%` }} />
+                      </div>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase">{day}</span>
                     </div>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase">{day}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white border-slate-200 shadow-sm p-4 space-y-3">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Spending Breakdown by Category</h4>
+            {Object.keys(categoryBreakdown.expenseByCat).length === 0 ? (
+              <p className="text-xs text-slate-400 italic py-4 text-center">No expenses recorded yet</p>
+            ) : (
+              <div className="space-y-2">
+                {Object.entries(categoryBreakdown.expenseByCat).map(([cat, centavos]) => {
+                  const pct = Math.round((centavos / Math.max(1, recentExpense)) * 100);
+                  return (
+                    <div key={cat} className="space-y-1">
+                      <div className="flex justify-between text-xs font-bold">
+                        <span className="text-slate-700">{cat}</span>
+                        <span className="text-rose-600">₱{(centavos / 100).toLocaleString()} ({pct}%)</span>
+                      </div>
+                      <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-rose-500 rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+        </div>
 
         {/* Transaction History */}
         <section className="space-y-2">

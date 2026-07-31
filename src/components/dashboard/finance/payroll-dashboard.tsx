@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { useToast } from '@/hooks/use-toast';
+import { PayslipModal } from './payslip-modal';
 import { 
   Users, 
   UserPlus,
@@ -27,7 +28,10 @@ import {
   AlertCircle,
   CheckCircle2,
   Wallet,
-  Trash2
+  Trash2,
+  FileText,
+  Gift,
+  Clock
 } from "lucide-react";
 
 export function PayrollDashboard() {
@@ -107,13 +111,15 @@ export function PayrollDashboard() {
     }
   };
 
-  // --- Per-Employee State (days worked, vale input) ---
+  // --- Per-Employee State (days worked, vale input, overtime, payslip) ---
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [daysInputs, setDaysInputs] = useState<Record<string, number | ''>>({});
+  const [overtimeInputs, setOvertimeInputs] = useState<Record<string, number | ''>>({});
   const [commissionsInputs, setCommissionsInputs] = useState<Record<string, number | ''>>({});
   const [valeInputs, setValeInputs] = useState<Record<string, number | ''>>({});
   const [applyDeductionsInputs, setApplyDeductionsInputs] = useState<Record<string, boolean>>({});
   const [payingId, setPayingId] = useState<string | null>(null);
+  const [selectedPayslipEmp, setSelectedPayslipEmp] = useState<any>(null);
 
   const handlePayNow = async (emp: any) => {
     if (!currentTenant) return;
@@ -350,18 +356,51 @@ export function PayrollDashboard() {
               </div>
             </div>
 
-            <Button
-              className="w-full h-9 text-sm font-bold text-white"
-              style={{ backgroundColor: theme.primary }}
-              onClick={() => handlePayNow(emp)}
-              disabled={isPaying || netPay <= 0}
-            >
-              {isPaying ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing...</>
-              ) : (
-                <><Banknote className="h-4 w-4 mr-2" /> Pay ₱{netPay.toLocaleString(undefined, { minimumFractionDigits: 2 })} Now</>
-              )}
-            </Button>
+            <div className="flex gap-2">
+              <div className="flex-1 space-y-1">
+                <Label htmlFor={`ot-${emp.id}`} className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  Overtime (Hours)
+                </Label>
+                <Input
+                  id={`ot-${emp.id}`}
+                  name={`ot-${emp.id}`}
+                  type="number"
+                  placeholder="0"
+                  className="h-9 text-sm"
+                  value={overtimeInputs[emp.id] ?? ''}
+                  onChange={e => setOvertimeInputs(prev => ({ ...prev, [emp.id]: parseFloat(e.target.value) || '' }))}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button
+                variant="outline"
+                className="flex-1 h-9 text-xs font-bold border-slate-300 text-slate-700 bg-white"
+                onClick={() => setSelectedPayslipEmp({
+                  ...emp,
+                  daysWorked: days,
+                  overtimeHours: Number(overtimeInputs[emp.id] || 0),
+                  commissionsPesos: commissions,
+                  valeDeductionPesos: vale,
+                  applyStatutory: applyDeductions
+                })}
+              >
+                <FileText className="h-3.5 w-3.5 mr-1.5 text-slate-500" /> View Payslip
+              </Button>
+              <Button
+                className="flex-1 h-9 text-xs font-bold text-white"
+                style={{ backgroundColor: theme.primary }}
+                onClick={() => handlePayNow(emp)}
+                disabled={isPaying || netPay <= 0}
+              >
+                {isPaying ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing...</>
+                ) : (
+                  <><Banknote className="h-4 w-4 mr-2" /> Pay ₱{netPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</>
+                )}
+              </Button>
+            </div>
           </div>
         )}
       </Card>
@@ -456,19 +495,36 @@ export function PayrollDashboard() {
           </Card>
         )}
 
-        {/* Summary Banner */}
-        <Card className={cn("text-white border-none shadow-xl overflow-hidden bg-gradient-to-br", theme.primaryBg, theme.glowClass)}>
-          <div className="absolute right-0 top-0 h-32 w-32 translate-x-8 -translate-y-8 rounded-full bg-white/5 blur-2xl" />
-          <CardContent className="p-4 relative z-10">
-            <p className="text-[10px] font-black uppercase tracking-widest text-white/70">Est. Payroll This Period</p>
-            <p className="text-4xl font-black font-headline tracking-tighter mt-1">
-              ₱{(totalEstimatedPayroll / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+        {/* Summary Banner & 13th Month Accrual */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Card className={cn("text-white border-none shadow-xl overflow-hidden bg-gradient-to-br", theme.primaryBg, theme.glowClass)}>
+            <div className="absolute right-0 top-0 h-32 w-32 translate-x-8 -translate-y-8 rounded-full bg-white/5 blur-2xl" />
+            <CardContent className="p-4 relative z-10">
+              <p className="text-[10px] font-black uppercase tracking-widest text-white/70">Est. Payroll This Period</p>
+              <p className="text-3xl font-black font-headline tracking-tighter mt-1">
+                ₱{(totalEstimatedPayroll / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+              </p>
+              <Badge className="mt-2 bg-white/10 text-white border-none backdrop-blur-sm">
+                <Users className="h-3 w-3 mr-1" /> {activeEmployees.length} Active Staff
+              </Badge>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-amber-500/10 border border-amber-500/20 shadow-sm rounded-2xl p-4 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">13th Month Pay Reserve</p>
+                <Gift className="h-4 w-4 text-amber-600" />
+              </div>
+              <p className="text-2xl font-black font-headline text-amber-900 mt-1">
+                ₱{Math.round((totalEstimatedPayroll / 100) / 12).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+            <p className="text-[10px] text-amber-700/80 font-medium mt-2">
+              Monthly accrued liability reserve to prevent year-end cash crunch.
             </p>
-            <Badge className="mt-2 bg-white/10 text-white border-none backdrop-blur-sm">
-              <Users className="h-3 w-3 mr-1" /> {activeEmployees.length} Active Staff
-            </Badge>
-          </CardContent>
-        </Card>
+          </Card>
+        </div>
 
         {/* Employee Roster */}
         <section className="space-y-3">
@@ -495,6 +551,22 @@ export function PayrollDashboard() {
         </section>
 
       </main>
+
+      {selectedPayslipEmp && (
+        <PayslipModal
+          isOpen={!!selectedPayslipEmp}
+          onClose={() => setSelectedPayslipEmp(null)}
+          employee={selectedPayslipEmp}
+          daysWorked={selectedPayslipEmp.daysWorked || 0}
+          overtimeHours={selectedPayslipEmp.overtimeHours || 0}
+          commissionsPesos={selectedPayslipEmp.commissionsPesos || 0}
+          valeDeductionPesos={selectedPayslipEmp.valeDeductionPesos || 0}
+          applyStatutory={selectedPayslipEmp.applyStatutory || false}
+          tenantName={currentTenant?.name || "Katuwang Store"}
+          theme={theme}
+        />
+      )}
+
     </div>
   );
 }

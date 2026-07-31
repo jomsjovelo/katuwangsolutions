@@ -391,9 +391,18 @@ export function FiveSixDashboard() {
 
   // Feature States
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedRouteArea, setSelectedRouteArea] = useState<string>('all');
   const [ledgerHistory, setLedgerHistory] = useState<CreditTransaction[]>([]);
   const [loadingLedger, setLoadingLedger] = useState(false);
   const [editingTx, setEditingTx] = useState<CreditTransaction | null>(null);
+
+  const uniqueAreas = React.useMemo(() => {
+    const areas = new Set<string>();
+    borrowers.forEach((b: any) => {
+      if (b.area && b.area.trim()) areas.add(b.area.trim());
+    });
+    return Array.from(areas);
+  }, [borrowers]);
 
   // Notification overlays
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -558,6 +567,10 @@ export function FiveSixDashboard() {
       (b.area && b.area.toLowerCase().includes(searchQuery.toLowerCase()))
     );
 
+    if (selectedRouteArea && selectedRouteArea !== 'all') {
+      filteredBorrowers = filteredBorrowers.filter(b => b.area && b.area.trim().toLowerCase() === selectedRouteArea.toLowerCase());
+    }
+
     if (collectTodayMode) {
       filteredBorrowers = filteredBorrowers.filter(b => b.status === 'active');
       // Sort by daily due descending for easier high-value collection first
@@ -565,7 +578,7 @@ export function FiveSixDashboard() {
     }
 
     return { activeDebtors, totalCollectiblesTodayPesos, filteredBorrowers };
-  }, [borrowers, searchQuery, collectTodayMode]);
+  }, [borrowers, searchQuery, collectTodayMode, selectedRouteArea]);
 
   // Add Borrower Submit
   const handleAddBorrower = async (e: React.FormEvent) => {
@@ -1035,6 +1048,39 @@ export function FiveSixDashboard() {
             </div>
           </div>
           
+          {/* Area / Barangay Route Filter Pills */}
+          {uniqueAreas.length > 0 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+              <span className="text-[10px] font-black uppercase text-slate-400 shrink-0">Route:</span>
+              <button
+                onClick={() => setSelectedRouteArea('all')}
+                className={cn(
+                  "px-2.5 py-1 rounded-full text-[10px] font-bold border shrink-0 transition-colors cursor-pointer",
+                  selectedRouteArea === 'all'
+                    ? "bg-slate-900 text-white border-slate-900"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                )}
+              >
+                Lahat ng Barangay ({borrowers.length})
+              </button>
+              {uniqueAreas.map(area => (
+                <button
+                  key={area}
+                  onClick={() => setSelectedRouteArea(area)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full text-[10px] font-bold border shrink-0 transition-colors cursor-pointer flex items-center gap-1",
+                    selectedRouteArea === area
+                      ? "bg-slate-900 text-white border-slate-900"
+                      : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                  )}
+                >
+                  <MapPin className="h-2.5 w-2.5" />
+                  {area} ({borrowers.filter(b => b.area === area).length})
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
             <Input 
