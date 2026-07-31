@@ -342,7 +342,7 @@ export function TimplaDashboard() {
     setCart(prev => prev.filter(i => i.menuItemId !== menuItemId));
   };
 
-  const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const cartTotal = cart.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0);
 
   const handleCheckout = async (paymentMethod: string = 'cash', gcashRef?: string) => {
     if (!currentTenant || cart.length === 0) return;

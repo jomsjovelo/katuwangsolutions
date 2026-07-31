@@ -47,9 +47,15 @@ import {
 
 const getElapsedMinutes = (timestamp: any) => {
   if (!timestamp) return 0;
-  const createdDate = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-  const diffMs = Date.now() - createdDate.getTime();
-  return Math.max(0, Math.floor(diffMs / (1000 * 60)));
+  try {
+    const createdDate = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    const time = createdDate.getTime();
+    if (isNaN(time)) return 0;
+    const diffMs = Date.now() - time;
+    return Math.max(0, Math.floor(diffMs / (1000 * 60)));
+  } catch {
+    return 0;
+  }
 };
 
 const PendingOrderCard = React.memo(({ order, theme, isOwner, handleDeleteOrder, moveOrder, isProcessing }: any) => {
