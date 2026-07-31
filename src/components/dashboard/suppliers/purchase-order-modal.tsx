@@ -75,16 +75,28 @@ export function PurchaseOrderModal({ isOpen, onClose, suppliers }: PurchaseOrder
       return;
     }
 
-    setItems(prev => [
-      ...prev,
-      {
-        productId: prod.id || '',
-        productName: prod.name,
-        quantity: qty,
-        unitCostPeso: cost.toFixed(2),
-        unitSalePricePeso: (prod.salePrice / 100).toFixed(2),
+    setItems(prev => {
+      const existingIdx = prev.findIndex(item => item.productId === (prod.id || ''));
+      if (existingIdx >= 0) {
+        const updated = [...prev];
+        updated[existingIdx] = {
+          ...updated[existingIdx],
+          quantity: updated[existingIdx].quantity + qty,
+          unitCostPeso: cost.toFixed(2),
+        };
+        return updated;
       }
-    ]);
+      return [
+        ...prev,
+        {
+          productId: prod.id || '',
+          productName: prod.name,
+          quantity: qty,
+          unitCostPeso: cost.toFixed(2),
+          unitSalePricePeso: (prod.salePrice / 100).toFixed(2),
+        }
+      ];
+    });
 
     // Reset inputs
     setSelectedProductId('');
