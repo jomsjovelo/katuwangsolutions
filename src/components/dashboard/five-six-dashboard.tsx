@@ -352,6 +352,43 @@ export function FiveSixDashboard() {
   // Credit Stats
   const { totalCapitalPesos, cashOnHandPesos, totalOutstandingPesos, generatedRevenuePesos, loading: statsLoading } = useCreditStats();
 
+  const parStats = React.useMemo(() => {
+    let healthyCount = 0;
+    let watchlistCount = 0;
+    let highRiskCount = 0;
+    let expectedTodayPesos = 0;
+    let collectedTodayPesos = 0;
+
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    borrowers.forEach((b: any) => {
+      const dailyDue = (b.dailyDue || 0) / 100;
+      if (b.status === 'fully_paid') {
+        healthyCount++;
+        return;
+      }
+      const lastPayDate = b.lastPaymentDate ? b.lastPaymentDate.toDate() : (b.createdAt?.toDate() || today);
+      lastPayDate.setHours(0,0,0,0);
+      const diffDays = Math.floor((today.getTime() - lastPayDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (diffDays <= 0) {
+        healthyCount++;
+        collectedTodayPesos += dailyDue;
+      } else if (diffDays <= 7) {
+        watchlistCount++;
+      } else {
+        highRiskCount++;
+      }
+
+      expectedTodayPesos += dailyDue;
+    });
+
+    const efficiencyRate = expectedTodayPesos > 0 ? Math.min(100, Math.round((collectedTodayPesos / expectedTodayPesos) * 100)) : 100;
+
+    return { healthyCount, watchlistCount, highRiskCount, expectedTodayPesos, collectedTodayPesos, efficiencyRate };
+  }, [borrowers]);
+
   // Feature States
   const [searchQuery, setSearchQuery] = useState('');
   const [ledgerHistory, setLedgerHistory] = useState<CreditTransaction[]>([]);
@@ -926,6 +963,47 @@ export function FiveSixDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* PAR (Portfolio at Risk) & Collection Efficiency Analytics */}
+        <Card className="shadow-sm border-slate-200/80 rounded-2xl bg-white p-4 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-amber-50 text-amber-600">
+                <AlertTriangle className="h-4 w-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">Portfolio at Risk (PAR) & Collection Efficiency</h4>
+                <p className="text-[10px] text-slate-400 font-medium">Real-time borrower credit health and daily collection rate</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-xs font-black">
+              <span className="text-slate-500">Collection Rate:</span>
+              <Badge className={cn(
+                "text-[10px] font-black px-2 py-0.5 rounded-full border-none",
+                parStats.efficiencyRate >= 80 ? "bg-emerald-100 text-emerald-800" :
+                parStats.efficiencyRate >= 50 ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-800"
+              )}>
+                {parStats.efficiencyRate}% ({parStats.collectedTodayPesos.toLocaleString()} / ₱{parStats.expectedTodayPesos.toLocaleString()})
+              </Badge>
+            </div>
+          </div>
+
+          {/* PAR Risk Badges Grid */}
+          <div className="grid grid-cols-3 gap-2 pt-1">
+            <div className="bg-emerald-50/60 border border-emerald-100 p-2.5 rounded-xl text-center">
+              <p className="text-[9px] font-black uppercase text-emerald-700">🟢 Healthy (Current)</p>
+              <p className="text-lg font-black text-emerald-800 mt-0.5">{parStats.healthyCount}</p>
+            </div>
+            <div className="bg-amber-50/60 border border-amber-100 p-2.5 rounded-xl text-center">
+              <p className="text-[9px] font-black uppercase text-amber-700">🟡 Watchlist (1-7 Days)</p>
+              <p className="text-lg font-black text-amber-800 mt-0.5">{parStats.watchlistCount}</p>
+            </div>
+            <div className="bg-red-50/60 border border-red-100 p-2.5 rounded-xl text-center">
+              <p className="text-[9px] font-black uppercase text-red-700">🔴 At Risk (&gt;7 Days)</p>
+              <p className="text-lg font-black text-red-800 mt-0.5">{parStats.highRiskCount}</p>
+            </div>
+          </div>
+        </Card>
 
 
         {/* Main Borrowers Roster Section */}

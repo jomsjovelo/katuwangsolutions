@@ -202,7 +202,14 @@ export function PayrollDashboard() {
             {emp.name.charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
-            <h4 className="text-sm font-bold text-slate-800 truncate">{emp.name}</h4>
+            <div className="flex items-center gap-1.5">
+              <h4 className="text-sm font-bold text-slate-800 truncate">{emp.name}</h4>
+              {((emp.outstandingVale || 0) / 100) > (rateDisplay * 0.5) && (
+                <Badge variant="destructive" className="text-[8px] font-black uppercase px-1.5 py-0 bg-red-100 text-red-700 border-none">
+                  ⚠️ High Vale
+                </Badge>
+              )}
+            </div>
             <p className="text-[10px] text-slate-500 font-medium">
               {emp.position || 'Staff'} • ₱{rateDisplay.toLocaleString()}/{emp.salaryType === 'daily' ? 'day' : 'month'}
             </p>

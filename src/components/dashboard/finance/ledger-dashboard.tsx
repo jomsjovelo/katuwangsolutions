@@ -138,6 +138,21 @@ export function LedgerDashboard() {
     return { recentIncome, recentExpense, transactions };
   }, [txSnapshot]);
 
+  const pnlMetrics = React.useMemo(() => {
+    const netProfit = recentIncome - recentExpense;
+    const netMarginPct = recentIncome > 0 ? Math.round((netProfit / recentIncome) * 100) : 0;
+    const dailyBurnRate = Math.round((recentExpense / 7) / 100);
+    
+    let healthStatus: 'healthy' | 'warning' | 'critical' = 'healthy';
+    if (netProfit < 0 || netMarginPct < 5) {
+      healthStatus = 'critical';
+    } else if (netMarginPct < 20) {
+      healthStatus = 'warning';
+    }
+
+    return { netProfit, netMarginPct, dailyBurnRate, healthStatus };
+  }, [recentIncome, recentExpense]);
+
   // --- Add Entry Form ---
   const [showForm, setShowForm] = useState(false);
   const [entryType, setEntryType] = useState<'income' | 'expense'>('income');
@@ -402,7 +417,7 @@ export function LedgerDashboard() {
             )}>
               ₱{(trueCashBalance / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
             </p>
-            <div className="flex gap-3 mt-3">
+            <div className="flex flex-wrap gap-2.5 mt-3">
               <div className="bg-white/10 rounded-lg px-3 py-1.5 backdrop-blur-sm">
                 <p className="text-[9px] text-white/60 uppercase tracking-wider font-bold">Recent Income</p>
                 <p className="text-sm font-black text-emerald-300">+₱{(recentIncome / 100).toLocaleString('en-PH')}</p>
@@ -412,14 +427,29 @@ export function LedgerDashboard() {
                 <p className="text-sm font-black text-red-300">-₱{(recentExpense / 100).toLocaleString('en-PH')}</p>
               </div>
               <div className="bg-white/10 rounded-lg px-3 py-1.5 backdrop-blur-sm">
-                <p className="text-[9px] text-white/60 uppercase tracking-wider font-bold">Net Profit (P&L)</p>
+                <p className="text-[9px] text-white/60 uppercase tracking-wider font-bold">Net Margin (P&L)</p>
                 <p className={cn(
-                  "text-sm font-black",
-                  (recentIncome - recentExpense) >= 0 ? "text-emerald-300" : "text-red-300"
+                  "text-sm font-black flex items-center gap-1",
+                  pnlMetrics.netProfit >= 0 ? "text-emerald-300" : "text-red-300"
                 )}>
-                  {(recentIncome - recentExpense) >= 0 ? '+' : '-'}₱{(Math.abs(recentIncome - recentExpense) / 100).toLocaleString('en-PH')}
+                  {pnlMetrics.netProfit >= 0 ? '+' : '-'}₱{(Math.abs(pnlMetrics.netProfit) / 100).toLocaleString('en-PH')} ({pnlMetrics.netMarginPct}%)
                 </p>
               </div>
+            </div>
+
+            {/* Financial Health Status Bar */}
+            <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between text-[10px] font-black">
+              <span className="text-white/70 uppercase tracking-wider">Financial Health Status:</span>
+              <span className={cn(
+                "px-2.5 py-0.5 rounded-full uppercase text-[9px] font-black",
+                pnlMetrics.healthStatus === 'healthy' ? "bg-emerald-400/20 text-emerald-200 border border-emerald-400/30" :
+                pnlMetrics.healthStatus === 'warning' ? "bg-amber-400/20 text-amber-200 border border-amber-400/30" :
+                "bg-red-400/20 text-red-200 border border-red-400/30"
+              )}>
+                {pnlMetrics.healthStatus === 'healthy' ? '🟢 Healthy (Margin > 20%)' :
+                 pnlMetrics.healthStatus === 'warning' ? '🟡 Moderate (Margin 5-20%)' :
+                 '🔴 Critical / Loss Margin'}
+              </span>
             </div>
           </CardContent>
         </Card>
