@@ -18,8 +18,8 @@ export interface ModulePartnerCopy {
 export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   'benta-snap': {
     partnerCategory: 'Sari-Sari Store & Retail',
-    heroHeadline: 'Bawat benta, siguradong naitatala.',
-    highlightWord: 'siguradong naitatala',
+    heroHeadline: 'Hindi ka na manghuhula sa benta.',
+    highlightWord: 'manghuhula sa benta',
     heroSubtitle: 'Kami ang Katuwang mo araw-araw. 5-second fast checkout, awtomatikong bawas sa stocks, at siguradong walang kulang sa drawer.',
     soloStruggles: [
       'Nagkakamali sa kwenta ng sukli habang madaming bumibili sa tindahan.',
@@ -42,8 +42,8 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   'fresh-tally': {
     partnerCategory: 'Palengke & Fresh Produce',
-    heroHeadline: 'Presko ang paninda. Maayos ang bilang.',
-    highlightWord: 'Maayos ang bilang',
+    heroHeadline: 'Mas kaunting tapon, mas malinaw ang kita.',
+    highlightWord: 'mas malinaw ang kita',
     heroSubtitle: 'Bawat nabubulok na paninda ay puhunan na nawawala. Kasama mo ang Fresh Tally para maunang ibenta ang mga sariwang delivery at batch.',
     soloStruggles: [
       'Nakatambak ang lumang batch habang nabubuksan ang bagong delivery.',
@@ -65,8 +65,8 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   'build-stack': {
     partnerCategory: 'Hardware & Construction Supply',
-    heroHeadline: 'Laging handa ang stock para sa susunod na proyekto.',
-    highlightWord: 'susunod na proyekto',
+    heroHeadline: 'Laging handa ang stock kapag may customer.',
+    highlightWord: 'Laging handa ang stock',
     heroSubtitle: 'Hardware store man o lumber yard — i-track ang bawat sako ng semento, yero, at pako nang may verified credit ledger at manager PIN approval.',
     soloStruggles: [
       'Nawawala ang papel na listahan ng pautang sa mga kontraktor.',
@@ -111,8 +111,8 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   'timpla-track': {
     partnerCategory: 'Coffee Shop & Milk Tea Bar',
-    heroHeadline: 'Tuloy ang timpla ng barista — kami ang Katuwang mo sa bawat order.',
-    highlightWord: 'Katuwang mo sa bawat order',
+    heroHeadline: 'Tuloy ang timpla, tuloy ang benta.',
+    highlightWord: 'tuloy ang benta',
     heroSubtitle: 'Gawa para sa mabilisang order sa cafe at milk tea bar. Alam ng barista ang susunod na timpla, ikaw naman alam mo kung nasaan ang pera.',
     soloStruggles: [
       'Nagkakahalo-halo ang inumin kapag marami ang naitalang order sa counter.',
@@ -134,8 +134,8 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   'ganap-master': {
     partnerCategory: 'Event Coordination, Catering & Venues',
-    heroHeadline: 'Bawat okasyon, planado hanggang huling detalye.',
-    highlightWord: 'planado hanggang huling detalye',
+    heroHeadline: 'Walang sablay sa bawat event.',
+    highlightWord: 'Walang sablay',
     heroSubtitle: 'Walang malilimutang downpayment o supplier payout. Digital guest check-in at malinis na financial tracking para sa kasal at events.',
     soloStruggles: [
       'Nakalilimutan kung sinong vendor ang nabayaran na at sino ang pending.',
@@ -152,8 +152,8 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   'spin-snap': {
     partnerCategory: 'Laundromat & Dry Cleaning',
-    heroHeadline: 'Mula tanggap hanggang claim — maayos ang bawat labada.',
-    highlightWord: 'maayos ang bawat labada',
+    heroHeadline: 'Walang nawawalang labada.',
+    highlightWord: 'Walang nawawalang labada',
     heroSubtitle: 'Hindi na maiiwan o mawawala ang damit ng customer. Tracked ang bawat kilo at bayad mula laba hanggang pickup.',
     soloStruggles: [
       'Nagkakabaligtad o nawawala ang damit ng customer sa mga ilagayan.',
@@ -174,8 +174,8 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   'hydro-sync': {
     partnerCategory: 'Water Refilling Station',
-    heroHeadline: 'Bawat galon, madaling masubaybayan.',
-    highlightWord: 'madaling masubaybayan',
+    heroHeadline: 'Alam mo kung ilan ang na-deliver at magkano ang kita.',
+    highlightWord: 'magkano ang kita',
     heroSubtitle: 'Walk-in refill man o delivery sa barangay — siguradong tumpak ang koleksyon, naibalik na galon, at benta sa cashier desk.',
     soloStruggles: [
       'Nawawala ang tala ng delivery boy sa mga perang kinolekta sa kalsada.',
@@ -196,8 +196,8 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   'auto-boss': {
     partnerCategory: 'Auto Repair, Car Wash & Detailing',
-    heroHeadline: 'Bawat sasakyan, maayos ang progreso hanggang release.',
-    highlightWord: 'maayos ang progreso',
+    heroHeadline: 'Mas maraming sasakyan ang matatapos sa isang araw.',
+    highlightWord: 'matatapos sa isang araw',
     heroSubtitle: 'May transparent job status at resibo ang customer. Iwas-sumbatan sa singilan at siguradong balance ang kita sa cashier.',
     soloStruggles: [
       'Nagtatampo ang customer dahil walang balita kung gawa na ang sasakyan.',
@@ -218,8 +218,8 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   'wellness-pro': {
     partnerCategory: 'Spa, Massage & Wellness Clinic',
-    heroHeadline: 'Mas maraming oras sa customer, mas kaunting oras sa papel.',
-    highlightWord: 'mas kaunting oras sa papel',
+    heroHeadline: 'Mas maraming oras sa customer, mas mabilis ang appointment.',
+    highlightWord: 'mas mabilis ang appointment',
     heroSubtitle: 'Tahimik at mabilis na session booking at checkout — mula waiting room hanggang matapos ang masahe at clinic service.',
     soloStruggles: [
       'Nagkakalituhan sa kwarto kung sinong therapist ang nakatoka.',
@@ -236,8 +236,8 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   'trim-track': {
     partnerCategory: 'Barbershop & Salon',
-    heroHeadline: 'Mas maayos ang pila, mas maraming customer ang maaasikaso.',
-    highlightWord: 'maraming customer ang maaasikaso',
+    heroHeadline: 'Walang nalilimutang appointment.',
+    highlightWord: 'Walang nalilimutang appointment',
     heroSubtitle: 'Patas na pila at mabilis na singilan. Malinaw ang hatian sa komisyon ng mga barber at stylist bawat araw.',
     soloStruggles: [
       'Nagtatalo ang mga customer kung sino ang naunang dumating sa gupitan.',
@@ -254,8 +254,8 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   'rep-sync': {
     partnerCategory: 'Gym & Fitness Studio',
-    heroHeadline: 'Mas madaling bantayan ang bawat membership.',
-    highlightWord: 'madaling bantayan',
+    heroHeadline: 'Mas madaling bantayan ang members mo.',
+    highlightWord: 'bantayan ang members mo',
     heroSubtitle: 'I-log ang walk-in daily rates, personal training sessions, at singilan nang mabilis at tumpak sa front desk counter.',
     soloStruggles: [
       'Nakalilimutang singilin ang daily walk-in rate ng mga nagbu-buhat.',
@@ -272,8 +272,8 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   'service-master': {
     partnerCategory: 'General Repair & Electronics Shop',
-    heroHeadline: 'Mula claim tag hanggang release — maayos ang bawat repair.',
-    highlightWord: 'maayos ang bawat repair',
+    heroHeadline: 'Bawat repair, may malinaw na status.',
+    highlightWord: 'malinaw na status',
     heroSubtitle: 'Universal job order tracker para sa cellphone, ref, TV, at appliances repair. Malinaw ang estimate cost at nagastos na piyesa.',
     soloStruggles: [
       'Nawawala ang ticket o claim tag ng gamit na pinagagawa.',
@@ -290,8 +290,8 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   'biyahe-sync': {
     partnerCategory: 'Trucking, Hauling & Transport Services',
-    heroHeadline: 'Bawat biyahe, alam mo kung saan papunta ang kita.',
-    highlightWord: 'kung saan papunta ang kita',
+    heroHeadline: 'Alam mo kung nasaan ang truck at magkano ang gastos.',
+    highlightWord: 'magkano ang gastos',
     heroSubtitle: 'Mula loading hanggang drop-off — i-track ang biyahe, gastos sa toll at gas, at ang kabuuang net profit sa bawat biyahe.',
     soloStruggles: [
       'Nawawala ang tala sa perang ibinigay sa driver para sa krudo at toll.',
@@ -308,8 +308,8 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   'rental': {
     partnerCategory: 'Equipment, Vehicle & Gown Rentals',
-    heroHeadline: 'Bawat gamit, alam mo kung nasaan.',
-    highlightWord: 'alam mo kung nasaan',
+    heroHeadline: 'Alam mo kung sino ang umupa at kailan ibabalik.',
+    highlightWord: 'kailan ibabalik',
     heroSubtitle: 'Iwas sa double-booking at nawawalang gamit. Malinaw ang kalendaryo, active rentals, late fee, at deposit return sa bawat booking.',
     soloStruggles: [
       'Nagkakaroon ng double-booking dahil hindi updated ang talaan sa papel.',
@@ -326,8 +326,8 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   'sahod-flow': {
     partnerCategory: 'Pasahod at Bale Management',
-    heroHeadline: 'Tamang sweldo. Tamang oras. Walang aberya.',
-    highlightWord: 'Walang aberya',
+    heroHeadline: 'Sweldo na walang sakit sa ulo.',
+    highlightWord: 'walang sakit sa ulo',
     heroSubtitle: 'Automatic na nababawas ang cash advance sa sweldo. 1-tap payout approval at rekta lista sa pangkalahatang gastos ng negosyo.',
     soloStruggles: [
       'Nakalilimutang ibawas ang naunang bale o cash advance ng tao.',
@@ -344,8 +344,8 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   'ledger-flow': {
     partnerCategory: 'Master Cash at Kita ng Negosyo',
-    heroHeadline: 'Alam mo kung saan pumapasok at lumalabas ang pera.',
-    highlightWord: 'pumapasok at lumalabas',
+    heroHeadline: 'Alam mo kung saan napupunta ang pera ng negosyo mo.',
+    highlightWord: 'napupunta ang pera',
     heroSubtitle: 'Benta sa POS, pasahod sa staff, at bayad sa supplier — rekta lista sa master ledger para alam mo kung magkano ang totoong kita.',
     soloStruggles: [
       'Hindi alam kung magkano talaga ang malinis na kita kumpara sa benta.',
@@ -362,8 +362,8 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   '5-6-tracker': {
     partnerCategory: 'Pautang at Arawang Singilan',
-    heroHeadline: 'Bawat hulog, madaling masubaybayan.',
-    highlightWord: 'madaling masubaybayan',
+    heroHeadline: 'Hindi ka na malilito kung sino ang may bayad at may utang.',
+    highlightWord: 'may bayad at may utang',
     heroSubtitle: 'May credit limit lock bawat borrower, digital daily collection list, at tumpak na remittance ng kolektor bawat hapon.',
     soloStruggles: [
       'Lumalampas ang borrower sa kayang bayaran kaya nagkaka-delay sa singil.',
@@ -380,8 +380,8 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   'tsek-in': {
     partnerCategory: 'Resort, Lodging & Apartelle PMS',
-    heroHeadline: 'Alam mo agad kung aling kwarto ang handa sa susunod na bisita.',
-    highlightWord: 'handa sa susunod na bisita',
+    heroHeadline: 'Alam mo agad kung aling kwarto ang bakante.',
+    highlightWord: 'kwarto ang bakante',
     heroSubtitle: 'Mabilis na guest check-in, automatic night billing, at real-time room availability grid (Available / Occupied / Cleaning) para sa resort o apartelle.',
     soloStruggles: [
       'Nagkakaroon ng double booking sa kwarto dahil hindi naisulat sa libro.',
@@ -402,8 +402,8 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   'budget-mo': {
     partnerCategory: 'Personal Cash Flow & Savings',
-    heroHeadline: 'Bawat piso, may plano.',
-    highlightWord: 'may plano',
+    heroHeadline: 'Huwag nang manghula kung saan napunta ang sweldo mo.',
+    highlightWord: 'saan napunta ang sweldo',
     heroSubtitle: 'Kami ang Katuwang mo sa personal na barya. I-track ang daily expenses, ipon goals envelopes, at cash flow sa iisang simpleng app.',
     soloStruggles: [
       'Nagugulat na lang na ubos na ang sweldo bago mag-katapusan.',
