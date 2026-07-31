@@ -156,6 +156,16 @@ export function AutoBossDashboard() {
   const [bayAssignments, setBayAssignments] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState('');
 
+  const filterBySearch = React.useCallback((list: any[]) => {
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase().trim();
+    return list.filter(o => 
+      (o.plateNumber || '').toLowerCase().includes(q) || 
+      (o.customerName || '').toLowerCase().includes(q) ||
+      (o.vehicleType || '').toLowerCase().includes(q)
+    );
+  }, [searchQuery]);
+
   React.useEffect(() => {
     if (carwashError) {
       console.error("Auto Boss listener error:", carwashError);
@@ -626,10 +636,10 @@ export function AutoBossDashboard() {
               <div className="flex items-center gap-2 mb-3 px-1">
                 <AlignJustify className="h-4 w-4 text-amber-500" />
                 <h4 className="font-bold text-sm text-slate-700">Waiting Line</h4>
-                <Badge variant="secondary" className="bg-white ml-auto">{queuedOrders.length}</Badge>
+                <Badge variant="secondary" className="bg-white ml-auto">{filterBySearch(queuedOrders).length}</Badge>
               </div>
               <div className="space-y-2">
-                {queuedOrders.map(order => (
+                {filterBySearch(queuedOrders).map(order => (
                   <OrderCard key={order.id} order={order} isOwner={isOwner} onDelete={handleDeleteOrder} actions={
                     <div className="w-full flex gap-1">
                       <select 
