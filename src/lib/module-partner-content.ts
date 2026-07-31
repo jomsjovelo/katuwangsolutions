@@ -1,3 +1,10 @@
+export interface ComparisonRow {
+  feature: string;
+  traditional: string;
+  generic: string;
+  katuwang: string;
+}
+
 export interface ModulePartnerCopy {
   partnerCategory: string;
   heroHeadline: string;
@@ -5,6 +12,7 @@ export interface ModulePartnerCopy {
   heroSubtitle: string;
   soloStruggles: string[];
   partnerWins: string[];
+  comparisonRows?: ComparisonRow[];
 }
 
 export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
@@ -25,6 +33,12 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
       'Ligtas na utang ledger — may kumpletong resibo at talaan ng benta.',
       'Strict shift auditing — alam mo agad kung balance ang cashier drawer.',
     ],
+    comparisonRows: [
+      { feature: 'Bilis ng Checkout', traditional: '❌ Mabagal sa papel (1-2 mins)', generic: '⚠️ Kailangan ng PC', katuwang: '✅ Instant 5-Second Tap' },
+      { feature: 'Bawas sa Bodega', traditional: '❌ Manual bilangan sa gabi', generic: '⚠️ Formula setup', katuwang: '✅ Awtomatiko bawat benta' },
+      { feature: 'Pautang Ledger', traditional: '❌ Napupunit na notebook', generic: '❌ Walang utang tracker', katuwang: '✅ Ligtas na Digital Credit Ledger' },
+      { feature: 'Bantay Shift Audit', traditional: '❌ Sumbatan kapag kulang', generic: '⚠️ Basic log lang', katuwang: '✅ Strict Cashier Shift Lock' },
+    ]
   },
   'fresh-tally': {
     partnerCategory: 'Palengke & Fresh Produce',
@@ -43,6 +57,11 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
       'Supplier Scorecards para malaman kung sino ang matapat mag-supply.',
       'Photo-evidence logging sa na-write off o nasirang paninda.',
     ],
+    comparisonRows: [
+      { feature: 'Batch & Freshness Tracking', traditional: '❌ Nanghuhula sa ilalim ng kahon', generic: '❌ Walang expiry alert', katuwang: '✅ Auto First-In First-Out Alert' },
+      { feature: 'Nasirang Paninda Log', traditional: '❌ Walang tala kung magkano tapon', generic: '⚠️ Listahan lang', katuwang: '✅ Photo-Evidence Waste Audit' },
+      { feature: 'Supplier Quality Rating', traditional: '❌ Kwentong kutsero lang', generic: '❌ Walang supplier score', katuwang: '✅ Supplier Performance Scorecard' },
+    ]
   },
   'build-stack': {
     partnerCategory: 'Hardware & Construction Supply',
@@ -61,12 +80,17 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
       'Automated inventory update sa bawat construction material.',
       'Shift Cash Control — siguradong balance ang cashier bawat turnover.',
     ],
+    comparisonRows: [
+      { feature: 'Pautang sa Kontraktor', traditional: '❌ Papel na pwedeng mawala', generic: '❌ Walang credit limit lock', katuwang: '✅ Verified Credit & Signature Log' },
+      { feature: 'Discount Control', traditional: '❌ Nagbibigay ang staff ng kusa', generic: '⚠️ Walang PIN override', katuwang: '✅ Manager PIN Protection' },
+      { feature: 'Bulk Construction Inventory', traditional: '❌ Manual na kwenta', generic: '⚠️ Mabagal na POS', katuwang: '✅ Real-Time Material Deductions' },
+    ]
   },
   'bite-snap': {
     partnerCategory: 'Karinderya, Diner & Kainan',
-    heroHeadline: 'Mula order hanggang kusina — may Katuwang ka sa mabilis na biyahe.',
-    highlightWord: 'mabilis na biyahe',
-    heroSubtitle: 'Tuloy-tuloy ang biyahe ng order sa kusina. Mabilis ang ikot ng mesa, maayos ang talahanayan, at tumpak ang kitang pumasok sa cashier.',
+    heroHeadline: 'Mula order hanggang kusina — may Katuwang ka sa mabilis na serbisyo.',
+    highlightWord: 'mabilis na serbisyo',
+    heroSubtitle: 'Tuloy-tuloy ang daloy ng order papunta sa kusina. Mabilis ang ikot ng mesa, maayos ang talahanayan, at tumpak ang kitang pumasok sa cashier.',
     soloStruggles: [
       'Nagkakamali ang kusina dahil sa hindi mabasang sulat sa order slip.',
       'Nawawalan ng mesa ang customer dahil walang nakakaalam kung aling table ang libre.',
@@ -79,11 +103,16 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
       'Mabilis na Cash & GCash Checkout flow sa cashier.',
       'Strict Cashier Shift Audit — ligtas ang kita bawat araw.',
     ],
+    comparisonRows: [
+      { feature: 'Order sa Kusina', traditional: '❌ Hindi mabasang sulat-kamay', generic: '⚠️ Mabagal na POS ticket', katuwang: '✅ Live Kitchen Display & Order Queue' },
+      { feature: 'Table Management', traditional: '❌ Nanghuhula sa bakanteng mesa', generic: '❌ Walang table layout view', katuwang: '✅ Real-Time Visual Table Map' },
+      { feature: 'Diner Checkout', traditional: '❌ Matagal mag-compute ng sukli', generic: '⚠️ Dagdag pindot sa system', katuwang: '✅ 1-Tap Fast Dine-in & Takeout Pay' },
+    ]
   },
   'timpla-track': {
     partnerCategory: 'Coffee Shop & Milk Tea Bar',
-    heroHeadline: 'Tuloy ang timpla ng barista — kami ang Katuwang mo sa pila.',
-    highlightWord: 'Katuwang mo sa pila',
+    heroHeadline: 'Tuloy ang timpla ng barista — kami ang Katuwang mo sa bawat order.',
+    highlightWord: 'Katuwang mo sa bawat order',
     heroSubtitle: 'Gawa para sa mabilisang order sa cafe at milk tea bar. Alam ng barista ang susunod na timpla, ikaw naman alam mo kung nasaan ang pera.',
     soloStruggles: [
       'Nagkakahalo-halo ang inumin kapag marami ang naitalang order sa counter.',
@@ -97,6 +126,11 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
       '10-second Order Punching para mabilis magpa-alis ng pila.',
       'Shift Cash Control para siguradong tumpak ang kita sa counter.',
     ],
+    comparisonRows: [
+      { feature: 'Barista Drink Queue', traditional: '❌ Sumisigaw ang counter sa barista', generic: '⚠️ Magulo ang ticket printout', katuwang: '✅ Live Barista Drink Queue Screen' },
+      { feature: 'Free Drink / Promo Control', traditional: '❌ Walang nakakaalam kung namigay', generic: '❌ Pwedeng i-cancel ng staff', katuwang: '✅ Strict Manager PIN Audit' },
+      { feature: 'Speed of Order Punching', traditional: '❌ Mabagal isulat sa cup', generic: '⚠️ Maraming steps sa POS', katuwang: '✅ 10-Second Quick Drink Punching' },
+    ]
   },
   'ganap-master': {
     partnerCategory: 'Event Coordination, Catering & Venues',
@@ -120,7 +154,7 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
     partnerCategory: 'Laundromat & Dry Cleaning',
     heroHeadline: 'Walang nawawalang labada — kami ang Katuwang mo sa shop.',
     highlightWord: 'Katuwang mo sa shop',
-    heroSubtitle: 'Mula sa pagtanggap ng kilo (Received), paglabak (Washing), pagtupi (Folding), hanggang sa pickup — tracked ang bawat damit at bayad.',
+    heroSubtitle: 'Mula sa pagtanggap ng kilo (Received), paglaba (Washing), pagtupi (Folding), hanggang sa pickup — tracked ang bawat damit at bayad.',
     soloStruggles: [
       'Nagkakabaligtad o nawawala ang damit ng customer sa mga ilagayan.',
       'Nakalilimutang singilin ang labada bago makuha ng customer.',
@@ -133,11 +167,15 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
       'Kilo rate calculator at instant resibo sa customer.',
       'Shift Cash Audit — balance ang cashier sa bawat palitan ng staff.',
     ],
+    comparisonRows: [
+      { feature: 'Labada Tracking', traditional: '❌ Nawawala o nagkakapalit damit', generic: '⚠️ Manual tag lang', katuwang: '✅ 4-Step Live Job Tracker' },
+      { feature: 'Singil bago Releasing', traditional: '❌ Nakakalimutan singilin', generic: '❌ Walang payment lock', katuwang: '✅ Verified Pre-Pickup Pay Lock' },
+    ]
   },
   'hydro-sync': {
     partnerCategory: 'Water Refilling Station',
-    heroHeadline: 'Bawat galong lumabas ng istasyon — may Katuwang kang nagbabantay.',
-    highlightWord: 'Katuwang kang nagbabantay',
+    heroHeadline: 'Bawat galong lumabas ng istasyon — may Katuwang kang nagmo-monitor.',
+    highlightWord: 'nagmo-monitor',
     heroSubtitle: 'Walk-in refill man o delivery sa barangay — kasama mo kami para i-track ang bawat galon at koleksyon nang walang nawawalang pera.',
     soloStruggles: [
       'Nawawala ang tala ng delivery boy sa mga perang kinolekta sa kalsada.',
@@ -151,6 +189,10 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
       'Integrated QR & Ref Logging para sa GCash payments.',
       'Shift Cash Audit — ligtas ang pera sa cashier desk.',
     ],
+    comparisonRows: [
+      { feature: 'Koleksyon ng Delivery Boy', traditional: '❌ Nawawala o kinukulang ang remit', generic: '⚠️ Papel na listahan lang', katuwang: '✅ Verified Delivery Remittance Log' },
+      { feature: 'Galon Inventory', traditional: '❌ Di alam kung ilang galon ang nasa labas', generic: '❌ Walang container tracker', katuwang: '✅ Real-Time Gallon & Refill Counter' },
+    ]
   },
   'auto-boss': {
     partnerCategory: 'Auto Repair, Car Wash & Detailing',
@@ -169,6 +211,10 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
       'Manager PIN requirement bago magbigay ng discount sa repair.',
       'Shift Cash Audit — siguradong balance ang kita sa araw na iyon.',
     ],
+    comparisonRows: [
+      { feature: 'Repair Status Update', traditional: '❌ Tawag nang tawag ang customer', generic: '⚠️ Static whiteboard', katuwang: '✅ Digital Job Order Status Track' },
+      { feature: 'Labor & Parts Estimate', traditional: '❌ Nagugulat customer sa singil', generic: '⚠️ Manual receipt typing', katuwang: '✅ Itemized Labor + Parts Receipt' },
+    ]
   },
   'wellness-pro': {
     partnerCategory: 'Spa, Massage & Wellness Clinic',
@@ -208,7 +254,7 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   'rep-sync': {
     partnerCategory: 'Gym & Fitness Studio',
-    heroHeadline: 'Pumasok, nag-buhat, nagbayad — Katuwang mo sa fitness desk.',
+    heroHeadline: 'Pumasok, nag-workout, nagbayad — Katuwang mo sa fitness desk.',
     highlightWord: 'Katuwang mo sa fitness desk',
     heroSubtitle: 'Daily workout rate man o personal training — tracked ang bawat session sa desk nang walang kalat at walang nawawalang bayad.',
     soloStruggles: [
@@ -334,8 +380,8 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   'tsek-in': {
     partnerCategory: 'Resort, Lodging & Apartelle PMS',
-    heroHeadline: 'Aling kwarto ang bakante? May Katuwang kang nagpapakita sa screen.',
-    highlightWord: 'Katuwang kang nagpapakita',
+    heroHeadline: 'Aling kwarto ang bakante? May Katuwang kang nag-aayos ng kwarto.',
+    highlightWord: 'nag-aayos ng kwarto',
     heroSubtitle: 'Room status, guest check-in, at auto-billing sa checkout — tamang-tama para sa resort, lodging, apartment, o apartelle.',
     soloStruggles: [
       'Nagkakaroon ng double booking sa kwarto dahil hindi naisulat sa libro.',
@@ -349,11 +395,15 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
       'Fast Digital Guest Check-In & Contact Logger.',
       'Shift Cash Audit — ligtas ang bayad sa front desk counter.',
     ],
+    comparisonRows: [
+      { feature: 'Room Occupancy View', traditional: '❌ Libro lang sa desk', generic: '⚠️ Complex software', katuwang: '✅ Visual Grid: Green/Red/Yellow' },
+      { feature: 'Billing & Extra Guest Fee', traditional: '❌ Nakakalimutan singilin', generic: '⚠️ Formula setup', katuwang: '✅ Automatic Night & Extra Pax Fee' },
+    ]
   },
   'budget-mo': {
     partnerCategory: 'Personal Cash Flow & Savings',
-    heroHeadline: 'Huwag nang manghula kung saan napunta ang sweldo mo.',
-    highlightWord: 'sweldo mo',
+    heroHeadline: 'Katuwang mo sa pag-iimpok at paggastos nang maayos.',
+    highlightWord: 'paggastos nang maayos',
     heroSubtitle: 'Kami ang Katuwang mo sa personal na barya. I-track ang daily expenses, ipon goals, at cash flow sa iisang simpleng app.',
     soloStruggles: [
       'Nagugulat na lang na ubos na ang sweldo bago mag-katapusan.',
@@ -367,6 +417,10 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
       'Savings Envelopes at Financial Health Score Tracker.',
       'Gumagana sa phone o laptop kahit saan — ₱50/buwan lang!',
     ],
+    comparisonRows: [
+      { feature: 'Personal Cash Flow', traditional: '❌ Tumatagas ang barya', generic: '⚠️ Magulo sa Excel', katuwang: '✅ Real-Time Available Balance' },
+      { feature: 'Ipon Goals Envelopes', traditional: '❌ Wala sa isip', generic: '❌ Walang envelope feature', katuwang: '✅ Visual Savings Goals Envelopes' },
+    ]
   },
 };
 

@@ -151,49 +151,41 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
         </Link>
       </header>
 
-      {/* Dynamic Module Hero Section */}
-      <div className="relative w-full overflow-hidden bg-slate-950 text-white">
-        {/* Module Color Radial Background Glow */}
-        <div 
-          className="absolute inset-0 opacity-20 pointer-events-none" 
-          style={{ 
-            backgroundImage: `radial-gradient(${primaryColor} 1.5px, transparent 1.5px)`, 
-            backgroundSize: '22px 22px' 
-          }} 
-        />
-        <div 
-          className="absolute -top-32 left-1/2 -translate-x-1/2 w-[600px] h-[350px] opacity-25 blur-[100px] pointer-events-none rounded-full"
-          style={{ backgroundColor: primaryColor }}
-        />
-
-        <div className="max-w-4xl mx-auto px-6 pt-10 pb-14 flex flex-col items-center text-center relative z-10 space-y-5">
+      {/* Dynamic Module Hero Section — Clean Professional SaaS Style */}
+      <div 
+        className="relative w-full overflow-hidden bg-white text-slate-900 border-b border-slate-100"
+        style={{
+          background: `linear-gradient(180deg, ${primaryColor}0A 0%, #FFFFFF 100%)`
+        }}
+      >
+        <div className="max-w-4xl mx-auto px-6 pt-12 pb-16 flex flex-col items-center text-center relative z-10 space-y-6">
           
           {/* Module Icon + Partner Category Badge */}
-          <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-800 px-4 py-1.5 rounded-full shadow-lg backdrop-blur-xl">
-            <div className="h-5 w-5 rounded-full flex items-center justify-center" style={{ backgroundColor: `${primaryColor}30` }}>
+          <div className="flex items-center gap-2 bg-white border border-slate-200 px-4 py-1.5 rounded-full shadow-sm">
+            <div className="h-5 w-5 rounded-full flex items-center justify-center" style={{ backgroundColor: `${primaryColor}20` }}>
               <Icon className="h-3.5 w-3.5" style={{ color: primaryColor }} />
             </div>
-            <span className="text-xs font-bold uppercase tracking-widest text-slate-300">
-              🤝 ANG KATUWANG MO SA <span className="font-black text-white">{partnerCopy.partnerCategory.toUpperCase()}</span>
+            <span className="text-xs font-extrabold uppercase tracking-widest text-slate-600">
+              ANG KATUWANG MO SA <span className="font-black text-slate-900">{partnerCopy.partnerCategory.toUpperCase()}</span>
             </span>
           </div>
 
-          {/* Promo Urgency Badge */}
+          {/* Promo Badge */}
           <div 
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border backdrop-blur-md shadow-md"
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border shadow-sm"
             style={{ 
-              backgroundColor: `${primaryColor}15`, 
-              borderColor: `${primaryColor}40`,
-              color: '#FACC15'
+              backgroundColor: '#FEF3C7', 
+              borderColor: '#FDE68A',
+              color: '#B45309'
             }}
           >
-            <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+            <Sparkles className="h-3.5 w-3.5 text-amber-600" />
             <span>EARLY ADOPTER PROMO: {formatPeso(pricing.promotionalMonthlyPrice)}/MONTH ONLY</span>
-            <span className="line-through opacity-60 font-medium text-[10px] text-slate-400">{formatPeso(pricing.regularMonthlyPrice)}/mo</span>
+            <span className="line-through opacity-60 font-medium text-[10px] text-amber-800">{formatPeso(pricing.regularMonthlyPrice)}/mo</span>
           </div>
 
-          {/* Main Hero Headline (Clean Inline Color Highlight, No Box) */}
-          <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.15] max-w-3xl">
+          {/* Main Hero Headline */}
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.15] max-w-3xl text-slate-900">
             {headlineParts.length > 1 ? (
               <>
                 {headlineParts[0]}
@@ -208,23 +200,23 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
           </h1>
 
           {/* Sub-headline */}
-          <p className="text-base sm:text-lg text-slate-300 font-normal max-w-2xl leading-relaxed">
+          <p className="text-base sm:text-lg text-slate-600 font-medium max-w-2xl leading-relaxed">
             {partnerCopy.heroSubtitle}
           </p>
 
           {/* Partner Trust Chips */}
-          <div className="flex flex-wrap items-center justify-center gap-2.5 text-xs font-bold text-slate-300 pt-1">
-            <span className="bg-white/10 border border-white/10 px-3.5 py-1.5 rounded-full flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-bold text-slate-600 pt-1">
+            <span className="bg-slate-100 border border-slate-200 px-3.5 py-1.5 rounded-full flex items-center gap-1.5">
               🤝 Matapat na Katuwang
             </span>
-            <span className="bg-white/10 border border-white/10 px-3.5 py-1.5 rounded-full flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400" /> 1-Minute Setup
+            <span className="bg-slate-100 border border-slate-200 px-3.5 py-1.5 rounded-full flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" /> 1-Minute Setup
             </span>
-            <span className="bg-white/10 border border-white/10 px-3.5 py-1.5 rounded-full flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400" /> GCash & Maya Ready
+            <span className="bg-slate-100 border border-slate-200 px-3.5 py-1.5 rounded-full flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" /> GCash & Maya Ready
             </span>
-            <span className="bg-white/10 border border-white/10 px-3.5 py-1.5 rounded-full flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400" /> No Credit Card Required
+            <span className="bg-slate-100 border border-slate-200 px-3.5 py-1.5 rounded-full flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" /> No Credit Card Required
             </span>
           </div>
 
@@ -233,13 +225,12 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
             <Link href={`/${foundApp.id}/onboarding`} className="w-full sm:w-auto inline-block">
               <Button
                 size="lg"
-                className="w-full sm:w-auto h-15 px-9 text-base font-black text-slate-950 shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all rounded-2xl border"
+                className="w-full sm:w-auto h-14 px-9 text-base font-black text-white shadow-lg hover:shadow-xl hover:scale-[1.01] active:scale-[0.98] transition-all rounded-2xl border-none"
                 style={{ 
                   backgroundColor: primaryColor,
-                  borderColor: primaryColor,
                 }}
               >
-                <span>Subukan ang {foundApp.name} ({formatPeso(pricing.promotionalMonthlyPrice)}/mo)</span>
+                <span>Simulan ang {foundApp.name} ({formatPeso(pricing.promotionalMonthlyPrice)}/mo)</span>
                 <ArrowRight className="h-5 w-5 ml-2" />
               </Button>
             </Link>
@@ -309,18 +300,18 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
           </div>
         </section>
 
-        {/* ── Problem & Pain Points vs Solution (Mag-isa Ka Ba Dati? vs May Katuwang Ka Na) ── */}
+        {/* ── Problem & Pain Points vs Solution (Bago Dumating ang Katuwang Mo) ── */}
         <section className="space-y-6">
           <div className="text-center space-y-2">
             <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">Bakit Kailangan Mo ng Katuwang</h2>
-            <p className="text-2xl sm:text-3xl font-black text-slate-900">Mag-isa Ka Ba Dati? vs. May Katuwang Ka Na sa {foundApp.name}</p>
+            <p className="text-2xl sm:text-3xl font-black text-slate-900">Bago Dumating ang Katuwang Mo vs. May Katuwang Ka Na sa {foundApp.name}</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Dati (Mag-isa Ka Lang) */}
-            <div className="bg-rose-50 border border-rose-200 p-6 rounded-3xl space-y-4">
+            {/* Bago Dumating ang Katuwang Mo */}
+            <div className="bg-rose-50/80 border border-rose-200 p-6 rounded-3xl space-y-4">
               <div className="flex items-center gap-2 text-rose-700 font-black text-base uppercase tracking-wider">
-                <span className="text-lg">❌</span> DATI (Mag-isa Ka Lang)
+                <span className="text-lg">❌</span> BAGO DUMATING ANG KATUWANG MO
               </div>
               <ul className="space-y-3 text-xs text-rose-950 font-semibold">
                 {partnerCopy.soloStruggles.map((struggle, i) => (
@@ -333,7 +324,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
             </div>
 
             {/* Sa Katuwang (May Kasama Ka Na) */}
-            <div className="bg-emerald-50 border-2 border-emerald-300 p-6 rounded-3xl space-y-4 shadow-sm">
+            <div className="bg-emerald-50/80 border border-emerald-200 p-6 rounded-3xl space-y-4 shadow-sm">
               <div className="flex items-center gap-2 text-emerald-800 font-black text-base uppercase tracking-wider">
                 <span className="text-lg">🤝</span> MAY KATUWANG KA NA SA {foundApp.name.toUpperCase()}
               </div>
@@ -373,7 +364,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
                 <div className="space-y-1">
                   <h3 className="font-black text-slate-900 text-base">{feat}</h3>
                   <p className="text-xs text-slate-500 leading-relaxed">
-                    Tutulungan ka ng Katuwang mo para mabilis, malinis, at walang kalituhan ang bawat transaksyon.
+                    Designed para maging mabilis, malinis, at walang kalituhan sa araw-araw na pamamahala.
                   </p>
                 </div>
               </div>
@@ -382,7 +373,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
 
           {/* Target Audience Badge Chips */}
           {foundApp.targetUsers && foundApp.targetUsers.length > 0 && (
-            <div className="bg-slate-100 p-4 rounded-2xl text-center space-y-2">
+            <div className="bg-slate-100/80 p-4 rounded-2xl text-center space-y-2">
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                 PERFECT NA KATUWANG PARA SA:
               </span>
@@ -419,7 +410,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
         {/* ── Comparison Table Matrix ─────────────────────────────────────── */}
         <section className="space-y-6">
           <div className="text-center space-y-2">
-            <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">Paghahambing sa Pamamahala</h2>
+            <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">Ikumpara Mo</h2>
             <p className="text-2xl sm:text-3xl font-black text-slate-900">Bakit Mas Maganda Kapag May Katuwang Ka</p>
           </div>
 
@@ -429,49 +420,33 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
                 <thead>
                   <tr className="bg-slate-900 text-white text-xs uppercase tracking-wider">
                     <th className="p-4 font-black">Feature / Bentahe</th>
-                    <th className="p-4 font-black opacity-60">Notebook (Mag-isa Ka)</th>
+                    <th className="p-4 font-black opacity-60">Notebook / Papel</th>
                     <th className="p-4 font-black opacity-60">Generic Software</th>
-                    <th className="p-4 font-black text-amber-300" style={{ backgroundColor: `${primaryColor}30` }}>
-                      🤝 Katuwang Solutions
+                    <th className="p-4 font-black text-amber-300" style={{ backgroundColor: `${primaryColor}40` }}>
+                      🤝 {foundApp.name}
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs font-semibold">
-                  <tr>
-                    <td className="p-4 text-slate-800 font-bold">1-Tap Fast Checkout</td>
-                    <td className="p-4 text-rose-500">❌ Mabagal (1-2 mins)</td>
-                    <td className="p-4 text-amber-600">⚠️ Katamtaman</td>
-                    <td className="p-4 font-black text-emerald-600 bg-emerald-50/50">✅ Instant (5 seconds)</td>
-                  </tr>
-                  <tr>
-                    <td className="p-4 text-slate-800 font-bold">Automatic Inventory Deduction</td>
-                    <td className="p-4 text-rose-500">❌ Manual kailangang bilangin</td>
-                    <td className="p-4 text-amber-600">⚠️ Kailangan ng formula</td>
-                    <td className="p-4 font-black text-emerald-600 bg-emerald-50/50">✅ Automatic sa bawat benta</td>
-                  </tr>
-                  <tr>
-                    <td className="p-4 text-slate-800 font-bold">Works Offline (Kahit walang signal)</td>
-                    <td className="p-4 text-emerald-600">✅ Pwede sa papel</td>
-                    <td className="p-4 text-rose-500">❌ Kailangan ng PC</td>
-                    <td className="p-4 font-black text-emerald-600 bg-emerald-50/50">✅ Industrial Offline Resilient</td>
-                  </tr>
-                  <tr>
-                    <td className="p-4 text-slate-800 font-bold">GCash & Maya Payment Tracking</td>
-                    <td className="p-4 text-rose-500">❌ Nawawala ang reference</td>
-                    <td className="p-4 text-rose-500">❌ Manual typing</td>
-                    <td className="p-4 font-black text-emerald-600 bg-emerald-50/50">✅ Integrated QR & Ref Logging</td>
-                  </tr>
-                  <tr>
-                    <td className="p-4 text-slate-800 font-bold">Shift & Cashier Auditing</td>
-                    <td className="p-4 text-rose-500">❌ Mahirap malaman ang kulang</td>
-                    <td className="p-4 text-rose-500">❌ Walang audit log</td>
-                    <td className="p-4 font-black text-emerald-600 bg-emerald-50/50">✅ Strict Drawer & Shift Audit</td>
-                  </tr>
+                  {(partnerCopy.comparisonRows || [
+                    { feature: 'Bilis ng Transaksyon', traditional: '❌ Mabagal sa papel (1-2 mins)', generic: '⚠️ Katamtaman', katuwang: '✅ Instant (5 seconds)' },
+                    { feature: 'Automatic Inventory Deduction', traditional: '❌ Manual bilang sa gabi', generic: '⚠️ Formula setup', katuwang: '✅ Automatic sa bawat benta' },
+                    { feature: 'Works Offline (Kahit walang signal)', traditional: '✅ Pwede sa papel', generic: '❌ Kailangan ng PC', katuwang: '✅ Tuloy-tuloy kahit offline' },
+                    { feature: 'GCash & Maya Payment Tracking', traditional: '❌ Nawawala reference', generic: '❌ Manual typing', katuwang: '✅ Integrated QR & Ref Log' },
+                    { feature: 'Shift & Cashier Auditing', traditional: '❌ Mahirap alamin kulang', generic: '❌ Walang audit log', katuwang: '✅ Strict Drawer & Shift Audit' },
+                  ]).map((row, idx) => (
+                    <tr key={idx}>
+                      <td className="p-4 text-slate-800 font-bold">{row.feature}</td>
+                      <td className="p-4 text-rose-500">{row.traditional}</td>
+                      <td className="p-4 text-amber-600">{row.generic}</td>
+                      <td className="p-4 font-black text-emerald-700 bg-emerald-50/50">{row.katuwang}</td>
+                    </tr>
+                  ))}
                   <tr>
                     <td className="p-4 text-slate-800 font-bold">Mababang Presyo</td>
                     <td className="p-4 text-slate-500">₱0 (Pero maraming nawawala)</td>
-                    <td className="p-4 text-slate-500">₱0 (Pero matagal gamitin)</td>
-                    <td className="p-4 font-black text-emerald-600 bg-emerald-50/50">
+                    <td className="p-4 text-slate-500">Libre (Pero matagal gamitin)</td>
+                    <td className="p-4 font-black text-emerald-700 bg-emerald-50/50">
                       ✅ {formatPeso(pricing.promotionalMonthlyPrice)}/buwan lang!
                     </td>
                   </tr>
@@ -503,44 +478,43 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
 
         {/* ── Final High-Converting Pricing CTA Card ──────────────────────── */}
         <section className="text-center pt-4">
-          <div className="max-w-2xl mx-auto bg-slate-950 text-white rounded-3xl p-8 sm:p-12 shadow-2xl border border-slate-800 relative overflow-hidden">
-            <div 
-              className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-36 opacity-30 blur-3xl pointer-events-none" 
-              style={{ backgroundColor: primaryColor }} 
-            />
-            
-            <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/20 px-3 py-1 rounded-full border border-amber-400/40 inline-block mb-3">
-              ⚡ LIMITED TIME EARLY ADOPTER PROMO
+          <div 
+            className="max-w-2xl mx-auto bg-white text-slate-900 rounded-3xl p-8 sm:p-12 shadow-xl border border-slate-200 relative overflow-hidden"
+            style={{
+              background: `linear-gradient(180deg, #FFFFFF 0%, ${primaryColor}08 100%)`
+            }}
+          >
+            <span className="text-[10px] font-black uppercase tracking-widest text-amber-800 bg-amber-100 px-3 py-1 rounded-full border border-amber-200 inline-block mb-3">
+              ⚡ EARLY ADOPTER PROMO
             </span>
 
-            <h2 className="text-2xl sm:text-4xl font-black tracking-tight mb-3 relative z-10">
-              Subukan ang {foundApp.name} Ngayon!
+            <h2 className="text-2xl sm:text-4xl font-black tracking-tight mb-3 text-slate-900">
+              Simulan ang {foundApp.name} Ngayon!
             </h2>
-            <p className="text-slate-300 text-xs sm:text-sm mb-6 relative z-10 max-w-lg mx-auto">
-              Simulan ang paggamit kasama ang iyong Katuwang sa loob ng 1 minuto sa aming promo rate na <strong>{formatPeso(pricing.promotionalMonthlyPrice)}/buwan</strong>. Walang credit card required!
+            <p className="text-slate-600 text-xs sm:text-sm mb-6 max-w-lg mx-auto font-medium">
+              Gamitin ang iyong Katuwang sa loob ng 1 minuto sa aming promo rate na <strong className="text-slate-900">{formatPeso(pricing.promotionalMonthlyPrice)}/buwan</strong>. Walang credit card required!
             </p>
             
-            <div className="flex flex-col items-center gap-4 relative z-10">
+            <div className="flex flex-col items-center gap-4">
               <Link href={`/${foundApp.id}/onboarding`} className="w-full sm:w-auto">
                 <Button
                   size="lg"
-                  className="w-full sm:w-auto h-16 px-10 text-base font-black text-slate-950 shadow-2xl hover:scale-105 active:scale-95 transition-all rounded-2xl border"
+                  className="w-full sm:w-auto h-15 px-10 text-base font-black text-white shadow-xl hover:scale-105 active:scale-95 transition-all rounded-2xl border-none"
                   style={{ 
                     backgroundColor: primaryColor,
-                    borderColor: primaryColor 
                   }}
                 >
-                  <span>Simulan ang {foundApp.name} ({formatPeso(pricing.promotionalMonthlyPrice)}/mo)</span>
+                  <span>Gamitin ang {foundApp.name} ({formatPeso(pricing.promotionalMonthlyPrice)}/mo)</span>
                   <ArrowRight className="h-5 w-5 ml-2" />
                 </Button>
               </Link>
 
-              <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-bold text-slate-300 bg-white/10 px-4 py-2 rounded-full border border-white/10">
-                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+              <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-bold text-slate-600 bg-slate-100 px-4 py-2 rounded-full border border-slate-200">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                 <span>{formatPeso(pricing.promotionalMonthlyPrice)}/buwan</span>
-                <span className="text-slate-500">•</span>
+                <span className="text-slate-400">•</span>
                 <span>₱0 setup fee</span>
-                <span className="text-slate-500">•</span>
+                <span className="text-slate-400">•</span>
                 <span>Instant Access</span>
               </div>
             </div>
