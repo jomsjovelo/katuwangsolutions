@@ -192,12 +192,12 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
             <span className="line-through opacity-60 font-medium text-[10px] text-slate-400">{formatPeso(pricing.regularMonthlyPrice)}/mo</span>
           </div>
 
-          {/* Main Hero Headline (Clean Highlight Box, NO WAVY UNDERLINE) */}
+          {/* Main Hero Headline (Clean Inline Color Highlight, No Box) */}
           <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.15] max-w-3xl">
             {headlineParts.length > 1 ? (
               <>
                 {headlineParts[0]}
-                <span className="inline-block font-black px-2.5 py-0.5 rounded-xl bg-white/10 border border-white/15 shadow-sm" style={{ color: primaryColor }}>
+                <span style={{ color: primaryColor }}>
                   {partnerCopy.highlightWord}
                 </span>
                 {headlineParts[1]}
