@@ -279,10 +279,10 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
     ],
   },
   'sahod-flow': {
-    partnerCategory: 'Payroll & Employee Cash Advance (Bale)',
-    heroHeadline: 'Sweldo na naman — Katuwang mo sa tumpak na kwenta.',
-    highlightWord: 'Katuwang mo sa tumpak na kwenta',
-    heroSubtitle: 'Awtomatikong bawas sa bale, 1-tap payout sa staff, at rekta sa ledger ng negosyo. Sweldo na mabilis at walang sakit sa ulo.',
+    partnerCategory: 'Pasahod at Bale ng Staff',
+    heroHeadline: 'Sweldo na naman — Katuwang mo para walang kamali sa sahod.',
+    highlightWord: 'walang kamali sa sahod',
+    heroSubtitle: 'Auto-deduct sa vale, 1-tap payout sa staff, at rekta sa ledger ng negosyo. Mabilis magpasahod nang walang sakit sa ulo.',
     soloStruggles: [
       'Nakalilimutang ibawas ang naunang bale o cash advance ng tao.',
       'Matagal mag-kwenta ng sweldo sa gabi gamit ang papel at calculator.',
@@ -297,10 +297,10 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
     ],
   },
   'ledger-flow': {
-    partnerCategory: 'Master Cash & Financial Accounting',
-    heroHeadline: 'Alam mo ba ang totoong pera mo? May Katuwang kang nagbabantay.',
-    highlightWord: 'Katuwang kang nagbabantay',
-    heroSubtitle: 'Lahat ng benta sa POS, payroll sa sahod, at pambayad sa suppliers — kusa at awtomatikong dumadaloy sa iisang master ledger.',
+    partnerCategory: 'Master Cash at Kita ng Negosyo',
+    heroHeadline: 'Alam mo ba kung kumikita ka talaga? May Katuwang kang nagbabantay.',
+    highlightWord: 'kumikita ka talaga',
+    heroSubtitle: 'Lahat ng benta sa POS, pasahod sa staff, at bayad sa suppliers — rekta lista sa master ledger para alam mo agad ang malinis na kita.',
     soloStruggles: [
       'Hindi alam kung magkano talaga ang malinis na kita kumpara sa benta.',
       'Kalat-kalat ang resibo ng renta, ilaw, tubig, at gastusin sa tindahan.',
@@ -315,10 +315,10 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
     ],
   },
   '5-6-tracker': {
-    partnerCategory: 'Micro-Lending & Collection Ledger',
-    heroHeadline: 'Kontrolado ang pautang — Katuwang mo sa pag-protekta sa kapital.',
-    highlightWord: 'Katuwang mo sa pag-protekta',
-    heroSubtitle: 'Strict credit limits bawat borrower, araw-araw na singil, at audit trail para protektado ang kapital mo sa bawat koleksyon.',
+    partnerCategory: 'Pautang at Arawang Singilan',
+    heroHeadline: 'Kontrolado ang pautang — Katuwang mo para iwas-takbo sa utang.',
+    highlightWord: 'iwas-takbo sa utang',
+    heroSubtitle: 'May credit limit bawat borrower, araw-araw na talaan ng singil, at kumpletong audit trail para ligtas ang kapital mo araw-araw.',
     soloStruggles: [
       'Lumalampas ang borrower sa kayang bayaran kaya nagkaka-delay sa singil.',
       'Nawawala ang papel na listahan ng araw-araw na koleksyon sa kalsada.',
