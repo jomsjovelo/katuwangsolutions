@@ -288,6 +288,18 @@ export function SpinDashboard() {
                     {RATES[serviceType]?.type === 'piece' ? 'Quantity (Pieces)' : 'Weight (Kilos)'}
                   </Label>
                   <Input id="laundry-weight" name="laundryWeight" type="number" placeholder="0" value={kilos} onChange={e => setKilos(parseFloat(e.target.value) || '')} />
+                  <div className="flex gap-1 pt-1">
+                    {[3, 5, 7, 10].map(w => (
+                      <button
+                        key={w}
+                        type="button"
+                        onClick={() => setKilos(w)}
+                        className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-600 transition-colors"
+                      >
+                        {w}kg
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div className="flex-1 space-y-1">
                   <Label htmlFor="laundry-service" className="text-xs">Service</Label>

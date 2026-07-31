@@ -63,6 +63,11 @@ const AppointmentCard = React.memo(({ appointment, actions, isOwner, onDelete }:
               </Badge>
             )}
           </div>
+          {appointment.notes && (
+            <p className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 mt-1">
+              ✂️ {appointment.notes}
+            </p>
+          )}
           </div>
           {isOwner && (
             <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-red-500 rounded-full shrink-0" onClick={() => onDelete(appointment.id)}>
@@ -123,6 +128,7 @@ export function TrimTrackDashboard() {
   const [stylistName, setStylistName] = useState('');
   const [serviceType, setServiceType] = useState('Haircut');
   const [priceOverride, setPriceOverride] = useState<number | ''>('');
+  const [haircutNotes, setHaircutNotes] = useState('');
   const [selectedOrderForPayment, setSelectedOrderForPayment] = useState<any>(null);
 
   // Auto-calculate suggested price
@@ -141,6 +147,7 @@ export function TrimTrackDashboard() {
         phoneNumber,
         stylistName,
         serviceType,
+        notes: haircutNotes,
         status: 'Waiting',
         amountDue: Math.round(finalPrice * 100), // convert to cents safely
         paymentStatus: 'Unpaid',
@@ -150,6 +157,7 @@ export function TrimTrackDashboard() {
       setStylistName('');
       setServiceType('Haircut');
       setPriceOverride('');
+      setHaircutNotes('');
       setShowAddForm(false);
       toast({ title: 'Customer Logged!', description: `${customerName} is now waiting.` });
     } catch (e: any) {
@@ -347,6 +355,10 @@ export function TrimTrackDashboard() {
                   <span className="text-muted-foreground">Suggested: ₱{suggestedPrice}</span>
                 </Label>
                 <Input id="price-override" name="priceOverride" type="number" placeholder={`₱${suggestedPrice}`} value={priceOverride} onChange={e => setPriceOverride(parseFloat(e.target.value) || '')} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="haircut-notes" className="text-xs">Haircut Style / Notes</Label>
+                <Input id="haircut-notes" name="haircutNotes" placeholder="e.g. High Fade #2, scissor top, beard trim" value={haircutNotes} onChange={e => setHaircutNotes(e.target.value)} className="h-8 text-xs" />
               </div>
               <Button 
                 className="w-full h-8 text-xs font-bold text-white" 
