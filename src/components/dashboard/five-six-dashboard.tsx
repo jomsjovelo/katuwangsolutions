@@ -368,7 +368,11 @@ export function FiveSixDashboard() {
         healthyCount++;
         return;
       }
-      const lastPayDate = b.lastPaymentDate ? b.lastPaymentDate.toDate() : (b.createdAt?.toDate() || today);
+      const rawDate = b.lastPaymentDate || b.createdAt;
+      let lastPayDate = today;
+      if (rawDate) {
+        lastPayDate = rawDate.toDate ? rawDate.toDate() : new Date(rawDate);
+      }
       lastPayDate.setHours(0,0,0,0);
       const diffDays = Math.floor((today.getTime() - lastPayDate.getTime()) / (1000 * 60 * 60 * 24));
 

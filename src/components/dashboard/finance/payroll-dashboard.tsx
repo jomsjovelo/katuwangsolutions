@@ -125,11 +125,14 @@ export function PayrollDashboard() {
     if (!currentTenant) return;
     const days = Number(daysInputs[emp.id] ?? emp.daysWorkedThisPeriod ?? 0);
     const commissions = Number(commissionsInputs[emp.id] ?? 0);
+    const overtime = Number(overtimeInputs[emp.id] ?? 0);
     const vale = Number(valeInputs[emp.id] ?? ((emp.outstandingVale ?? 0) / 100));
     const ratePerDay = emp.baseSalary; // in centavos
     const grossCentavos = emp.salaryType === 'daily' ? ratePerDay * days : ratePerDay;
+    const hourlyRateCentavos = emp.salaryType === 'daily' ? (ratePerDay / 8) : ((ratePerDay / 26) / 8);
+    const overtimeCentavos = Math.round(overtime * hourlyRateCentavos * 1.25);
     const commissionsCentavos = commissions * 100;
-    const totalGrossCentavos = grossCentavos + commissionsCentavos;
+    const totalGrossCentavos = grossCentavos + commissionsCentavos + overtimeCentavos;
     
     // Compute Govt Deductions
     const applyDeductions = applyDeductionsInputs[emp.id] || false;
