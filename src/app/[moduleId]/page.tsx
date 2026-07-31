@@ -264,10 +264,52 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
             <div className="flex justify-between items-center border-b border-white/20 pb-4">
               <div>
                 <span className="text-[10px] font-black uppercase tracking-widest text-white/80">
-                  {isBudgetMo ? 'AVAILABLE CASH BALANCE' : `${foundApp.name.toUpperCase()} SYSTEM STATUS`}
+                  {({
+                    'benta-snap': 'TODAY\'S SALES SUMMARY',
+                    'fresh-tally': 'FRESH INVENTORY SCORE',
+                    'build-stack': 'CONTRACTOR CREDIT LEDGER',
+                    'bite-snap': 'LIVE KITCHEN QUEUE',
+                    'timpla-track': 'BARISTA DRINK QUEUE',
+                    'ganap-master': 'EVENT CONTRACTS & PAYMENTS',
+                    'spin-snap': 'LIVE LAUNDRY JOB STATUS',
+                    'hydro-sync': 'DELIVERY & REFILL COUNTER',
+                    'auto-boss': 'VEHICLE REPAIR ORDERS',
+                    'wellness-pro': 'CLINIC SESSION QUEUE',
+                    'trim-track': 'STYLIST QUEUE & CUTS',
+                    'rep-sync': 'DAILY DESK ATTENDANCE',
+                    'service-master': 'UNIVERSAL REPAIR LOG',
+                    'biyahe-sync': 'NET FLEET REVENUE',
+                    'rental': 'ACTIVE RENTAL CALENDAR',
+                    'sahod-flow': 'PASAHOD & BALE STATUS',
+                    'ledger-flow': 'REAL-TIME MASTER CASH',
+                    '5-6-tracker': 'DAILY COLLECTION REMITTANCE',
+                    'tsek-in': 'ROOM OCCUPANCY GRID',
+                    'budget-mo': 'AVAILABLE CASH BALANCE',
+                  } as Record<string, string>)[foundApp.id] || 'REAL-TIME MODULE STATUS'}
                 </span>
                 <p className="text-3xl sm:text-4xl font-black tracking-tight mt-0.5">
-                  {isBudgetMo ? '₱14,250.00' : 'ONLINE & READY'}
+                  {({
+                    'benta-snap': '₱18,450.00',
+                    'fresh-tally': '98.4% Fresh',
+                    'build-stack': '₱45,200.00',
+                    'bite-snap': '42 Orders Served',
+                    'timpla-track': '128 Cups Brewed',
+                    'ganap-master': '12 Active Events',
+                    'spin-snap': '18 Active Loads',
+                    'hydro-sync': '84 Gallons Today',
+                    'auto-boss': '8 Cars Serviced',
+                    'wellness-pro': '14 Appointments',
+                    'trim-track': '26 Ulo Nagupitan',
+                    'rep-sync': '35 Members Active',
+                    'service-master': '9 Repairs Active',
+                    'biyahe-sync': '₱32,800.00 Net',
+                    'rental': '15 Active Rentals',
+                    'sahod-flow': '100% Approved',
+                    'ledger-flow': '₱85,400.00 Net',
+                    '5-6-tracker': '₱18,500.00',
+                    'tsek-in': '12 / 15 Rooms',
+                    'budget-mo': '₱14,250.00',
+                  } as Record<string, string>)[foundApp.id] || 'System Synced'}
                 </p>
               </div>
               <div className="bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5">
