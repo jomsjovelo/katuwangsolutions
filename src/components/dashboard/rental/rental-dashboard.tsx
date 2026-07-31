@@ -387,8 +387,11 @@ export function RentalDashboard() {
             {(() => {
               const today = new Date();
               const overdueCount = activeBookings.filter((b: any) => {
+                if (!b.endDate) return false;
                 const endDate = b.endDate && typeof b.endDate === 'object' && 'toDate' in b.endDate ? b.endDate.toDate() : new Date(b.endDate);
-                return today.getTime() > endDate.getTime() + 86400000;
+                const time = endDate.getTime();
+                if (isNaN(time)) return false;
+                return today.getTime() > time + 86400000;
               }).length;
 
               if (overdueCount === 0) return null;

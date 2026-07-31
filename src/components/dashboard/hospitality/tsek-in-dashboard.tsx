@@ -223,7 +223,7 @@ export function TsekInRoomsDashboard() {
                 <Badge variant="secondary" className={getStatusColor(room.status)}>{room.status}</Badge>
               </div>
               <p className="text-xs font-bold text-slate-500 mb-1">{room.type} • {room.bedType}</p>
-              <p className="text-sm font-bold" style={{ color: theme.primary }}>₱{(room.rateCentavos / 100).toLocaleString()}/night</p>
+              <p className="text-sm font-bold" style={{ color: theme.primary }}>₱{((room.rateCentavos || (room.rate ? room.rate * 100 : 0)) / 100).toLocaleString()}/night</p>
               
               <div className="mt-4 flex gap-2">
                 {room.status === 'Cleaning' && (
