@@ -279,10 +279,10 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
     ],
   },
   'sahod-flow': {
-    partnerCategory: 'Pasahod at Bale ng Staff',
-    heroHeadline: 'Sweldo na naman — Katuwang mo para walang kamali sa sahod.',
-    highlightWord: 'walang kamali sa sahod',
-    heroSubtitle: 'Auto-deduct sa vale, 1-tap payout sa staff, at rekta sa ledger ng negosyo. Mabilis magpasahod nang walang sakit sa ulo.',
+    partnerCategory: 'Pasahod at Bale Management',
+    heroHeadline: 'Sweldo na naman — Iwas-puyat sa kompyutan at bale.',
+    highlightWord: 'Iwas-puyat sa kompyutan',
+    heroSubtitle: 'Auto-bawas sa vale, 1-tap payout sa staff, at rekta pasok sa gastos ng negosyo. Mabilis magpasahod nang walang sakit sa ulo.',
     soloStruggles: [
       'Nakalilimutang ibawas ang naunang bale o cash advance ng tao.',
       'Matagal mag-kwenta ng sweldo sa gabi gamit ang papel at calculator.',
@@ -298,9 +298,9 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   'ledger-flow': {
     partnerCategory: 'Master Cash at Kita ng Negosyo',
-    heroHeadline: 'Alam mo ba kung kumikita ka talaga? May Katuwang kang nagbabantay.',
-    highlightWord: 'kumikita ka talaga',
-    heroSubtitle: 'Lahat ng benta sa POS, pasahod sa staff, at bayad sa suppliers — rekta lista sa master ledger para alam mo agad ang malinis na kita.',
+    heroHeadline: 'Alam mo ba kung magkano ang malinis mong kita?',
+    highlightWord: 'malinis mong kita',
+    heroSubtitle: 'Benta sa POS, pasahod sa staff, at bayad sa supplier — rekta lista sa master ledger para alam mo kung totoong kumikita ang negosyo.',
     soloStruggles: [
       'Hindi alam kung magkano talaga ang malinis na kita kumpara sa benta.',
       'Kalat-kalat ang resibo ng renta, ilaw, tubig, at gastusin sa tindahan.',
@@ -316,9 +316,9 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   '5-6-tracker': {
     partnerCategory: 'Pautang at Arawang Singilan',
-    heroHeadline: 'Kontrolado ang pautang — Katuwang mo para iwas-takbo sa utang.',
-    highlightWord: 'iwas-takbo sa utang',
-    heroSubtitle: 'May credit limit bawat borrower, araw-araw na talaan ng singil, at kumpletong audit trail para ligtas ang kapital mo araw-araw.',
+    heroHeadline: 'Kontrolado ang pautang — Iwas-takbo at atrasado sa singil.',
+    highlightWord: 'Iwas-takbo at atrasado',
+    heroSubtitle: 'May limit ang utang bawat tao, may lista ng araw-araw na koleksyon, at ligtas ang puhunan mo sa bawat biyahe ng kolektor.',
     soloStruggles: [
       'Lumalampas ang borrower sa kayang bayaran kaya nagkaka-delay sa singil.',
       'Nawawala ang papel na listahan ng araw-araw na koleksyon sa kalsada.',
