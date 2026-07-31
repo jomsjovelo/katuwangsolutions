@@ -280,8 +280,8 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   'sahod-flow': {
     partnerCategory: 'Pasahod at Bale Management',
-    heroHeadline: 'Sweldo na naman — Iwas-puyat sa kompyutan at bale.',
-    highlightWord: 'Iwas-puyat sa kompyutan',
+    heroHeadline: 'Katuwang mo para mabilis at saktong pasahod sa tauhan.',
+    highlightWord: 'mabilis at saktong pasahod',
     heroSubtitle: 'Auto-bawas sa vale, 1-tap payout sa staff, at rekta pasok sa gastos ng negosyo. Mabilis magpasahod nang walang sakit sa ulo.',
     soloStruggles: [
       'Nakalilimutang ibawas ang naunang bale o cash advance ng tao.',
@@ -298,8 +298,8 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   'ledger-flow': {
     partnerCategory: 'Master Cash at Kita ng Negosyo',
-    heroHeadline: 'Alam mo ba kung magkano ang malinis mong kita?',
-    highlightWord: 'malinis mong kita',
+    heroHeadline: 'Katuwang mo sa malinis at tapat na kwenta ng negosyo.',
+    highlightWord: 'malinis at tapat na kwenta',
     heroSubtitle: 'Benta sa POS, pasahod sa staff, at bayad sa supplier — rekta lista sa master ledger para alam mo kung totoong kumikita ang negosyo.',
     soloStruggles: [
       'Hindi alam kung magkano talaga ang malinis na kita kumpara sa benta.',
@@ -316,8 +316,8 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   '5-6-tracker': {
     partnerCategory: 'Pautang at Arawang Singilan',
-    heroHeadline: 'Kontrolado ang pautang — Iwas-takbo at atrasado sa singil.',
-    highlightWord: 'Iwas-takbo at atrasado',
+    heroHeadline: 'Katuwang mo sa araw-araw na koleksyon at pautang.',
+    highlightWord: 'araw-araw na koleksyon',
     heroSubtitle: 'May limit ang utang bawat tao, may lista ng araw-araw na koleksyon, at ligtas ang puhunan mo sa bawat biyahe ng kolektor.',
     soloStruggles: [
       'Lumalampas ang borrower sa kayang bayaran kaya nagkaka-delay sa singil.',
