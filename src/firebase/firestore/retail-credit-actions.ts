@@ -89,7 +89,7 @@ export async function addRetailCredit(
     const creditsRef = collection(db, 'tenants', data.tenantId, 'retail_credits');
     const newCreditRef = doc(creditsRef);
     
-    transaction.set(newCreditRef, {
+    const payload: Record<string, any> = {
       ...data,
       id: newCreditRef.id,
       paidAmount: 0,
@@ -97,7 +97,14 @@ export async function addRetailCredit(
       status: 'unpaid',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
-    });
+    };
+
+    // Remove any keys with undefined values to prevent Firestore error: Unsupported field value: undefined
+    const cleanedPayload = Object.fromEntries(
+      Object.entries(payload).filter(([_, val]) => val !== undefined)
+    );
+
+    transaction.set(newCreditRef, cleanedPayload);
   });
 }
 
