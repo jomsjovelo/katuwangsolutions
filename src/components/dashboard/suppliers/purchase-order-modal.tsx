@@ -158,8 +158,8 @@ export function PurchaseOrderModal({ isOpen, onClose, suppliers }: PurchaseOrder
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg bg-white rounded-3xl p-6">
-        <DialogHeader className="pb-3 border-b border-slate-100">
+      <DialogContent className="sm:max-w-lg bg-white rounded-3xl p-4 sm:p-6 max-h-[calc(100dvh-2rem)] flex flex-col justify-between overflow-hidden">
+        <DialogHeader className="pb-3 border-b border-slate-100 shrink-0">
           <DialogTitle className="text-base font-black text-slate-900 flex items-center gap-2">
             <ShoppingBag className="h-5 w-5 text-cyan-600" />
             Bumili ng Stock / Purchase Order (PO)
@@ -169,7 +169,7 @@ export function PurchaseOrderModal({ isOpen, onClose, suppliers }: PurchaseOrder
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <div className="space-y-3.5 py-2 flex-1 min-h-0 overflow-y-auto pr-1">
           {/* Supplier Selector */}
           <div className="space-y-1.5">
             <Label className="text-xs font-bold text-slate-700">Pumili ng Supplier *</Label>
@@ -342,7 +342,7 @@ export function PurchaseOrderModal({ isOpen, onClose, suppliers }: PurchaseOrder
           </div>
         </div>
 
-        <DialogFooter className="pt-2 border-t border-slate-100 flex gap-2">
+        <DialogFooter className="pt-2 border-t border-slate-100 flex gap-2 shrink-0 bg-white z-10 pt-2">
           <Button
             type="button"
             variant="outline"

@@ -75,7 +75,7 @@ export function QuickExpenseModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md rounded-3xl p-6 bg-white border-slate-200">
+      <DialogContent className="sm:max-w-md rounded-3xl p-4 sm:p-6 bg-white border-slate-200">
         <DialogHeader className="text-left space-y-1">
           <DialogTitle className="text-lg font-black text-slate-800 flex items-center gap-2">
             <Receipt className="h-5 w-5" style={{ color: themeColor }} />
