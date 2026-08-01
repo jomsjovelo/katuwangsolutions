@@ -12,3 +12,17 @@ runConfig:
 env:
   - variable: NODE_ENV
     value: production
+
+  # Email sender (Gmail SMTP) — required by /api/auth/send-verification
+  - variable: SMTP_USER
+    secret: SMTP_USER
+
+  - variable: SMTP_PASS
+    secret: SMTP_PASS
+
+  # Firebase Admin SDK — required for generateEmailVerificationLink()
+  - variable: ADMIN_CLIENT_EMAIL
+    secret: ADMIN_CLIENT_EMAIL
+
+  - variable: ADMIN_PRIVATE_KEY
+    secret: ADMIN_PRIVATE_KEY
