@@ -1,5 +1,6 @@
 # Settings to manage and configure a Firebase App Hosting backend.
 # https://firebase.google.com/docs/app-hosting/configure
+# Configured secrets: SMTP_USER, SMTP_PASS, ADMIN_CLIENT_EMAIL, ADMIN_PRIVATE_KEY (BOM-free)
 
 runConfig:
   # Minimum instances to keep warm for faster startup
