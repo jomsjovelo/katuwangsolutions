@@ -3,7 +3,7 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ChevronRight, Zap, WifiOff, RefreshCw } from 'lucide-react';
+import { ChevronRight, WifiOff, RefreshCw } from 'lucide-react';
 import { LoginDialog } from '@/components/auth/login-dialog';
 import { StaffRegisterDialog } from '@/components/auth/staff-register-dialog';
 import { BrandLogo } from '@/components/ui/brand-logo';
@@ -14,7 +14,7 @@ export function Hero() {
 
   return (
     <>
-      <section className="relative w-full overflow-hidden" style={{ height: '100svh', minHeight: '600px' }}>
+      <section className="relative w-full min-h-[100svh] overflow-hidden flex flex-col justify-between">
         {/* Full-bleed background image */}
         <Image
           src="/katuwang-partnership.png"
@@ -28,7 +28,7 @@ export function Hero() {
         <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-black/20 pointer-events-none" />
 
         {/* Top nav */}
-        <div className="absolute top-0 left-0 right-0 px-6 md:px-12 flex justify-between items-center z-10 pt-12">
+        <div className="relative z-30 w-full px-6 md:px-12 flex justify-between items-center pt-[max(1.25rem,env(safe-area-inset-top))] md:pt-8 pb-4">
           <BrandLogo theme="dark" />
           <React.Suspense fallback={
             <button className="h-8 px-4 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-white text-[11px] font-bold tracking-widest uppercase active:scale-95 transition-transform">
@@ -44,12 +44,7 @@ export function Hero() {
         </div>
 
         {/* Bottom content */}
-        <div className="absolute bottom-0 left-0 right-0 px-6 pb-8 z-10 space-y-4">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-1.5 bg-secondary/90 text-yellow-900 px-4 py-1.5 rounded-full">
-            <Zap className="h-3 w-3" />
-            <span className="text-[10px] font-black uppercase tracking-[0.15em]">✨ 19 Business Modules + Budget Mo · Isang Ecosystem para sa Lahat</span>
-          </div>
+        <div className="relative z-10 w-full px-6 pb-8 space-y-4 mt-auto">
 
           {/* Main Headline */}
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out fill-mode-both">
