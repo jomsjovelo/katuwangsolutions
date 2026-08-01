@@ -14,6 +14,9 @@ env:
   - variable: NODE_ENV
     value: production
 
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: studio-5538116689-bdfb2
+
   # Email sender (Gmail SMTP) — required by /api/auth/send-verification
   - variable: SMTP_USER
     secret: SMTP_USER
