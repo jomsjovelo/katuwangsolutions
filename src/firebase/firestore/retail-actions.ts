@@ -235,9 +235,6 @@ export async function deleteSale(
   const ledgerTxSnap = await getDocs(ledgerTxQuery);
 
   await runTransactionResilient(db, async (transaction) => {
-    // Delete corresponding ledger transactions
-    ledgerTxSnap.docs.forEach(d => transaction.delete(d.ref));
-
     // 1. Read the sale
     const saleSnap = await transaction.get(saleRef);
     if (!saleSnap.exists()) throw new Error("Sale not found.");
@@ -286,7 +283,10 @@ export async function deleteSale(
       });
     }
     
-    // 5. Delete the sale record
+    // 5. Delete corresponding master ledger transactions
+    ledgerTxSnap.docs.forEach(d => transaction.delete(d.ref));
+
+    // 6. Delete the sale record
     transaction.delete(saleRef);
     
     // Log the void
