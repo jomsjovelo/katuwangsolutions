@@ -397,7 +397,7 @@ export function ReportsTab() {
   }, [currentTenant?.id]);
 
   const handleVoidTransaction = async (sale: any) => {
-    if (!currentTenant || !user || !sale?.id) return;
+    if (!currentTenant || !sale?.id) return;
 
     const approved = await requireApproval("I-authorize ang pag-void ng benta sa Report Tab");
     if (!approved) return;
@@ -411,8 +411,8 @@ export function ReportsTab() {
       await deleteSale(
         currentTenant.id,
         sale.id,
-        user.uid,
-        user.displayName || user.email || 'Manager'
+        user?.uid || 'system',
+        user?.displayName || user?.email || 'Manager'
       );
 
       toast({
