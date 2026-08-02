@@ -20,6 +20,16 @@ import { usePinApproval } from '@/hooks/use-pin-approval';
 import { useToast } from '@/hooks/use-toast';
 import { deleteSale } from '@/firebase/firestore/retail-actions';
 import { EditTransactionModal } from './retail/edit-transaction-modal';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 // Specialized Retail Metrics for benta-snap
 function RetailMetrics({ selectedDate }: { selectedDate: Date | { start: Date, end: Date } }) {
@@ -276,6 +286,7 @@ export function ReportsTab() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
   const [voidingSaleId, setVoidingSaleId] = useState<string | null>(null);
+  const [saleToVoid, setSaleToVoid] = useState<any | null>(null);
 
   const getRangeBounds = (range: string) => {
     const now = new Date();
@@ -402,9 +413,13 @@ export function ReportsTab() {
     const approved = await requireApproval("I-authorize ang pag-void ng benta sa Report Tab");
     if (!approved) return;
 
-    if (!window.confirm(`Sigurado ka bang gusto mong i-void ang sales transaction (${sale.id.slice(0, 8)})? Ang stock ng paninda ay ibabalik sa inventory.`)) {
-      return;
-    }
+    setSaleToVoid(sale);
+  };
+
+  const confirmVoidTransaction = async () => {
+    if (!saleToVoid || !currentTenant) return;
+    const sale = saleToVoid;
+    setSaleToVoid(null);
 
     try {
       setVoidingSaleId(sale.id);
@@ -443,7 +458,11 @@ export function ReportsTab() {
   const incomeTxs = transactions.filter(t => t.type === 'income');
   const expenseTxs = transactions.filter(t => t.type === 'expense');
 
-  const grossIncomePesos = incomeTxs.reduce((acc, curr) => acc + (curr.totalPesos || 0), 0);
+  const salesIncomePesos = sales.reduce((acc, sale) => acc + ((sale.totalAmount || 0) / 100), 0);
+  const ledgerIncomePesos = incomeTxs.reduce((acc, curr) => acc + (curr.totalPesos || 0), 0);
+
+  // Sync Gross Revenue directly with real-time sales collection when available, fallback to ledger
+  const grossIncomePesos = sales.length > 0 ? salesIncomePesos : ledgerIncomePesos;
   const totalExpensesPesos = expenseTxs.reduce((acc, curr) => acc + (curr.totalPesos || 0), 0);
 
   // Group revenue by category
@@ -1228,6 +1247,32 @@ export function ReportsTab() {
             }}
           />
         )}
+
+        {/* Void Transaction Confirmation Dialog */}
+        <AlertDialog open={!!saleToVoid} onOpenChange={(open) => !open && setSaleToVoid(null)}>
+          <AlertDialogContent className="rounded-[24px]">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="font-headline font-black text-slate-800 flex items-center gap-2">
+                <Trash2 className="w-5 h-5 text-rose-600 shrink-0" />
+                Sigurado ka bang gusto mong i-void ang sale?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-xs text-slate-600 mt-1">
+                Ito ay mag-aalis sa sales transaction #{saleToVoid?.id?.slice(-6).toUpperCase() || ''} at awtomatikong ibabalik ang lahat ng paninda sa inventory stock.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2 sm:gap-0 mt-3">
+              <AlertDialogCancel className="rounded-xl font-bold text-xs border-slate-200">
+                Kanselahin
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmVoidTransaction}
+                className="bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs px-4"
+              >
+                I-void ang Transaksyon
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
       </main>
     </div>
