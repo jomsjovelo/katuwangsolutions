@@ -855,62 +855,79 @@ export function ReportsTab() {
                         key={sale.id} 
                         className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 transition-all hover:bg-slate-100/50 space-y-3"
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-3">
-                            <div className="h-9 w-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-700 font-headline font-black text-xs shrink-0 shadow-sm">
-                              ₱
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-black text-slate-800">
-                                  ₱{((sale.totalAmount || 0) / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                                </span>
-                                <Badge className={cn(
-                                  "text-[8px] font-black uppercase px-2 py-0.5 rounded-full border-none",
-                                  sale.paymentMethod === 'palista' 
-                                    ? "bg-amber-100 text-amber-800" 
-                                    : sale.paymentMethod === 'gcash' 
-                                    ? "bg-blue-100 text-blue-800" 
-                                    : "bg-emerald-100 text-emerald-800"
-                                )}>
-                                  {sale.paymentMethod || 'cash'}
-                                </Badge>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                          {/* Left: Transaction Info */}
+                          <div className="flex items-center justify-between sm:justify-start gap-3 w-full sm:w-auto">
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-800 font-headline font-black text-sm shrink-0 shadow-sm">
+                                ₱
                               </div>
-                              <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                                {formattedDate} • {items.length} item{items.length !== 1 ? 's' : ''}
-                                {sale.palistaName ? ` • ${sale.palistaName}` : ''}
-                              </p>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-black text-slate-800">
+                                    ₱{((sale.totalAmount || 0) / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                                  </span>
+                                  <Badge className={cn(
+                                    "text-[9px] font-black uppercase px-2 py-0.5 rounded-full border-none",
+                                    sale.paymentMethod === 'palista' 
+                                      ? "bg-amber-100 text-amber-800" 
+                                      : sale.paymentMethod === 'gcash' 
+                                      ? "bg-blue-100 text-blue-800" 
+                                      : "bg-emerald-100 text-emerald-800"
+                                  )}>
+                                    {sale.paymentMethod || 'cash'}
+                                  </Badge>
+                                </div>
+                                <p className="text-[10px] text-slate-400 font-bold mt-0.5">
+                                  {formattedDate} • {items.length} item{items.length !== 1 ? 's' : ''}
+                                  {sale.palistaName ? ` • ${sale.palistaName}` : ''}
+                                </p>
+                              </div>
                             </div>
-                          </div>
 
-                          {/* Actions */}
-                          <div className="flex items-center gap-1.5 shrink-0">
+                            {/* Mobile Expand Chevron Toggle */}
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => setExpandedSaleId(isExpanded ? null : sale.id)}
-                              className="h-8 w-8 p-0 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-white"
+                              className="h-8 w-8 p-0 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-white sm:hidden shrink-0"
                               title="Tignan ang Items"
                             >
                               {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                             </Button>
+                          </div>
+
+                          {/* Actions Toolbar */}
+                          <div className="flex items-center justify-end gap-2 w-full sm:w-auto pt-2 border-t border-slate-200/60 sm:border-none sm:pt-0 shrink-0">
+                            {/* Desktop Expand Chevron */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setExpandedSaleId(isExpanded ? null : sale.id)}
+                              className="h-8 w-8 p-0 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-white hidden sm:flex shrink-0"
+                              title="Tignan ang Items"
+                            >
+                              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            </Button>
+
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => handleOpenEditModal(sale)}
-                              className="h-8 px-2.5 rounded-xl border-slate-200 text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 text-xs font-bold gap-1"
+                              className="h-8 px-3 rounded-xl border-slate-200 text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 text-xs font-bold gap-1 cursor-pointer flex-1 sm:flex-initial justify-center"
                             >
                               <Edit3 className="h-3.5 w-3.5 text-indigo-500" />
                               Edit
                             </Button>
+
                             <Button
                               variant="outline"
                               size="sm"
                               disabled={isVoiding}
                               onClick={() => handleVoidTransaction(sale)}
-                              className="h-8 px-2.5 rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-bold gap-1"
+                              className="h-8 px-3 rounded-xl border-rose-300 bg-rose-50/80 hover:bg-rose-100 text-rose-700 text-xs font-black gap-1 cursor-pointer flex-1 sm:flex-initial justify-center shadow-xs"
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <Trash2 className="h-3.5 w-3.5 text-rose-600" />
                               {isVoiding ? 'Voiding...' : 'Void'}
                             </Button>
                           </div>
