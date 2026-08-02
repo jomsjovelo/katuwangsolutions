@@ -9,11 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Loader2, Plus, Users, Store, Banknote, History, ExternalLink, Search } from 'lucide-react';
+import { Loader2, Plus, Users, Store, Banknote, History, ExternalLink, Search, Edit3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getModuleTheme } from '@/lib/theme-utils';
 import { DiscountInput } from '@/components/ui/discount-input';
-import { addRetailCredit, recordRetailCreditPayment, RetailCreditEntry } from '@/firebase/firestore/retail-credit-actions';
+import { addRetailCredit, recordRetailCreditPayment, updateRetailCredit, deleteRetailCredit, RetailCreditEntry } from '@/firebase/firestore/retail-credit-actions';
 import { useUser } from '@/firebase/auth/use-user';
 import { useShift } from '@/hooks/use-shift';
 import { Timestamp } from 'firebase/firestore';
@@ -118,12 +118,13 @@ function ItemCombobox({
     </div>
   );
 }
-const CreditListItem = React.memo(({ credit, idx, setSelectedCredit, setShowPayModal, setPaymentAmountStr, setViewItemsCredit }: any) => {
+
+const CreditListItem = React.memo(({ credit, idx, setSelectedCredit, setShowPayModal, setPaymentAmountStr, setViewItemsCredit, onEdit, onDelete }: any) => {
   const isReceivable = credit.type === 'receivable';
   const remaining = credit.amount - (credit.paidAmount || 0);
   
   return (
-    <div className={cn("p-4 flex items-center justify-between", idx > 0 && "border-t border-slate-50")}>
+    <div className={cn("p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3", idx > 0 && "border-t border-slate-100")}>
       <div>
         <div className="flex items-center gap-2">
           <span className={cn(
@@ -133,7 +134,7 @@ const CreditListItem = React.memo(({ credit, idx, setSelectedCredit, setShowPayM
             {isReceivable ? 'Pautang' : 'Utang sa Supplier'}
           </span>
           <span className="text-xs font-bold text-slate-400">
-            {credit.creditDate?.toDate().toLocaleDateString()}
+            {credit.creditDate?.toDate ? credit.creditDate.toDate().toLocaleDateString() : new Date().toLocaleDateString()}
           </span>
         </div>
         <h4 className="font-extrabold text-sm text-slate-800 mt-1">{credit.name}</h4>
@@ -149,23 +150,47 @@ const CreditListItem = React.memo(({ credit, idx, setSelectedCredit, setShowPayM
           </Button>
         )}
       </div>
-      <div className="text-right flex flex-col items-end gap-2">
+
+      <div className="text-right flex flex-row sm:flex-col items-center sm:items-end justify-between gap-2">
         <div>
           <h5 className="font-black text-sm text-slate-800">₱{(remaining / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</h5>
           {credit.paidAmount > 0 && (
             <p className="text-[9px] font-bold text-slate-400">
-              Paid: ₱{(credit.paidAmount / 100).toLocaleString()}
+              Paid: ₱{(credit.paidAmount / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
             </p>
           )}
         </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={() => { setSelectedCredit(credit); setShowPayModal(true); setPaymentAmountStr((remaining/100).toString()); }}
-          className="h-7 text-[10px] font-bold px-3 rounded-lg border-slate-200 hover:bg-slate-50"
-        >
-          Bayaran
-        </Button>
+
+        <div className="flex items-center gap-1.5">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => { setSelectedCredit(credit); setShowPayModal(true); setPaymentAmountStr((remaining/100).toString()); }}
+            className="h-8 text-[11px] font-black px-3 rounded-xl border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 cursor-pointer"
+          >
+            Bayaran
+          </Button>
+
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={() => onEdit(credit)}
+            className="h-8 w-8 text-blue-600 border-slate-200 hover:bg-blue-50 rounded-xl cursor-pointer"
+            title="Edit Credit Record"
+          >
+            <Edit3 className="h-3.5 w-3.5" />
+          </Button>
+
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={() => onDelete(credit)}
+            className="h-8 w-8 text-rose-600 border-slate-200 hover:bg-rose-50 rounded-xl cursor-pointer"
+            title="Burahin / Delete Record"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -206,6 +231,11 @@ export function CreditTracker() {
   const [discountReason, setDiscountReason] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [receiptData, setReceiptData] = useState<any>(null);
+
+  // Edit & Delete modal states
+  const [editCreditModal, setEditCreditModal] = useState<RetailCreditEntry | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', amountStr: '', description: '', dateStr: '' });
+  const [deleteConfirmCredit, setDeleteConfirmCredit] = useState<RetailCreditEntry | null>(null);
 
   useEffect(() => {
     if (!currentTenant) return;
@@ -278,6 +308,67 @@ export function CreditTracker() {
       });
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: 'destructive' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleOpenEdit = (credit: RetailCreditEntry) => {
+    setEditCreditModal(credit);
+    setEditForm({
+      name: credit.name || '',
+      amountStr: (credit.amount / 100).toString(),
+      description: credit.description || '',
+      dateStr: credit.creditDate?.toDate ? credit.creditDate.toDate().toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!currentTenant || !editCreditModal || !editCreditModal.id) return;
+    setIsSubmitting(true);
+    try {
+      const amountCentavos = Math.round(parseFloat(editForm.amountStr) * 100);
+      if (isNaN(amountCentavos) || amountCentavos <= 0) throw new Error("Invalid credit amount.");
+
+      const dateVal = editForm.dateStr ? new Date(editForm.dateStr) : new Date();
+
+      await updateRetailCredit(
+        currentTenant.id,
+        editCreditModal.id,
+        {
+          name: editForm.name,
+          amount: amountCentavos,
+          description: editForm.description,
+          creditDate: dateVal
+        },
+        user?.uid,
+        user?.displayName || user?.email || 'User'
+      );
+
+      toast({ title: "Na-update na!", description: "Nai-save na ang pagbabago sa Utang / Palista." });
+      setEditCreditModal(null);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: 'destructive' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteCredit = async () => {
+    if (!currentTenant || !deleteConfirmCredit || !deleteConfirmCredit.id) return;
+    setIsSubmitting(true);
+    try {
+      await deleteRetailCredit(
+        currentTenant.id,
+        deleteConfirmCredit.id,
+        user?.uid,
+        user?.displayName || user?.email || 'User'
+      );
+
+      toast({ title: "Naisumite!", description: "Na-delete na ang Utang record." });
+      setDeleteConfirmCredit(null);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
     }
@@ -356,7 +447,7 @@ export function CreditTracker() {
         <Button 
           size="sm" 
           onClick={() => setShowAddModal(true)}
-          className="rounded-xl h-9 text-xs font-bold gap-1.5"
+          className="rounded-xl h-9 text-xs font-bold gap-1.5 cursor-pointer"
           style={{ backgroundColor: theme.primary, color: 'white' }}
         >
           <Plus className="h-3 w-3" /> Add Record
@@ -400,6 +491,8 @@ export function CreditTracker() {
               setShowPayModal={setShowPayModal}
               setPaymentAmountStr={setPaymentAmountStr}
               setViewItemsCredit={setViewItemsCredit}
+              onEdit={handleOpenEdit}
+              onDelete={(c: RetailCreditEntry) => setDeleteConfirmCredit(c)}
             />
           ))}
         </div>
@@ -496,7 +589,6 @@ export function CreditTracker() {
                           const newItems = [...addForm.items];
                           newItems[i].name = product.name;
                           newItems[i].productId = product.id || '';
-                          // Auto-fill price: salePrice for customer pautang, costPrice for supplier
                           const rawPrice = addForm.type === 'payable'
                             ? (product.costPrice || product.salePrice || 0)
                             : (product.salePrice || product.costPrice || 0);
@@ -577,6 +669,95 @@ export function CreditTracker() {
             <Button variant="outline" onClick={() => setShowAddModal(false)} className="rounded-xl font-bold">Kanselahin</Button>
             <Button onClick={handleAddCredit} disabled={!addForm.name || (addForm.useItems ? addForm.items.length === 0 : !addForm.amountStr) || isSubmitting} className="rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700 text-white">
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'I-save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Modal */}
+      <Dialog open={!!editCreditModal} onOpenChange={(open) => !open && setEditCreditModal(null)}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit3 className="h-5 w-5 text-indigo-600" /> I-edit ang Utang / Palista Record
+            </DialogTitle>
+            <DialogDescription>
+              Isaayos ang pangalan, halaga, at detalye ng utang record sa Credit Tracker.
+            </DialogDescription>
+          </DialogHeader>
+          {editCreditModal && (
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-slate-700">Pangalan ng Nag-utang / Supplier</Label>
+                <Input
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  className="h-11 rounded-xl text-xs font-bold"
+                  placeholder="Pangalan ng Customer"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-slate-700">Kabuuang Halaga ng Utang (₱)</Label>
+                <Input
+                  type="number"
+                  value={editForm.amountStr}
+                  onChange={(e) => setEditForm({ ...editForm, amountStr: e.target.value })}
+                  className="h-11 rounded-xl text-xs font-bold"
+                  placeholder="0.00"
+                />
+                {editCreditModal.paidAmount > 0 && (
+                  <p className="text-[10px] text-amber-600 font-bold">
+                    * May naibayad na na ₱{(editCreditModal.paidAmount / 100).toFixed(2)}. Ang bagong halaga ay dapat mas mataas dito.
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-slate-700">Petsa ng Utang</Label>
+                <Input
+                  type="date"
+                  value={editForm.dateStr}
+                  onChange={(e) => setEditForm({ ...editForm, dateStr: e.target.value })}
+                  className="h-11 rounded-xl text-xs font-bold"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-slate-700">Note / Description (Optional)</Label>
+                <Input
+                  value={editForm.description}
+                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                  className="h-11 rounded-xl text-xs font-bold"
+                  placeholder="Mga karagdagang detalye..."
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditCreditModal(null)} className="rounded-xl font-bold">Kanselahin</Button>
+            <Button onClick={handleSaveEdit} disabled={!editForm.name || !editForm.amountStr || isSubmitting} className="rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer">
+              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'I-save ang Pagbabago'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteConfirmCredit} onOpenChange={(open) => !open && setDeleteConfirmCredit(null)}>
+        <DialogContent className="sm:max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-rose-600 flex items-center gap-2">
+              <Trash2 className="h-5 w-5" /> Burahin ang Record?
+            </DialogTitle>
+            <DialogDescription className="text-xs font-medium text-slate-600 mt-1">
+              Sigurado ka bang gusto mong burahin ang utang record para kay <strong className="text-slate-900">{deleteConfirmCredit?.name}</strong> (₱{((deleteConfirmCredit?.amount || 0) / 100).toFixed(2)})?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 mt-2">
+            <Button variant="outline" onClick={() => setDeleteConfirmCredit(null)} className="rounded-xl font-bold flex-1">Kanselahin</Button>
+            <Button onClick={handleDeleteCredit} disabled={isSubmitting} className="rounded-xl font-bold bg-rose-600 hover:bg-rose-700 text-white flex-1 cursor-pointer">
+              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Oo, Burahin'}
             </Button>
           </DialogFooter>
         </DialogContent>

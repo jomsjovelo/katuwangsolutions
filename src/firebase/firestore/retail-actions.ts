@@ -234,6 +234,10 @@ export async function deleteSale(
   const ledgerTxQuery = query(collection(db, 'tenants', tenantId, 'transactions'), where('saleId', '==', saleId));
   const ledgerTxSnap = await getDocs(ledgerTxQuery);
 
+  // Find matching credit record
+  const creditQuery = query(collection(db, 'tenants', tenantId, 'retail_credits'), where('relatedSaleId', '==', saleId));
+  const creditSnap = await getDocs(creditQuery);
+
   await runTransactionResilient(db, async (transaction) => {
     // 1. Read the sale
     const saleSnap = await transaction.get(saleRef);
@@ -283,8 +287,9 @@ export async function deleteSale(
       });
     }
     
-    // 5. Delete corresponding master ledger transactions
+    // 5. Delete corresponding master ledger & credit transactions
     ledgerTxSnap.docs.forEach(d => transaction.delete(d.ref));
+    creditSnap.docs.forEach(d => transaction.delete(d.ref));
 
     // 6. Delete the sale record
     transaction.delete(saleRef);
@@ -321,9 +326,12 @@ export async function updateSaleTransaction(
   const saleRef = doc(db, 'tenants', tenantId, 'sales', saleId);
   const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
 
-  // Find matching master ledger transactions
+  // Find matching master ledger transactions & credit entries
   const ledgerTxQuery = query(collection(db, 'tenants', tenantId, 'transactions'), where('saleId', '==', saleId));
   const ledgerTxSnap = await getDocs(ledgerTxQuery);
+
+  const creditQuery = query(collection(db, 'tenants', tenantId, 'retail_credits'), where('relatedSaleId', '==', saleId));
+  const creditSnap = await getDocs(creditQuery);
 
   await runTransactionResilient(db, async (transaction) => {
     // 1. Read existing sale
@@ -447,6 +455,49 @@ export async function updateSaleTransaction(
         updatedAt: serverTimestamp()
       });
     });
+
+    // Sync linked credit record
+    if (updatedData.paymentMethod === 'palista' || updatedData.paymentMethod === 'utang') {
+      const pName = updatedData.palistaName?.trim() || 'Palista Customer';
+      if (creditSnap.docs.length > 0) {
+        transaction.update(creditSnap.docs[0].ref, {
+          name: pName,
+          amount: newTotalAmount,
+          items: updatedData.items.map(c => ({
+            productId: c.productId,
+            name: c.name,
+            quantity: c.quantity,
+            price: c.price
+          })),
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        const creditsRef = collection(db, 'tenants', tenantId, 'retail_credits');
+        const newCreditRef = doc(creditsRef);
+        transaction.set(newCreditRef, {
+          id: newCreditRef.id,
+          tenantId,
+          type: 'receivable',
+          name: pName,
+          amount: newTotalAmount,
+          paidAmount: 0,
+          status: 'unpaid',
+          creditDate: serverTimestamp(),
+          relatedSaleId: saleId,
+          description: `Benta Snap Palista Checkout`,
+          items: updatedData.items.map(c => ({
+            productId: c.productId,
+            name: c.name,
+            quantity: c.quantity,
+            price: c.price
+          })),
+          createdAt: serverTimestamp()
+        });
+      }
+    } else {
+      // Payment method changed away from palista -> remove credit record
+      creditSnap.docs.forEach(d => transaction.delete(d.ref));
+    }
 
     // 5. Audit Log
     logAuditEvent(tenantId, userId, userName, {

@@ -245,3 +245,102 @@ export async function recordRetailCreditPayment(
   });
 }
 
+/**
+ * Update an existing retail credit record
+ */
+export async function updateRetailCredit(
+  tenantId: string,
+  creditId: string,
+  updatedData: {
+    name?: string;
+    amount?: number; // in centavos
+    description?: string;
+    creditDate?: Date;
+    items?: { productId?: string; name: string; quantity: number; price: number }[];
+  },
+  userId?: string,
+  userName?: string
+) {
+  const db = getKatuwangDb();
+  
+  await runTransactionResilient(db, async (transaction) => {
+    const creditRef = doc(db, 'tenants', tenantId, 'retail_credits', creditId);
+    const creditSnap = await transaction.get(creditRef);
+    
+    if (!creditSnap.exists()) {
+      throw new Error("Credit record not found.");
+    }
+    
+    const credit = creditSnap.data() as RetailCreditEntry;
+    const paidAmount = credit.paidAmount || 0;
+    const newAmount = updatedData.amount !== undefined ? updatedData.amount : credit.amount;
+
+    if (newAmount < paidAmount) {
+      throw new Error(`Bawal bawasan ang kabuuang utang nang mababa sa naisumite nang bayad (₱${(paidAmount/100).toFixed(2)}).`);
+    }
+
+    let newStatus: 'unpaid' | 'partial' | 'paid' = 'unpaid';
+    if (paidAmount >= newAmount) {
+      newStatus = 'paid';
+    } else if (paidAmount > 0) {
+      newStatus = 'partial';
+    }
+
+    const payload: Record<string, any> = {
+      updatedAt: serverTimestamp(),
+      status: newStatus
+    };
+
+    if (updatedData.name !== undefined) payload.name = updatedData.name.trim();
+    if (updatedData.amount !== undefined) payload.amount = newAmount;
+    if (updatedData.description !== undefined) payload.description = updatedData.description.trim();
+    if (updatedData.creditDate !== undefined) payload.creditDate = Timestamp.fromDate(updatedData.creditDate);
+    if (updatedData.items !== undefined) payload.items = updatedData.items;
+
+    transaction.update(creditRef, payload);
+
+    if (userId && userName) {
+      logAuditEvent(tenantId, userId, userName, {
+        type: 'edit_sale',
+        description: `Updated credit record for ${payload.name || credit.name} (Amount: ₱${(newAmount / 100).toFixed(2)}).`,
+        meta: { creditId, oldAmount: credit.amount, newAmount }
+      });
+    }
+  });
+}
+
+/**
+ * Delete a retail credit record
+ */
+export async function deleteRetailCredit(
+  tenantId: string,
+  creditId: string,
+  userId?: string,
+  userName?: string
+) {
+  const db = getKatuwangDb();
+  
+  await runTransactionResilient(db, async (transaction) => {
+    const creditRef = doc(db, 'tenants', tenantId, 'retail_credits', creditId);
+    const creditSnap = await transaction.get(creditRef);
+    
+    if (!creditSnap.exists()) {
+      throw new Error("Credit record not found.");
+    }
+    
+    const credit = creditSnap.data() as RetailCreditEntry;
+    
+    // Delete the main credit document
+    transaction.delete(creditRef);
+
+    if (userId && userName) {
+      logAuditEvent(tenantId, userId, userName, {
+        type: 'void_sale',
+        description: `Deleted credit record for ${credit.name} (₱${(credit.amount / 100).toFixed(2)}).`,
+        meta: { creditId, creditName: credit.name, amount: credit.amount }
+      });
+    }
+  });
+}
+
+
