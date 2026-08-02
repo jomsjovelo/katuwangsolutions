@@ -167,27 +167,27 @@ export function EditTransactionModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl font-bold text-slate-800">
-            <Edit3 className="w-5 h-5 text-indigo-600" />
+      <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[88vh] flex flex-col p-0 rounded-[28px] overflow-hidden bg-white border border-slate-200/80 shadow-2xl">
+        <DialogHeader className="p-5 pb-3 border-b border-slate-100 bg-white shrink-0 space-y-1">
+          <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl font-headline font-black text-slate-800">
+            <Edit3 className="w-5 h-5 text-indigo-600 shrink-0" />
             I-edit ang Transaksyon #{sale.id.slice(-6).toUpperCase()}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-xs text-slate-500 font-medium">
             Buhayin at isaayos ang mga biniling item, discount, at paraan ng pagbabayad.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-2">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
           {/* Payment Method & Palista Customer */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold text-slate-600 uppercase flex items-center gap-1">
-                <CreditCard className="w-3.5 h-3.5 text-slate-500" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-black tracking-wider text-slate-500 uppercase flex items-center gap-1">
+                <CreditCard className="w-3.5 h-3.5 text-slate-400" />
                 Paraan ng Pagbabayad
               </Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger className="bg-white">
+                <SelectTrigger className="bg-white rounded-xl text-xs font-bold border-slate-200">
                   <SelectValue placeholder="Pumili ng Payment Method" />
                 </SelectTrigger>
                 <SelectContent>
@@ -200,22 +200,22 @@ export function EditTransactionModal({
             </div>
 
             {paymentMethod === 'utang' && (
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold text-slate-600 uppercase">Pangalan ng Nagpalista</Label>
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-black tracking-wider text-slate-500 uppercase">Pangalan ng Nagpalista</Label>
                 <Input
                   placeholder="e.g. Aling Nena"
                   value={palistaName}
                   onChange={(e) => setPalistaName(e.target.value)}
-                  className="bg-white"
+                  className="bg-white rounded-xl text-xs font-bold border-slate-200"
                 />
               </div>
             )}
           </div>
 
           {/* Product Items Table */}
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+              <Label className="text-xs font-black text-slate-800 flex items-center gap-1.5 uppercase tracking-wider">
                 <ShoppingBag className="w-4 h-4 text-indigo-600" />
                 Mga Nilalaman ng Resibo ({items.length})
               </Label>
@@ -225,7 +225,7 @@ export function EditTransactionModal({
             {products && products.length > 0 && (
               <div className="flex gap-2">
                 <Select value={selectedProductId} onValueChange={handleAddProduct}>
-                  <SelectTrigger className="bg-white border-dashed border-indigo-300 hover:border-indigo-500">
+                  <SelectTrigger className="bg-white border-dashed border-indigo-300 hover:border-indigo-500 rounded-xl text-xs font-bold">
                     <SelectValue placeholder="+ Magdagdag ng Item mula sa Imbentaryo..." />
                   </SelectTrigger>
                   <SelectContent className="max-h-60">
@@ -240,45 +240,45 @@ export function EditTransactionModal({
             )}
 
             {/* Items List */}
-            <div className="border rounded-xl divide-y overflow-hidden bg-white shadow-sm">
+            <div className="border border-slate-200/80 rounded-2xl divide-y overflow-hidden bg-white shadow-sm">
               {items.length === 0 ? (
-                <div className="p-6 text-center text-sm text-slate-400">Walang natitirang item sa listahan.</div>
+                <div className="p-6 text-center text-xs text-slate-400 font-medium">Walang natitirang item sa listahan.</div>
               ) : (
                 items.map((item, idx) => {
                   const itemTotal = (item.price * item.quantity) / 100;
                   return (
-                    <div key={idx} className="p-3 flex items-center justify-between hover:bg-slate-50 transition-colors">
-                      <div className="flex-1 min-w-0 pr-4">
-                        <p className="font-semibold text-sm text-slate-800 truncate">{item.name}</p>
-                        <p className="text-xs text-slate-500">
+                    <div key={idx} className="p-3 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 hover:bg-slate-50 transition-colors">
+                      <div className="flex-1 min-w-[130px] pr-2">
+                        <p className="font-bold text-xs sm:text-sm text-slate-800 line-clamp-1">{item.name}</p>
+                        <p className="text-[11px] text-slate-500 font-medium mt-0.5">
                           ₱{(item.price / 100).toFixed(2)} × {item.quantity} {item.unit || 'pcs'}
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center border rounded-lg overflow-hidden bg-slate-50">
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-slate-50 shadow-sm">
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-slate-600 hover:bg-slate-200"
+                            className="h-8 w-8 text-slate-600 hover:bg-slate-200 rounded-none"
                             onClick={() => handleQuantityChange(idx, -1)}
                           >
                             <Minus className="w-3.5 h-3.5" />
                           </Button>
-                          <span className="w-8 text-center text-sm font-bold text-slate-800">{item.quantity}</span>
+                          <span className="w-7 text-center text-xs font-black text-slate-800">{item.quantity}</span>
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-slate-600 hover:bg-slate-200"
+                            className="h-8 w-8 text-slate-600 hover:bg-slate-200 rounded-none"
                             onClick={() => handleQuantityChange(idx, 1)}
                           >
                             <Plus className="w-3.5 h-3.5" />
                           </Button>
                         </div>
 
-                        <span className="w-20 text-right font-bold text-sm text-slate-900">
+                        <span className="min-w-[64px] text-right font-black text-xs sm:text-sm text-slate-900 shrink-0">
                           ₱{itemTotal.toFixed(2)}
                         </span>
 
@@ -286,7 +286,7 @@ export function EditTransactionModal({
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-rose-500 hover:text-rose-700 hover:bg-rose-50"
+                          className="h-8 w-8 text-rose-500 hover:text-rose-700 hover:bg-rose-50 shrink-0 rounded-xl"
                           onClick={() => handleRemoveItem(idx)}
                         >
                           <Trash2 className="w-4 h-4" />
@@ -300,17 +300,17 @@ export function EditTransactionModal({
           </div>
 
           {/* Discount Section */}
-          <div className="bg-amber-50/60 p-4 rounded-xl border border-amber-200/80 space-y-3">
-            <Label className="text-xs font-semibold text-amber-800 uppercase flex items-center gap-1">
+          <div className="bg-amber-50/70 p-3.5 rounded-2xl border border-amber-200/80 space-y-2.5">
+            <Label className="text-[10px] font-black text-amber-800 uppercase tracking-wider flex items-center gap-1">
               <Tag className="w-3.5 h-3.5 text-amber-600" />
               Diskwento (Discount)
             </Label>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <div>
-                <Label className="text-xs text-amber-700">Uri ng Diskwento</Label>
+                <Label className="text-[10px] font-bold text-amber-700">Uri ng Diskwento</Label>
                 <Select value={discountType} onValueChange={(val: any) => setDiscountType(val)}>
-                  <SelectTrigger className="bg-white border-amber-200">
+                  <SelectTrigger className="bg-white border-amber-200 rounded-xl text-xs font-bold">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -324,7 +324,7 @@ export function EditTransactionModal({
               {discountType !== 'none' && (
                 <>
                   <div>
-                    <Label className="text-xs text-amber-700">
+                    <Label className="text-[10px] font-bold text-amber-700">
                       {discountType === 'percentage' ? 'Halaga sa %' : 'Halaga sa Pesos (₱)'}
                     </Label>
                     <Input
@@ -333,17 +333,17 @@ export function EditTransactionModal({
                       step="any"
                       value={discountValue}
                       onChange={(e) => setDiscountValue(parseFloat(e.target.value) || 0)}
-                      className="bg-white border-amber-200"
+                      className="bg-white border-amber-200 rounded-xl text-xs font-bold"
                     />
                   </div>
 
                   <div>
-                    <Label className="text-xs text-amber-700">Dahilan ng Diskwento</Label>
+                    <Label className="text-[10px] font-bold text-amber-700">Dahilan ng Diskwento</Label>
                     <Input
                       placeholder="e.g. Senior Discount / Suki"
                       value={discountReason}
                       onChange={(e) => setDiscountReason(e.target.value)}
-                      className="bg-white border-amber-200"
+                      className="bg-white border-amber-200 rounded-xl text-xs font-bold"
                     />
                   </div>
                 </>
@@ -352,31 +352,35 @@ export function EditTransactionModal({
           </div>
 
           {/* Summary Breakdown */}
-          <div className="bg-slate-900 text-white p-4 rounded-xl space-y-2">
-            <div className="flex justify-between text-xs text-slate-400">
-              <span>Subtotal:</span>
-              <span className="font-semibold">₱{(subtotalCentavos / 100).toFixed(2)}</span>
+          <div className="bg-slate-900 text-white p-4 rounded-2xl space-y-2 border border-slate-800 shadow-sm">
+            <div className="flex justify-between items-center text-xs text-slate-300">
+              <span className="font-semibold">Subtotal:</span>
+              <span className="font-bold">₱{(subtotalCentavos / 100).toFixed(2)}</span>
             </div>
             {calculatedDiscountCentavos > 0 && (
-              <div className="flex justify-between text-xs text-emerald-400">
-                <span>Diskwento:</span>
-                <span className="font-semibold">-₱{(calculatedDiscountCentavos / 100).toFixed(2)}</span>
+              <div className="flex justify-between items-center text-xs text-emerald-400">
+                <span className="font-semibold">Diskwento ({discountType}):</span>
+                <span className="font-bold">-₱{(calculatedDiscountCentavos / 100).toFixed(2)}</span>
               </div>
             )}
-            <div className="flex justify-between text-lg font-extrabold text-white pt-2 border-t border-slate-800">
-              <span>Bagong Kabuuang Bayarin:</span>
-              <span className="text-emerald-400">₱{(finalTotalCentavos / 100).toFixed(2)}</span>
+            <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 pt-2.5 border-t border-slate-800">
+              <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-200">
+                Bagong Kabuuang Bayarin:
+              </span>
+              <span className="text-xl sm:text-2xl font-headline font-black text-emerald-400 shrink-0">
+                ₱{(finalTotalCentavos / 100).toFixed(2)}
+              </span>
             </div>
           </div>
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+        <DialogFooter className="p-4 border-t border-slate-100 bg-slate-50 shrink-0 flex flex-row justify-end gap-2.5">
+          <Button type="button" variant="outline" className="rounded-xl font-bold text-xs" onClick={() => onOpenChange(false)} disabled={loading}>
             Kanselahin
           </Button>
           <Button
             type="button"
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs px-5 shadow-sm"
             onClick={handleSave}
             disabled={loading}
           >

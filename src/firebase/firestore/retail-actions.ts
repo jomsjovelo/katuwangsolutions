@@ -357,7 +357,9 @@ export async function updateSaleTransaction(
 
     const allProductIds = Array.from(new Set([...Object.keys(oldQtyMap), ...Object.keys(newQtyMap)]));
 
-    // 2. Read products for stock adjustments
+    // 2. Read products & master cash account for stock and ledger adjustments
+    const masterAccountSnap = await transaction.get(masterAccountRef);
+
     const productDataMap: Record<string, { ref: ReturnType<typeof doc>; currentStock: number }> = {};
     for (const pId of allProductIds) {
       const pRef = doc(db, 'tenants', tenantId, 'products', pId);
@@ -382,7 +384,12 @@ export async function updateSaleTransaction(
       }
     }
 
-    // Apply stock diff updates
+    const newDiscount = Math.min(secureSubtotal, updatedData.discountCentavos || 0);
+    const newTotalAmount = Math.max(0, secureSubtotal - newDiscount);
+
+    // ---------------- WRITE PHASE (ALL WRITES AFTER READS) ----------------
+
+    // 1. Apply stock diff updates
     for (const pId of allProductIds) {
       const oldQty = oldQtyMap[pId] || 0;
       const newQty = newQtyMap[pId] || 0;
@@ -395,11 +402,7 @@ export async function updateSaleTransaction(
       }
     }
 
-    const newDiscount = Math.min(secureSubtotal, updatedData.discountCentavos || 0);
-    const newTotalAmount = Math.max(0, secureSubtotal - newDiscount);
-
-    // 3. Ledger Cash Adjustments
-    const masterAccountSnap = await transaction.get(masterAccountRef);
+    // 2. Ledger Cash Adjustments
     if (masterAccountSnap.exists()) {
       if (oldPaymentMethod === 'cash' && updatedData.paymentMethod === 'cash') {
         const cashDiff = newTotalAmount - oldTotalAmount;
