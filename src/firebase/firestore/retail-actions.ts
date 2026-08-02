@@ -1,4 +1,4 @@
-import { getFirestore, doc, collection, serverTimestamp, setDoc, increment, Timestamp } from 'firebase/firestore';
+import { getFirestore, doc, collection, serverTimestamp, setDoc, increment, Timestamp, query, where, getDocs } from 'firebase/firestore';
 import { initializeFirebase } from '../index';
 import { ProductSchema } from '@/lib/schemas/inventory';
 import { runTransactionResilient } from './resilient-transaction';
@@ -12,6 +12,8 @@ export interface CartItem {
   name: string;
   price: number; // in centavos
   quantity: number;
+  costPrice?: number;
+  unit?: string;
 }
 
 export async function addProduct(tenantId: string, productData: any) {
@@ -197,6 +199,7 @@ export async function processCheckout(
         type: 'income',
         category: 'Sales',
         description: `Retail Sale (${paymentMethod})`,
+        saleId: saleDocId,
         date: new Date(),
         createdAt: serverTimestamp()
       });
@@ -225,8 +228,16 @@ export async function deleteSale(
 ) {
   const db = getKatuwangDb();
   const saleRef = doc(db, 'tenants', tenantId, 'sales', saleId);
+  const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
   
+  // Find matching master ledger transactions
+  const ledgerTxQuery = query(collection(db, 'tenants', tenantId, 'transactions'), where('saleId', '==', saleId));
+  const ledgerTxSnap = await getDocs(ledgerTxQuery);
+
   await runTransactionResilient(db, async (transaction) => {
+    // Delete corresponding ledger transactions
+    ledgerTxSnap.docs.forEach(d => transaction.delete(d.ref));
+
     // 1. Read the sale
     const saleSnap = await transaction.get(saleRef);
     if (!saleSnap.exists()) throw new Error("Sale not found.");
@@ -234,6 +245,13 @@ export async function deleteSale(
     const saleData = saleSnap.data();
     const items = saleData.items || [];
     const totalAmount = saleData.totalAmount || 0;
+    const paymentMethod = saleData.paymentMethod || 'cash';
+
+    // Read master cash account if cash payment
+    let masterSnap: any = null;
+    if (paymentMethod === 'cash') {
+      masterSnap = await transaction.get(masterAccountRef);
+    }
     
     // 2. Read products to restore stock
     const productDocs: Record<string, { ref: ReturnType<typeof doc>; currentStock: number }> = {};
@@ -259,8 +277,16 @@ export async function deleteSale(
         });
       }
     }
+
+    // 4. Reverse cash ledger if cash sale
+    if (paymentMethod === 'cash' && masterSnap && masterSnap.exists()) {
+      transaction.update(masterAccountRef, {
+        balance: increment(-totalAmount),
+        updatedAt: serverTimestamp()
+      });
+    }
     
-    // 4. Delete the sale record
+    // 5. Delete the sale record
     transaction.delete(saleRef);
     
     // Log the void
@@ -271,6 +297,162 @@ export async function deleteSale(
     });
   });
   
+  return true;
+}
+
+/**
+ * Edit and update an existing retail sale transaction
+ */
+export async function updateSaleTransaction(
+  tenantId: string,
+  saleId: string,
+  updatedData: {
+    items: CartItem[];
+    paymentMethod: string;
+    discountCentavos: number;
+    discountType?: 'percentage' | 'fixed';
+    discountReason?: string;
+    palistaName?: string;
+  },
+  userId: string,
+  userName: string
+): Promise<boolean> {
+  const db = getKatuwangDb();
+  const saleRef = doc(db, 'tenants', tenantId, 'sales', saleId);
+  const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+
+  // Find matching master ledger transactions
+  const ledgerTxQuery = query(collection(db, 'tenants', tenantId, 'transactions'), where('saleId', '==', saleId));
+  const ledgerTxSnap = await getDocs(ledgerTxQuery);
+
+  await runTransactionResilient(db, async (transaction) => {
+    // 1. Read existing sale
+    const saleSnap = await transaction.get(saleRef);
+    if (!saleSnap.exists()) throw new Error("Transaksyon hindi nahanap.");
+
+    const oldSale = saleSnap.data();
+    const oldItems: CartItem[] = oldSale.items || [];
+    const oldPaymentMethod = oldSale.paymentMethod || 'cash';
+    const oldTotalAmount = oldSale.totalAmount || 0;
+
+    // Map quantities
+    const oldQtyMap: Record<string, number> = {};
+    for (const item of oldItems) {
+      if (item.productId && !item.productId.startsWith('misc-')) {
+        oldQtyMap[item.productId] = (oldQtyMap[item.productId] || 0) + item.quantity;
+      }
+    }
+
+    const newQtyMap: Record<string, number> = {};
+    let secureSubtotal = 0;
+    for (const item of updatedData.items) {
+      if (item.quantity <= 0 || isNaN(item.quantity)) {
+        throw new Error(`Maling quantity para sa ${item.name}.`);
+      }
+      secureSubtotal += Math.round(item.price * item.quantity);
+      if (item.productId && !item.productId.startsWith('misc-')) {
+        newQtyMap[item.productId] = (newQtyMap[item.productId] || 0) + item.quantity;
+      }
+    }
+
+    const allProductIds = Array.from(new Set([...Object.keys(oldQtyMap), ...Object.keys(newQtyMap)]));
+
+    // 2. Read products for stock adjustments
+    const productDataMap: Record<string, { ref: ReturnType<typeof doc>; currentStock: number }> = {};
+    for (const pId of allProductIds) {
+      const pRef = doc(db, 'tenants', tenantId, 'products', pId);
+      const pSnap = await transaction.get(pRef);
+      if (pSnap.exists()) {
+        productDataMap[pId] = {
+          ref: pRef,
+          currentStock: pSnap.data().currentStock || 0
+        };
+      }
+    }
+
+    // Check stock availability for increases
+    for (const pId of allProductIds) {
+      const oldQty = oldQtyMap[pId] || 0;
+      const newQty = newQtyMap[pId] || 0;
+      const diff = newQty - oldQty; // Positive means extra stock needed
+      if (diff > 0 && productDataMap[pId]) {
+        if (productDataMap[pId].currentStock < diff) {
+          throw new Error(`Kulang ang stock para sa item ID ${pId} (Available: ${productDataMap[pId].currentStock}, kailangan: ${diff}).`);
+        }
+      }
+    }
+
+    // Apply stock diff updates
+    for (const pId of allProductIds) {
+      const oldQty = oldQtyMap[pId] || 0;
+      const newQty = newQtyMap[pId] || 0;
+      const diff = newQty - oldQty;
+      if (diff !== 0 && productDataMap[pId]) {
+        transaction.update(productDataMap[pId].ref, {
+          currentStock: productDataMap[pId].currentStock - diff,
+          updatedAt: serverTimestamp()
+        });
+      }
+    }
+
+    const newDiscount = Math.min(secureSubtotal, updatedData.discountCentavos || 0);
+    const newTotalAmount = Math.max(0, secureSubtotal - newDiscount);
+
+    // 3. Ledger Cash Adjustments
+    const masterAccountSnap = await transaction.get(masterAccountRef);
+    if (masterAccountSnap.exists()) {
+      if (oldPaymentMethod === 'cash' && updatedData.paymentMethod === 'cash') {
+        const cashDiff = newTotalAmount - oldTotalAmount;
+        if (cashDiff !== 0) {
+          transaction.update(masterAccountRef, {
+            balance: increment(cashDiff),
+            updatedAt: serverTimestamp()
+          });
+        }
+      } else if (oldPaymentMethod === 'cash' && updatedData.paymentMethod !== 'cash') {
+        transaction.update(masterAccountRef, {
+          balance: increment(-oldTotalAmount),
+          updatedAt: serverTimestamp()
+        });
+      } else if (oldPaymentMethod !== 'cash' && updatedData.paymentMethod === 'cash') {
+        transaction.update(masterAccountRef, {
+          balance: increment(newTotalAmount),
+          updatedAt: serverTimestamp()
+        });
+      }
+    }
+
+    // 4. Update Sale Document
+    transaction.update(saleRef, {
+      items: updatedData.items,
+      subtotalAmount: secureSubtotal,
+      discountAmount: newDiscount,
+      discountType: updatedData.discountType || 'none',
+      discountReason: updatedData.discountReason || '',
+      totalAmount: newTotalAmount,
+      paymentMethod: updatedData.paymentMethod,
+      palistaName: updatedData.palistaName || '',
+      isEdited: true,
+      updatedAt: serverTimestamp()
+    });
+
+    // Update matching master ledger transactions
+    ledgerTxSnap.docs.forEach(d => {
+      transaction.update(d.ref, {
+        amount: newTotalAmount,
+        description: `Retail Sale (${updatedData.paymentMethod})`,
+        updatedAt: serverTimestamp()
+      });
+    });
+
+    // 5. Audit Log
+    logAuditEvent(tenantId, userId, userName, {
+      type: 'edit_sale',
+      description: `Edited sale ${saleId}. Old Total: ₱${(oldTotalAmount / 100).toFixed(2)}, New Total: ₱${(newTotalAmount / 100).toFixed(2)}.`,
+      meta: { saleId, oldTotalAmount, newTotalAmount, newPaymentMethod: updatedData.paymentMethod }
+    });
+  });
+
   return true;
 }
 

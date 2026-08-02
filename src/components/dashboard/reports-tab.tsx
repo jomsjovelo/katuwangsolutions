@@ -9,12 +9,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from '@/lib/utils';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
-import { TrendingUp, TrendingDown, Calendar, Building2, PieChart as PieChartIcon, Download, Gift, Trophy } from "lucide-react";
+import { TrendingUp, TrendingDown, Calendar, Building2, PieChart as PieChartIcon, Download, Gift, Trophy, Trash2, Edit3, ShoppingBag, ChevronDown, ChevronUp } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis, Legend, BarChart, Bar, YAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 import { useSales } from '@/hooks/use-sales';
 import { startOfDay, endOfDay, subDays, format } from 'date-fns';
 import { useInventory } from '@/hooks/use-inventory';
 import { StaffShiftsReport } from './staff-shifts-report';
+import { useUser } from '@/firebase/auth/use-user';
+import { usePinApproval } from '@/hooks/use-pin-approval';
+import { useToast } from '@/hooks/use-toast';
+import { deleteSale } from '@/firebase/firestore/retail-actions';
+import { EditTransactionModal } from './retail/edit-transaction-modal';
 
 // Specialized Retail Metrics for benta-snap
 function RetailMetrics({ selectedDate }: { selectedDate: Date | { start: Date, end: Date } }) {
@@ -248,6 +253,9 @@ export function ReportsTab() {
   const theme = getModuleTheme(currentTenant?.moduleType);
   useDynamicThemeColor(theme);
   const { products: inventory } = useInventory();
+  const { user } = useUser();
+  const { requireApproval } = usePinApproval();
+  const { toast } = useToast();
 
   const [dateRangeStr, setDateRangeStr] = useState<string>('today');
   const [mounted, setMounted] = useState(false);
@@ -262,6 +270,12 @@ export function ReportsTab() {
   const [yesterdayIncomePesos, setYesterdayIncomePesos] = useState<number | null>(null);
   const [topReferrers, setTopReferrers] = useState<any[]>([]);
   const [loadingReferrers, setLoadingReferrers] = useState(false);
+
+  // Edit & Void state
+  const [selectedSaleToEdit, setSelectedSaleToEdit] = useState<any | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
+  const [voidingSaleId, setVoidingSaleId] = useState<string | null>(null);
 
   const getRangeBounds = (range: string) => {
     const now = new Date();
@@ -381,6 +395,49 @@ export function ReportsTab() {
       });
     }
   }, [currentTenant?.id]);
+
+  const handleVoidTransaction = async (sale: any) => {
+    if (!currentTenant || !user || !sale?.id) return;
+
+    const approved = await requireApproval("I-authorize ang pag-void ng benta sa Report Tab");
+    if (!approved) return;
+
+    if (!window.confirm(`Sigurado ka bang gusto mong i-void ang sales transaction (${sale.id.slice(0, 8)})? Ang stock ng paninda ay ibabalik sa inventory.`)) {
+      return;
+    }
+
+    try {
+      setVoidingSaleId(sale.id);
+      await deleteSale(
+        currentTenant.id,
+        sale.id,
+        user.uid,
+        user.displayName || user.email || 'Manager'
+      );
+
+      toast({
+        title: "Na-void na ang sale",
+        description: `Na-void ang transaction at naibalik ang stock sa inventory.`,
+      });
+    } catch (err: any) {
+      console.error("Error voiding transaction:", err);
+      toast({
+        variant: "destructive",
+        title: "Nagka-error sa pag-void",
+        description: err.message || "Hindi ma-void ang sales transaction.",
+      });
+    } finally {
+      setVoidingSaleId(null);
+    }
+  };
+
+  const handleOpenEditModal = async (sale: any) => {
+    const approved = await requireApproval("I-authorize ang pag-edit ng benta sa Report Tab");
+    if (!approved) return;
+
+    setSelectedSaleToEdit(sale);
+    setIsEditModalOpen(true);
+  };
 
   // Aggregate unified metrics
   const incomeTxs = transactions.filter(t => t.type === 'income');
@@ -728,7 +785,7 @@ export function ReportsTab() {
              </div>
              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
                <span className="text-xs font-bold text-slate-500">Total Expenses</span>
-               <span className="text-sm font-black text-rose-600">- ₱{totalExpensesPesos.toLocaleString('en-PH', {minimumFractionDigits: 2})}</span>
+               <span className="text-sm font-black text-rose-600">- ₱{totalExpensesPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
              </div>
              <div className="flex justify-between items-center pt-1">
                <span className="text-xs font-black uppercase tracking-widest text-slate-800">Net Profit</span>
@@ -738,6 +795,144 @@ export function ReportsTab() {
              </div>
           </CardContent>
         </Card>
+
+        {/* Sales Transactions History Log (Edit & Delete/Void Sales) */}
+        <section className="space-y-3.5 mt-2">
+          <Card className="shadow-none border border-slate-200/60 rounded-[28px] overflow-hidden bg-white">
+            <CardHeader className="p-5 pb-3">
+              <div className="flex justify-between items-center">
+                <div>
+                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Mga Benta at Transaksyon</span>
+                  <CardTitle className="text-sm font-headline font-black text-slate-800 mt-1 flex items-center gap-2">
+                    <ShoppingBag className="h-4 w-4 text-emerald-600" />
+                    Sales Transactions History
+                  </CardTitle>
+                </div>
+                <Badge variant="outline" className="text-[8px] font-black uppercase bg-emerald-50 border-emerald-200 text-emerald-700 px-2.5 py-1 rounded-full">
+                  {sales.length} Records
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="px-5 pb-5 space-y-3">
+              {sales.length === 0 ? (
+                <div className="text-center py-8 border-2 border-dashed border-slate-100 rounded-2xl">
+                  <ShoppingBag className="h-8 w-8 mx-auto mb-2 text-slate-200" />
+                  <p className="text-xs text-slate-400 font-medium">Walang nahanap na sales transaction sa napiling petsa.</p>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {sales.map((sale: any) => {
+                    const isExpanded = expandedSaleId === sale.id;
+                    const items = sale.items || [];
+                    const isVoiding = voidingSaleId === sale.id;
+                    const formattedDate = sale.createdAt?.toDate
+                      ? format(sale.createdAt.toDate(), 'h:mm a • MMM d')
+                      : sale.createdAt
+                      ? format(new Date(sale.createdAt), 'h:mm a • MMM d')
+                      : 'Unknown time';
+
+                    return (
+                      <div 
+                        key={sale.id} 
+                        className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 transition-all hover:bg-slate-100/50 space-y-3"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-3">
+                            <div className="h-9 w-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-700 font-headline font-black text-xs shrink-0 shadow-sm">
+                              ₱
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-black text-slate-800">
+                                  ₱{((sale.totalAmount || 0) / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                                </span>
+                                <Badge className={cn(
+                                  "text-[8px] font-black uppercase px-2 py-0.5 rounded-full border-none",
+                                  sale.paymentMethod === 'palista' 
+                                    ? "bg-amber-100 text-amber-800" 
+                                    : sale.paymentMethod === 'gcash' 
+                                    ? "bg-blue-100 text-blue-800" 
+                                    : "bg-emerald-100 text-emerald-800"
+                                )}>
+                                  {sale.paymentMethod || 'cash'}
+                                </Badge>
+                              </div>
+                              <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                                {formattedDate} • {items.length} item{items.length !== 1 ? 's' : ''}
+                                {sale.palistaName ? ` • ${sale.palistaName}` : ''}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setExpandedSaleId(isExpanded ? null : sale.id)}
+                              className="h-8 w-8 p-0 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-white"
+                              title="Tignan ang Items"
+                            >
+                              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenEditModal(sale)}
+                              className="h-8 px-2.5 rounded-xl border-slate-200 text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 text-xs font-bold gap-1"
+                            >
+                              <Edit3 className="h-3.5 w-3.5 text-indigo-500" />
+                              Edit
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={isVoiding}
+                              onClick={() => handleVoidTransaction(sale)}
+                              className="h-8 px-2.5 rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-bold gap-1"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              {isVoiding ? 'Voiding...' : 'Void'}
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Expanded Item Details */}
+                        {isExpanded && (
+                          <div className="pt-2 border-t border-slate-200/60 text-xs space-y-1.5 bg-white p-3 rounded-xl">
+                            <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+                              Mga Binili (Items Breakdown):
+                            </span>
+                            {items.length === 0 ? (
+                              <p className="text-[10px] text-slate-400 italic">Walang detalye ng items.</p>
+                            ) : (
+                              items.map((it: any, i: number) => (
+                                <div key={i} className="flex justify-between items-center text-slate-700 text-[11px] font-medium">
+                                  <span>
+                                    {it.name || 'Product Item'} <span className="text-slate-400 font-bold">x{it.quantity}</span>
+                                  </span>
+                                  <span className="font-bold">
+                                    ₱{((it.price * it.quantity) / (it.price > 1000 ? 100 : 1)).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                              ))
+                            )}
+                            {sale.discountAmount > 0 && (
+                              <div className="flex justify-between items-center text-rose-600 text-[11px] font-bold pt-1 border-t border-dashed border-slate-100">
+                                <span>Discount ({sale.discountType || 'applied'})</span>
+                                <span>- ₱{(sale.discountAmount / 100).toFixed(2)}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </section>
 
         {/* 3-Tier Accounting Breakdown: Assets vs OPEX vs Spoilage */}
         <Card className="shadow-none border border-slate-200/60 rounded-[28px] overflow-hidden bg-white">
@@ -1014,6 +1209,25 @@ export function ReportsTab() {
             })}
           </div>
         </section>
+
+        {/* Edit Transaction Modal */}
+        {selectedSaleToEdit && (
+          <EditTransactionModal
+            open={isEditModalOpen}
+            onOpenChange={setIsEditModalOpen}
+            sale={selectedSaleToEdit}
+            tenantId={currentTenant?.id || ''}
+            userId={user?.uid || ''}
+            userName={user?.displayName || user?.email || 'Manager'}
+            products={(inventory || []) as any}
+            onSuccess={() => {
+              toast({
+                title: "Na-update na ang Sale",
+                description: "Na-save ang pagbabago sa sales transaction at na-adjust ang inventory/ledger.",
+              });
+            }}
+          />
+        )}
 
       </main>
     </div>

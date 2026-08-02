@@ -11,7 +11,8 @@ import {
   FileText,
   Loader2,
   Image,
-  Download
+  Download,
+  Edit3
 } from "lucide-react";
 import { EscPosBluetoothDriver } from '@/lib/hardware/print-driver';
 import { toJpeg } from 'html-to-image';
@@ -42,6 +43,7 @@ interface ThermalReceiptPreviewProps {
   paymentMethod?: string;
   onVoidSale?: () => void;
   isVoiding?: boolean;
+  onEditSale?: () => void;
 }
 
 export function ThermalReceiptPreview({
@@ -56,7 +58,8 @@ export function ThermalReceiptPreview({
   paymentMethod = 'cash',
   receiptType = "KATUWANG POS RESIBO",
   onVoidSale,
-  isVoiding = false
+  isVoiding = false,
+  onEditSale
 }: ThermalReceiptPreviewProps) {
   const [isPrintingBt, setIsPrintingBt] = useState(false);
   const [btError, setBtError] = useState<string | null>(null);
@@ -322,6 +325,17 @@ export function ThermalReceiptPreview({
               <Image className="h-4 w-4" />
               Save as JPG
             </Button>
+
+            {/* Edit Sale (Optional) */}
+            {onEditSale && (
+              <Button 
+                onClick={onEditSale}
+                className="h-11 text-blue-600 bg-blue-50 hover:bg-blue-100 font-black rounded-xl flex items-center justify-center gap-1.5 text-xs cursor-pointer"
+              >
+                <Edit3 className="h-4 w-4" />
+                Edit Transaksyon
+              </Button>
+            )}
             
             {/* Void Sale (Optional) */}
             {onVoidSale && (

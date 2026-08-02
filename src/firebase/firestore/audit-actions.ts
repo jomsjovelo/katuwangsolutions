@@ -4,6 +4,7 @@ import { initializeFirebase } from '../index';
 export type AuditEventType = 
   | 'delete_transaction' 
   | 'edit_transaction' 
+  | 'edit_sale'
   | 'add_staff' 
   | 'remove_staff' 
   | 'module_changed'

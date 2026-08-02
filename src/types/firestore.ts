@@ -22,6 +22,7 @@ export interface CartItem {
   quantity: number;
   price: number; // centavos
   costPrice?: number; // centavos
+  unit?: string;
 }
 
 export interface SaleRecord {
