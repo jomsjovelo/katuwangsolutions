@@ -36,6 +36,8 @@ import { StaffShiftCard } from './staff-shift-card';
 import { ManagerPinSetup } from './manager-pin-setup';
 import { ActivityOrganizer } from './activity-organizer';
 import { EmailVerificationBanner } from '@/components/auth/email-verification-banner';
+import { BluetoothPrinterModal } from '@/components/common/bluetooth-printer-modal';
+import { EscPosBluetoothDriver } from '@/lib/hardware/print-driver';
 import { 
   User, 
   Users, 
@@ -73,7 +75,6 @@ import {
   Zap,
   Edit2
 } from 'lucide-react';
-import { EscPosBluetoothDriver } from '@/lib/hardware/print-driver';
 import { HelpGuideDrawer } from '@/components/shell/help-guide-drawer';
 import { SponsorDialog } from '@/components/dashboard/sponsor-dialog';
 
@@ -116,6 +117,7 @@ export function ProfileTab() {
 
   // Audit log state
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [showPrinterSetupModal, setShowPrinterSetupModal] = useState(false);
 
   const theme = getModuleTheme(currentTenant?.moduleType);
   const isOwner = profile?.role === 'owner';
@@ -633,33 +635,39 @@ export function ProfileTab() {
           </Card>
         )}
 
-        {/* Printer Settings */}
+        {/* POS Printer Settings */}
         <Card className="bg-white border-slate-200 shadow-sm rounded-[24px]">
           <CardHeader className="p-4 pb-2">
             <CardTitle className="text-sm font-black text-slate-800 flex items-center gap-2">
               <Printer className="h-4 w-4" style={{ color: theme.primary }} />
-              Bluetooth Receipt Printer
+              POS Receipt Printer Setup
             </CardTitle>
             <CardDescription className="text-[11px] font-medium leading-relaxed mt-0.5">
-              I-connect ang inyong 58mm POS thermal printer para makapag-print ng resibo.
+              I-connect ang inyong Bluetooth o Wireless POS thermal printer (58mm, 80mm, 110mm, o AirPrint).
             </CardDescription>
           </CardHeader>
           <CardContent className="p-4 pt-2">
             <div className="flex flex-col gap-2">
               <Button 
-                onClick={handleTestPrinter}
+                onClick={() => setShowPrinterSetupModal(true)}
                 variant="outline"
-                className="w-full h-11 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border-slate-200"
+                className="w-full h-11 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border-slate-200 hover:bg-slate-50 cursor-pointer"
               >
                 <Bluetooth className="h-4 w-4 text-blue-500" />
                 I-Pair at I-Test ang Printer
               </Button>
               <p className="text-[10px] text-slate-400 font-bold text-center">
-                Status: <span className="text-slate-600">{btStatus}</span>
+                Status: <span className="text-slate-600 font-bold">{EscPosBluetoothDriver.isConnected() ? `Konektado (${EscPosBluetoothDriver.getConnectedDeviceName() || 'POS Printer'})` : (typeof window !== 'undefined' && !(navigator as any).bluetooth ? 'AirPrint / System Print Ready (iOS)' : 'Naka-standby')}</span>
               </p>
             </div>
           </CardContent>
         </Card>
+
+        {/* Bluetooth Printer Setup Modal */}
+        <BluetoothPrinterModal
+          open={showPrinterSetupModal}
+          onClose={() => setShowPrinterSetupModal(false)}
+        />
 
         {/* Owner Only Sections */}
         {isOwner && (

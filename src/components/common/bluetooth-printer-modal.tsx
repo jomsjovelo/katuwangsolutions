@@ -1,9 +1,9 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Bluetooth, Printer, CheckCircle, AlertCircle, RefreshCw, Smartphone, HelpCircle } from 'lucide-react';
+import { Bluetooth, Printer, CheckCircle, AlertCircle, RefreshCw, Smartphone, HelpCircle, FileText } from 'lucide-react';
 import { EscPosBluetoothDriver } from '@/lib/hardware/print-driver';
 import { useTenant } from '@/app/lib/tenant-context';
 import { useToast } from '@/hooks/use-toast';
@@ -20,6 +20,11 @@ export function BluetoothPrinterModal({ open, onClose }: BluetoothPrinterModalPr
   const [isConnecting, setIsConnecting] = useState(false);
   const [isPrintingTest, setIsPrintingTest] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isBluetoothSupported, setIsBluetoothSupported] = useState(true);
+
+  useEffect(() => {
+    setIsBluetoothSupported(typeof window !== 'undefined' && !!(navigator as any).bluetooth);
+  }, []);
 
   const isConnected = EscPosBluetoothDriver.isConnected();
   const connectedName = EscPosBluetoothDriver.getConnectedDeviceName();
@@ -87,16 +92,36 @@ export function BluetoothPrinterModal({ open, onClose }: BluetoothPrinterModalPr
             <Bluetooth className="h-7 w-7 text-blue-400" />
           </div>
           <DialogTitle className="text-xl font-headline font-black text-white">
-            Bluetooth POS Printer Setup
+            Universal POS Printer Setup
           </DialogTitle>
           <DialogDescription className="text-xs text-slate-300 font-medium mt-1">
-            I-connect ang anumang 58mm o 80mm mobile thermal printer gamit ang Bluetooth.
+            Gumagana sa anumang POS Thermal Printer (58mm, 80mm, 110mm, Bluetooth, o AirPrint).
           </DialogDescription>
         </div>
 
         {/* Modal Content */}
         <div className="p-5 space-y-4 bg-white">
           
+          {/* iOS / Safari AirPrint Fallback Banner */}
+          {!isBluetoothSupported && (
+            <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl space-y-2 text-xs">
+              <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
+                <Smartphone className="h-4 w-4 text-amber-600 shrink-0" />
+                <span>iOS / Safari Device Mode (AirPrint & PDF Ready)</span>
+              </div>
+              <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
+                Ang iOS Safari ay gumagamit ng **AirPrint / Save as PDF** system. Maaari kang mag-print sa anumang POS printer o Wireless printer sa pamamagitan ng System Print.
+              </p>
+              <Button
+                type="button"
+                onClick={() => window.print()}
+                className="w-full h-10 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs gap-2 mt-1 cursor-pointer"
+              >
+                <FileText className="h-4 w-4" /> Mag-print via AirPrint / System Print
+              </Button>
+            </div>
+          )}
+
           {/* Connection Status Card */}
           <div className={cn(
             "p-4 rounded-2xl border flex items-center justify-between gap-3 transition-colors",
@@ -153,7 +178,7 @@ export function BluetoothPrinterModal({ open, onClose }: BluetoothPrinterModalPr
               type="button"
               onClick={handleConnect}
               disabled={isConnecting}
-              className="h-12 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl text-xs gap-2 shadow-sm"
+              className="h-12 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl text-xs gap-2 shadow-sm cursor-pointer"
             >
               {isConnecting ? (
                 <RefreshCw className="h-4 w-4 animate-spin text-white" />
@@ -168,7 +193,7 @@ export function BluetoothPrinterModal({ open, onClose }: BluetoothPrinterModalPr
               onClick={handleTestPrint}
               disabled={isPrintingTest}
               variant="outline"
-              className="h-12 border-slate-200 hover:bg-slate-50 text-slate-800 font-bold rounded-2xl text-xs gap-2"
+              className="h-12 border-slate-200 hover:bg-slate-50 text-slate-800 font-bold rounded-2xl text-xs gap-2 cursor-pointer"
             >
               {isPrintingTest ? (
                 <RefreshCw className="h-4 w-4 animate-spin text-slate-600" />
@@ -186,10 +211,10 @@ export function BluetoothPrinterModal({ open, onClose }: BluetoothPrinterModalPr
               Gabay sa Pag-connect:
             </div>
             <ul className="space-y-1.5 text-slate-600 text-[11px] font-medium list-disc list-inside">
-              <li>Siguraduhing **Naka-ON** ang iyong Bluetooth thermal printer.</li>
-              <li>I-ON ang Bluetooth sa iyong Phone/Tablet o Computer.</li>
-              <li>Gamitin ang **Google Chrome** o **Brave** browser.</li>
-              <li>I-click ang *"I-connect ang Printer"* at piliin ang pangalan ng iyong printer (e.g. POS-58, MPT, XP-58, BlueTooth Printer).</li>
+              <li>Maaaring gamitin sa **58mm, 80mm, o 110mm** POS thermal printers.</li>
+              <li>Siguraduhing **Naka-ON** ang iyong Bluetooth / Wireless thermal printer.</li>
+              <li>Sa Android o Desktop: Gamitin ang **Chrome** o **Brave** browser.</li>
+              <li>Sa iPhone o iPad: Gamitin ang **AirPrint / Save as PDF** o Bluetooth bridge.</li>
             </ul>
           </div>
 

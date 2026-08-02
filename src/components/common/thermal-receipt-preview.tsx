@@ -189,7 +189,7 @@ export function ThermalReceiptPreview({
             </div>
             <div>
               <h3 className="font-headline font-black text-xs uppercase tracking-widest text-slate-100">Resibo Preview</h3>
-              <p className="text-[10px] text-slate-400 font-bold mt-0.5">58mm Thermal Printer Format</p>
+              <p className="text-[10px] text-slate-400 font-bold mt-0.5">58mm / 80mm POS Thermal Printer Format</p>
             </div>
           </div>
           <Button 
