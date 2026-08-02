@@ -34,6 +34,10 @@ interface ThermalReceiptPreviewProps {
   storeName: string;
   receiptType?: string; // e.g., 'KITCHEN SLIP', 'RENTAL', 'BENTA'
   items: ReceiptItem[];
+  subtotalAmountPesos?: number;
+  discountAmountPesos?: number;
+  discountType?: string;
+  discountReason?: string;
   totalAmountPesos: number;
   cashReceivedPesos?: number;
   changePesos?: number;
@@ -51,6 +55,10 @@ export function ThermalReceiptPreview({
   onClose,
   storeName,
   items,
+  subtotalAmountPesos,
+  discountAmountPesos,
+  discountType,
+  discountReason,
   totalAmountPesos,
   transactionId,
   theme,
@@ -126,6 +134,15 @@ export function ThermalReceiptPreview({
       alert('Failed to save receipt as JPG.');
     }
   };
+
+  const itemsSubtotalPesos = items.reduce((sum, item) => sum + ((item.price * item.quantity) / 100), 0);
+  const displaySubtotalPesos = subtotalAmountPesos || itemsSubtotalPesos;
+
+  const explicitDiscountPesos = discountAmountPesos && discountAmountPesos > 0 ? discountAmountPesos : 0;
+  const inferredDiscountPesos = (!discountAmountPesos && itemsSubtotalPesos > totalAmountPesos + 0.01) 
+    ? itemsSubtotalPesos - totalAmountPesos 
+    : 0;
+  const activeDiscountPesos = explicitDiscountPesos || inferredDiscountPesos;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
@@ -243,12 +260,34 @@ export function ThermalReceiptPreview({
               </div>
             ) : null}
 
-            {/* Net Total Amount */}
-            <div className="flex justify-between items-center mb-4 text-right">
-              <span className="font-sans font-black text-[8px] uppercase tracking-wider text-slate-400">KABUUAN:</span>
-              <span className="font-sans font-black text-sm text-slate-950">
-                ₱{totalAmountPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-              </span>
+            {/* Financial Breakdown: Subtotal, Discount & Net Total Amount */}
+            <div className="space-y-1 mb-4 text-right">
+              {activeDiscountPesos > 0 && (
+                <>
+                  <div className="flex justify-between items-center text-[9px] text-slate-500">
+                    <span className="font-sans font-bold">SUBTOTAL:</span>
+                    <span className="font-bold text-slate-700">
+                      ₱{displaySubtotalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-[9px] text-emerald-600">
+                    <span className="font-sans font-bold">
+                      DISCOUNT{discountType && discountType !== 'none' ? ` (${discountType.toUpperCase()})` : ''}:
+                    </span>
+                    <span className="font-bold">
+                      -₱{activeDiscountPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="text-slate-300 tracking-tighter text-[9px] text-center my-0.5">--------------------------------</div>
+                </>
+              )}
+
+              <div className="flex justify-between items-center">
+                <span className="font-sans font-black text-[8px] uppercase tracking-wider text-slate-400">KABUUAN:</span>
+                <span className="font-sans font-black text-sm text-slate-950">
+                  ₱{totalAmountPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
             </div>
 
             {/* Stylized custom QR/Barcode Graphic on Thermal Paper */}

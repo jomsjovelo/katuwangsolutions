@@ -1098,6 +1098,10 @@ function BentaDashboardContent() {
         onClose={() => setShowReceipt(false)}
         storeName={currentTenant?.name || "Katuwang Store"}
         items={completedSale?.items || []}
+        subtotalAmountPesos={((completedSale?.total || 0) + (completedSale?.discountCentavos || 0)) / 100}
+        discountAmountPesos={(completedSale?.discountCentavos || 0) / 100}
+        discountType={completedSale?.discountType}
+        discountReason={completedSale?.discountReason}
         totalAmountPesos={(completedSale?.total || 0) / 100}
         paymentMethod={completedSale?.paymentMethod || "cash"}
         transactionId={completedSale?.saleId || 'PENDING'}
