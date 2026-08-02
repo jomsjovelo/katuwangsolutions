@@ -12,10 +12,12 @@ import {
   Loader2,
   Image,
   Download,
-  Edit3
+  Edit3,
+  Settings
 } from "lucide-react";
 import { EscPosBluetoothDriver } from '@/lib/hardware/print-driver';
 import { toJpeg } from 'html-to-image';
+import { BluetoothPrinterModal } from './bluetooth-printer-modal';
 
 interface ReceiptItem {
   productId?: string;
@@ -72,6 +74,7 @@ export function ThermalReceiptPreview({
   const [isPrintingBt, setIsPrintingBt] = useState(false);
   const [btError, setBtError] = useState<string | null>(null);
   const [btSuccess, setBtSuccess] = useState(false);
+  const [showPrinterModal, setShowPrinterModal] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
 
   if (!open) return null;
@@ -330,18 +333,29 @@ export function ThermalReceiptPreview({
           <div className="grid grid-cols-2 gap-2">
             
             {/* Web Bluetooth print trigger */}
-            <Button 
-              onClick={handleBluetoothPrint}
-              disabled={isPrintingBt}
-              className="h-11 rounded-xl text-white font-black flex items-center justify-center gap-1.5 text-xs bg-slate-800 border border-slate-700 hover:bg-slate-700/80 cursor-pointer"
-            >
-              {isPrintingBt ? (
-                <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
-              ) : (
-                <Bluetooth className="h-4 w-4 text-blue-400" />
-              )}
-              Print (Bluetooth)
-            </Button>
+            <div className="flex gap-1">
+              <Button 
+                onClick={handleBluetoothPrint}
+                disabled={isPrintingBt}
+                className="h-11 flex-1 rounded-xl text-white font-black flex items-center justify-center gap-1 text-xs bg-slate-800 border border-slate-700 hover:bg-slate-700/80 cursor-pointer"
+              >
+                {isPrintingBt ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                ) : (
+                  <Bluetooth className="h-4 w-4 text-blue-400 shrink-0" />
+                )}
+                Print (Bluetooth)
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setShowPrinterModal(true)}
+                className="h-11 w-11 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 bg-slate-900 border border-slate-800 shrink-0 cursor-pointer"
+                title="Printer Setup & Diagnostics"
+              >
+                <Settings className="h-4 w-4 text-slate-300" />
+              </Button>
+            </div>
 
             {/* Local standard printer print trigger (Save as PDF / Print) */}
             <Button 
@@ -400,6 +414,12 @@ export function ThermalReceiptPreview({
         </div>
 
       </div>
+
+      {/* Bluetooth Printer Setup & Diagnostics Modal */}
+      <BluetoothPrinterModal
+        open={showPrinterModal}
+        onClose={() => setShowPrinterModal(false)}
+      />
     </div>
   );
 }

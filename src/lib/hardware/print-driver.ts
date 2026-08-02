@@ -1,11 +1,12 @@
 /**
- * Web Bluetooth ESC/POS Print Driver for Katuwang SaaS Ecosystem
- * Tailored for standard 58mm mobile thermal printers (80mm width printable boundary).
+ * Web Bluetooth ESC/POS Universal Thermal Print Driver
+ * Tailored for standard 58mm & 80mm Bluetooth mobile thermal printers
+ * Compatible with Goojprt, Xprinter, Netum, MPT-II, PT-210, RPP02N, ZJiang ZJ-5805, etc.
  */
 
 export class EscPosBluetoothDriver {
-  private device: any = null;
-  private characteristic: any = null;
+  private static cachedDevice: any = null;
+  private static cachedCharacteristic: any = null;
   private static isPrinting = false;
 
   // Standard ESC/POS binary codes
@@ -30,43 +31,137 @@ export class EscPosBluetoothDriver {
     0x56, 0x42, 0x00 // Paper Feed and Cut
   ]);
 
+  // Comprehensive list of GATT service UUIDs used by standard and OEM thermal printer chips
+  private static KNOWN_SERVICES = [
+    '000018f0-0000-1000-8000-00805f9b34fb', // Standard BLE Print
+    '0000ffe0-0000-1000-8000-00805f9b34fb', // HM-10 / Goojprt / Xprinter / POS-58
+    '0000ff00-0000-1000-8000-00805f9b34fb', // OEM Chinese Thermal Printers
+    '00004953-0000-1000-8000-00805f9b34fb', // MPT-II / Rongta / ISSC
+    '0000ae30-0000-1000-8000-00805f9b34fb', // ZJiang / ZJ-5805 / Milstone
+    '0000af30-0000-1000-8000-00805f9b34fb',
+    '0000e701-0000-1000-8000-00805f9b34fb',
+    '000018f1-0000-1000-8000-00805f9b34fb'
+  ];
+
   /**
-   * Request Bluetooth POS Printer device and connect
+   * Check if active Bluetooth printer connection is alive
    */
-  async connect(): Promise<boolean> {
+  static isConnected(): boolean {
+    return !!(
+      EscPosBluetoothDriver.cachedDevice &&
+      EscPosBluetoothDriver.cachedDevice.gatt &&
+      EscPosBluetoothDriver.cachedDevice.gatt.connected &&
+      EscPosBluetoothDriver.cachedCharacteristic
+    );
+  }
+
+  /**
+   * Get name of currently connected printer device
+   */
+  static getConnectedDeviceName(): string | null {
+    return EscPosBluetoothDriver.cachedDevice?.name || null;
+  }
+
+  /**
+   * Disconnect current active printer
+   */
+  static disconnect(): void {
+    try {
+      if (EscPosBluetoothDriver.cachedDevice?.gatt?.connected) {
+        EscPosBluetoothDriver.cachedDevice.gatt.disconnect();
+      }
+    } catch (e) {
+      console.warn("Error disconnecting printer", e);
+    } finally {
+      EscPosBluetoothDriver.cachedDevice = null;
+      EscPosBluetoothDriver.cachedCharacteristic = null;
+    }
+  }
+
+  /**
+   * Connect to a Bluetooth POS Thermal Printer with universal discovery & auto-fallback
+   */
+  async connect(forceReconnect = false): Promise<boolean> {
     try {
       if (typeof window === 'undefined' || !(navigator as any).bluetooth) {
-        throw new Error("Web Bluetooth ay hindi suportado sa browser na ito.");
+        throw new Error("Web Bluetooth ay hindi suportado sa browser na ito. Mangyaring gamitin ang Google Chrome sa Android o Desktop.");
       }
 
-      console.log("Requesting Web Bluetooth POS Printer...");
-      
-      // Query standard BLE Bluetooth printing services
-      this.device = await (navigator as any).bluetooth.requestDevice({
-        filters: [
-          { services: ['000018f0-0000-1000-8000-00805f9b34fb'] }, // Standard BLE Print UUID
-          { namePrefix: 'MPT' }, // common 58mm printers
-          { namePrefix: 'POS' },
-          { namePrefix: 'Printer' }
-        ],
-        optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb']
+      // Reuse active GATT connection if available and not forced
+      if (!forceReconnect && EscPosBluetoothDriver.isConnected()) {
+        console.log(`Reusing active connection to: ${EscPosBluetoothDriver.cachedDevice.name}`);
+        return true;
+      }
+
+      console.log("Requesting Web Bluetooth Thermal Printer (Universal Mode)...");
+
+      // Request device with acceptAllDevices: true so ALL nearby/paired printers appear in picker
+      const device = await (navigator as any).bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: EscPosBluetoothDriver.KNOWN_SERVICES
       });
 
-      console.log(`Connecting to GATT Server of: ${this.device.name}...`);
-      const server = await this.device.gatt.connect();
-      
-      console.log("Fetching Bluetooth Printing Service...");
-      const service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
-      
-      console.log("Fetching Printing Characteristic...");
-      const characteristics = await service.getCharacteristics();
-      
-      // Look for a writeable characteristic
-      this.characteristic = characteristics.find((c: any) => c.properties.write || c.properties.writeWithoutResponse);
-      
-      if (!this.characteristic) {
-        throw new Error("Walang nakitang write-attribute sa printer service.");
+      console.log(`Connecting to GATT Server of: ${device.name || 'Bluetooth Printer'}...`);
+      const server = await device.gatt.connect();
+
+      console.log("Scanning available Bluetooth GATT services...");
+      let targetCharacteristic: any = null;
+
+      // Try discovering writeable characteristic across known printing services
+      for (const serviceUuid of EscPosBluetoothDriver.KNOWN_SERVICES) {
+        try {
+          const service = await server.getPrimaryService(serviceUuid);
+          const characteristics = await service.getCharacteristics();
+          const found = characteristics.find(
+            (c: any) => c.properties.write || c.properties.writeWithoutResponse
+          );
+          if (found) {
+            targetCharacteristic = found;
+            console.log(`Matched printing characteristic in service: ${serviceUuid}`);
+            break;
+          }
+        } catch (err) {
+          // Service not present on this specific chip, continue scanning next
+        }
       }
+
+      // Fallback: Query all primary services on device if known UUIDs failed
+      if (!targetCharacteristic) {
+        try {
+          const allServices = await server.getPrimaryServices();
+          for (const s of allServices) {
+            try {
+              const characteristics = await s.getCharacteristics();
+              const found = characteristics.find(
+                (c: any) => c.properties.write || c.properties.writeWithoutResponse
+              );
+              if (found) {
+                targetCharacteristic = found;
+                console.log(`Matched printing characteristic in fallback service: ${s.uuid}`);
+                break;
+              }
+            } catch (err) {
+              // Ignore single service access error
+            }
+          }
+        } catch (err) {
+          console.warn("Could not inspect all primary services", err);
+        }
+      }
+
+      if (!targetCharacteristic) {
+        throw new Error("Walang nakitang writeable printing service sa Bluetooth printer. Pakisiguradong bukas at naka-pair ang POS printer.");
+      }
+
+      EscPosBluetoothDriver.cachedDevice = device;
+      EscPosBluetoothDriver.cachedCharacteristic = targetCharacteristic;
+
+      // Listen for disconnects to update state
+      device.addEventListener('gattserverdisconnected', () => {
+        console.warn("Bluetooth printer disconnected");
+        EscPosBluetoothDriver.cachedDevice = null;
+        EscPosBluetoothDriver.cachedCharacteristic = null;
+      });
 
       console.log("Successfully connected to ESC/POS Thermal Printer!");
       return true;
@@ -102,21 +197,24 @@ export class EscPosBluetoothDriver {
   }
 
   /**
-   * Formulates printable binary payload matching narrow 58mm POS receipt layout
+   * Formulates printable binary payload matching 58mm & 80mm POS receipt layout
    */
   formatReceipt(
     storeName: string,
     items: any[],
     totalAmountPesos: number,
     paymentMethod: string,
-    transactionId?: string
+    transactionId?: string,
+    subtotalAmountPesos?: number,
+    discountAmountPesos?: number,
+    discountType?: string
   ): Uint8Array {
     const byteChunks: Uint8Array[] = [];
 
-    // 1. Initialize
+    // 1. Initialize Printer
     byteChunks.push(EscPosBluetoothDriver.INIT_PRINTER);
 
-    // 2. Centered Bold Header
+    // 2. Centered Store Header
     byteChunks.push(EscPosBluetoothDriver.ALIGN_CENTER);
     byteChunks.push(EscPosBluetoothDriver.TEXT_SIZE_DOUBLE);
     byteChunks.push(this.textToBytes(`${storeName}\n`));
@@ -137,13 +235,12 @@ export class EscPosBluetoothDriver {
     byteChunks.push(this.textToBytes(`Bayad: ${paymentMethod.toUpperCase()}\n`));
     byteChunks.push(this.textToBytes("--------------------------------\n"));
 
-    // 5. Items list table
-    // Layout: ITEM NAME (20 chars) | QTYxPRICE | TOTAL
+    // 5. Items table
     byteChunks.push(this.textToBytes("Mga Produkto          Halaga\n"));
     items.forEach(item => {
       const name = item.name.length > 20 ? item.name.slice(0, 17) + "..." : item.name.padEnd(20);
-      const priceStr = `₱${(item.price / 100).toFixed(0)}`;
-      const totalStr = `₱${((item.price * item.quantity) / 100).toFixed(0)}`;
+      const priceStr = `P${(item.price / 100).toFixed(0)}`;
+      const totalStr = `P${((item.price * item.quantity) / 100).toFixed(0)}`;
       const qtyText = `${item.quantity}x${priceStr}`.padEnd(10);
       byteChunks.push(this.textToBytes(`${name}\n`));
       byteChunks.push(this.textToBytes(`  ${qtyText} ${totalStr.padStart(8)}\n`));
@@ -151,28 +248,58 @@ export class EscPosBluetoothDriver {
     
     byteChunks.push(this.textToBytes("--------------------------------\n"));
 
-    // 6. Net Total
+    // 6. Subtotal & Discount Breakdown (if discount applied)
+    const itemsSum = items.reduce((sum, i) => sum + ((i.price * i.quantity) / 100), 0);
+    const subtotal = subtotalAmountPesos || itemsSum;
+    const discount = discountAmountPesos || (itemsSum > totalAmountPesos + 0.01 ? itemsSum - totalAmountPesos : 0);
+
+    if (discount > 0) {
+      byteChunks.push(EscPosBluetoothDriver.ALIGN_RIGHT);
+      byteChunks.push(this.textToBytes(`SUBTOTAL: P${subtotal.toFixed(2)}\n`));
+      byteChunks.push(this.textToBytes(`DISCOUNT${discountType ? ` (${discountType.toUpperCase()})` : ''}: -P${discount.toFixed(2)}\n`));
+      byteChunks.push(this.textToBytes("--------------------------------\n"));
+    }
+
+    // 7. Net Total
     byteChunks.push(EscPosBluetoothDriver.ALIGN_RIGHT);
     byteChunks.push(EscPosBluetoothDriver.TEXT_SIZE_DOUBLE);
-    byteChunks.push(this.textToBytes(`KABUUAN: ₱${totalAmountPesos.toFixed(2)}\n`));
+    byteChunks.push(this.textToBytes(`KABUUAN: P${totalAmountPesos.toFixed(2)}\n`));
     byteChunks.push(EscPosBluetoothDriver.TEXT_SIZE_NORMAL);
     
-    // 7. Footer
+    // 8. Footer
     byteChunks.push(new Uint8Array([EscPosBluetoothDriver.LF]));
     byteChunks.push(EscPosBluetoothDriver.ALIGN_CENTER);
     byteChunks.push(this.textToBytes("Maraming Salamat Po!\n"));
     byteChunks.push(this.textToBytes("Salamat sa inyong pagtangkilik!\n"));
     byteChunks.push(this.textToBytes("Powered by Katuwang Solutions\n"));
     
-    // 8. Feed & Cut
+    // 9. Feed & Cut
     byteChunks.push(EscPosBluetoothDriver.PAPER_CUT);
 
     return this.concatBytes(byteChunks);
   }
 
   /**
+   * Generates a sample test receipt payload for testing printer functionality
+   */
+  formatTestReceipt(storeName: string): Uint8Array {
+    return this.formatReceipt(
+      storeName,
+      [
+        { name: "Test Product Item 1", quantity: 1, price: 5000 },
+        { name: "Test Product Item 2", quantity: 2, price: 2500 }
+      ],
+      100,
+      "CASH",
+      "TEST-PRINT",
+      100,
+      0
+    );
+  }
+
+  /**
    * Streams ESC/POS command buffers in chunks.
-   * Negotiates MTU: Attempts 512 bytes for fast printing, falls back to 20 bytes if device rejects.
+   * Auto-adjusts MTU: Tries 512 bytes for high-speed printing, falls back to 20 bytes for budget hardware.
    */
   async print(data: Uint8Array): Promise<void> {
     if (EscPosBluetoothDriver.isPrinting) {
@@ -180,13 +307,13 @@ export class EscPosBluetoothDriver {
       throw new Error("Kasalukuyang nagpi-print. Mangyaring maghintay matapos ang print job.");
     }
 
-    if (!this.characteristic) {
-      throw new Error("Walang konektadong POS thermal printer.");
+    if (!EscPosBluetoothDriver.cachedCharacteristic) {
+      throw new Error("Walang konektadong POS thermal printer. Mangyaring i-connect muna ang printer sa Printer Setup.");
     }
 
     try {
       EscPosBluetoothDriver.isPrinting = true;
-      let chunkLimit = 512; // Start with high MTU
+      let chunkLimit = 512;
       let offset = 0;
 
       console.log(`Streaming ${data.length} bytes to thermal printer...`);
@@ -195,20 +322,19 @@ export class EscPosBluetoothDriver {
         const chunk = data.slice(offset, offset + chunkLimit);
         
         try {
-          if (this.characteristic.properties.writeWithoutResponse) {
-            await this.characteristic.writeValueWithoutResponse(chunk);
+          if (EscPosBluetoothDriver.cachedCharacteristic.properties.writeWithoutResponse) {
+            await EscPosBluetoothDriver.cachedCharacteristic.writeValueWithoutResponse(chunk);
           } else {
-            await this.characteristic.writeValueWithResponse(chunk);
+            await EscPosBluetoothDriver.cachedCharacteristic.writeValueWithResponse(chunk);
           }
           offset += chunkLimit;
           // Brief sleep gap to prevent BLE hardware buffer overflows
           await new Promise(resolve => setTimeout(resolve, 15));
         } catch (e) {
-      const error = e as Error & { code?: string };
+          const error = e as Error & { code?: string };
           if (chunkLimit === 512) {
             console.warn("MTU limit hit. Falling back to safe 20-byte chunks.");
-            chunkLimit = 20; // fallback MTU
-            // do not increment offset, retry this chunk
+            chunkLimit = 20; // Fallback to standard BLE packet size
           } else {
             throw error;
           }
