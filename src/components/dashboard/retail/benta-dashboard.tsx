@@ -235,6 +235,7 @@ function BentaDashboardContent() {
     total: number;
     discountCentavos?: number;
     discountType?: string;
+    discountReason?: string;
     paymentMethod: string;
     saleId?: string;
     pointsEarned?: number;
@@ -330,6 +331,7 @@ function BentaDashboardContent() {
         total: finalTotalCentavos,
         discountCentavos,
         discountType,
+        discountReason,
         paymentMethod,
         saleId, // Always the real Firestore document ID — never Math.random()
         pointsEarned: 0,
