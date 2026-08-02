@@ -461,8 +461,8 @@ export function ReportsTab() {
   const salesIncomePesos = sales.reduce((acc, sale) => acc + ((sale.totalAmount || 0) / 100), 0);
   const ledgerIncomePesos = incomeTxs.reduce((acc, curr) => acc + (curr.totalPesos || 0), 0);
 
-  // Sync Gross Revenue directly with real-time sales collection when available, fallback to ledger
-  const grossIncomePesos = sales.length > 0 ? salesIncomePesos : ledgerIncomePesos;
+  // Sync Gross Revenue directly with real-time sales collection
+  const grossIncomePesos = salesIncomePesos;
   const totalExpensesPesos = expenseTxs.reduce((acc, curr) => acc + (curr.totalPesos || 0), 0);
 
   // Group revenue by category
