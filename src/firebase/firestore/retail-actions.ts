@@ -438,26 +438,24 @@ export async function updateSaleTransaction(
     }
 
     // 2. Ledger Cash Adjustments
-    if (masterAccountSnap.exists()) {
-      if (oldPaymentMethod === 'cash' && updatedData.paymentMethod === 'cash') {
-        const cashDiff = newTotalAmount - oldTotalAmount;
-        if (cashDiff !== 0) {
-          transaction.update(masterAccountRef, {
-            balance: increment(cashDiff),
-            updatedAt: serverTimestamp()
-          });
-        }
-      } else if (oldPaymentMethod === 'cash' && updatedData.paymentMethod !== 'cash') {
-        transaction.update(masterAccountRef, {
-          balance: increment(-oldTotalAmount),
+    if (oldPaymentMethod === 'cash' && updatedData.paymentMethod === 'cash') {
+      const cashDiff = newTotalAmount - oldTotalAmount;
+      if (cashDiff !== 0) {
+        transaction.set(masterAccountRef, {
+          balance: increment(cashDiff),
           updatedAt: serverTimestamp()
-        });
-      } else if (oldPaymentMethod !== 'cash' && updatedData.paymentMethod === 'cash') {
-        transaction.update(masterAccountRef, {
-          balance: increment(newTotalAmount),
-          updatedAt: serverTimestamp()
-        });
+        }, { merge: true });
       }
+    } else if (oldPaymentMethod === 'cash' && updatedData.paymentMethod !== 'cash') {
+      transaction.set(masterAccountRef, {
+        balance: increment(-oldTotalAmount),
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    } else if (oldPaymentMethod !== 'cash' && updatedData.paymentMethod === 'cash') {
+      transaction.set(masterAccountRef, {
+        balance: increment(newTotalAmount),
+        updatedAt: serverTimestamp()
+      }, { merge: true });
     }
 
     // 4. Update Sale Document

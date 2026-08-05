@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { useInventory } from '@/hooks/use-inventory';
 import { useUser } from '@/firebase/auth/use-user';
-import { createPurchaseOrder } from '@/firebase/firestore/supplier-actions';
-import { SupplierProfile } from '@/lib/schemas/supplier';
+import { createPurchaseOrder, updatePurchaseOrder } from '@/firebase/firestore/supplier-actions';
+import { SupplierProfile, PurchaseOrder } from '@/lib/schemas/supplier';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,12 +18,13 @@ import {
   DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog";
-import { ShoppingBag, Plus, Trash2, Loader2, CheckCircle2, AlertCircle, DollarSign } from 'lucide-react';
+import { ShoppingBag, Plus, Trash2, Loader2, CheckCircle2, AlertCircle, DollarSign, Save, Edit3 } from 'lucide-react';
 
 interface PurchaseOrderModalProps {
   isOpen: boolean;
   onClose: () => void;
   suppliers: SupplierProfile[];
+  poToEdit?: PurchaseOrder | null;
 }
 
 interface DraftItem {
@@ -34,7 +35,12 @@ interface DraftItem {
   unitSalePricePeso?: string;
 }
 
-export function PurchaseOrderModal({ isOpen, onClose, suppliers }: PurchaseOrderModalProps) {
+export function PurchaseOrderModal({ 
+  isOpen, 
+  onClose, 
+  suppliers,
+  poToEdit 
+}: PurchaseOrderModalProps) {
   const { currentTenant } = useTenant();
   const { user } = useUser();
   const { products } = useInventory();
@@ -42,7 +48,7 @@ export function PurchaseOrderModal({ isOpen, onClose, suppliers }: PurchaseOrder
   const [supplierId, setSupplierId] = useState('');
   const [items, setItems] = useState<DraftItem[]>([]);
   const [paymentStatus, setPaymentStatus] = useState<'paid' | 'credit_unpaid'>('paid');
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'gcash' | 'supplier_credit'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'cash_drawer' | 'gcash' | 'supplier_credit'>('cash_drawer');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -51,17 +57,35 @@ export function PurchaseOrderModal({ isOpen, onClose, suppliers }: PurchaseOrder
   const [inputQty, setInputQty] = useState('1');
   const [inputUnitCost, setInputUnitCost] = useState('');
 
+  const isEditing = !!poToEdit;
+
   useEffect(() => {
     if (isOpen) {
-      if (suppliers.length > 0 && !supplierId) {
-        setSupplierId(suppliers[0].id || '');
+      if (poToEdit) {
+        setSupplierId(poToEdit.supplierId || '');
+        setPaymentStatus(poToEdit.paymentStatus as any || 'paid');
+        setPaymentMethod(poToEdit.paymentMethod as any || 'cash_drawer');
+        setNotes(poToEdit.notes || '');
+        
+        const mappedItems: DraftItem[] = (poToEdit.items || []).map(it => ({
+          productId: it.productId,
+          productName: it.productName,
+          quantity: it.quantity,
+          unitCostPeso: (it.unitCostCentavos / 100).toFixed(2),
+          unitSalePricePeso: it.unitSalePriceCentavos ? (it.unitSalePriceCentavos / 100).toFixed(2) : undefined,
+        }));
+        setItems(mappedItems);
+      } else {
+        if (suppliers.length > 0 && !supplierId) {
+          setSupplierId(suppliers[0].id || '');
+        }
+        setItems([]);
+        setNotes('');
+        setPaymentStatus('paid');
+        setPaymentMethod('cash_drawer');
       }
-      setItems([]);
-      setNotes('');
-      setPaymentStatus('paid');
-      setPaymentMethod('cash');
     }
-  }, [isOpen, suppliers]);
+  }, [isOpen, suppliers, poToEdit]);
 
   const handleAddItem = () => {
     const prod = products.find(p => p.id === selectedProductId);
@@ -121,36 +145,56 @@ export function PurchaseOrderModal({ isOpen, onClose, suppliers }: PurchaseOrder
     try {
       setSubmitting(true);
 
-      const poPayload = {
-        poNumber: `PO-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`,
-        supplierId: selectedSupplier.id!,
-        supplierName: selectedSupplier.name,
-        items: items.map(it => ({
-          productId: it.productId,
-          productName: it.productName,
-          quantity: it.quantity,
-          unitCostCentavos: Math.round(parseFloat(it.unitCostPeso) * 100),
-          unitSalePriceCentavos: it.unitSalePricePeso ? Math.round(parseFloat(it.unitSalePricePeso) * 100) : undefined,
-        })),
-        totalAmountCentavos: totalCostCentavos,
-        paymentStatus,
-        paymentMethod: paymentStatus === 'credit_unpaid' ? 'supplier_credit' : paymentMethod,
-        notes,
-        createdByName: user?.displayName || user?.email || 'Store Owner',
-        createdByUid: user?.uid,
-      };
+      const itemsPayload = items.map(it => ({
+        productId: it.productId,
+        productName: it.productName,
+        quantity: it.quantity,
+        unitCostCentavos: Math.round(parseFloat(it.unitCostPeso) * 100),
+        unitSalePriceCentavos: it.unitSalePricePeso ? Math.round(parseFloat(it.unitSalePricePeso) * 100) : undefined,
+      }));
 
-      await createPurchaseOrder(
-        currentTenant.id,
-        poPayload,
-        user?.uid || 'unknown',
-        currentTenant.moduleType
-      );
+      if (isEditing && poToEdit?.id) {
+        await updatePurchaseOrder(
+          currentTenant.id,
+          poToEdit.id,
+          {
+            supplierId: selectedSupplier.id!,
+            supplierName: selectedSupplier.name,
+            items: itemsPayload,
+            totalAmountCentavos: totalCostCentavos,
+            paymentStatus,
+            paymentMethod: paymentStatus === 'credit_unpaid' ? 'supplier_credit' : paymentMethod,
+            notes,
+          },
+          user?.uid || 'unknown',
+          user?.displayName || user?.email || 'Store Owner'
+        );
+      } else {
+        const poPayload = {
+          poNumber: `PO-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`,
+          supplierId: selectedSupplier.id!,
+          supplierName: selectedSupplier.name,
+          items: itemsPayload,
+          totalAmountCentavos: totalCostCentavos,
+          paymentStatus,
+          paymentMethod: paymentStatus === 'credit_unpaid' ? 'supplier_credit' : paymentMethod,
+          notes,
+          createdByName: user?.displayName || user?.email || 'Store Owner',
+          createdByUid: user?.uid,
+        };
+
+        await createPurchaseOrder(
+          currentTenant.id,
+          poPayload,
+          user?.uid || 'unknown',
+          currentTenant.moduleType
+        );
+      }
 
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("May error sa pag-execute ng Purchase Order.");
+      alert(err.message || "May error sa pag-save ng Purchase Order.");
     } finally {
       setSubmitting(false);
     }
@@ -161,11 +205,11 @@ export function PurchaseOrderModal({ isOpen, onClose, suppliers }: PurchaseOrder
       <DialogContent className="sm:max-w-lg bg-white rounded-3xl p-4 sm:p-6 max-h-[calc(100dvh-2rem)] flex flex-col justify-between overflow-hidden">
         <DialogHeader className="pb-3 border-b border-slate-100 shrink-0">
           <DialogTitle className="text-base font-black text-slate-900 flex items-center gap-2">
-            <ShoppingBag className="h-5 w-5 text-cyan-600" />
-            Bumili ng Stock / Purchase Order (PO)
+            {isEditing ? <Edit3 className="h-5 w-5 text-cyan-600" /> : <ShoppingBag className="h-5 w-5 text-cyan-600" />}
+            {isEditing ? `Edit Purchase Order (${poToEdit?.poNumber})` : 'Bumili ng Stock / Purchase Order (PO)'}
           </DialogTitle>
           <DialogDescription className="text-xs text-slate-500">
-            Mag-log ng bagong delivery mula sa supplier. Awtomatikong madadagdagan ang iyong stock.
+            {isEditing ? 'I-adjust ang paninda, presyo, o supplier. Awtomatikong magko-compute ang stock at Cash Drawer.' : 'Mag-log ng bagong delivery mula sa supplier. Awtomatikong madadagdagan ang iyong stock.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -367,7 +411,12 @@ export function PurchaseOrderModal({ isOpen, onClose, suppliers }: PurchaseOrder
             {submitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                Executing PO...
+                {isEditing ? 'Saving Changes...' : 'Executing PO...'}
+              </>
+            ) : isEditing ? (
+              <>
+                <Save className="h-4 w-4 mr-1" />
+                Save Changes
               </>
             ) : (
               <>

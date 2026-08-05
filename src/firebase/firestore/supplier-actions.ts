@@ -300,3 +300,139 @@ export async function voidPurchaseOrder(
 
   return true;
 }
+
+/**
+ * Update an existing Purchase Order atomically:
+ * - Computes inventory quantity differences for each item and updates currentStock
+ * - Updates costPrice and optional salePrice on products
+ * - Computes cash drawer total difference and updates master-cash account
+ * - Updates PO document in Firestore
+ * - Logs audit event & inventory transaction history
+ */
+export async function updatePurchaseOrder(
+  tenantId: string,
+  poId: string,
+  updatedData: Partial<PurchaseOrder>,
+  userId: string,
+  userName: string
+): Promise<boolean> {
+  if (!tenantId || !poId) throw new Error("Tenant ID and PO ID required");
+
+  const poRef = doc(db, 'tenants', tenantId, 'purchase_orders', poId);
+  const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+
+  await runTransactionResilient(db, async (transaction) => {
+    const poSnap = await transaction.get(poRef);
+    if (!poSnap.exists()) throw new Error("Purchase order not found");
+    const oldPoData = poSnap.data();
+
+    if (oldPoData.status === 'voided') throw new Error("Cannot edit a voided purchase order");
+
+    const oldItems: Array<{ productId: string; quantity: number; unitCostCentavos: number }> = oldPoData.items || [];
+    const newItems: Array<{ productId: string; productName: string; quantity: number; unitCostCentavos: number; unitSalePriceCentavos?: number }> = updatedData.items || oldItems;
+
+    // Create lookup map of old item quantities
+    const oldQtyMap: Record<string, number> = {};
+    oldItems.forEach(i => {
+      if (i.productId) oldQtyMap[i.productId] = (oldQtyMap[i.productId] || 0) + i.quantity;
+    });
+
+    // Create lookup map of new item quantities
+    const newQtyMap: Record<string, number> = {};
+    newItems.forEach(i => {
+      if (i.productId) newQtyMap[i.productId] = (newQtyMap[i.productId] || 0) + i.quantity;
+    });
+
+    // Collect all affected product IDs
+    const allProdIds = Array.from(new Set([...Object.keys(oldQtyMap), ...Object.keys(newQtyMap)]));
+
+    // 1. Adjust product stock & cost for all affected products
+    for (const prodId of allProdIds) {
+      const oldQty = oldQtyMap[prodId] || 0;
+      const newQty = newQtyMap[prodId] || 0;
+      const qtyDelta = newQty - oldQty;
+
+      const newItemObj = newItems.find(i => i.productId === prodId);
+      const prodRef = doc(db, 'tenants', tenantId, 'products', prodId);
+      const prodSnap = await transaction.get(prodRef);
+
+      if (prodSnap.exists()) {
+        const currentStock = prodSnap.data().currentStock || 0;
+        const newStock = Math.max(0, currentStock + qtyDelta);
+
+        const updateFields: Record<string, any> = {
+          currentStock: newStock,
+          updatedAt: serverTimestamp()
+        };
+        if (newItemObj) {
+          updateFields.costPrice = newItemObj.unitCostCentavos;
+          if (newItemObj.unitSalePriceCentavos) updateFields.salePrice = newItemObj.unitSalePriceCentavos;
+        }
+
+        transaction.update(prodRef, updateFields);
+
+        // Record inventory transaction log if quantity changed
+        if (qtyDelta !== 0) {
+          const invTxRef = doc(collection(db, 'tenants', tenantId, 'inventory_transactions'));
+          transaction.set(invTxRef, {
+            tenantId,
+            productId: prodId,
+            type: qtyDelta > 0 ? 'restock' : 'adjustment',
+            quantity: qtyDelta,
+            balanceAfter: newStock,
+            note: `Edited PO #${oldPoData.poNumber || poId} (${qtyDelta > 0 ? '+' : ''}${qtyDelta})`,
+            poId,
+            performedBy: userId,
+            createdAt: serverTimestamp()
+          });
+        }
+      }
+    }
+
+    // 2. Adjust Cash Drawer if paid via cash/cash_drawer
+    const oldTotal = oldPoData.totalAmountCentavos || 0;
+    const newTotal = updatedData.totalAmountCentavos !== undefined ? updatedData.totalAmountCentavos : oldTotal;
+    const isOldCash = oldPoData.paymentStatus === 'paid' || oldPoData.paymentMethod === 'cash_drawer' || oldPoData.paymentMethod === 'cash';
+    const isNewCash = updatedData.paymentStatus === 'paid' || updatedData.paymentMethod === 'cash_drawer' || updatedData.paymentMethod === 'cash' || isOldCash;
+
+    if (isOldCash || isNewCash) {
+      const cashDelta = newTotal - oldTotal;
+      if (cashDelta !== 0) {
+        transaction.set(masterAccountRef, {
+          balance: increment(-cashDelta),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        const txRef = doc(collection(db, 'tenants', tenantId, 'transactions'));
+        transaction.set(txRef, {
+          id: txRef.id,
+          tenantId,
+          accountId: 'master-cash',
+          amount: Math.abs(cashDelta),
+          type: cashDelta > 0 ? 'expense' : 'income',
+          category: 'Purchase Adjustment',
+          description: `Edited Purchase Order #${oldPoData.poNumber || poId}`,
+          poId,
+          createdAt: serverTimestamp(),
+          createdBy: userId
+        });
+      }
+    }
+
+    // 3. Update PO Document
+    transaction.update(poRef, {
+      ...updatedData,
+      updatedAt: serverTimestamp(),
+      updatedBy: userId
+    });
+
+    // 4. Log Audit Event
+    logAuditEvent(tenantId, userId, userName, {
+      type: 'edit_transaction',
+      description: `In-edit ang purchase order #${oldPoData.poNumber || poId} (Bago: ₱${(newTotal / 100).toFixed(2)})`,
+      meta: { poId, oldTotal, newTotal }
+    });
+  });
+
+  return true;
+}

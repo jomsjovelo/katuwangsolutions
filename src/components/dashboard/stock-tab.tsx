@@ -75,6 +75,7 @@ export function StockTab() {
   const [isSupplierSheetOpen, setIsSupplierSheetOpen] = useState(false);
   const [supplierToEdit, setSupplierToEdit] = useState<SupplierProfile | null>(null);
   const [isPoModalOpen, setIsPoModalOpen] = useState(false);
+  const [poToEdit, setPoToEdit] = useState<PurchaseOrder | null>(null);
 
   const theme = getModuleTheme(currentTenant?.moduleType);
 
@@ -569,16 +570,27 @@ export function StockTab() {
                         </div>
 
                         {!isStaff && po.status !== 'voided' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={voidingPoId === po.id}
-                            onClick={() => handleVoidPO(po)}
-                            className="h-7 px-2.5 text-[10px] font-bold text-rose-600 border-rose-200 hover:bg-rose-50 rounded-lg gap-1 cursor-pointer"
-                          >
-                            <Trash2 className="h-3 w-3 text-rose-600" />
-                            {voidingPoId === po.id ? 'Voiding...' : 'Void PO'}
-                          </Button>
+                          <div className="flex items-center gap-1.5">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => { setPoToEdit(po); setIsPoModalOpen(true); }}
+                              className="h-7 px-2.5 text-[10px] font-bold text-cyan-700 border-cyan-200 hover:bg-cyan-50 rounded-lg gap-1 cursor-pointer"
+                            >
+                              <Pencil className="h-3 w-3 text-cyan-600" />
+                              Edit PO
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={voidingPoId === po.id}
+                              onClick={() => handleVoidPO(po)}
+                              className="h-7 px-2.5 text-[10px] font-bold text-rose-600 border-rose-200 hover:bg-rose-50 rounded-lg gap-1 cursor-pointer"
+                            >
+                              <Trash2 className="h-3 w-3 text-rose-600" />
+                              {voidingPoId === po.id ? 'Voiding...' : 'Void PO'}
+                            </Button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -605,8 +617,9 @@ export function StockTab() {
 
       <PurchaseOrderModal
         isOpen={isPoModalOpen}
-        onClose={() => setIsPoModalOpen(false)}
+        onClose={() => { setIsPoModalOpen(false); setPoToEdit(null); }}
         suppliers={suppliers}
+        poToEdit={poToEdit}
       />
 
       <InventoryMovementSheet
