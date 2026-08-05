@@ -584,14 +584,8 @@ export function useAdminTenants(enabled: boolean = true) {
       
       const batch = writeBatch(db);
       
-      // 1. Extend billing date by 1 calendar month
-      const currentBillingDate = tenant.nextBillingDate 
-        ? new Date(typeof tenant.nextBillingDate === 'object' && tenant.nextBillingDate !== null && 'seconds' in tenant.nextBillingDate ? (tenant.nextBillingDate as any).seconds * 1000 : tenant.nextBillingDate as any)
-        : new Date();
-      
-      // If current billing date is in the past, renew 1 full month starting from TODAY. If in future, extend by 1 month.
-      const baseDate = (currentBillingDate && currentBillingDate > new Date()) ? currentBillingDate : new Date();
-      const nextDate = new Date(baseDate);
+      // 1. Set next billing date to 1 calendar month from TODAY
+      const nextDate = new Date();
       nextDate.setMonth(nextDate.getMonth() + 1);
       
       // 2. Add Billing Log

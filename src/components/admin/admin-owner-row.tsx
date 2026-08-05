@@ -329,9 +329,7 @@ export function AdminOwnerRow({
                                 <Button
                                   size="sm"
                                   onClick={async () => {
-                                    const currentExpiry = effectiveDate || new Date();
-                                    const baseDate = (currentExpiry > new Date()) ? currentExpiry : new Date();
-                                    const newExpiry = new Date(baseDate);
+                                    const newExpiry = new Date();
                                     newExpiry.setMonth(newExpiry.getMonth() + 1);
                                     
                                     if (confirm(`Extend subscription for ${tenant.name} by +1 Month until ${newExpiry.toLocaleDateString()}?`)) {
