@@ -328,8 +328,8 @@ export async function updatePurchaseOrder(
 
     if (oldPoData.status === 'voided') throw new Error("Cannot edit a voided purchase order");
 
-    const oldItems: Array<{ productId: string; quantity: number; unitCostCentavos: number }> = oldPoData.items || [];
-    const newItems: Array<{ productId: string; productName: string; quantity: number; unitCostCentavos: number; unitSalePriceCentavos?: number }> = updatedData.items || oldItems;
+    const oldItems: Array<{ productId: string; productName?: string; quantity: number; unitCostCentavos: number; unitSalePriceCentavos?: number }> = oldPoData.items || [];
+    const newItems: Array<{ productId: string; productName?: string; quantity: number; unitCostCentavos: number; unitSalePriceCentavos?: number }> = updatedData.items || oldItems;
 
     // Create lookup map of old item quantities
     const oldQtyMap: Record<string, number> = {};
