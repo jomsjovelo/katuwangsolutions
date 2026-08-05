@@ -9,6 +9,7 @@ export type AuditEventType =
   | 'remove_staff' 
   | 'module_changed'
   | 'void_sale'
+  | 'void_purchase'
   | 'delete_record'
   | 'void_transaction'
   | 'apply_discount'
