@@ -4,19 +4,21 @@ import React, { useState, useEffect } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { useInventory } from '@/hooks/use-inventory';
 import { useCart } from '@/hooks/use-cart';
-import { processCheckout, CartItem } from '@/firebase/firestore/retail-actions';
+import { processCheckout, processCreditCheckout, addProduct, CartItem } from '@/firebase/firestore/retail-actions';
 import { processBatchWaste } from '@/firebase/firestore/fresh-tally-actions';
 import { useUser } from '@/firebase/auth/use-user';
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from '@/lib/utils';
 import { getModuleTheme } from '@/lib/theme-utils';
 import { useToast } from '@/hooks/use-toast';
 import { 
-  Package, Plus, Minus, Loader2, Search, Tag, ShoppingCart, Trash2, Coins, Receipt 
+  Package, Plus, Minus, Loader2, Search, Tag, ShoppingCart, Trash2, Coins, Receipt, Camera, PackagePlus, BookOpen, UserPlus
 } from "lucide-react";
 import { CashModal } from '@/components/common/cash-modal';
 import { GCashQrModal } from '@/components/common/gcash-qr-modal';
@@ -26,6 +28,8 @@ import { KatuwangErrorBoundary } from '@/components/common/error-boundary';
 import { FreshWeightModal } from '@/components/dashboard/retail/fresh-weight-modal';
 import { SupplierScorecardSheet } from '@/components/dashboard/retail/supplier-scorecard-sheet';
 import { QuickExpenseModal } from '@/components/common/quick-expense-modal';
+import { BarcodeScannerModal } from '@/components/common/barcode-scanner-modal';
+import { ProductManagerSheet } from '@/components/dashboard/product-manager-sheet';
 import { Scale, Award, Flame } from 'lucide-react';
 
 export function FreshTallyDashboard() {
@@ -145,6 +149,7 @@ const CartItemCard = React.memo(({ item, theme, products, removeFromCart, addToC
 
 function FreshTallyDashboardContent() {
   const { currentTenant } = useTenant();
+  const { user } = useUser();
   const { products, loading: inventoryLoading } = useInventory();
   const { cart, setCart, addToCart, removeFromCart, clearCart, totalCentavos, totalPesos, cartItemCount } = useCart();
   const { toast } = useToast();
@@ -163,12 +168,53 @@ function FreshTallyDashboardContent() {
   const [discountValue, setDiscountValue] = useState<string>('');
   const [discountReason, setDiscountReason] = useState<string>('');
 
+  // Barcode & Product Creation States
+  const [showScanner, setShowScanner] = useState(false);
+  const [showAddProductModal, setShowAddProductModal] = useState(false);
+  const [scannedNewBarcode, setScannedNewBarcode] = useState('');
+
+  // Credit (Utang / Palista) States
+  const [showPalistaInput, setShowPalistaInput] = useState(false);
+  const [palistaName, setPalistaName] = useState('');
+
   // Niche Feature States
   const [selectedWeightProduct, setSelectedWeightProduct] = useState<any | null>(null);
   const [showWeightModal, setShowWeightModal] = useState(false);
   const [showSupplierScorecard, setShowSupplierScorecard] = useState(false);
   const [pmClearanceActive, setPmClearanceActive] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
+
+  const handleScanResult = (scannedCode: string) => {
+    const cleanCode = (scannedCode || '').trim();
+    if (!cleanCode) return;
+    const cleanLower = cleanCode.toLowerCase();
+    const noLeadingZero = cleanCode.replace(/^0+/, '').toLowerCase();
+
+    const match = (products || []).find((p: any) => {
+      const pSku = (p.sku || '').trim().toLowerCase();
+      const pBarcode = (p.barcode || '').trim().toLowerCase();
+      const pId = (p.id || '').trim().toLowerCase();
+      const pSkuNoZero = pSku.replace(/^0+/, '');
+      const pBarcodeNoZero = pBarcode.replace(/^0+/, '');
+
+      return (
+        pSku === cleanLower ||
+        pBarcode === cleanLower ||
+        pId === cleanLower ||
+        (noLeadingZero !== '' && (pSkuNoZero === noLeadingZero || pBarcodeNoZero === noLeadingZero))
+      );
+    });
+
+    if (match) {
+      addToCart(match);
+      toast({ title: 'Naidagdag sa basket!', description: match.name });
+      setShowScanner(false);
+    } else {
+      setScannedNewBarcode(cleanCode);
+      setShowScanner(false);
+      setShowAddProductModal(true);
+    }
+  };
 
   let discountCentavos = 0;
   const effectiveDiscountVal = discountValue || (pmClearanceActive ? '20' : '');
@@ -192,8 +238,11 @@ function FreshTallyDashboardContent() {
   }, [products]);
 
   const filteredProducts = products.filter((p: any) => {
-    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase()));
+    const q = searchQuery.toLowerCase();
+    const matchesSearch = p.name.toLowerCase().includes(q) ||
+                          (p.category && p.category.toLowerCase().includes(q)) ||
+                          (p.barcode && p.barcode.toLowerCase().includes(q)) ||
+                          (p.sku && p.sku.toLowerCase().includes(q));
     const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -215,6 +264,49 @@ function FreshTallyDashboardContent() {
       setCompletedSale({ id: saleId, items: cart, totalAmount: finalTotalCentavos, paymentMethod });
       toast({ title: "Benta Recorded!", description: "Successfully processed the sale." });
       clearCart();
+      setCashTendered('');
+      setDiscountValue('');
+      setDiscountReason('');
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleCreditCheckout = async () => {
+    if (!currentTenant || !user || cart.length === 0) return;
+    if (!palistaName || palistaName.trim() === '') {
+      toast({ title: "Kailangan ang Pangalan", description: "Ilagay ang pangalan ng customer para sa pautang.", variant: "destructive" });
+      return;
+    }
+    try {
+      setIsProcessing(true);
+      const palistaDate = new Date();
+      const saleId = await processCreditCheckout(
+        currentTenant.id,
+        cart,
+        finalTotalCentavos,
+        palistaName,
+        palistaDate,
+        discountCentavos,
+        discountType,
+        discountReason,
+        user.uid,
+        user.displayName || user.email || 'Unknown'
+      );
+
+      setCompletedSale({
+        id: saleId,
+        items: [...cart],
+        totalAmount: finalTotalCentavos,
+        paymentMethod: 'palista'
+      });
+      toast({ title: "Pautang Naitala!", description: `Naitala ang ₱${finalTotalPesos.toFixed(2)} pautang para kay ${palistaName}.` });
+      clearCart();
+      setShowPalistaInput(false);
+      setPalistaName('');
+      setCashTendered('');
       setDiscountValue('');
       setDiscountReason('');
     } catch (e: any) {
@@ -296,6 +388,33 @@ function FreshTallyDashboardContent() {
             >
               <Receipt className="h-4 w-4" />
               <span>Gastos</span>
+            </Button>
+
+            {/* Camera Barcode Scanner Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowScanner(true)}
+              className="rounded-xl h-9 text-xs font-bold border-slate-200 hover:bg-slate-100 flex items-center gap-1 cursor-pointer"
+              title="Scan Barcode"
+            >
+              <Camera className="h-4 w-4 text-slate-600" />
+              <span className="hidden sm:inline">Scan</span>
+            </Button>
+
+            {/* Add Product Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setScannedNewBarcode('');
+                setShowAddProductModal(true);
+              }}
+              className="rounded-xl h-9 text-xs font-black border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 flex items-center gap-1 cursor-pointer"
+              title="Magdagdag ng Bagong Produkto"
+            >
+              <PackagePlus className="h-4 w-4 text-emerald-600" />
+              <span>+ Add Item</span>
             </Button>
 
             <div className="relative w-48 sm:w-64">
@@ -393,21 +512,28 @@ function FreshTallyDashboardContent() {
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 mt-4">
+          <div className="grid grid-cols-3 gap-2 mt-4">
             <Button 
               onClick={() => setShowCashModal(true)} 
               disabled={cart.length === 0 || isProcessing}
-              className="h-14 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl gap-1.5 flex items-center justify-center text-sm shadow-lg transition-transform active:scale-95"
+              className="h-14 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl gap-1 flex items-center justify-center text-xs shadow-lg transition-transform active:scale-95"
             >
-              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Coins className="h-5 w-5" /> Cash</>}
+              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Coins className="h-4 w-4" /> Cash</>}
             </Button>
             <Button 
               onClick={() => setShowGCashQr(true)} 
               disabled={cart.length === 0 || isProcessing}
-              className="h-14 text-white font-bold rounded-xl gap-1.5 flex items-center justify-center text-sm border-none cursor-pointer shadow-lg transition-transform active:scale-95"
+              className="h-14 text-white font-bold rounded-xl gap-1 flex items-center justify-center text-xs border-none cursor-pointer shadow-lg transition-transform active:scale-95"
               style={{ backgroundColor: '#007aff', boxShadow: '0 8px 16px -4px #007aff40' }}
             >
-              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Receipt className="h-5 w-5" /> GCash</>}
+              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Receipt className="h-4 w-4" /> GCash</>}
+            </Button>
+            <Button 
+              onClick={() => setShowPalistaInput(true)} 
+              disabled={cart.length === 0 || isProcessing}
+              className="h-14 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl gap-1 flex items-center justify-center text-xs shadow-lg transition-transform active:scale-95"
+            >
+              <BookOpen className="h-4 w-4" /> Utang
             </Button>
           </div>
 
@@ -508,21 +634,31 @@ function FreshTallyDashboardContent() {
                 ₱{finalTotalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
               </span>
             </div>
-            <div className="grid grid-cols-2 gap-2 mt-4">
+            <div className="grid grid-cols-3 gap-2 mt-4">
               <Button 
                 onClick={() => setShowCashModal(true)} 
                 disabled={cart.length === 0 || isProcessing}
-                className="h-12 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl gap-1.5 flex items-center justify-center text-xs shadow-lg transition-transform active:scale-95"
+                className="h-12 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl gap-1 flex items-center justify-center text-xs shadow-lg transition-transform active:scale-95"
               >
                 {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Coins className="h-4 w-4" /> Cash</>}
               </Button>
               <Button 
                 onClick={() => setShowGCashQr(true)} 
                 disabled={cart.length === 0 || isProcessing}
-                className="h-12 text-white font-bold rounded-xl gap-1.5 flex items-center justify-center text-xs border-none cursor-pointer shadow-lg transition-transform active:scale-95"
+                className="h-12 text-white font-bold rounded-xl gap-1 flex items-center justify-center text-xs border-none cursor-pointer shadow-lg transition-transform active:scale-95"
                 style={{ backgroundColor: '#007aff', boxShadow: '0 8px 16px -4px #007aff40' }}
               >
                 {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Receipt className="h-4 w-4" /> GCash</>}
+              </Button>
+              <Button 
+                onClick={() => {
+                  setShowMobileCart(false);
+                  setShowPalistaInput(true);
+                }} 
+                disabled={cart.length === 0 || isProcessing}
+                className="h-12 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl gap-1 flex items-center justify-center text-xs shadow-lg transition-transform active:scale-95"
+              >
+                <BookOpen className="h-4 w-4" /> Utang
               </Button>
             </div>
             <Button 
@@ -614,6 +750,63 @@ function FreshTallyDashboardContent() {
         moduleType="fresh-tally"
         themeColor={theme.primary}
       />
+
+      {/* Barcode Scanner Modal */}
+      <BarcodeScannerModal
+        isOpen={showScanner}
+        onClose={() => setShowScanner(false)}
+        onScanResult={handleScanResult}
+        themeColor={theme.primary}
+      />
+
+      {/* Product Creation / Manager Sheet (Supports Pre-filled Scanned Barcodes) */}
+      <ProductManagerSheet
+        isOpen={showAddProductModal}
+        onOpenChange={setShowAddProductModal}
+        initialBarcode={scannedNewBarcode}
+      />
+
+      {/* Palista Customer Name Modal */}
+      <Dialog open={showPalistaInput} onOpenChange={(open) => { setShowPalistaInput(open); if (!open) setPalistaName(''); }}>
+        <DialogContent className="rounded-[24px] p-0 overflow-hidden sm:max-w-[400px]">
+          <DialogHeader className="px-6 pt-6 pb-4 bg-amber-50 border-b border-amber-100">
+            <DialogTitle className="font-headline font-black text-lg flex items-center gap-2 text-amber-900">
+              <UserPlus className="h-5 w-5 text-amber-600" />
+              Itala ang Pautang (Palista)
+            </DialogTitle>
+          </DialogHeader>
+          <div className="p-6 space-y-4">
+            <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-200/60 flex justify-between items-center">
+              <span className="font-bold text-amber-800 uppercase text-xs">Halaga ng Utang</span>
+              <span className="font-black text-2xl text-amber-900">₱{finalTotalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase text-amber-700 tracking-widest">Pangalan ng Suki / Customer</Label>
+              <Input
+                type="text"
+                value={palistaName}
+                onChange={e => setPalistaName(e.target.value)}
+                placeholder="Hal. Aling Maria, Mang Juan"
+                className="h-12 text-base font-bold border-amber-200 bg-white text-slate-800 placeholder:text-slate-400 focus:border-amber-500"
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-row gap-2">
+            <Button variant="outline" onClick={() => setShowPalistaInput(false)} className="rounded-xl h-12 flex-1 font-bold">
+              Bumalik
+            </Button>
+            <Button
+              onClick={handleCreditCheckout}
+              disabled={!palistaName.trim() || isProcessing}
+              className="rounded-xl h-12 flex-1 font-bold text-white border-none shadow-md bg-amber-500 hover:bg-amber-600 shadow-amber-500/20"
+            >
+              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Itala ang Utang'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

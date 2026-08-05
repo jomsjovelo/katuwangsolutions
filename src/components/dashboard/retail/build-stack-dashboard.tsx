@@ -6,7 +6,7 @@ import { useInventory } from '@/hooks/use-inventory';
 import { useCart } from '@/hooks/use-cart';
 import { useProjects } from '@/hooks/use-projects';
 import { processBatchDispatch } from '@/firebase/firestore/build-stack-actions';
-import { processCheckout } from '@/firebase/firestore/retail-actions';
+import { processCheckout, addProduct } from '@/firebase/firestore/retail-actions';
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -18,11 +18,14 @@ import { GCashQrModal } from '@/components/common/gcash-qr-modal';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { EstimateModal } from '@/components/dashboard/retail/estimate-modal';
 import { QuickExpenseModal } from '@/components/common/quick-expense-modal';
+import { DiscountInput } from '@/components/ui/discount-input';
+import { BarcodeScannerModal } from '@/components/common/barcode-scanner-modal';
+import { ProductManagerSheet } from '@/components/dashboard/product-manager-sheet';
 import { cn } from '@/lib/utils';
 import { getModuleTheme } from '@/lib/theme-utils';
 import { useToast } from '@/hooks/use-toast';
 import { 
-  Package, Plus, Minus, Loader2, Search, Tag, ShoppingCart, Send, Coins, Receipt, FileText
+  Package, Plus, Minus, Loader2, Search, Tag, ShoppingCart, Send, Coins, Receipt, FileText, Camera, PackagePlus
 } from "lucide-react";
 import { KatuwangErrorBoundary } from '@/components/common/error-boundary';
 
@@ -161,8 +164,61 @@ function BuildStackDashboardContent() {
   const [completedSale, setCompletedSale] = useState<any>(null);
   const [showEstimateModal, setShowEstimateModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
+
+  // Barcode & Product Creation States
+  const [showScanner, setShowScanner] = useState(false);
+  const [showAddProductModal, setShowAddProductModal] = useState(false);
+  const [scannedNewBarcode, setScannedNewBarcode] = useState('');
+
+  // Discount States
+  const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage');
+  const [discountValue, setDiscountValue] = useState<string>('');
+  const [discountReason, setDiscountReason] = useState<string>('');
+
+  let discountCentavos = 0;
+  if (discountValue && !isNaN(parseFloat(discountValue))) {
+    if (discountType === 'fixed') {
+      discountCentavos = Math.round(parseFloat(discountValue) * 100);
+    } else {
+      discountCentavos = Math.round(totalCentavos * (parseFloat(discountValue) / 100));
+    }
+  }
+  const finalTotalCentavos = Math.max(0, totalCentavos - discountCentavos);
+  const finalTotalPesos = finalTotalCentavos / 100;
   
   const theme = getModuleTheme('build-stack');
+
+  const handleScanResult = (scannedCode: string) => {
+    const cleanCode = (scannedCode || '').trim();
+    if (!cleanCode) return;
+    const cleanLower = cleanCode.toLowerCase();
+    const noLeadingZero = cleanCode.replace(/^0+/, '').toLowerCase();
+
+    const match = (products || []).find((p: any) => {
+      const pSku = (p.sku || '').trim().toLowerCase();
+      const pBarcode = (p.barcode || '').trim().toLowerCase();
+      const pId = (p.id || '').trim().toLowerCase();
+      const pSkuNoZero = pSku.replace(/^0+/, '');
+      const pBarcodeNoZero = pBarcode.replace(/^0+/, '');
+
+      return (
+        pSku === cleanLower ||
+        pBarcode === cleanLower ||
+        pId === cleanLower ||
+        (noLeadingZero !== '' && (pSkuNoZero === noLeadingZero || pBarcodeNoZero === noLeadingZero))
+      );
+    });
+
+    if (match) {
+      addToCart(match);
+      toast({ title: 'Naidagdag sa basket!', description: match.name });
+      setShowScanner(false);
+    } else {
+      setScannedNewBarcode(cleanCode);
+      setShowScanner(false);
+      setShowAddProductModal(true);
+    }
+  };
 
   useEffect(() => {
     if (products && products.length > 0) {
@@ -172,8 +228,11 @@ function BuildStackDashboardContent() {
   }, [products]);
 
   const filteredProducts = products.filter((p: any) => {
-    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase()));
+    const q = searchQuery.toLowerCase();
+    const matchesSearch = p.name.toLowerCase().includes(q) ||
+                          (p.category && p.category.toLowerCase().includes(q)) ||
+                          (p.barcode && p.barcode.toLowerCase().includes(q)) ||
+                          (p.sku && p.sku.toLowerCase().includes(q));
     const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -194,6 +253,8 @@ function BuildStackDashboardContent() {
       toast({ title: "Materials Dispatched!", description: `Successfully dispatched to ${project.name}.` });
       clearCart();
       setSelectedProjectId('');
+      setDiscountValue('');
+      setDiscountReason('');
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
@@ -213,10 +274,22 @@ function BuildStackDashboardContent() {
          price: c.price,
          subtotal: c.price * c.quantity
       }));
-      const saleId = await processCheckout(currentTenant.id, items, totalCentavos, paymentMethod, gcashRef, 0, undefined, '');
+      const saleId = await processCheckout(
+        currentTenant.id, 
+        items, 
+        finalTotalCentavos, 
+        paymentMethod, 
+        gcashRef, 
+        discountCentavos, 
+        discountType, 
+        discountReason
+      );
       toast({ title: "Sale Completed", description: "Hardware items sold directly." });
-      setCompletedSale({ saleId, items, total: totalCentavos, paymentMethod });
+      setCompletedSale({ saleId, items, total: finalTotalCentavos, paymentMethod });
       clearCart();
+      setCashTendered('');
+      setDiscountValue('');
+      setDiscountReason('');
       setShowReceipt(true);
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -252,6 +325,34 @@ function BuildStackDashboardContent() {
               <Receipt className="h-4 w-4" />
               <span>Gastos</span>
             </Button>
+            
+            {/* Camera Barcode Scanner Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowScanner(true)}
+              className="rounded-xl h-10 px-3 text-xs font-bold border-slate-200 hover:bg-slate-100 flex items-center gap-1.5 cursor-pointer"
+              title="Scan Barcode"
+            >
+              <Camera className="h-4 w-4 text-slate-600" />
+              <span className="hidden sm:inline">Scan</span>
+            </Button>
+
+            {/* Add Product Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setScannedNewBarcode('');
+                setShowAddProductModal(true);
+              }}
+              className="rounded-xl h-10 px-3 text-xs font-black border-slate-300 text-slate-700 bg-slate-100 hover:bg-slate-200 flex items-center gap-1.5 cursor-pointer"
+              title="Magdagdag ng Bagong Produkto"
+            >
+              <PackagePlus className="h-4 w-4 text-slate-700" />
+              <span>+ Add Item</span>
+            </Button>
+
             <div className="relative w-48 sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input 
@@ -340,10 +441,21 @@ function BuildStackDashboardContent() {
         </div>
 
         <div className="p-4 bg-white border-t border-slate-100 space-y-4">
+          {cart.length > 0 && (
+            <DiscountInput 
+              discountType={discountType}
+              discountValue={discountValue}
+              discountReason={discountReason}
+              onTypeChange={setDiscountType as any}
+              onValueChange={setDiscountValue}
+              onReasonChange={setDiscountReason}
+            />
+          )}
+
           <div className="flex items-center justify-between mb-4">
-            <span className="text-slate-500 font-bold uppercase tracking-widest text-xs">Total Bill to Project</span>
+            <span className="text-slate-500 font-bold uppercase tracking-widest text-xs">Total Bill</span>
             <span className="text-3xl font-black text-slate-800" style={{ color: theme.primary }}>
-              ₱{totalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+              ₱{finalTotalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
             </span>
           </div>
           
@@ -436,7 +548,7 @@ function BuildStackDashboardContent() {
             <div className="text-right">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Bill</span>
               <span className="text-lg font-black" style={{ color: theme.primary }}>
-                ₱{totalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                ₱{finalTotalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
               </span>
             </div>
           </div>
@@ -472,10 +584,21 @@ function BuildStackDashboardContent() {
           </div>
           
           <div className="pt-4 border-t border-slate-100 flex-shrink-0 space-y-3">
+            {cart.length > 0 && (
+              <DiscountInput 
+                discountType={discountType}
+                discountValue={discountValue}
+                discountReason={discountReason}
+                onTypeChange={setDiscountType as any}
+                onValueChange={setDiscountValue}
+                onReasonChange={setDiscountReason}
+              />
+            )}
+
             <div className="flex items-center justify-between mb-4 px-1">
-              <span className="text-slate-500 font-bold uppercase tracking-widest text-xs">Total Bill to Project</span>
+              <span className="text-slate-500 font-bold uppercase tracking-widest text-xs">Total Bill</span>
               <span className="text-3xl font-black text-slate-800" style={{ color: theme.primary }}>
-                ₱{totalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                ₱{finalTotalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
               </span>
             </div>
 
@@ -534,7 +657,7 @@ function BuildStackDashboardContent() {
       <GCashQrModal
         open={showGCashQr}
         onClose={() => setShowGCashQr(false)}
-        totalAmount={totalCentavos}
+        totalAmount={finalTotalCentavos}
         tenantName={currentTenant?.name || "Katuwang Store"}
         paymentType="gcash"
         onPaymentVerified={async (paymentMethod, gcashRef) => {
@@ -556,7 +679,7 @@ function BuildStackDashboardContent() {
           <div className="p-6 space-y-4">
             <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center">
               <span className="font-bold text-slate-500 uppercase text-xs">Total Amount</span>
-              <span className="font-black text-2xl" style={{ color: theme.primary }}>₱{totalPesos.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+              <span className="font-black text-2xl" style={{ color: theme.primary }}>₱{finalTotalPesos.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
             </div>
 
             <div className="space-y-2">
@@ -574,16 +697,16 @@ function BuildStackDashboardContent() {
             </div>
             
             <div className="grid grid-cols-4 gap-2">
-              <Button variant="outline" onClick={() => setCashTendered(totalPesos.toString())} className="h-10 text-[10px] font-bold rounded-xl border-slate-200 text-slate-600">Exact</Button>
+              <Button variant="outline" onClick={() => setCashTendered(finalTotalPesos.toString())} className="h-10 text-[10px] font-bold rounded-xl border-slate-200 text-slate-600">Exact</Button>
               <Button variant="outline" onClick={() => setCashTendered('100')} className="h-10 text-[10px] font-bold rounded-xl border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100">₱100</Button>
               <Button variant="outline" onClick={() => setCashTendered('500')} className="h-10 text-[10px] font-bold rounded-xl border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100">₱500</Button>
               <Button variant="outline" onClick={() => setCashTendered('1000')} className="h-10 text-[10px] font-bold rounded-xl border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100">₱1000</Button>
             </div>
 
-            {parseFloat(cashTendered) >= totalPesos && (
+            {parseFloat(cashTendered) >= finalTotalPesos && (
               <div className="flex justify-between items-center p-4 rounded-xl border border-emerald-200 bg-emerald-50 animate-in fade-in zoom-in duration-200">
                 <span className="text-xs font-black uppercase tracking-widest text-emerald-700">Sukli (Change)</span>
-                <span className="text-2xl font-black text-emerald-700">₱{(parseFloat(cashTendered) - totalPesos).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                <span className="text-2xl font-black text-emerald-700">₱{(parseFloat(cashTendered) - finalTotalPesos).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
               </div>
             )}
           </div>
@@ -596,7 +719,7 @@ function BuildStackDashboardContent() {
                 setShowCashModal(false);
                 handleCheckout('cash');
               }} 
-              disabled={!cashTendered || isNaN(parseFloat(cashTendered)) || parseFloat(cashTendered) < totalPesos || isProcessing}
+              disabled={!cashTendered || isNaN(parseFloat(cashTendered)) || parseFloat(cashTendered) < finalTotalPesos || isProcessing}
               className="rounded-xl h-12 flex-1 font-bold text-white border-none shadow-md bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20"
             >
               {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Tapusin ang Sale'}
@@ -622,7 +745,7 @@ function BuildStackDashboardContent() {
         isOpen={showEstimateModal}
         onClose={() => setShowEstimateModal(false)}
         cartItems={cart}
-        totalCentavos={totalCentavos}
+        totalCentavos={finalTotalCentavos}
         tenantName={currentTenant?.name || 'Hardware Store'}
         themeColor={theme.primary}
       />
@@ -634,6 +757,21 @@ function BuildStackDashboardContent() {
         tenantId={currentTenant?.id || ''}
         moduleType="build-stack"
         themeColor={theme.primary}
+      />
+
+      {/* Barcode Scanner Modal */}
+      <BarcodeScannerModal
+        isOpen={showScanner}
+        onClose={() => setShowScanner(false)}
+        onScanResult={handleScanResult}
+        themeColor={theme.primary}
+      />
+
+      {/* Product Creation / Manager Sheet (Supports Pre-filled Scanned Barcodes) */}
+      <ProductManagerSheet
+        isOpen={showAddProductModal}
+        onOpenChange={setShowAddProductModal}
+        initialBarcode={scannedNewBarcode}
       />
     </div>
   );
