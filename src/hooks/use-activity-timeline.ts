@@ -102,7 +102,8 @@ export function useActivityTimeline() {
       // 4. Audit Log Voids
       auditList.forEach((evt) => {
         if (evt.type === 'void_sale' || evt.type === 'void_purchase') {
-          const date = evt.timestamp?.toDate ? evt.timestamp.toDate() : new Date(evt.timestamp || Date.now());
+          const rawDate = evt.createdAt || evt.timestamp;
+          const date = rawDate?.toDate ? rawDate.toDate() : new Date(rawDate || Date.now());
           merged.push({
             id: `audit-${evt.id}`,
             type: 'void',
@@ -141,7 +142,7 @@ export function useActivityTimeline() {
     );
 
     const unsubAudit = onSnapshot(
-      query(collection(db, 'tenants', tenantId, 'audit_events'), orderBy('timestamp', 'desc'), limit(10)),
+      query(collection(db, 'tenants', tenantId, 'audit_log'), orderBy('createdAt', 'desc'), limit(10)),
       (snap) => { auditList = snap.docs.map(d => ({ id: d.id, ...d.data() })); mergeStreams(); }
     );
 

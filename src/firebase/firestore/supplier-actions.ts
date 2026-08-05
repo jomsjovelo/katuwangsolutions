@@ -262,13 +262,10 @@ export async function voidPurchaseOrder(
 
     // 2. Reverse cash drawer if paid from cash drawer
     if (poData.paymentStatus === 'paid' || poData.paymentMethod === 'cash_drawer' || poData.paymentMethod === 'cash') {
-      const masterSnap = await transaction.get(masterAccountRef);
-      if (masterSnap.exists()) {
-        transaction.update(masterAccountRef, {
-          balance: increment(poData.totalAmountCentavos || 0),
-          updatedAt: serverTimestamp()
-        });
-      }
+      transaction.set(masterAccountRef, {
+        balance: increment(poData.totalAmountCentavos || 0),
+        updatedAt: serverTimestamp()
+      }, { merge: true });
       
       const transactionsRef = collection(db, 'tenants', tenantId, 'transactions');
       const newTxRef = doc(transactionsRef);

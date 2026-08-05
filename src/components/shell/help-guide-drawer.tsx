@@ -11,7 +11,30 @@ import {
 } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { BookOpen, HelpCircle, Download, Share, PlusSquare, Gift, Smartphone, Info, Wallet, History, Users, WifiOff } from 'lucide-react';
+import { 
+  BookOpen, 
+  HelpCircle, 
+  Download, 
+  Share, 
+  PlusSquare, 
+  Gift, 
+  Smartphone, 
+  Info, 
+  Wallet, 
+  History, 
+  Users, 
+  WifiOff,
+  Printer,
+  QrCode,
+  ShieldCheck,
+  CheckCircle2,
+  RotateCcw,
+  Receipt,
+  Tag,
+  Barcode,
+  Trash2,
+  Layers
+} from 'lucide-react';
 import { getModuleTheme } from '@/lib/theme-utils';
 import { useHaptic } from '@/hooks/use-haptic';
 import { MODULE_GUIDES, DEFAULT_GUIDE } from '@/components/common/module-guide';
@@ -129,19 +152,144 @@ export function HelpGuideDrawer({
                 </div>
               </div>
             )}
+            {/* Dedicated Bluetooth Thermal POS Printer Setup Guide */}
+            <div className="flex items-center gap-2 mb-4 mt-8 border-b border-slate-200 pb-2">
+              <Printer className="h-5 w-5 text-indigo-600" />
+              <h3 className="font-black text-slate-800 tracking-tight text-base">Gabay sa Bluetooth POS Printer</h3>
+            </div>
+
+            <div className="bg-gradient-to-br from-indigo-900 to-slate-900 text-white rounded-3xl p-5 space-y-4 shadow-xl relative overflow-hidden">
+              <div className="flex items-center gap-3 border-b border-indigo-700/50 pb-3">
+                <div className="h-10 w-10 rounded-2xl bg-indigo-500/30 backdrop-blur-md flex items-center justify-center shrink-0 border border-indigo-400/30">
+                  <Printer className="h-5 w-5 text-indigo-300 animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="font-black text-sm text-white tracking-tight">Paano Kumonekta sa Thermal Printer (58mm / 80mm)</h4>
+                  <p className="text-[11px] text-indigo-200 font-medium">Mabilisang setup para sa mga resibo sa Android, Windows, at Desktop</p>
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-1">
+                <div className="flex gap-3 items-start bg-white/10 backdrop-blur-sm p-3.5 rounded-2xl border border-white/10">
+                  <span className="h-6 w-6 rounded-xl bg-indigo-500 text-white font-black text-xs flex items-center justify-center shrink-0">1</span>
+                  <div>
+                    <h5 className="text-xs font-bold text-white mb-0.5">I-on ang Printer at Bluetooth</h5>
+                    <p className="text-[11px] text-indigo-100 font-normal leading-relaxed">
+                      Buksan ang Bluetooth POS Thermal Printer. Siguraduhing nakasaksak o puno ang battery, at bukas ang Bluetooth sa inyong Phone o Laptop.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 items-start bg-white/10 backdrop-blur-sm p-3.5 rounded-2xl border border-white/10">
+                  <span className="h-6 w-6 rounded-xl bg-indigo-500 text-white font-black text-xs flex items-center justify-center shrink-0">2</span>
+                  <div>
+                    <h5 className="text-xs font-bold text-white mb-0.5">I-click ang "Print Receipt" sa POS</h5>
+                    <p className="text-[11px] text-indigo-100 font-normal leading-relaxed">
+                      Matapos ang benta o sa Resibo screen, i-tap ang <strong className="text-indigo-300">"Print Receipt"</strong> button. Sa lalabas na Bluetooth device picker, piliin ang pangalan ng inyong printer (hal. <em>POS-58</em>, <em>MPT-II</em>, o <em>Bluetooth Printer</em>).
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 items-start bg-white/10 backdrop-blur-sm p-3.5 rounded-2xl border border-white/10">
+                  <span className="h-6 w-6 rounded-xl bg-indigo-500 text-white font-black text-xs flex items-center justify-center shrink-0">3</span>
+                  <div>
+                    <h5 className="text-xs font-bold text-white mb-0.5">Auto-Reconnect (Kusa Nang Nakatanda)</h5>
+                    <p className="text-[11px] text-indigo-100 font-normal leading-relaxed">
+                      Kapag na-connect mo na ang printer nang isang beses, <strong className="text-emerald-300">tandaan na ito ng Katuwang App</strong>. Sa mga susunod na resibo, kusa na itong mag-reconnect nang hindi mo na kailangang pumili ulit!
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-amber-500/20 border border-amber-400/30 p-3 rounded-2xl flex items-start gap-2.5">
+                  <Info className="h-4 w-4 text-amber-300 shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-amber-100 font-medium leading-relaxed">
+                    <strong className="text-amber-200 font-bold">Paalala sa iPhone / iPad (iOS):</strong> Ang Web Bluetooth ay direktang suportado sa Chrome/Edge sa Android at Windows. Sa iOS Safari, buksan ang app sa <em>Bluefy Browser</em> para sa direct Bluetooth thermal printing, o gamitin ang AirPrint / System Print dialog.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Benta Snap Sub-features & Tools Guide */}
+            <div className="flex items-center gap-2 mb-4 mt-8 border-b border-slate-200 pb-2">
+              <Layers className="h-5 w-5 text-emerald-600" />
+              <h3 className="font-black text-slate-800 tracking-tight text-base">Mga Tampok sa Benta Snap</h3>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3">
+              <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm space-y-1.5">
+                <div className="flex items-center gap-2 text-slate-800 font-black text-xs">
+                  <Barcode className="h-4 w-4 text-emerald-600" />
+                  <span>Camera & Bluetooth Barcode Scanner</span>
+                </div>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  I-scan ang barcode sa pakete gamit ang camera ng phone o barcode gun. Awtomatikong hahanapin ng app ang produkto gamit ang exact barcode o SKU (kahit may leading zeros o whitespace). Pag walang nahanap, maaari mo agad itong i-add bilang bagong produkto!
+                </p>
+              </div>
+
+              <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm space-y-1.5">
+                <div className="flex items-center gap-2 text-slate-800 font-black text-xs">
+                  <Tag className="h-4 w-4 text-amber-600" />
+                  <span>Senior, PWD, Wholesale & Custom Discounts</span>
+                </div>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Sa Basket Checkout, mag-apply ng 20% Senior Citizen / PWD discount, Wholesale rate, o Custom Discount. Awtomatikong magko-compute ang bawas at lilitaw sa digital at printed thermal receipt.
+                </p>
+              </div>
+
+              <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm space-y-1.5">
+                <div className="flex items-center gap-2 text-slate-800 font-black text-xs">
+                  <Wallet className="h-4 w-4 text-teal-600" />
+                  <span>Cash Drawer Ledger (`Master Cash`)</span>
+                </div>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Real-time na tinitimbang ang totoong pera sa loob ng iyong cash register. Lahat ng cash sales ay nagdaragdag sa drawer balance, habang ang Cash Restock at Cash Out (mga gastos) ay awtomatikong binabawas.
+                </p>
+              </div>
+
+              <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm space-y-1.5">
+                <div className="flex items-center gap-2 text-slate-800 font-black text-xs">
+                  <Users className="h-4 w-4 text-blue-600" />
+                  <span>Palista (Utang ng Suki & Utang sa Supplier)</span>
+                </div>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Ilista ang utang ng suki direct mula sa POS sa pamamagitan ng pagpili sa "Palista". Subaybayan ang paunang hulog, natitirang balanse, at utang sa mga supplier sa Credit Tracker.
+                </p>
+              </div>
+
+              <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm space-y-1.5">
+                <div className="flex items-center gap-2 text-slate-800 font-black text-xs">
+                  <ShieldCheck className="h-4 w-4 text-rose-600" />
+                  <span>Void Sale & Void Restock (Manager PIN Secured)</span>
+                </div>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Kung nagkamali ng benta o restock, i-click ang "Void". Nangangailangan ito ng Manager PIN approval. Kapag na-void, <strong className="text-slate-800 font-bold">babalik ang stock sa imbentaryo at maibabalik/maibabawas ang pera sa Cash Drawer</strong> nang may kumpletong audit log.
+                </p>
+              </div>
+
+              <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm space-y-1.5">
+                <div className="flex items-center gap-2 text-slate-800 font-black text-xs">
+                  <History className="h-4 w-4 text-purple-600" />
+                  <span>Imbentaryo Movement History & Fresh Batches</span>
+                </div>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Subaybayan ang bawat paggalaw ng produkto (Restock, Sales, Void, Expiration). I-long press ang produkto sa Stock tab para makita ang itemized movement history board.
+                </p>
+              </div>
+            </div>
+
             {/* Offline Mode & Syncing */}
             <div className="flex items-center gap-2 mb-4 mt-8 border-b border-slate-100 pb-2">
               <span className="text-xl">⚙️</span>
-              <h3 className="font-black text-slate-800 tracking-tight">System & Offline</h3>
+              <h3 className="font-black text-slate-800 tracking-tight text-base">System & Offline</h3>
             </div>
             <div className="bg-indigo-50 border border-indigo-200 p-5 rounded-2xl flex items-start gap-3">
                <div className="bg-indigo-100 p-2.5 rounded-xl shrink-0 mt-0.5">
                  <WifiOff className="h-5 w-5 text-indigo-600" />
                </div>
                <div>
-                 <h4 className="font-black text-sm text-indigo-900 tracking-tight leading-tight mb-1">Offline Mode & Syncing</h4>
+                 <h4 className="font-black text-sm text-indigo-900 tracking-tight leading-tight mb-1">Offline Mode & Automatic Syncing</h4>
                  <p className="text-[11px] text-indigo-800 font-medium leading-relaxed">
-                   Pwede mong gamitin ang Katuwang App kahit <strong className="font-black">walang internet (Offline)</strong>! Patuloy kang makakapaglista ng benta o gastos. Ngunit, para mag-sync at ma-save ang iyong mga nilista sa system (at makita ng ibang staff), <strong className="font-black">kailangan mong kumonekta sa internet</strong>.
+                   Pwede mong gamitin ang Katuwang App kahit <strong className="font-black">walang internet (Offline)</strong>! Patuloy kang makakapaglista ng benta o gastos. Pagkumonekta ulit sa internet, awtomatikong mag-i-sync ang lahat ng transaksyon sa cloud server.
                  </p>
                </div>
             </div>
@@ -149,44 +297,40 @@ export function HelpGuideDrawer({
             {/* FAQ Section */}
             <div className="flex items-center gap-2 mb-4 mt-8 border-b border-slate-100 pb-2">
               <span className="text-xl">📋</span>
-              <h3 className="font-black text-slate-800 tracking-tight">Frequently Asked Questions</h3>
+              <h3 className="font-black text-slate-800 tracking-tight text-base">Frequently Asked Questions</h3>
             </div>
             
             <div className="space-y-3">
               <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
+                <p className="text-xs font-bold text-slate-800 mb-1">Ano ang gagawin kapag ayaw kumonekta ng Bluetooth Printer?</p>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  1. Siguraduhing naka-ON ang printer at may sapat na papel o battery.<br/>
+                  2. Siguraduhing naka-ON ang Bluetooth at Location permissions sa browser ng inyong phone.<br/>
+                  3. I-restart ang printer at subukang pindutin muli ang "Print Receipt".
+                </p>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
+                <p className="text-xs font-bold text-slate-800 mb-1">Ano ang mangyayari kapag nag-void ako ng benta?</p>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Kapag na-void ang sale sa pamamagitan ng Manager PIN, awtomatikong babalik ang dami ng item sa iyong imbentaryo, at ibabawas ang perang pumasok sa Cash Drawer Ledger.
+                </p>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
                 <p className="text-xs font-bold text-slate-800 mb-1">Paano ko mapasasali ang aking Staff?</p>
                 <p className="text-[11px] text-slate-600 leading-relaxed">
-                  Ibigay ang inyong 7-character <strong className="font-bold text-slate-800">Business Code</strong> sa inyong staff (makikita sa Profile Tab). Pagkatapos nilang mag-register gamit ang code na ito, kailangan mo silang i-<strong className="font-bold text-slate-800">Approve</strong> sa iyong Profile Tab bago sila makapasok sa system para masiguro ang seguridad ng inyong tindahan.
+                  Ibigay ang inyong 7-character <strong className="font-bold text-slate-800">Business Code</strong> sa inyong staff (makikita sa Profile Tab). Pagkatapos nilang mag-register gamit ang code na ito, kailangan mo silang i-<strong className="font-bold text-slate-800">Approve</strong> sa Profile Tab.
                 </p>
               </div>
               <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
-                <p className="text-xs font-bold text-slate-800 mb-1">Bakit hindi pa nag-a-activate ang account ko?</p>
+                <p className="text-xs font-bold text-slate-800 mb-1">Paano mag-set ng Manager PIN para sa seguridad?</p>
                 <p className="text-[11px] text-slate-600 leading-relaxed">
-                  Ang bawat account ay dumadaan sa manual verification para iwas-spam. Karaniwang tumatagal ito ng 1–3 business days. Makakatanggap ka ng email kapag active na!
+                  Pumunta sa Profile Tab o Settings, at mag-set ng 4-digit Manager PIN. Gagamitin ito tuwing mag-vo-void ng transaksyon o mag-a-adjust ng sensitibong presyo at stock.
                 </p>
               </div>
               <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
-                <p className="text-xs font-bold text-slate-800 mb-1">Nakalimutan ko ang password ko, paano mag-reset?</p>
+                <p className="text-xs font-bold text-slate-800 mb-1">Saan makikita ang araw-araw na kita at gastos?</p>
                 <p className="text-[11px] text-slate-600 leading-relaxed">
-                  Sa login screen, i-click ang "Nakalimutan ang password?". Ipadadala namin ang reset link sa iyong email address.
-                </p>
-              </div>
-              <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
-                <p className="text-xs font-bold text-slate-800 mb-1">Bakit may "Offline" indicator sa taas?</p>
-                <p className="text-[11px] text-slate-600 leading-relaxed">
-                  Ibig sabihin nito ay walang internet connection ang iyong device. Naka-save ang benta mo sa phone, pero kailangan mong mag-connect ulit sa internet para ma-sync ito sa system.
-                </p>
-              </div>
-              <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
-                <p className="text-xs font-bold text-slate-800 mb-1">Pwede bang mag-transfer ng account sa ibang phone?</p>
-                <p className="text-[11px] text-slate-600 leading-relaxed">
-                  Oo! Walang kailangang i-transfer. Mag-log in lang gamit ang inyong email at password sa kahit anong device (phone, tablet, o computer).
-                </p>
-              </div>
-              <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
-                <p className="text-xs font-bold text-slate-800 mb-1">Saan ko makikita ang aking mga benta noong nakaraang buwan?</p>
-                <p className="text-[11px] text-slate-600 leading-relaxed">
-                  Pumunta sa "Ulat" o Reports tab. Doon mo makikita ang graph at listahan ng benta para sa iba't ibang buwan o linggo.
+                  Sa <strong className="font-bold text-slate-800">Home Tab</strong> at <strong className="font-bold text-slate-800">Ulat / Reports Tab</strong>. Makikita mo ang Live Cash Drawer Balance, Total Sales, Total Purchases, Net Profit, at Business Activity Timeline real-time.
                 </p>
               </div>
             </div>

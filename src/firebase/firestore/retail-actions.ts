@@ -307,11 +307,11 @@ export async function deleteSale(
     }
 
     // 4. Reverse cash ledger if cash sale
-    if (paymentMethod === 'cash' && masterSnap && masterSnap.exists()) {
-      transaction.update(masterAccountRef, {
+    if (paymentMethod === 'cash') {
+      transaction.set(masterAccountRef, {
         balance: increment(-totalAmount),
         updatedAt: serverTimestamp()
-      });
+      }, { merge: true });
     }
     
     // 5. Delete corresponding master ledger & credit transactions

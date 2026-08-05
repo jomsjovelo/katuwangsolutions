@@ -3,7 +3,7 @@
   "name": "Katuwang Solutions",
   "short_name": "Katuwang",
   "description": "Ang Katuwang ng Negosyo Mo. Sales, inventory, at utang tracking para sa mga tindahan, palengke, at services.",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#06B6D4",
@@ -54,7 +54,7 @@
       "name": "Mag-Benta",
       "short_name": "POS",
       "description": "Quick sale entry",
-      "url": "/?view=benta",
+      "url": "/dashboard?view=benta",
       "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     }
   ]

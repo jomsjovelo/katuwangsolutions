@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { GCashQrModal } from '@/components/common/gcash-qr-modal';
 import { BarcodeScannerModal } from '@/components/common/barcode-scanner-modal';
+import { ProductManagerSheet } from '@/components/dashboard/product-manager-sheet';
 import { QuickExpenseModal } from '@/components/common/quick-expense-modal';
 import { DiscountInput } from '@/components/ui/discount-input';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
@@ -53,7 +54,8 @@ import {
   Trash2,
   Coins,
   Camera,
-  Calculator
+  Calculator,
+  PackagePlus
 } from "lucide-react";
 
 import { KatuwangErrorBoundary } from '@/components/common/error-boundary';
@@ -217,6 +219,41 @@ function BentaDashboardContent() {
   const [showMayaQr, setShowMayaQr] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [showTingiModal, setShowTingiModal] = useState(false);
+  const [showAddProductModal, setShowAddProductModal] = useState(false);
+  const [scannedNewBarcode, setScannedNewBarcode] = useState('');
+
+  const handleScanResult = (scannedCode: string) => {
+    const cleanCode = (scannedCode || '').trim();
+    if (!cleanCode) return;
+    const cleanLower = cleanCode.toLowerCase();
+    const noLeadingZero = cleanCode.replace(/^0+/, '').toLowerCase();
+
+    const match = (products || []).find((p: any) => {
+      const pSku = (p.sku || '').trim().toLowerCase();
+      const pBarcode = (p.barcode || '').trim().toLowerCase();
+      const pId = (p.id || '').trim().toLowerCase();
+      const pSkuNoZero = pSku.replace(/^0+/, '');
+      const pBarcodeNoZero = pBarcode.replace(/^0+/, '');
+
+      return (
+        pSku === cleanLower ||
+        pBarcode === cleanLower ||
+        pId === cleanLower ||
+        (noLeadingZero !== '' && (pSkuNoZero === noLeadingZero || pBarcodeNoZero === noLeadingZero))
+      );
+    });
+
+    if (match) {
+      addToCart(match);
+      setSuccessMsg(`Naidagdag sa basket: ${match.name}`);
+      setTimeout(() => setSuccessMsg(null), 3000);
+      setShowScanner(false);
+    } else {
+      setScannedNewBarcode(cleanCode);
+      setShowScanner(false);
+      setShowAddProductModal(true);
+    }
+  };
   
   // Cash Tendered Modal
   const [showCashModal, setShowCashModal] = useState(false);
@@ -577,8 +614,21 @@ function BentaDashboardContent() {
               onClick={() => setShowScanner(true)}
               variant="outline"
               className="h-[46px] w-[46px] p-0 rounded-xl border-slate-200 hover:bg-slate-100 flex items-center justify-center cursor-pointer flex-shrink-0"
+              title="Scan Barcode"
             >
               <Camera className="h-5 w-5 text-slate-500" />
+            </Button>
+            <Button
+              onClick={() => {
+                setScannedNewBarcode('');
+                setShowAddProductModal(true);
+              }}
+              variant="outline"
+              className="h-[46px] px-3 font-black text-xs rounded-xl border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center gap-1 cursor-pointer flex-shrink-0"
+              title="Magdagdag ng Bagong Produkto"
+            >
+              <PackagePlus className="h-4 w-4" />
+              <span className="hidden sm:inline">Add Item</span>
             </Button>
             <Button
               onClick={() => setShowTingiModal(true)}
@@ -1137,8 +1187,15 @@ function BentaDashboardContent() {
       <BarcodeScannerModal
         isOpen={showScanner}
         onClose={() => setShowScanner(false)}
-        onScanResult={(scannedSku) => setSearchQuery(scannedSku)}
+        onScanResult={handleScanResult}
         themeColor={theme.primary}
+      />
+
+      {/* Product Creation / Manager Sheet (Supports Pre-filled Scanned Barcodes) */}
+      <ProductManagerSheet
+        isOpen={showAddProductModal}
+        onOpenChange={setShowAddProductModal}
+        initialBarcode={scannedNewBarcode}
       />
 
       {/* Quick Expense Modal */}

@@ -22,16 +22,18 @@ export interface GuideContent {
 
 export const MODULE_GUIDES: Record<string, GuideContent> = {
   'benta-snap': {
-    tagline: 'I-snap ang benta sa iyong Sari-Sari store, mabilis at simple.',
+    tagline: 'Katuwang ng Sari-Sari Store at Retail: POS, Barcode, Imbentaryo, Cash Drawer, at Utang Tracker.',
     steps: [
-      'Pindutin ang dilaw na buton na "+ Magdagdag ng Test Product" sa itaas para magkaroon ng tinda.',
-      'I-click ang mga tinda sa listahan para mapuno ang iyong Basket sa ilalim.',
-      'Buksan ang Basket sa ilalim para magbayad (pumili kung Cash o GCash) at makita ang resibo!'
+      'Mag-scan ng Barcode o mag-search ng SKU/pangalan ng produkto para mabilis na magdagdag ng paninda sa Basket.',
+      'Mag-apply ng Discount (Senior Citizen, PWD, Wholesale, o Custom) kung kailangan, at pumili ng bayad (Cash, GCash na may Ref#, Maya, o Palista).',
+      'I-print ang Resibo gamit ang Bluetooth Thermal POS Printer at awtomatikong pumasok ang pera sa iyong Cash Drawer Ledger.',
+      'Mag-restock gamit ang Purchase Orders (mula sa Cash Drawer o Utang sa Supplier) at i-track ang Expiration Batches at Stock History.',
+      'I-void ang maling benta o restock gamit ang Manager PIN protection — babalik ang stock at maibabalik/maibabawas ang cash sa drawer nang maayos.'
     ],
     example: {
-      scenario: 'Bumili si Aling Nena ng 2 kilo ng bigas at 1 kape.',
-      action: 'I-click ang "Bigas" (x2) at "Kape" (x1), tapos i-click ang Checkout.',
-      result: 'Lalabas ang digital na resibo na ₱120 at awtomatikong papasok ito sa araw-araw na benta.'
+      scenario: 'Bumili si Senior Citizen Aling Nena ng 2 Kilo Bigas, 1 Kape, at 1 Sabon via GCash.',
+      action: 'I-scan ang Barcode ng Kape at Sabon, i-click ang Bigas (x2), i-apply ang Senior Discount, piliin ang GCash payment at i-type ang GCash Ref Number.',
+      result: 'Lalabas ang resibo na may Senior Discount breakdown, magi-print sa Bluetooth POS printer, at mai-log ang GCash reference sa sales audit history.'
     }
   },
   'fresh-tally': {

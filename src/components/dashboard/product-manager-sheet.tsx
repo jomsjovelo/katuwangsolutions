@@ -7,25 +7,35 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTenant } from '@/app/lib/tenant-context';
 import { addProduct, updateProduct, deleteProduct } from '@/firebase/firestore/inventory-actions';
-import { Loader2, Trash2, Save, PackagePlus } from 'lucide-react';
+import { Loader2, Trash2, Save, PackagePlus, Camera, Barcode } from 'lucide-react';
 import { getModuleTheme } from '@/lib/theme-utils';
+import { BarcodeScannerModal } from '@/components/common/barcode-scanner-modal';
 
 interface ProductManagerSheetProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   productToEdit?: any | null; // null means create new
+  initialBarcode?: string;
 }
 
-export function ProductManagerSheet({ isOpen, onOpenChange, productToEdit }: ProductManagerSheetProps) {
+export function ProductManagerSheet({ 
+  isOpen, 
+  onOpenChange, 
+  productToEdit,
+  initialBarcode = ''
+}: ProductManagerSheetProps) {
   const { currentTenant } = useTenant();
   const theme = getModuleTheme(currentTenant?.moduleType);
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
+    barcode: '',
+    sku: '',
     category: '',
     currentStock: '0',
     minStock: '5',
@@ -39,6 +49,8 @@ export function ProductManagerSheet({ isOpen, onOpenChange, productToEdit }: Pro
       if (productToEdit) {
         setFormData({
           name: productToEdit.name || '',
+          barcode: productToEdit.barcode || productToEdit.sku || '',
+          sku: productToEdit.sku || '',
           category: productToEdit.category || '',
           currentStock: (productToEdit.currentStock || 0).toString(),
           minStock: (productToEdit.minStock || 0).toString(),
@@ -49,6 +61,8 @@ export function ProductManagerSheet({ isOpen, onOpenChange, productToEdit }: Pro
       } else {
         setFormData({
           name: '',
+          barcode: initialBarcode || '',
+          sku: initialBarcode || '',
           category: 'General',
           currentStock: '0',
           minStock: '5',
@@ -60,7 +74,7 @@ export function ProductManagerSheet({ isOpen, onOpenChange, productToEdit }: Pro
       setDeleteConfirm(false);
       setError(null);
     }
-  }, [isOpen, productToEdit]);
+  }, [isOpen, productToEdit, initialBarcode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,6 +86,8 @@ export function ProductManagerSheet({ isOpen, onOpenChange, productToEdit }: Pro
 
       const payload = {
         name: formData.name,
+        barcode: formData.barcode.trim() || formData.sku.trim(),
+        sku: formData.sku.trim() || formData.barcode.trim(),
         category: formData.category,
         currentStock: parseInt(formData.currentStock) || 0,
         minStock: parseInt(formData.minStock) || 0,
@@ -142,9 +158,35 @@ export function ProductManagerSheet({ isOpen, onOpenChange, productToEdit }: Pro
                 required
                 value={formData.name}
                 onChange={e => setFormData({...formData, name: e.target.value})}
-                placeholder="Hal. Kopiko Brown"
-                className="h-12 rounded-xl border-slate-200 focus:ring-slate-300"
+                placeholder="Hal. Kopiko Brown 27.5g"
+                className="h-12 rounded-xl border-slate-200 focus:ring-slate-300 font-medium"
               />
+            </div>
+
+            {/* Barcode & SKU Field with Camera Scanner */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                  <Barcode className="h-4 w-4 text-slate-600" />
+                  <span>Barcode / SKU (Optional)</span>
+                </Label>
+                <Button
+                  type="button"
+                  onClick={() => setShowScanner(true)}
+                  className="h-7 px-2.5 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold text-[11px] flex items-center gap-1 cursor-pointer border border-indigo-200"
+                >
+                  <Camera className="h-3.5 w-3.5" />
+                  <span>Scan Barcode</span>
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <Input 
+                  value={formData.barcode}
+                  onChange={e => setFormData({...formData, barcode: e.target.value, sku: e.target.value})}
+                  placeholder="I-scan ang barcode sa pakete o i-type rito..."
+                  className="h-12 rounded-xl border-slate-200 font-mono text-xs font-bold tracking-wider"
+                />
+              </div>
             </div>
             
             <div className="grid grid-cols-2 gap-4">
@@ -255,6 +297,20 @@ export function ProductManagerSheet({ isOpen, onOpenChange, productToEdit }: Pro
           </Button>
         </div>
       </SheetContent>
+
+      {/* Embedded Barcode Scanner Camera Modal for Product Creation */}
+      <BarcodeScannerModal
+        isOpen={showScanner}
+        onClose={() => setShowScanner(false)}
+        onScanResult={(scannedCode) => {
+          setFormData(prev => ({
+            ...prev,
+            barcode: scannedCode,
+            sku: scannedCode
+          }));
+          setShowScanner(false);
+        }}
+      />
     </Sheet>
   );
 }

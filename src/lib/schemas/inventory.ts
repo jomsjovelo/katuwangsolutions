@@ -5,6 +5,7 @@ export const ProductSchema = z.object({
   tenantId: z.string(),
   name: z.string().min(2, 'Product name is required'),
   sku: z.string().optional(),
+  barcode: z.string().optional(),
   category: z.string().default('General'),
   
   // Stock levels stored as integers
