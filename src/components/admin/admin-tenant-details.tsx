@@ -170,7 +170,7 @@ export function AdminTenantDetails({ tenant, isOpen, onClose, updateNextBillingD
                       disabled={isRenewing}
                       className="h-7 text-[10px] font-bold bg-emerald-500 hover:bg-emerald-600 text-white tracking-widest uppercase rounded-lg"
                     >
-                      {isRenewing ? 'Processing...' : '+30 Days (Renew)'}
+                      {isRenewing ? 'Processing...' : 'RENEW (+1 MONTH)'}
                     </Button>
                   )}
                 </div>
@@ -180,19 +180,30 @@ export function AdminTenantDetails({ tenant, isOpen, onClose, updateNextBillingD
                     className="flex-1 text-sm font-bold border border-slate-200 rounded-xl h-12 px-3 focus:ring-2 focus:ring-primary focus:outline-none"
                     value={(() => {
                       if (tenant.nextBillingDate) {
-                        return new Date(typeof tenant.nextBillingDate === 'object' && tenant.nextBillingDate !== null && 'seconds' in tenant.nextBillingDate ? (tenant.nextBillingDate as any).seconds * 1000 : tenant.nextBillingDate as any).toISOString().split('T')[0];
+                        const d = new Date(typeof tenant.nextBillingDate === 'object' && tenant.nextBillingDate !== null && 'seconds' in tenant.nextBillingDate ? (tenant.nextBillingDate as any).seconds * 1000 : tenant.nextBillingDate as any);
+                        if (!isNaN(d.getTime())) {
+                          const y = d.getFullYear();
+                          const m = String(d.getMonth() + 1).padStart(2, '0');
+                          const day = String(d.getDate()).padStart(2, '0');
+                          return `${y}-${m}-${day}`;
+                        }
                       }
                       const createdDate = tenant.createdAt 
                         ? new Date(typeof tenant.createdAt === 'object' && tenant.createdAt !== null && 'seconds' in tenant.createdAt ? (tenant.createdAt as any).seconds * 1000 : tenant.createdAt as any)
                         : new Date();
                       const fallback = new Date(createdDate);
-                      fallback.setDate(fallback.getDate() + 30);
-                      return fallback.toISOString().split('T')[0];
+                      fallback.setMonth(fallback.getMonth() + 1);
+                      const y = fallback.getFullYear();
+                      const m = String(fallback.getMonth() + 1).padStart(2, '0');
+                      const day = String(fallback.getDate()).padStart(2, '0');
+                      return `${y}-${m}-${day}`;
                     })()}
                     onChange={(e) => {
                       if (!e.target.value) return;
+                      const [y, m, d] = e.target.value.split('-').map(Number);
+                      const selectedDate = new Date(y, m - 1, d, 23, 59, 59);
                       setIsUpdatingDate(true);
-                      updateNextBillingDate(tenant.id, new Date(e.target.value))
+                      updateNextBillingDate(tenant.id, selectedDate)
                         .finally(() => setIsUpdatingDate(false));
                     }}
                     disabled={isUpdatingDate || isRenewing}

@@ -331,9 +331,10 @@ export function AdminOwnerRow({
                                   onClick={async () => {
                                     const currentExpiry = effectiveDate || new Date();
                                     const baseDate = (currentExpiry > new Date()) ? currentExpiry : new Date();
-                                    const newExpiry = new Date(baseDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+                                    const newExpiry = new Date(baseDate);
+                                    newExpiry.setMonth(newExpiry.getMonth() + 1);
                                     
-                                    if (confirm(`Extend subscription for ${tenant.name} by +30 Days until ${newExpiry.toLocaleDateString()}?`)) {
+                                    if (confirm(`Extend subscription for ${tenant.name} by +1 Month until ${newExpiry.toLocaleDateString()}?`)) {
                                       await onUpdateNextBillingDate(tenant.id, newExpiry);
                                       if (tenant.subscriptionStatus === 'expired') {
                                         await onUpdateStatus(tenant, 'active');
@@ -341,9 +342,9 @@ export function AdminOwnerRow({
                                     }
                                   }}
                                   className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] h-8 px-2.5 rounded-lg shadow-sm"
-                                  title="Extend subscription by +30 Days"
+                                  title="Extend subscription by +1 Month"
                                 >
-                                  +30 Days
+                                  +1 Month
                                 </Button>
                               )}
                               <Button

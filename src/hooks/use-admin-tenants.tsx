@@ -432,9 +432,10 @@ export function useAdminTenants(enabled: boolean = true) {
         ? new Date(typeof tenantData.nextBillingDate === 'object' && tenantData.nextBillingDate !== null && 'seconds' in tenantData.nextBillingDate ? tenantData.nextBillingDate.seconds * 1000 : tenantData.nextBillingDate)
         : new Date();
 
-      // If registered previously or expired, start full 30 days from TODAY when approved!
-      const baseDate = (currentExpiry > new Date()) ? currentExpiry : new Date();
-      const autoBillingDate = new Date(baseDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+      // If registered previously or expired, start full 1 calendar month from TODAY when approved!
+      const baseDate = (currentExpiry && currentExpiry > new Date()) ? currentExpiry : new Date();
+      const autoBillingDate = new Date(baseDate);
+      autoBillingDate.setMonth(autoBillingDate.getMonth() + 1);
 
       // 1. Add module to unlockedModules, update pendingModuleRequests, delete lastPaymentRequestedModule, set subscriptionStatus to active, auto-set nextBillingDate if missing
       batch.update(tenantRef, {
@@ -583,15 +584,15 @@ export function useAdminTenants(enabled: boolean = true) {
       
       const batch = writeBatch(db);
       
-      // 1. Extend billing date by 30 days
+      // 1. Extend billing date by 1 calendar month
       const currentBillingDate = tenant.nextBillingDate 
-        ? new Date(typeof tenant.nextBillingDate === 'object' && 'seconds' in tenant.nextBillingDate ? (tenant.nextBillingDate as any).seconds * 1000 : tenant.nextBillingDate as any)
+        ? new Date(typeof tenant.nextBillingDate === 'object' && tenant.nextBillingDate !== null && 'seconds' in tenant.nextBillingDate ? (tenant.nextBillingDate as any).seconds * 1000 : tenant.nextBillingDate as any)
         : new Date();
       
-      // If current billing date is in the past, renew from today. If in future, extend it.
-      const baseDate = currentBillingDate < new Date() ? new Date() : currentBillingDate;
+      // If current billing date is in the past, renew 1 full month starting from TODAY. If in future, extend by 1 month.
+      const baseDate = (currentBillingDate && currentBillingDate > new Date()) ? currentBillingDate : new Date();
       const nextDate = new Date(baseDate);
-      nextDate.setDate(nextDate.getDate() + 30);
+      nextDate.setMonth(nextDate.getMonth() + 1);
       
       // 2. Add Billing Log
       const amount = tenant.pricingTier === 'promo_50' ? 50 : tenant.pricingTier === 'promo_99' ? 99 : tenant.pricingTier === 'standard_100' ? 100 : tenant.pricingTier === 'standard_199' ? 199 : tenant.pricingTier === 'foc' ? 0 : 499;
