@@ -322,6 +322,25 @@ export function SpinDashboard() {
                   <span className="text-muted-foreground">Suggested: ₱{suggestedPrice}</span>
                 </Label>
                 <Input id="price-override" name="priceOverride" type="number" placeholder={`₱${suggestedPrice}`} value={priceOverride} onChange={e => setPriceOverride(parseFloat(e.target.value) || '')} />
+                <div className="flex flex-wrap gap-1 pt-1">
+                  {[
+                    { label: '+Fabcon (+₱15)', amount: 15 },
+                    { label: '+Extra Soap (+₱15)', amount: 15 },
+                    { label: '+Express (+₱50)', amount: 50 }
+                  ].map(addon => (
+                    <button
+                      key={addon.label}
+                      type="button"
+                      onClick={() => {
+                        const current = typeof priceOverride === 'number' ? priceOverride : suggestedPrice;
+                        setPriceOverride(current + addon.amount);
+                      }}
+                      className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-600 transition-colors"
+                    >
+                      {addon.label}
+                    </button>
+                  ))}
+                </div>
               </div>
               <Button 
                 className="w-full h-8 text-xs font-bold text-white" 
