@@ -329,16 +329,23 @@ export function PurchaseOrderModal({ isOpen, onClose, suppliers }: PurchaseOrder
           </div>
 
           {/* Total Summary Banner */}
-          <div className="bg-slate-900 text-white p-3.5 rounded-2xl flex items-center justify-between shadow-sm">
-            <div>
-              <span className="text-[9px] font-black uppercase tracking-widest text-cyan-400 block">KABUUANG GASTOS SA RESTOCK</span>
-              <span className="text-xs text-slate-300 font-medium">
-                {paymentStatus === 'paid' ? 'Nababawas sa Ledger Flow Expense' : 'Nakarecord sa Utang sa Supplier (30-day)'}
+          <div className="bg-slate-900 text-white p-3.5 rounded-2xl flex flex-col gap-1.5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-[9px] font-black uppercase tracking-widest text-cyan-400 block">KABUUANG GASTOS SA RESTOCK</span>
+                <span className="text-xs text-slate-300 font-medium">
+                  {paymentStatus === 'paid' ? 'Paid via Cash Drawer' : 'Nakarecord sa Utang sa Supplier (30-day)'}
+                </span>
+              </div>
+              <span className="text-xl font-black text-emerald-400">
+                ₱{(totalCostCentavos / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
               </span>
             </div>
-            <span className="text-xl font-black text-emerald-400">
-              ₱{(totalCostCentavos / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-            </span>
+            {paymentStatus === 'paid' && (
+              <p className="text-[10px] text-amber-300 font-semibold border-t border-slate-800 pt-1.5">
+                💡 Ang pagbiling ito ay awtomatikong magbabawas ng cash sa Cash Drawer at magdaragdag ng stock sa iyong imbentaryo.
+              </p>
+            )}
           </div>
         </div>
 

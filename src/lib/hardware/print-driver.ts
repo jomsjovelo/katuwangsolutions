@@ -56,10 +56,16 @@ export class EscPosBluetoothDriver {
   }
 
   /**
-   * Get name of currently connected printer device
+   * Get name of currently connected printer device or previously paired device
    */
   static getConnectedDeviceName(): string | null {
-    return EscPosBluetoothDriver.cachedDevice?.name || null;
+    if (EscPosBluetoothDriver.cachedDevice?.name) {
+      return EscPosBluetoothDriver.cachedDevice.name;
+    }
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('katuwang_bt_device_name') || null;
+    }
+    return null;
   }
 
   /**
@@ -79,6 +85,107 @@ export class EscPosBluetoothDriver {
   }
 
   /**
+   * Helper to bind GATT server and discover printable characteristic
+   */
+  private async setupGattConnection(device: any): Promise<boolean> {
+    console.log(`Connecting to GATT Server of: ${device.name || 'Bluetooth Printer'}...`);
+    const server = await device.gatt.connect();
+
+    console.log("Scanning available Bluetooth GATT services...");
+    let targetCharacteristic: any = null;
+
+    for (const serviceUuid of EscPosBluetoothDriver.KNOWN_SERVICES) {
+      try {
+        const service = await server.getPrimaryService(serviceUuid);
+        const characteristics = await service.getCharacteristics();
+        const found = characteristics.find(
+          (c: any) => c.properties.write || c.properties.writeWithoutResponse
+        );
+        if (found) {
+          targetCharacteristic = found;
+          console.log(`Matched printing characteristic in service: ${serviceUuid}`);
+          break;
+        }
+      } catch (err) {
+        // Continue scanning next service
+      }
+    }
+
+    if (!targetCharacteristic) {
+      try {
+        const allServices = await server.getPrimaryServices();
+        for (const s of allServices) {
+          try {
+            const characteristics = await s.getCharacteristics();
+            const found = characteristics.find(
+              (c: any) => c.properties.write || c.properties.writeWithoutResponse
+            );
+            if (found) {
+              targetCharacteristic = found;
+              console.log(`Matched printing characteristic in fallback service: ${s.uuid}`);
+              break;
+            }
+          } catch (err) {
+            // Ignore
+          }
+        }
+      } catch (err) {
+        console.warn("Could not inspect all primary services", err);
+      }
+    }
+
+    if (!targetCharacteristic) {
+      throw new Error("Walang nakitang writeable printing service sa Bluetooth printer. Pakisiguradong bukas at naka-pair ang POS printer.");
+    }
+
+    EscPosBluetoothDriver.cachedDevice = device;
+    EscPosBluetoothDriver.cachedCharacteristic = targetCharacteristic;
+
+    if (typeof window !== 'undefined' && device.name) {
+      localStorage.setItem('katuwang_bt_device_name', device.name);
+      if (device.id) localStorage.setItem('katuwang_bt_device_id', device.id);
+    }
+
+    device.addEventListener('gattserverdisconnected', () => {
+      console.warn("Bluetooth printer disconnected");
+      EscPosBluetoothDriver.cachedCharacteristic = null;
+    });
+
+    return true;
+  }
+
+  /**
+   * Attempt silent auto-reconnect to a previously paired printer
+   */
+  async tryAutoReconnect(): Promise<boolean> {
+    try {
+      if (typeof window === 'undefined' || !(navigator as any).bluetooth) return false;
+      
+      // If cachedDevice exists but disconnected, try connecting GATT directly
+      if (EscPosBluetoothDriver.cachedDevice && !EscPosBluetoothDriver.isConnected()) {
+        await this.setupGattConnection(EscPosBluetoothDriver.cachedDevice);
+        return true;
+      }
+
+      // If browser supports getDevices(), attempt silent reconnect to saved device ID
+      if (typeof (navigator as any).bluetooth.getDevices === 'function') {
+        const savedId = localStorage.getItem('katuwang_bt_device_id');
+        const devices = await (navigator as any).bluetooth.getDevices();
+        if (devices && devices.length > 0) {
+          const match = savedId ? devices.find((d: any) => d.id === savedId) : devices[0];
+          if (match) {
+            await this.setupGattConnection(match);
+            return true;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Auto-reconnect silent attempt failed:", e);
+    }
+    return false;
+  }
+
+  /**
    * Connect to a Bluetooth POS Thermal Printer with universal discovery & auto-fallback
    */
   async connect(forceReconnect = false): Promise<boolean> {
@@ -93,6 +200,12 @@ export class EscPosBluetoothDriver {
         return true;
       }
 
+      // Attempt silent auto-reconnect first if not forcing new picker
+      if (!forceReconnect) {
+        const reconnected = await this.tryAutoReconnect();
+        if (reconnected) return true;
+      }
+
       console.log("Requesting Web Bluetooth Thermal Printer (Universal Mode)...");
 
       // Request device with acceptAllDevices: true so ALL nearby/paired printers appear in picker
@@ -101,73 +214,18 @@ export class EscPosBluetoothDriver {
         optionalServices: EscPosBluetoothDriver.KNOWN_SERVICES
       });
 
-      console.log(`Connecting to GATT Server of: ${device.name || 'Bluetooth Printer'}...`);
-      const server = await device.gatt.connect();
-
-      console.log("Scanning available Bluetooth GATT services...");
-      let targetCharacteristic: any = null;
-
-      // Try discovering writeable characteristic across known printing services
-      for (const serviceUuid of EscPosBluetoothDriver.KNOWN_SERVICES) {
-        try {
-          const service = await server.getPrimaryService(serviceUuid);
-          const characteristics = await service.getCharacteristics();
-          const found = characteristics.find(
-            (c: any) => c.properties.write || c.properties.writeWithoutResponse
-          );
-          if (found) {
-            targetCharacteristic = found;
-            console.log(`Matched printing characteristic in service: ${serviceUuid}`);
-            break;
-          }
-        } catch (err) {
-          // Service not present on this specific chip, continue scanning next
-        }
-      }
-
-      // Fallback: Query all primary services on device if known UUIDs failed
-      if (!targetCharacteristic) {
-        try {
-          const allServices = await server.getPrimaryServices();
-          for (const s of allServices) {
-            try {
-              const characteristics = await s.getCharacteristics();
-              const found = characteristics.find(
-                (c: any) => c.properties.write || c.properties.writeWithoutResponse
-              );
-              if (found) {
-                targetCharacteristic = found;
-                console.log(`Matched printing characteristic in fallback service: ${s.uuid}`);
-                break;
-              }
-            } catch (err) {
-              // Ignore single service access error
-            }
-          }
-        } catch (err) {
-          console.warn("Could not inspect all primary services", err);
-        }
-      }
-
-      if (!targetCharacteristic) {
-        throw new Error("Walang nakitang writeable printing service sa Bluetooth printer. Pakisiguradong bukas at naka-pair ang POS printer.");
-      }
-
-      EscPosBluetoothDriver.cachedDevice = device;
-      EscPosBluetoothDriver.cachedCharacteristic = targetCharacteristic;
-
-      // Listen for disconnects to update state
-      device.addEventListener('gattserverdisconnected', () => {
-        console.warn("Bluetooth printer disconnected");
-        EscPosBluetoothDriver.cachedDevice = null;
-        EscPosBluetoothDriver.cachedCharacteristic = null;
-      });
-
-      console.log("Successfully connected to ESC/POS Thermal Printer!");
-      return true;
+      return await this.setupGattConnection(device);
     } catch (e: any) {
       console.error("Bluetooth printer connection failed", e);
-      throw e;
+      let friendlyMsg = e.message || "Bigo sa pag-connect sa Bluetooth printer.";
+      if (e.name === 'NotFoundError' || friendlyMsg.includes('User cancelled')) {
+        friendlyMsg = "Hindi itinuloy ang pagpili ng Bluetooth printer.";
+      } else if (e.name === 'SecurityError' || e.name === 'NotAllowedError') {
+        friendlyMsg = "Kailangan ng pahintulot sa Bluetooth ng browser/device.";
+      } else if (e.name === 'NetworkError') {
+        friendlyMsg = "Naputol ang koneksyon. Pakisiguradong bukas at malapit ang Bluetooth POS printer.";
+      }
+      throw new Error(friendlyMsg);
     }
   }
 

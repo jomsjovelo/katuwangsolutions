@@ -136,9 +136,23 @@ export async function processCheckout(
 
     for (const item of cart) {
       if (!item.productId.startsWith('misc-') && productDocs[item.productId]) {
+        const newStock = productDocs[item.productId].newStock;
         transaction.update(productDocs[item.productId].ref, {
-          currentStock: productDocs[item.productId].newStock,
+          currentStock: newStock,
           updatedAt: serverTimestamp()
+        });
+
+        // Record stock movement history
+        const invTxRef = doc(collection(db, 'tenants', tenantId, 'inventory_transactions'));
+        transaction.set(invTxRef, {
+          tenantId,
+          productId: item.productId,
+          type: 'sale',
+          quantity: -item.quantity,
+          balanceAfter: newStock,
+          note: `POS Sale (${paymentMethod})`,
+          performedBy: userId || 'cashier',
+          createdAt: serverTimestamp()
         });
       }
     }
@@ -269,12 +283,25 @@ export async function deleteSale(
       }
     }
     
-    // 3. Update stock
+    // 3. Update stock & log inventory movement history
     for (const item of items) {
       if (item.productId && !item.productId.startsWith('misc-') && productDocs[item.productId]) {
+        const newStock = productDocs[item.productId].currentStock + item.quantity;
         transaction.update(productDocs[item.productId].ref, {
-          currentStock: productDocs[item.productId].currentStock + item.quantity,
+          currentStock: newStock,
           updatedAt: serverTimestamp()
+        });
+
+        const invTxRef = doc(collection(db, 'tenants', tenantId, 'inventory_transactions'));
+        transaction.set(invTxRef, {
+          tenantId,
+          productId: item.productId,
+          type: 'return',
+          quantity: item.quantity,
+          balanceAfter: newStock,
+          note: `Voided Sale Reversal`,
+          performedBy: userId || 'store-owner',
+          createdAt: serverTimestamp()
         });
       }
     }

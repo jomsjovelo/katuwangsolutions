@@ -12,6 +12,8 @@ import { initializeFirebase } from '@/firebase';
 import { useActivityLogs } from '@/hooks/use-activity-logs';
 import { ActivityOrganizer } from './activity-organizer';
 import { CreditTracker } from './credit-tracker';
+import { CashDrawerLedger } from './retail/cash-drawer-ledger';
+import { useActivityTimeline } from '@/hooks/use-activity-timeline';
 import { cn } from '@/lib/utils';
 import { 
   TrendingUp, 
@@ -191,6 +193,37 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
 
   const displayLoading = currentTenant?.moduleType === '5-6-tracker' ? creditTransactionsLoading : salesLoading;
 
+  const { timeline, loading: timelineLoading } = useActivityTimeline();
+  const [todayPurchasesPesos, setTodayPurchasesPesos] = useState<number>(0);
+
+  useEffect(() => {
+    if (!currentTenant?.id) return;
+    const { db } = initializeFirebase();
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const poQuery = query(
+      collection(db, 'tenants', currentTenant.id, 'purchase_orders'),
+      where('createdAt', '>=', Timestamp.fromDate(startOfDay))
+    );
+
+    const unsub = onSnapshot(poQuery, (snapshot) => {
+      let totalCentavos = 0;
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        if (data.status !== 'voided') {
+          totalCentavos += data.totalAmountCentavos || 0;
+        }
+      });
+      setTodayPurchasesPesos(totalCentavos / 100);
+    });
+
+    return () => unsub();
+  }, [currentTenant?.id]);
+
+  const netProfitPesos = displayDailyTotalPesos - todayPurchasesPesos;
+
   // Dynamic greeting based on time of day
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -199,16 +232,13 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
     return 'Magandang Gabi';
   };
 
-
-
   const isDemo = currentTenant?.id === 'demo' || currentTenant?.name?.toLowerCase().includes('demo');
 
   let displayActivity: any[] = [];
-  
   if (isDemo || !currentTenant) {
     displayActivity = getMockActivity(currentTenant?.moduleType || 'benta-snap');
   } else {
-    displayActivity = (activityLogs || []).slice(0, 5);
+    displayActivity = timeline.length > 0 ? timeline : (activityLogs || []).slice(0, 5);
   }
 
   return (
@@ -250,73 +280,93 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
         </section>
 
         {/* Business Pulse Metrics */}
-        <section className="grid grid-cols-2 gap-4">
+        <section className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+          {/* Today's Sales */}
           <Card className="rounded-[24px] border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-            <CardContent className="p-5 flex flex-col justify-between h-full space-y-4">
+            <CardContent className="p-4 flex flex-col justify-between h-full space-y-3">
               <div className="flex items-center justify-between">
-                <div className={cn("p-2 rounded-xl", "bg-emerald-50 text-emerald-600")}>
-                  <TrendingUp className="h-5 w-5" />
+                <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+                  <TrendingUp className="h-4.5 w-4.5" />
                 </div>
-                <span className="text-[10px] font-black uppercase text-slate-400">Today</span>
+                <span className="text-[9px] font-black uppercase text-slate-400">Sales</span>
               </div>
               <div>
-                <p className="text-xs font-bold text-slate-500 mb-1">
-                  {currentTenant?.moduleType === '5-6-tracker' ? "Today's Collection" : "Today's Revenue"}
+                <p className="text-[11px] font-bold text-slate-500 mb-0.5">
+                  {currentTenant?.moduleType === '5-6-tracker' ? "Today's Collection" : "Today's Sales"}
                 </p>
-                <h3 className="text-2xl font-black tracking-tighter text-slate-900">
+                <h3 className="text-xl font-black tracking-tight text-slate-900">
                   {displayLoading ? "..." : `₱${displayDailyTotalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`}
                 </h3>
               </div>
             </CardContent>
           </Card>
 
-          {currentTenant?.moduleType === '5-6-tracker' ? (
-            <Card className="rounded-[24px] border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-              <CardContent className="p-5 flex flex-col justify-between h-full space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className={cn("p-2 rounded-xl", theme.secondaryBg, theme.secondaryText)}>
-                    <Users className="h-5 w-5" />
-                  </div>
-                  <span className="text-[10px] font-black uppercase text-slate-400">Borrowers</span>
+          {/* Today's Purchases */}
+          <Card className="rounded-[24px] border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+            <CardContent className="p-4 flex flex-col justify-between h-full space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
+                  <ShoppingBasket className="h-4.5 w-4.5" />
                 </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-500 mb-1">Credit Ledger</p>
-                  <div className="flex items-end gap-2">
-                    <h3 className="text-xl font-black tracking-tighter text-slate-900 mt-1">
-                      Pautang
-                    </h3>
-                  </div>
+                <span className="text-[9px] font-black uppercase text-slate-400">Purchases</span>
+              </div>
+              <div>
+                <p className="text-[11px] font-bold text-slate-500 mb-0.5">Today's Purchases</p>
+                <h3 className="text-xl font-black tracking-tight text-slate-900">
+                  ₱{todayPurchasesPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                </h3>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Estimated Today's Net Profit */}
+          <Card className="rounded-[24px] border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+            <CardContent className="p-4 flex flex-col justify-between h-full space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="p-2 rounded-xl bg-teal-50 text-teal-600">
+                  <Calculator className="h-4.5 w-4.5" />
                 </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="rounded-[24px] border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-              <CardContent className="p-5 flex flex-col justify-between h-full space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className={cn("p-2 rounded-xl", theme.secondaryBg, theme.secondaryText)}>
-                    <Package className="h-5 w-5" />
-                  </div>
-                  <span className="text-[10px] font-black uppercase text-slate-400">Items</span>
+                <span className="text-[9px] font-black uppercase text-slate-400">Net Flow</span>
+              </div>
+              <div>
+                <p className="text-[11px] font-bold text-slate-500 mb-0.5">Est. Today Net</p>
+                <h3 className={`text-xl font-black tracking-tight ${netProfitPesos >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  ₱{netProfitPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                </h3>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Active Products / Low Stock */}
+          <Card className="rounded-[24px] border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+            <CardContent className="p-4 flex flex-col justify-between h-full space-y-3">
+              <div className="flex items-center justify-between">
+                <div className={cn("p-2 rounded-xl", theme.secondaryBg, theme.secondaryText)}>
+                  <Package className="h-4.5 w-4.5" />
                 </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-500 mb-1">Active Products</p>
-                  <div className="flex items-end gap-2">
-                    <h3 className="text-2xl font-black tracking-tighter text-slate-900">
-                      {inventoryLoading ? "..." : products?.length || 0}
-                    </h3>
-                    {(outOfStockItems?.length > 0 || lowStockItems?.length > 0) && (
-                      <span className="text-xs font-bold text-amber-500 mb-1">
-                        ({outOfStockItems?.length + lowStockItems?.length} low)
-                      </span>
-                    )}
-                  </div>
+                <span className="text-[9px] font-black uppercase text-slate-400">Stock</span>
+              </div>
+              <div>
+                <p className="text-[11px] font-bold text-slate-500 mb-0.5">Active Items</p>
+                <div className="flex items-end gap-1.5">
+                  <h3 className="text-xl font-black tracking-tight text-slate-900">
+                    {inventoryLoading ? "..." : products?.length || 0}
+                  </h3>
+                  {(outOfStockItems?.length > 0 || lowStockItems?.length > 0) && (
+                    <span className="text-[10px] font-bold text-amber-500 mb-0.5">
+                      ({outOfStockItems?.length + lowStockItems?.length} low)
+                    </span>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              </div>
+            </CardContent>
+          </Card>
         </section>
 
-
+        {/* Dedicated Cash Drawer Ledger */}
+        <section>
+          <CashDrawerLedger />
+        </section>
 
         {/* Phase 3: Restock Watchlist (Low Stock Widget) */}
         {currentTenant?.moduleType !== '5-6-tracker' && (
@@ -410,10 +460,12 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
           </div>
         </section>
 
-        {/* Recent Activity */}
+        {/* Unified Business Activity Timeline */}
         <section>
           <div className="flex items-center justify-between mb-3 px-1">
-            <h3 className="text-[11px] font-black uppercase tracking-widest text-slate-400">Recent Activity</h3>
+            <h3 className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+              Business Activity Timeline
+            </h3>
             <button 
               onClick={() => setShowOrganizer(true)}
               className="text-[10px] font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"
@@ -434,18 +486,22 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
                 </div>
               ) : (
                 displayActivity.map((activity) => (
-                  <div key={activity.id} className="p-4 flex items-center gap-4 hover:bg-slate-50/50 transition-colors">
-                    <div className={cn("p-3 rounded-full flex-shrink-0", activity.bg, activity.color)}>
+                  <div key={activity.id} className="p-3.5 flex items-center gap-3 hover:bg-slate-50/50 transition-colors">
+                    <div className={cn("p-2.5 rounded-2xl flex-shrink-0", activity.bg || 'bg-slate-100', activity.color || 'text-slate-700')}>
                       <activity.icon className="h-4 w-4" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-extrabold text-slate-900 truncate">{activity.title}</p>
-                      <p className="text-[10px] font-black uppercase text-slate-400 mt-0.5">{activity.time}</p>
+                      <p className="text-xs font-extrabold text-slate-900 truncate">{activity.title}</p>
+                      <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">
+                        {activity.subtitle || activity.time || activity.timeFormatted}
+                      </p>
                     </div>
-                    {activity.amount && (
+                    {activity.amountPesos !== undefined && activity.amountPesos !== null && (
                       <div className="text-right flex-shrink-0">
-                        <span className="text-sm font-black text-emerald-600">
-                          +₱{activity.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                        <span className={`text-xs font-black ${
+                          activity.amountPesos >= 0 ? 'text-emerald-600' : 'text-rose-600'
+                        }`}>
+                          {activity.amountPesos >= 0 ? '+' : ''}₱{Math.abs(activity.amountPesos).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                         </span>
                       </div>
                     )}

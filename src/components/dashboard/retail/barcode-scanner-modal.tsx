@@ -155,20 +155,41 @@ export function BarcodeScannerModal({
     }
   };
 
+  const [notFoundCode, setNotFoundCode] = useState<string | null>(null);
+
   const handleCodeDecoded = (code: string) => {
-    // Search products for matching SKU
-    const match = products.find(p => p.sku === code || p.id === code);
+    const cleanCode = (code || '').trim();
+    if (!cleanCode) return;
+    const cleanCodeLower = cleanCode.toLowerCase();
+    const noLeadingZero = cleanCode.replace(/^0+/, '');
+    const noLeadingZeroLower = noLeadingZero.toLowerCase();
+
+    // Comprehensive multi-field matching across sku, barcode, and id
+    const match = (products || []).find(p => {
+      const pSku = (p.sku || '').trim().toLowerCase();
+      const pBarcode = (p.barcode || '').trim().toLowerCase();
+      const pId = (p.id || '').trim().toLowerCase();
+      const pSkuNoZero = pSku.replace(/^0+/, '');
+      const pBarcodeNoZero = pBarcode.replace(/^0+/, '');
+
+      return (
+        pSku === cleanCodeLower ||
+        pBarcode === cleanCodeLower ||
+        pId === cleanCodeLower ||
+        (noLeadingZero && (pSkuNoZero === noLeadingZeroLower || pBarcodeNoZero === noLeadingZeroLower))
+      );
+    });
     
     if (match) {
       playScanBeep();
+      setNotFoundCode(null);
       setScanFeedback(`Na-detect: ${match.name}`);
       onProductScanned(match);
       setTimeout(() => setScanFeedback(null), 1500);
     } else {
-      // Beep anyway but show unmatched alert
       playScanBeep();
-      setScanFeedback(`Barcode ${code} ay walang katugmang produkto.`);
-      setTimeout(() => setScanFeedback(null), 2500);
+      setNotFoundCode(cleanCode);
+      setScanFeedback(`Barcode "${cleanCode}" ay walang katugmang produkto.`);
     }
   };
 

@@ -10,10 +10,13 @@ import {
   onSnapshot, 
   serverTimestamp, 
   increment,
-  writeBatch
+  writeBatch,
+  setDoc
 } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { SupplierProfile, PurchaseOrder } from '@/lib/schemas/supplier';
+import { runTransactionResilient } from './resilient-transaction';
+import { logAuditEvent } from './audit-actions';
 
 const { db } = initializeFirebase();
 
@@ -97,8 +100,9 @@ export function subscribeTenantPurchaseOrders(
  * Execute a new Purchase Order / Restock Delivery
  * - Writes PO document
  * - Atomically increments product inventory stocks & updates cost price
+ * - Deducts cash from master-cash drawer if paid via cash/cash_drawer
+ * - Logs inventory transactions history
  * - If Fresh Tally, creates fresh expiration batch
- * - If Paid, logs expense to Ledger Flow
  * - If Credit, logs payable to Credit Tracker (Utang sa Supplier)
  */
 export async function createPurchaseOrder(
@@ -119,24 +123,38 @@ export async function createPurchaseOrder(
 
   batch.set(poRef, {
     ...poData,
+    id: poId,
     poNumber: finalPoNumber,
+    status: poData.status || 'received',
     createdAt: serverTimestamp(),
   });
 
-  // 2. Increment stock & update cost price for each product
+  // 2. Increment stock & update cost price for each product + record inventory transaction
   poData.items.forEach((item) => {
     const prodRef = doc(db, 'tenants', tenantId, 'products', item.productId);
     batch.update(prodRef, {
       currentStock: increment(item.quantity),
-      costPrice: item.unitCostCentavos, // Update latest purchase unit cost
+      costPrice: item.unitCostCentavos,
       ...(item.unitSalePriceCentavos ? { salePrice: item.unitSalePriceCentavos } : {}),
       updatedAt: serverTimestamp(),
+    });
+
+    const invTxRef = doc(collection(db, 'tenants', tenantId, 'inventory_transactions'));
+    batch.set(invTxRef, {
+      tenantId,
+      productId: item.productId,
+      type: 'restock',
+      quantity: item.quantity,
+      note: `Restock PO #${finalPoNumber} (${poData.supplierName})`,
+      poId: poId,
+      performedBy: userId,
+      createdAt: serverTimestamp()
     });
 
     // If Fresh Tally, create fresh expiration batch
     if (moduleType === 'fresh-tally') {
       const freshBatchRef = doc(collection(db, 'tenants', tenantId, 'fresh_batches'));
-      const expiryDays = 7; // Default 7-day freshness window for produce
+      const expiryDays = 7;
       const expiryDate = new Date();
       expiryDate.setDate(expiryDate.getDate() + expiryDays);
 
@@ -156,15 +174,28 @@ export async function createPurchaseOrder(
     }
   });
 
-  // 3. Ledger Flow Expense Integration (if Paid)
-  if (poData.paymentStatus === 'paid') {
+  // 3. Cash Drawer & Ledger Expense Integration
+  if (poData.paymentStatus === 'paid' || poData.paymentMethod === 'cash_drawer' || poData.paymentMethod === 'cash') {
+    // Deduct cash from master-cash account
+    const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+    batch.set(masterAccountRef, {
+      balance: increment(-poData.totalAmountCentavos),
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+
+    // Record cash movement transaction
     const txRef = doc(collection(db, 'tenants', tenantId, 'transactions'));
     batch.set(txRef, {
-      type: 'EXPENSE',
-      category: 'Supplier Payout',
+      id: txRef.id,
+      tenantId,
+      accountId: 'master-cash',
       amount: poData.totalAmountCentavos,
-      notes: `Restock PO: ${finalPoNumber} - ${poData.supplierName}`,
-      paymentMethod: poData.paymentMethod === 'supplier_credit' ? 'CASH' : poData.paymentMethod.toUpperCase(),
+      type: 'expense',
+      category: 'Restock / Inventory Purchase',
+      description: `Purchase Order (#${finalPoNumber}) - ${poData.supplierName}`,
+      poId: poId,
+      paymentMethod: poData.paymentMethod || 'cash_drawer',
+      date: new Date(),
       createdAt: serverTimestamp(),
       createdBy: userId,
     });
@@ -175,11 +206,11 @@ export async function createPurchaseOrder(
     const creditRef = doc(collection(db, 'tenants', tenantId, 'credit_accounts'));
     batch.set(creditRef, {
       borrowerName: poData.supplierName,
-      type: 'payable', // We owe supplier
+      type: 'payable',
       amountCentavos: poData.totalAmountCentavos,
       description: `Utang sa Supplier (PO #${finalPoNumber})`,
       status: 'UNPAID',
-      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30-day term
+      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       createdAt: serverTimestamp(),
       createdBy: userId,
     });
@@ -187,4 +218,88 @@ export async function createPurchaseOrder(
 
   await batch.commit();
   return poId;
+}
+
+/**
+ * Void a purchase order atomically:
+ * - Reverses inventory stock for all items
+ * - Restores cash to master-cash drawer if paid via cash/cash_drawer
+ * - Logs audit event & marks PO status as 'voided' to maintain audit trail
+ */
+export async function voidPurchaseOrder(
+  tenantId: string,
+  poId: string,
+  userId: string,
+  userName: string
+): Promise<boolean> {
+  if (!tenantId || !poId) throw new Error("Tenant ID and PO ID required");
+  
+  const poRef = doc(db, 'tenants', tenantId, 'purchase_orders', poId);
+  const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+
+  await runTransactionResilient(db, async (transaction) => {
+    const poSnap = await transaction.get(poRef);
+    if (!poSnap.exists()) throw new Error("Purchase order not found");
+    const poData = poSnap.data();
+
+    if (poData.status === 'voided') throw new Error("Purchase order is already voided");
+
+    // 1. Reverse product stock
+    const items = poData.items || [];
+    for (const item of items) {
+      if (item.productId) {
+        const prodRef = doc(db, 'tenants', tenantId, 'products', item.productId);
+        const prodSnap = await transaction.get(prodRef);
+        if (prodSnap.exists()) {
+          const currentStock = prodSnap.data().currentStock || 0;
+          transaction.update(prodRef, {
+            currentStock: Math.max(0, currentStock - item.quantity),
+            updatedAt: serverTimestamp()
+          });
+        }
+      }
+    }
+
+    // 2. Reverse cash drawer if paid from cash drawer
+    if (poData.paymentStatus === 'paid' || poData.paymentMethod === 'cash_drawer' || poData.paymentMethod === 'cash') {
+      const masterSnap = await transaction.get(masterAccountRef);
+      if (masterSnap.exists()) {
+        transaction.update(masterAccountRef, {
+          balance: increment(poData.totalAmountCentavos || 0),
+          updatedAt: serverTimestamp()
+        });
+      }
+      
+      const transactionsRef = collection(db, 'tenants', tenantId, 'transactions');
+      const newTxRef = doc(transactionsRef);
+      transaction.set(newTxRef, {
+        id: newTxRef.id,
+        tenantId,
+        accountId: 'master-cash',
+        amount: poData.totalAmountCentavos || 0,
+        type: 'income',
+        category: 'Purchase Reversal',
+        description: `Void Purchase Order #${poData.poNumber || poId}`,
+        poId: poId,
+        createdAt: serverTimestamp(),
+        createdBy: userId
+      });
+    }
+
+    // 3. Mark PO as voided (soft status update to preserve audit history)
+    transaction.update(poRef, {
+      status: 'voided',
+      paymentStatus: 'voided',
+      voidedAt: serverTimestamp(),
+      voidedBy: userId
+    });
+
+    logAuditEvent(tenantId, userId, userName, {
+      type: 'void_purchase',
+      description: `Voided purchase order ${poData.poNumber || poId} (₱${((poData.totalAmountCentavos || 0) / 100).toFixed(2)}) and reversed inventory.`,
+      meta: { poId, totalAmount: poData.totalAmountCentavos }
+    });
+  });
+
+  return true;
 }

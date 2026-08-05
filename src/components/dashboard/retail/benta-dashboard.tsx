@@ -440,10 +440,30 @@ function BentaDashboardContent() {
 
   // Filter products based on category search and query using memoized selector
   const filteredProducts = React.useMemo(() => {
+    if (!debouncedSearchQuery || !debouncedSearchQuery.trim()) {
+      return (products || []).filter((product: any) => selectedCategory === 'All' || product.category === selectedCategory);
+    }
+
+    const query = debouncedSearchQuery.trim().toLowerCase();
+    const queryNoZero = query.replace(/^0+/, '');
+
     return (products || []).filter((product: any) => {
-      const query = debouncedSearchQuery.toLowerCase();
-      const matchesSearch = product.name.toLowerCase().includes(query) || 
-                            (product.category && product.category.toLowerCase().includes(query));
+      const name = (product.name || '').toLowerCase();
+      const category = (product.category || '').toLowerCase();
+      const sku = (product.sku || '').trim().toLowerCase();
+      const barcode = (product.barcode || '').trim().toLowerCase();
+      const id = (product.id || '').trim().toLowerCase();
+      const skuNoZero = sku.replace(/^0+/, '');
+      const barcodeNoZero = barcode.replace(/^0+/, '');
+
+      const matchesSearch =
+        name.includes(query) ||
+        category.includes(query) ||
+        sku.includes(query) ||
+        barcode.includes(query) ||
+        id.includes(query) ||
+        (queryNoZero !== '' && (skuNoZero.includes(queryNoZero) || barcodeNoZero.includes(queryNoZero)));
+
       const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
       return matchesSearch && matchesCategory;
     });

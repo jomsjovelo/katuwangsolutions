@@ -17,9 +17,11 @@ import { Label } from "@/components/ui/label";
 import { ProductManagerSheet } from './product-manager-sheet';
 import { SupplierManagerSheet } from './suppliers/supplier-manager-sheet';
 import { PurchaseOrderModal } from './suppliers/purchase-order-modal';
+import { InventoryMovementSheet } from './retail/inventory-movement-sheet';
 import { 
   subscribeTenantSuppliers, 
-  subscribeTenantPurchaseOrders 
+  subscribeTenantPurchaseOrders,
+  voidPurchaseOrder
 } from '@/firebase/firestore/supplier-actions';
 import { SupplierProfile, PurchaseOrder } from '@/lib/schemas/supplier';
 import { 
@@ -39,7 +41,9 @@ import {
   Calendar,
   FileText,
   CreditCard,
-  ShoppingBasket
+  ShoppingBasket,
+  History,
+  Trash2
 } from 'lucide-react';
 
 export function StockTab() {
@@ -61,6 +65,8 @@ export function StockTab() {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [loadingSuppliers, setLoadingSuppliers] = useState(true);
   const [loadingOrders, setLoadingOrders] = useState(true);
+  const [voidingPoId, setVoidingPoId] = useState<string | null>(null);
+  const [selectedMovementProduct, setSelectedMovementProduct] = useState<any>(null);
 
   // Modals & Sheets
   const [isManagerOpen, setIsManagerOpen] = useState(false);
@@ -145,6 +151,33 @@ export function StockTab() {
       alert("May error sa pag-update ng stock.");
     } finally {
       setIsUpdatingId(null);
+    }
+  };
+
+  const handleVoidPO = async (po: PurchaseOrder) => {
+    if (!currentTenant || !po.id || !user) return;
+    if (po.status === 'voided') {
+      alert("Ang Purchase Order na ito ay na-void na.");
+      return;
+    }
+
+    const confirmVoid = window.confirm(`Sigurado ka bang gusto mong i-void ang Purchase Order #${po.poNumber || po.id}? Ibabalik nito ang stock ng paninda at ibabalik ang pera sa Cash Drawer.`);
+    if (!confirmVoid) return;
+
+    try {
+      setVoidingPoId(po.id);
+      await voidPurchaseOrder(
+        currentTenant.id,
+        po.id,
+        user.uid,
+        user.displayName || user.email || 'Store Owner'
+      );
+      alert("Tagumpay na na-void ang Purchase Order.");
+    } catch (e: any) {
+      console.error(e);
+      alert(e.message || "May error sa pag-void ng Purchase Order.");
+    } finally {
+      setVoidingPoId(null);
     }
   };
 
@@ -307,10 +340,18 @@ export function StockTab() {
                                 <button 
                                   onClick={() => { setProductToEdit(product); setIsManagerOpen(true); }}
                                   className="text-slate-400 hover:text-slate-800 transition-colors p-1"
+                                  title="I-edit ang paninda"
                                 >
                                   <Pencil className="h-3 w-3" />
                                 </button>
                               )}
+                              <button 
+                                onClick={() => setSelectedMovementProduct(product)}
+                                className="text-slate-400 hover:text-cyan-600 transition-colors p-1"
+                                title="Tignan ang Stock Movement History"
+                              >
+                                <History className="h-3 w-3" />
+                              </button>
                               {isOut ? (
                                 <Badge className="bg-red-50 text-red-600 border-none font-bold text-[8px] px-1.5 py-0.5 rounded-md uppercase tracking-wider">Ubos na</Badge>
                               ) : isLow ? (
@@ -517,10 +558,27 @@ export function StockTab() {
                         </span>
                       </div>
 
-                      <div className="text-[11px] text-slate-600 font-medium pt-2 border-t border-slate-100 flex flex-wrap justify-between gap-2">
-                        <span>Items Restocked: <strong>{po.items?.length || 0} paninda</strong></span>
-                        {po.createdByName && (
-                          <span className="text-[10px] text-slate-400">Logged by: {po.createdByName}</span>
+                      <div className="text-[11px] text-slate-600 font-medium pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span>Items Restocked: <strong>{po.items?.length || 0} paninda</strong></span>
+                          {po.status === 'voided' && (
+                            <Badge className="bg-rose-100 text-rose-800 text-[8px] font-black uppercase">
+                              Voided
+                            </Badge>
+                          )}
+                        </div>
+
+                        {!isStaff && po.status !== 'voided' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={voidingPoId === po.id}
+                            onClick={() => handleVoidPO(po)}
+                            className="h-7 px-2.5 text-[10px] font-bold text-rose-600 border-rose-200 hover:bg-rose-50 rounded-lg gap-1 cursor-pointer"
+                          >
+                            <Trash2 className="h-3 w-3 text-rose-600" />
+                            {voidingPoId === po.id ? 'Voiding...' : 'Void PO'}
+                          </Button>
                         )}
                       </div>
                     </div>
@@ -549,6 +607,12 @@ export function StockTab() {
         isOpen={isPoModalOpen}
         onClose={() => setIsPoModalOpen(false)}
         suppliers={suppliers}
+      />
+
+      <InventoryMovementSheet
+        isOpen={!!selectedMovementProduct}
+        onClose={() => setSelectedMovementProduct(null)}
+        product={selectedMovementProduct}
       />
     </div>
   );
