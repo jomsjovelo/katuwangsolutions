@@ -619,7 +619,7 @@ export function FoodDashboard() {
                           </div>
                         </div>
                         <Input 
-                          placeholder="Add note (e.g. Less ice)" 
+                          placeholder="Add note (e.g. Extra Rice, Separate Sabaw)" 
                           className="h-7 text-[10px]" 
                           value={item.notes || ''} 
                           onChange={e => {
@@ -627,6 +627,23 @@ export function FoodDashboard() {
                             setCart(prev => prev.map(i => i.menuItemId === item.menuItemId ? { ...i, notes: newNotes } : i));
                           }}
                         />
+                        {/* Carinderia / Diner Quick Presets */}
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {['Extra Rice', 'Separate Sabaw', 'No Sili', 'Takeout', 'Spicy', 'Less Oil'].map(preset => (
+                            <button
+                              key={preset}
+                              type="button"
+                              onClick={() => {
+                                const current = item.notes || '';
+                                const updated = current ? `${current}, ${preset}` : preset;
+                                setCart(prev => prev.map(i => i.menuItemId === item.menuItemId ? { ...i, notes: updated } : i));
+                              }}
+                              className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[9px] font-bold text-slate-600 transition-colors"
+                            >
+                              +{preset}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     ))}
                   </div>
