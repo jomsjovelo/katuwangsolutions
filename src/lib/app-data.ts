@@ -46,9 +46,9 @@ export const appGroups: AppGroup[] = [
           'Tumatanggap ng Cash at GCash sa iisang simpleng resibo'
         ],
         stats: [
-          { value: '100%', label: 'Cash Drawer Accuracy' },
-          { value: '₱0', label: 'Setup Fee' },
-          { value: '5 sec', label: 'Avg. Checkout Time' }
+          { value: 'Tracked', label: 'Cash Drawer Shifts' },
+          { value: 'Promo', label: 'Pricing Tier' },
+          { value: 'Fast', label: 'Checkout Flow' }
         ],
         howItWorks: [
           { step: 'I-tap ang Paninda', detail: 'Pumili sa skreen para mabilis na idagdag sa cart ng customer.' },
@@ -90,7 +90,7 @@ export const appGroups: AppGroup[] = [
         tagline: 'Hardware at construction supply management na may Utang Ledger!',
         imageSrc: '/apps/build-stack.png',
         features: ['Retail Credit (Utang)', 'Quick Checkout', 'Shift Tracking', 'Discount Authorization', 'Inventory Sync'],
-        description: 'Mabilis at ligtas na pamamahala para sa hardware store. Kontrolado ang bulk discounts, contractor credit lines, at inventory ng semento, yero, at pako. Siguradong walang nawawalang tala ng utang ng iyong mga kontraktor.',
+        description: 'Mabilis at ligtas na pamamahala para sa hardware store. Kontrolado ang bulk discounts, contractor credit lines, at inventory ng semento, yero, at pako. Maayos at malinaw na talaan ng utang ng iyong mga kontraktor.',
         benefits: [
           'I-track ang utang ng mga kontraktor nang may kumpletong resibo',
           'Kailangan ng Manager PIN bago magbigay ng bulk o manual discounts',
@@ -98,9 +98,9 @@ export const appGroups: AppGroup[] = [
           'Awtomatikong updated ang inventory ng iyong construction supplies'
         ],
         stats: [
-          { value: '100%', label: 'Credit Security' },
-          { value: '0', label: 'Nawawalang Utang' },
-          { value: '1 Min', label: 'Mabilis na Checkout' }
+          { value: 'Organized', label: 'Credit Tracking' },
+          { value: 'Recorded', label: 'Utang Ledger' },
+          { value: 'Fast', label: 'Checkout Flow' }
         ],
         howItWorks: [
           { step: 'Pumili & Authorize', detail: 'I-cart ang paninda at mag-PIN kapag may bulk discount.' },
@@ -131,9 +131,9 @@ export const appGroups: AppGroup[] = [
           'Ang bawat discount at benta ay nakatali sa active cashier shift'
         ],
         stats: [
-          { value: '2×', label: 'Mabilis na Kusina' },
-          { value: '0', label: 'Nawawalang Order' },
-          { value: '100%', label: 'Cash Drawer Control' }
+          { value: 'Organized', label: 'Kitchen Flow' },
+          { value: 'Recorded', label: 'Order Queue' },
+          { value: 'Secure', label: 'Cash Drawer Control' }
         ],
         howItWorks: [
           { step: 'Assign Table & Order', detail: 'I-punch in ang order ng customer at pumili ng table number.' },
@@ -158,8 +158,8 @@ export const appGroups: AppGroup[] = [
         ],
         stats: [
           { value: '10 sec', label: 'Order Punching' },
-          { value: '100%', label: 'Discount Auditing' },
-          { value: '2×', label: 'Queue Speed' }
+          { value: 'Audited', label: 'Discount Auditing' },
+          { value: 'Fast', label: 'Queue Speed' }
         ],
         howItWorks: [
           { step: 'I-punch ang Inumin', detail: 'Mabilis na pumili ng beverages at i-add sa barista queue.' },
@@ -183,8 +183,8 @@ export const appGroups: AppGroup[] = [
           'Kumpletong audit trail sa bawat discount o pagbabago sa presyo'
         ],
         stats: [
-          { value: '100%', label: 'Linaw sa Badyet' },
-          { value: '0', label: 'Nakalimutang Vendor' },
+          { value: 'Clear', label: 'Linaw sa Badyet' },
+          { value: 'Tracked', label: 'Vendor Payouts' },
           { value: '1 App', label: 'Papalit sa 5 Spreadsheets' }
         ],
         howItWorks: [
@@ -208,17 +208,17 @@ export const appGroups: AppGroup[] = [
         tagline: 'Laundry job tracking mula drop-off hanggang pickup!',
         imageSrc: '/apps/spin-snap.png',
         features: ['Job Tracking', 'Service Status Flow', 'Quick Checkout', 'Shift Accountability', 'GCash Support'],
-        description: 'Huwag nang mawalan o magkamali sa labada ng customer. Bina-tsek ng Spin Snap ang bawat karga mula sa pagtanggap (Received), paglabak (Washing), pagtupi (Folding), hanggang sa pagkuha (Ready). Siguradong bayad bago irelease.',
+        description: 'Huwag nang mawalan o magkamali sa labada ng customer. Bina-tsek ng Spin Snap ang bawat karga mula sa pagtanggap (Received), paglabak (Washing), pagtupi (Folding), hanggang sa pagkuha (Ready). Maayos na talaan ng bayad bago irelease.',
         benefits: [
           'I-track ang labada mula Received, Washing, Folding, hanggang Ready',
           'Magbigay ng safe discounts para sa suking customer nang may audit trail',
           'Wala nang nagkakabaligtad na damit o nakakalimutang singilin',
-          'Cashier shift logs para siguradong balance ang kita ng labahan'
+          'Cashier shift logs para sa maayos na talaan ng kita ng labahan'
         ],
         stats: [
-          { value: '0', label: 'Nawawalang Labada' },
-          { value: '100%', label: 'Status Visibility' },
-          { value: '5 sec', label: 'Mabilis na Checkout' }
+          { value: 'Monitored', label: 'Laundry Jobs' },
+          { value: 'Clear', label: 'Status Visibility' },
+          { value: 'Fast', label: 'Checkout Flow' }
         ],
         howItWorks: [
           { step: 'Tanggapin ang Labada', detail: 'I-log ang timbang (kilo) at presyo ayon sa pangalan ng customer.' },
@@ -234,17 +234,17 @@ export const appGroups: AppGroup[] = [
         tagline: 'Water refilling station order at delivery tracker!',
         imageSrc: '/apps/hydro-sync.png',
         features: ['Refill Jobs', 'Delivery Status', 'Payment Processing', 'Discount Audits', 'Shift Logs'],
-        description: 'Ang water refilling ay mabilisang negosyo na nangangailangan ng tumpak na tala. Sa Hydro Sync, madaling i-track ang walk-in refill at neighborhood deliveries. Siguradong bawat galon na lumabas ay may katapat na kita.',
+        description: 'Ang water refilling ay mabilisang negosyo na nangangailangan ng tumpak na tala. Sa Hydro Sync, madaling i-track ang walk-in refill at neighborhood deliveries. Laging may tala ang bawat galon na lumabas.',
         benefits: [
           'I-track ang job orders mula Pending, Out for Delivery, hanggang Completed',
           'Mag-apply ng manager-approved discounts sa bulk orders nang ligtas',
           'Protektado ang cashier drawer gamit ang strict shift accounting',
-          'Wala nang nawawalang galon o nakakalimutang koleksyon sa delivery'
+          'Wala nang nakakalimutang koleksyon sa delivery'
         ],
         stats: [
-          { value: '100%', label: 'Delivery Tracking' },
-          { value: '₱0', label: 'Missing Cash' },
-          { value: '2×', label: 'Order Clarity' }
+          { value: 'Active', label: 'Delivery Tracking' },
+          { value: 'Audited', label: 'Cash Shift Logs' },
+          { value: 'Clear', label: 'Order Flow' }
         ],
         howItWorks: [
           { step: 'I-log ang Water Order', detail: 'Gawan ng job order para sa walk-in refill o delivery sa bahay.' },
@@ -264,13 +264,13 @@ export const appGroups: AppGroup[] = [
         benefits: [
           'I-track ang repair mula Diagnosing, Repairing, hanggang Ready for Pick-up',
           'Safely apply discounts sa mahal na repair nang may full audit trail',
-          'Shift logging para siguradong tumutugma ang perang hawak sa cashier',
+          'Shift logging para maayos na tumutugma ang perang hawak sa cashier',
           'Magbigay ng propesyonal at malinis na resibo sa bawat customer'
         ],
         stats: [
-          { value: '100%', label: 'Job Tracking' },
-          { value: '0', label: 'Nawawalang Piyesa' },
-          { value: '100%', label: 'Audit Security' }
+          { value: 'Organized', label: 'Repair Orders' },
+          { value: 'Recorded', label: 'Parts & Services' },
+          { value: 'Audited', label: 'Shift Records' }
         ],
         howItWorks: [
           { step: 'Gawa ng Job Order', detail: 'I-log ang sira ng kotse/motor at magbigay ng malinaw na tantyang presyo.' },
@@ -294,9 +294,9 @@ export const appGroups: AppGroup[] = [
           'Magbigay ng maayos at tahimik na checkout experience sa customer'
         ],
         stats: [
-          { value: '100%', label: 'Session Tracking' },
-          { value: '0', label: 'Kulang sa Cash' },
-          { value: '10 sec', label: 'Mabilis na Checkout' }
+          { value: 'Organized', label: 'Session Tracking' },
+          { value: 'Clear', label: 'Cash Flow' },
+          { value: 'Fast', label: 'Checkout Flow' }
         ],
         howItWorks: [
           { step: 'I-log ang Session', detail: 'Gawan ng job order ang napiling hilot o spa package.' },
@@ -320,9 +320,9 @@ export const appGroups: AppGroup[] = [
           'Tumanggap ng cash at GCash sa mabilis na paraan'
         ],
         stats: [
-          { value: '100%', label: 'Queue Visibility' },
-          { value: '₱0', label: 'Nawawalang Benta' },
-          { value: '10 sec', label: 'Checkout Time' }
+          { value: 'Recorded', label: 'Stylist Cuts' },
+          { value: 'Clear', label: 'Queue Visibility' },
+          { value: 'Fast', label: 'Checkout Flow' }
         ],
         howItWorks: [
           { step: 'Ilagay sa Pila', detail: 'Mag-log ng job kapag pumasok ang customer sa gupitan.' },
@@ -338,7 +338,7 @@ export const appGroups: AppGroup[] = [
         tagline: 'Gym session tracking at daily rate payment system!',
         imageSrc: '/apps/rep-sync.png',
         features: ['Session Tracking', 'Payment Processing', 'Discount Auditing', 'Status Workflow', 'Shift Integrity'],
-        description: 'Patakbuhin ang iyong fitness center nang walang kaguluhan. I-track ang walk-in daily workouts, personal training sessions, at singilin ang mga gymnast agad. Ituon ang pansin sa pagsasanay, hindi sa papel.',
+        description: 'Patakbuhin ang iyong fitness center nang walang kaguluhan. I-track ang walk-in daily workouts, personal training sessions, at singilin ang mga gymnast. Ituon ang pansin sa pagsasanay.',
         benefits: [
           'I-track ang gym goers mula Pending, In Session, hanggang Completed',
           'Mag-alok ng student o promo discounts nang ligtas',
@@ -346,9 +346,9 @@ export const appGroups: AppGroup[] = [
           'Mabilis na singilan para hindi mag-dikit ang pila sa pintuan'
         ],
         stats: [
-          { value: '100%', label: 'Linaw sa Session' },
-          { value: '100%', label: 'Shift Accuracy' },
-          { value: '1 App', label: 'Buong Kontrol' }
+          { value: 'Active', label: 'Session Visibility' },
+          { value: 'Audited', label: 'Shift Records' },
+          { value: 'Organized', label: 'Gym Operations' }
         ],
         howItWorks: [
           { step: 'I-log ang Client', detail: 'Gawan ng session kapag pumasok ang client sa gym.' },
@@ -364,17 +364,17 @@ export const appGroups: AppGroup[] = [
         tagline: 'General repair, handyman, at electronics shop manager!',
         imageSrc: '/apps/service-master.png',
         features: ['General Jobs', 'Status Updates', 'Discount Support', 'Shift Audits', 'Payment Processing'],
-        description: 'Nag-aayos ka man ng TV, ref, cellphone, o nagbibigay ng handyman services, maayos ang iyong talaan sa Service Master. Alamin kung ano ang dapat ayusin at siguraduhing bayad ang bawat serbisyo.',
+        description: 'Nag-aayos ka man ng TV, ref, cellphone, o nagbibigay ng handyman services, maayos ang iyong talaan sa Service Master. Alamin kung ano ang dapat ayusin at i-record ang bawat serbisyo.',
         benefits: [
           'Universal job system na nababagay sa kahit anong klase ng repair',
           'Magbigay ng discounts nang may kumpletong manager audit log',
-          'Siguraduhing tumutugma ang benta sa resibo at perang nasa cashier',
+          'Maayos na tumutugma ang benta sa resibo at perang nasa cashier',
           'Magbigay ng malinaw na presyo at tapat na resibo sa customer'
         ],
         stats: [
-          { value: '100%', label: 'Job Accountability' },
-          { value: '0', label: 'Nakalimutang Singilin' },
-          { value: '100%', label: 'Ligtas na Audit' }
+          { value: 'Active', label: 'Job Accountability' },
+          { value: 'Tracked', label: 'Service Log' },
+          { value: 'Audited', label: 'Shift Logs' }
         ],
         howItWorks: [
           { step: 'I-log ang Sira', detail: 'Gawan ng job order kung ano ang kailangang ayusin at magkano.' },
@@ -405,9 +405,9 @@ export const appGroups: AppGroup[] = [
           'Strict shift logs para may pananagutan ang dispatcher sa hawak na pera'
         ],
         stats: [
-          { value: '100%', label: 'Linaw sa Biyahe' },
-          { value: '100%', label: 'Tala sa Krudo' },
-          { value: '0', label: 'Nawawalang Kita' }
+          { value: 'Active', label: 'Trip Logs' },
+          { value: 'Recorded', label: 'Expense Logs' },
+          { value: 'Tracked', label: 'Trip Revenue' }
         ],
         howItWorks: [
           { step: 'I-schedule ang Biyahe', detail: 'I-log ang destinasyon, bayad ng client, at assigned driver.' },
@@ -428,12 +428,12 @@ export const appGroups: AppGroup[] = [
           'Visual calendar para makita ang mga booking sa mga susunod na araw',
           'Tukoy kung ilang kagamitan ang available vs. kasalukuyang pinarentahan',
           'Ligtas na i-process ang pagbabalik at pag-soli ng security deposit',
-          'Strict shift logging para walang nawawalang pera sa counter'
+          'Strict shift logging para maayos ang pag-lista ng pera sa counter'
         ],
         stats: [
-          { value: '0', label: 'Double Bookings' },
-          { value: '100%', label: 'Linaw sa Kagamitan' },
-          { value: '100%', label: 'Audit Trail' }
+          { value: 'Organized', label: 'Rental Calendar' },
+          { value: 'Clear', label: 'Equipment Inventory' },
+          { value: 'Audited', label: 'Shift Logs' }
         ],
         howItWorks: [
           { step: 'Suriin ang Availability', detail: 'Tingnan sa calendar kung aling kagamitan ang libre sa petsang iyon.' },
@@ -456,7 +456,7 @@ export const appGroups: AppGroup[] = [
         tagline: 'Payroll at bale management para sa mga empleyado!',
         imageSrc: '/apps/sahod-flow.png',
         features: ['Employee Roster', 'Salary Tracking', 'Cash Advances (Bale)', 'Direct Ledger Integration', '1-Tap Payout'],
-        description: 'Hindi kailangang maging masakit sa ulo ang payroll. Inaayos ng Sahod Flow ang listahan ng empleyado, ang kanilang arawan o lingguhang sweldo, at awtomatikong binabawas ang cash advance (bale). 1-Tap Payout na direktang nag-i-integrate sa iyong Master Cash ledger.',
+        description: 'Inaayos ng Sahod Flow ang listahan ng empleyado, ang kanilang arawan o lingguhang sweldo, at awtomatikong binabawas ang cash advance (bale). 1-Tap Payout na direktang nag-i-integrate sa iyong Master Cash ledger.',
         benefits: [
           'Awtomatikong binabawas ang cash advance (bale) sa huling sweldo',
           '1-Tap Payout na agad na nag-i-record ng gastos sa negosyo',
@@ -464,9 +464,9 @@ export const appGroups: AppGroup[] = [
           'Alisin ang maling kwenta sa papel o calculator'
         ],
         stats: [
-          { value: '100%', label: 'Tumpak sa Kwenta' },
-          { value: '0', label: 'Maling Math' },
-          { value: '1 Min', label: 'Mabilis na Payroll' }
+          { value: 'Organized', label: 'Payroll Tracking' },
+          { value: 'Automated', label: 'Bale Calculation' },
+          { value: 'Fast', label: 'Payroll Flow' }
         ],
         howItWorks: [
           { step: 'Magdagdag ng Empleyado', detail: 'I-rehistro ang staff at i-set ang kanilang sweldo at schedule.' },
@@ -482,7 +482,7 @@ export const appGroups: AppGroup[] = [
         tagline: 'Ang central master cash at expense ledger ng iyong negosyo!',
         imageSrc: '/apps/ledger-flow.png',
         features: ['Master Cash Account', 'Income Tracking', 'Expense Logging', 'Automated Integration', 'Financial Overview'],
-        description: 'Ang Ledger Flow ang puso ng pananalapi ng iyong negosyo. Ang bawat transaksyon mula sa iba pang modules — benta sa POS, payroll sa Sahod Flow, pambayad sa supplier, at utang — ay awtomatikong dumadaloy dito. May buong linaw ka sa totoong pera ng negosyo.',
+        description: 'Ang Ledger Flow ang puso ng pananalapi ng iyong negosyo. Ang bawat transaksyon mula sa iba pang modules — benta sa POS, payroll sa Sahod Flow, pambayad sa supplier, at utang — ay nai-integrate dito. May buong linaw ka sa totoong pera ng negosyo.',
         benefits: [
           'Walang kailangang i-type nang mano-mano para sa transaksyon mula sa ibang modules',
           'Madaling mag-log ng ad-hoc expenses tulad ng kuryente, tubig, o renta',
@@ -490,12 +490,12 @@ export const appGroups: AppGroup[] = [
           'Protektado ang negosyo sa mga terentadong gastos o tago na lugi'
         ],
         stats: [
-          { value: '100%', label: 'Automated Sync' },
-          { value: 'Real-time', label: 'Update sa Pera' },
-          { value: '0', label: 'Nawawalang Resibo' }
+          { value: 'Integrated', label: 'Ledger Flow' },
+          { value: 'Central', label: 'Cash Overview' },
+          { value: 'Recorded', label: 'Income & Expenses' }
         ],
         howItWorks: [
-          { step: 'Kusa ang Sync', detail: 'Ang benta at gastos mula sa ibang apps ay kusang pumapasok dito.' },
+          { step: 'Master Ledger Flow', detail: 'Ang benta at gastos mula sa ibang modules ay nai-integrate sa master ledger.' },
           { step: 'Manual Entry', detail: 'I-log ang bayad sa ilaw, tubig, o iba pang gastos nang mabilis.' },
           { step: 'Suriin ang Pera', detail: 'Lagi mong alam kung magkano talaga ang malinis na pera ng negosyo.' }
         ],
@@ -516,9 +516,9 @@ export const appGroups: AppGroup[] = [
           'Strict employee shifts para ligtas ang drawer sa anumang kulang'
         ],
         stats: [
-          { value: '100%', label: 'Capital Security' },
-          { value: '0', label: 'Nawawalang Tala' },
-          { value: '100%', label: 'Shift Protection' }
+          { value: 'Organized', label: 'Lending Ledger' },
+          { value: 'Recorded', label: 'Loan Payments' },
+          { value: 'Audited', label: 'Shift Records' }
         ],
         howItWorks: [
           { step: 'Gawa ng Profile', detail: 'I-setup ang borrower at maglagay ng maximum credit limit.' },
@@ -549,9 +549,9 @@ export const appGroups: AppGroup[] = [
           'Tamang-tama para sa maliliit hanggang katamtamang pasilidad (hanggang 25 kwarto)'
         ],
         stats: [
-          { value: '100%', label: 'Occupancy Tracking' },
+          { value: 'Organized', label: 'Occupancy Tracking' },
           { value: '₱99/mo', label: 'Mababang Bayad' },
-          { value: '0', label: 'Double Bookings' }
+          { value: 'Clear', label: 'Room Grid' }
         ],
         howItWorks: [
           { step: 'I-setup ang Kwarto', detail: 'Ilagay ang pangalan ng kwarto, capacity, at presyo bawat gabi.' },
@@ -574,16 +574,16 @@ export const appGroups: AppGroup[] = [
         tagline: 'Your personal budgeting assistant.',
         imageSrc: '/apps/budget-mo.png',
         features: ['Income Tracking', 'Goal Envelopes', 'Real-time Cash Flow', 'Expense Logging'],
-        description: 'Ang personal budgeting app na iwas-petsa-de-peligro at iwas-ipon-loss. I-budget ang daily gastos, i-track ang utang at pa-utang, at mag-ipon nang walang stress — kahit offline!',
+        description: 'Ang personal budgeting app na iwas-petsa-de-peligro at iwas-ipon-loss. I-budget ang daily gastos, i-track ang utang at pa-utang, at mag-ipon nang walang stress — sa iyong personal helper!',
         benefits: [
           'Visually track all cash flow and expenses nang malinaw',
           'Gumawa ng strict budget envelopes para sa Needs, Wants, at Savings',
           'Perfect para sa personal expense tracking, ipon goals, at utang management'
         ],
         stats: [
-          { value: '100%', label: 'Budget Visibility' },
+          { value: 'Clear', label: 'Budget Visibility' },
           { value: '₱50/mo', label: 'Promo (Was ₱100)' },
-          { value: '0', label: 'Lost Expenses' }
+          { value: 'Tracked', label: 'Personal Expenses' }
         ],
         howItWorks: [
           { step: 'I-set ang Envelopes', detail: 'Gumawa ng kategorya at lagyan ng budget limit ang bawat isa.' },

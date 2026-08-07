@@ -20,7 +20,7 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
     partnerCategory: 'Sari-Sari Store & Retail',
     heroHeadline: 'Hindi ka na manghuhula sa benta.',
     highlightWord: 'manghuhula sa benta',
-    heroSubtitle: 'Kami ang Katuwang mo araw-araw. 5-second fast checkout, awtomatikong bawas sa stocks, at siguradong walang kulang sa drawer.',
+    heroSubtitle: 'Kami ang Katuwang mo araw-araw. Mabilis na 1-tap checkout, maayos na pag-record ng stocks, at malinaw na talaan sa drawer.',
     soloStruggles: [
       'Nagkakamali sa kwenta ng sukli habang madaming bumibili sa tindahan.',
       'Hindi nalalaman agad kung alin ang paubos na paninda sa bodega.',
@@ -28,14 +28,14 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
       'Nalilito sa palitan ng bantay kapag may kulang sa benta.',
     ],
     partnerWins: [
-      '5-second 1-tap checkout — mabilis mag-benta kahit pila ang customer.',
-      'Awtomatikong nababawas ang stock sa bodega sa bawat transaksyon.',
+      '1-tap checkout — mabilis mag-benta kahit pila ang customer.',
+      'Maayos na nababawas ang stock sa bodega sa bawat transaksyon.',
       'Ligtas na utang ledger — may kumpletong resibo at talaan ng benta.',
-      'Strict shift auditing — alam mo agad kung balance ang cashier drawer.',
+      'Strict shift auditing — tulong sa maayos na pag-balance ng cashier drawer.',
     ],
     comparisonRows: [
-      { feature: 'Bilis ng Checkout', traditional: '❌ Mabagal sa papel (1-2 mins)', generic: '⚠️ Kailangan ng PC', katuwang: '✅ Instant 5-Second Tap' },
-      { feature: 'Bawas sa Bodega', traditional: '❌ Manual bilangan sa gabi', generic: '⚠️ Formula setup', katuwang: '✅ Awtomatiko bawat benta' },
+      { feature: 'Bilis ng Checkout', traditional: '❌ Mabagal sa papel (1-2 mins)', generic: '⚠️ Kailangan ng PC', katuwang: '✅ Mabilis na 1-Tap Checkout' },
+      { feature: 'Bawas sa Bodega', traditional: '❌ Manual bilangan sa gabi', generic: '⚠️ Formula setup', katuwang: '✅ Maayos na bawat benta' },
       { feature: 'Pautang Ledger', traditional: '❌ Napupunit na notebook', generic: '❌ Walang utang tracker', katuwang: '✅ Ligtas na Digital Credit Ledger' },
       { feature: 'Bantay Shift Audit', traditional: '❌ Sumbatan kapag kulang', generic: '⚠️ Basic log lang', katuwang: '✅ Strict Cashier Shift Lock' },
     ]
@@ -78,7 +78,7 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
       'Credit Ledger ng Kontraktor — may kumpletong resibo at pirma.',
       'Manager PIN requirement bago magbigay ng discount o bawas-presyo.',
       'Automated inventory update sa bawat construction material.',
-      'Shift Cash Control — siguradong balance ang cashier bawat turnover.',
+      'Shift Cash Control — organisadong tracking ng cashier bawat turnover.',
     ],
     comparisonRows: [
       { feature: 'Pautang sa Kontraktor', traditional: '❌ Papel na pwedeng mawala', generic: '❌ Walang credit limit lock', katuwang: '✅ Verified Credit & Signature Log' },
@@ -124,7 +124,7 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
       'Real-time Barista Queue — nakikita agad ng barista ang susunod na timpla.',
       'Manager PIN authorization bago magbigay ng complimentary drinks.',
       '10-second Order Punching para mabilis magpa-alis ng pila.',
-      'Shift Cash Control para siguradong tumpak ang kita sa counter.',
+      'Shift Cash Control para sa maayos na talaan ng kita sa counter.',
     ],
     comparisonRows: [
       { feature: 'Barista Drink Queue', traditional: '❌ Sumisigaw ang counter sa barista', generic: '⚠️ Magulo ang ticket printout', katuwang: '✅ Live Barista Drink Queue Screen' },
@@ -152,8 +152,8 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
   },
   'spin-snap': {
     partnerCategory: 'Laundromat & Dry Cleaning',
-    heroHeadline: 'Walang nawawalang labada.',
-    highlightWord: 'Walang nawawalang labada',
+    heroHeadline: 'Organisadong tracking ng labada.',
+    highlightWord: 'Organisadong tracking ng labada',
     heroSubtitle: 'Hindi na maiiwan o mawawala ang damit ng customer. Tracked ang bawat kilo at bayad mula laba hanggang pickup.',
     soloStruggles: [
       'Nagkakabaligtad o nawawala ang damit ng customer sa mga ilagayan.',
@@ -163,8 +163,8 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
     ],
     partnerWins: [
       '4-Step Job Status Flow: Received → Washing → Folding → Ready.',
-      'Pre-pickup payment verification para siguradong bayad bago lumabas.',
-      'Kilo rate calculator at instant resibo sa customer.',
+      'Pre-pickup payment verification para sa talaan ng bayad bago lumabas.',
+      'Kilo rate calculator at digital resibo sa customer.',
       'Shift Cash Audit — balance ang cashier sa bawat palitan ng staff.',
     ],
     comparisonRows: [
@@ -176,7 +176,7 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
     partnerCategory: 'Water Refilling Station',
     heroHeadline: 'Alam mo kung ilan ang na-deliver at magkano ang kita.',
     highlightWord: 'magkano ang kita',
-    heroSubtitle: 'Walk-in refill man o delivery sa barangay — siguradong tumpak ang koleksyon, naibalik na galon, at benta sa cashier desk.',
+    heroSubtitle: 'Walk-in refill man o delivery sa barangay — maayos na talaan ng koleksyon, naibalik na galon, at benta sa cashier desk.',
     soloStruggles: [
       'Nawawala ang tala ng delivery boy sa mga perang kinolekta sa kalsada.',
       'Hindi alam kung ilang galon ang naihatid vs. natitira sa bodega.',
@@ -185,7 +185,7 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
     ],
     partnerWins: [
       'Delivery & Walk-in Order Tracker — monitored ang bawat biyahe ng galon.',
-      'Delivery Boy Collection Logger para siguradong naitremite ang pera.',
+      'Delivery Boy Collection Logger para sa maayos na pag-record ng remittance.',
       'Integrated QR & Ref Logging para sa GCash payments.',
       'Shift Cash Audit — ligtas ang pera sa cashier desk.',
     ],
@@ -198,7 +198,7 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
     partnerCategory: 'Auto Repair, Car Wash & Detailing',
     heroHeadline: 'Mas maraming sasakyan ang matatapos sa isang araw.',
     highlightWord: 'matatapos sa isang araw',
-    heroSubtitle: 'May transparent job status at resibo ang customer. Iwas-sumbatan sa singilan at siguradong balance ang kita sa cashier.',
+    heroSubtitle: 'May transparent job status at resibo ang customer. Iwas-sumbatan sa singilan at maayos na talaan ng kita sa cashier.',
     soloStruggles: [
       'Nagtatampo ang customer dahil walang balita kung gawa na ang sasakyan.',
       'Nawawalan ng tala sa mga naipanalitang piyesa at langis.',
@@ -209,7 +209,7 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
       'Job Order Status Flow: Diagnosing → Repairing → Ready for Pickup.',
       'Malinaw na breakdowns ng Labor Cost + Spare Parts sa resibo.',
       'Manager PIN requirement bago magbigay ng discount sa repair.',
-      'Shift Cash Audit — siguradong balance ang kita sa araw na iyon.',
+      'Shift Cash Audit — maayos na talaan ng kita sa araw na iyon.',
     ],
     comparisonRows: [
       { feature: 'Repair Status Update', traditional: '❌ Tawag nang tawag ang customer', generic: '⚠️ Static whiteboard', katuwang: '✅ Digital Job Order Status Track' },
@@ -321,7 +321,7 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
       'Visual Rental Calendar View — makikita ang booking availability.',
       'Active Rental Inventory Tracker — alamin kung sino ang humahawak.',
       'Security Deposit & Late Fee Return Workflow.',
-      'Shift Cash Auditing — siguradong ligtas ang bayad sa counter.',
+      'Shift Cash Auditing — maayos at ligtas na talaan sa counter.',
     ],
   },
   'sahod-flow': {
@@ -339,7 +339,7 @@ export const MODULE_PARTNER_CONTENT: Record<string, ModulePartnerCopy> = {
       'Automated Bale Deduction — bawas agad sa final payout summary.',
       '1-Tap Payout Approval — rekta nang nababawas sa Master Cash ledger.',
       'Employee Roster & Attendance History Overview.',
-      'Zero Math Error Guarantee — protektado ang pera ng negosyo.',
+      'Calculator at Ledger Audit — protektado ang pera ng negosyo.',
     ],
   },
   'ledger-flow': {

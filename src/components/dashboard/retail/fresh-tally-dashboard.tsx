@@ -147,9 +147,19 @@ const CartItemCard = React.memo(({ item, theme, products, removeFromCart, addToC
   );
 });
 
+import { useStaffSession } from '@/store/use-staff-session';
+
 function FreshTallyDashboardContent() {
   const { currentTenant } = useTenant();
   const { user } = useUser();
+  const staffSession = useStaffSession(state => state.staffSession);
+  const isStaffValid = useStaffSession(state => state.isSessionValid());
+  const currentStaff = isStaffValid ? staffSession : null;
+
+  const effectiveUid = user?.uid || (currentStaff ? `staff_${currentStaff.staffAccountId}` : 'staff');
+  const effectiveName = user?.displayName || user?.email || currentStaff?.username || 'Cashier';
+  const hasAuthUserOrStaff = !!(user || currentStaff);
+
   const { products, loading: inventoryLoading } = useInventory();
   const { cart, setCart, addToCart, removeFromCart, clearCart, totalCentavos, totalPesos, cartItemCount } = useCart();
   const { toast } = useToast();
@@ -275,7 +285,7 @@ function FreshTallyDashboardContent() {
   };
 
   const handleCreditCheckout = async () => {
-    if (!currentTenant || !user || cart.length === 0) return;
+    if (!currentTenant || !hasAuthUserOrStaff || cart.length === 0) return;
     if (!palistaName || palistaName.trim() === '') {
       toast({ title: "Kailangan ang Pangalan", description: "Ilagay ang pangalan ng customer para sa pautang.", variant: "destructive" });
       return;
@@ -292,8 +302,8 @@ function FreshTallyDashboardContent() {
         discountCentavos,
         discountType,
         discountReason,
-        user.uid,
-        user.displayName || user.email || 'Unknown'
+        effectiveUid,
+        effectiveName
       );
 
       setCompletedSale({

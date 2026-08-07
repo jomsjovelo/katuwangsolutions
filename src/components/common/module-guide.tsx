@@ -22,13 +22,13 @@ export interface GuideContent {
 
 export const MODULE_GUIDES: Record<string, GuideContent> = {
   'benta-snap': {
-    tagline: 'Katuwang ng Sari-Sari Store at Retail: POS, Barcode, Imbentaryo, Cash Drawer, at Utang Tracker.',
+    tagline: 'Katuwang ng Sari-Sari Store at Retail: POS, Barcode, Imbentaryo, 1 Libreng Cashier, Cash Drawer, at Utang Tracker.',
     steps: [
       'Mag-scan ng Barcode o mag-search ng SKU/pangalan ng produkto para mabilis na magdagdag ng paninda sa Basket.',
-      'Mag-apply ng Discount (Senior Citizen, PWD, Wholesale, o Custom) kung kailangan, at pumili ng bayad (Cash, GCash na may Ref#, Maya, o Palista).',
-      'I-print ang Resibo gamit ang Bluetooth Thermal POS Printer at awtomatikong pumasok ang pera sa iyong Cash Drawer Ledger.',
-      'Mag-restock gamit ang Purchase Orders (mula sa Cash Drawer o Utang sa Supplier) at i-track ang Expiration Batches at Stock History.',
-      'I-void ang maling benta o restock gamit ang Manager PIN protection — babalik ang stock at maibabalik/maibabawas ang cash sa drawer nang maayos.'
+      'Mag-apply ng Discount (Senior Citizen, PWD, Wholesale, o Custom) at pumili ng bayad (Cash, GCash na may Ref#, Maya, o Palista).',
+      'I-print ang Resibo gamit ang Bluetooth Thermal POS Printer — awtomatikong papasok ang benta sa inyong Cash Drawer Ledger.',
+      'Gawaan ng 1 Libreng Cashier Account ang inyong staff sa Profile → Staff (Username + 4-Digit PIN) para makapagtinda sila gamit ang Business Code.',
+      'I-void ang maling benta gamit ang Manager PIN protection — babalik ang stock at maibabalik/maibabawas ang cash sa drawer nang maayos.'
     ],
     example: {
       scenario: 'Bumili si Senior Citizen Aling Nena ng 2 Kilo Bigas, 1 Kape, at 1 Sabon via GCash.',
@@ -37,29 +37,33 @@ export const MODULE_GUIDES: Record<string, GuideContent> = {
     }
   },
   'fresh-tally': {
-    tagline: 'I-track ang sariwang paninda tulad ng gulay, prutas, at karne.',
+    tagline: 'Pamahalaan ang Sariwang Paninda: Gulay, Prutas, Karne, Dynamic Palengke Pricing, at 1 Libreng Cashier.',
     steps: [
-      'Itala ang timbang o bilang ng bagong dating na sariwang paninda sa iyong bodega.',
-      'Suriin ang critical low-stock warnings para maiwasan ang maubusan sa gitna ng benta.',
-      'I-update ang presyo kada kilo base sa paggalaw ng presyo sa palengke ngayon.'
+      'Itala ang timbang (kilo) o bilang ng bagong dating na sariwang gulay, prutas, at karne sa inyong bodega.',
+      'Mabilis na i-update ang presyo kada kilo base sa araw-araw na paggalaw ng presyo sa bagsakan o palengke ngayon.',
+      'Gawaan ng 1 Libreng Cashier Account ang tindera sa Profile → Staff (Username + 4-Digit PIN) para makapagtinda sila habang secure ang inyong financial reports.',
+      'Tanggapin ang bayad via Cash, GCash, o Palista (Utang Tracker) na may automatic stock deduction kada kilo.',
+      'Suriin ang critical low-stock warnings para maiwasan ang maubusan ng sariwang paninda sa gitna ng benta.'
     ],
     example: {
-      scenario: 'Bumaba ang presyo ng bawang sa bagsakan.',
+      scenario: 'Bumaba ang presyo ng bawang sa bagsakan ngayong umaga.',
       action: 'I-update ang presyo ng "Bawang" sa app mula ₱120/kilo pababa sa ₱90/kilo.',
-      result: 'Lahat ng susunod na benta ng bawang ay gagamit na ng bagong presyo, iwas lugi o overprice.'
+      result: 'Lahat ng susunod na benta ng bawang ay gagamit na ng bagong presyo, iwas lugi o overprice sa customer.'
     }
   },
   'build-stack': {
-    tagline: 'Pamahalaan ang semento, bakal, kahoy, at hardware supplies.',
+    tagline: 'Pamahalaan ang Hardware at Construction Supplies: Semento, Bakal, Kahoy, Project Release, at 1 Libreng Cashier.',
     steps: [
-      'Magtala ng bagong stock ng hardware supplies gamit ang "+ Magdagdag ng Item".',
-      'I-track ang bundle o bilang ng sako ng semento at kahoy sa inventory card.',
-      'Suriin ang daily release list para masigurong walang nawawalang materyales sa bodega.'
+      'Magtala ng bagong stock ng hardware supplies gamit ang "+ Magdagdag ng Item" (semento, bakal, pako, pintura, kahoy).',
+      'I-track ang bundle o bilang ng sako ng semento at kahoy sa inventory card para sa mabilis na release.',
+      'Gawaan ng 1 Libreng Cashier Account ang inyong checker/cashier sa Profile → Staff (Username + 4-Digit PIN) para makapag-release at mag-POS gamit ang Business Code.',
+      'I-record ang pautang sa mga kontratista at regular customers gamit ang Palista (Credit Checkout) na may due date.',
+      'Suriin ang daily warehouse release list at i-void ang maling release gamit ang Manager PIN protection.'
     ],
     example: {
-      scenario: 'May dumating na 50 sako ng semento galing sa supplier.',
+      scenario: 'May dumating na 50 sako ng semento galing sa supplier para sa bodega.',
       action: 'I-click ang "Semento", mag-add ng 50 sacks sa "Restock", at ilagay ang supplier details.',
-      result: 'Ang total na semento sa warehouse ay mag-a-update, ready na itong i-release para sa construction.'
+      result: 'Ang total na semento sa warehouse ay mag-a-update, ready na itong i-release para sa construction project.'
     }
   },
   '5-6-tracker': {

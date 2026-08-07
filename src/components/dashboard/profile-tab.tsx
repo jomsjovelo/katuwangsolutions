@@ -20,6 +20,8 @@ import {
 } from 'firebase/firestore';
 import { app } from '@/firebase/config';
 import { sendStaffInvite, removeStaffMember, regenerateBusinessCode } from '@/firebase/firestore/staff-actions';
+import { createStaffAccount, removeStaffAccount, resetStaffPin } from '@/firebase/firestore/staff-pin-actions';
+import { useToast } from '@/hooks/use-toast';
 import { getModuleTheme, MODULE_THEMES, ModuleTheme } from '@/lib/theme-utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -119,9 +121,20 @@ export function ProfileTab() {
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [showPrinterSetupModal, setShowPrinterSetupModal] = useState(false);
 
+  const { toast } = useToast();
   const theme = getModuleTheme(currentTenant?.moduleType);
   const isOwner = profile?.role === 'owner';
   
+  // PIN Cashier State
+  const [pinStaffAccounts, setPinStaffAccounts] = useState<any[]>([]);
+  const [showAddCashierModal, setShowAddCashierModal] = useState(false);
+  const [newCashierUsername, setNewCashierUsername] = useState('');
+  const [newCashierPin, setNewCashierPin] = useState('');
+  const [isCreatingCashier, setIsCreatingCashier] = useState(false);
+  const [selectedStaffForResetPin, setSelectedStaffForResetPin] = useState<any | null>(null);
+  const [resetPinInput, setResetPinInput] = useState('');
+  const [isResettingPin, setIsResettingPin] = useState(false);
+
   const isBudgetMo = currentTenant?.moduleType === 'budget-mo';
   const is56Tracker = currentTenant?.moduleType === '5-6-tracker';
   const isPOSModule = !isBudgetMo && !is56Tracker;
@@ -205,6 +218,79 @@ export function ProfileTab() {
 
     return () => unsubscribe();
   }, [user, profile?.role, db, currentTenant]);
+
+  // 2b. Fetch PIN-Based Staff Accounts List (staff_accounts subcollection)
+  useEffect(() => {
+    if (!currentTenant || !profile || profile.role !== 'owner') return;
+
+    const staffAccountsRef = collection(db, 'tenants', currentTenant.id, 'staff_accounts');
+    const unsubscribe = onSnapshot(staffAccountsRef, (snapshot) => {
+      const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      setPinStaffAccounts(list);
+    }, (err) => {
+      console.warn('ProfileTab: PIN staff list unavailable:', err.message);
+      setPinStaffAccounts([]);
+    });
+
+    return () => unsubscribe();
+  }, [currentTenant, profile?.role, db]);
+
+  const handleCreateCashierAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentTenant || !newCashierUsername || !newCashierPin) return;
+
+    try {
+      setIsCreatingCashier(true);
+      await createStaffAccount(currentTenant.id, newCashierUsername, newCashierPin);
+      toast({
+        title: 'Na-create na ang Cashier Account!',
+        description: `Ang username na "${newCashierUsername}" ay maaari nang mag-login gamit ang inyong Business Code.`
+      });
+      setNewCashierUsername('');
+      setNewCashierPin('');
+      setShowAddCashierModal(false);
+    } catch (err: any) {
+      toast({
+        title: 'Hindi Na-create',
+        description: err.message || 'May error sa pag-create ng account.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsCreatingCashier(false);
+    }
+  };
+
+  const handleRemovePinStaff = async (staff: any) => {
+    if (!currentTenant) return;
+    if (!confirm(`Sigurado ka ba na gusto mong alisin ang Cashier account ni "${staff.username}"?`)) return;
+
+    try {
+      setIsRemovingId(staff.id);
+      await removeStaffAccount(currentTenant.id, staff.id, staff.usernameLower || staff.username);
+      toast({ title: 'Na-delete na ang Cashier Account' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'Failed to remove staff.', variant: 'destructive' });
+    } finally {
+      setIsRemovingId(null);
+    }
+  };
+
+  const handleResetPinSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentTenant || !selectedStaffForResetPin || !resetPinInput) return;
+
+    try {
+      setIsResettingPin(true);
+      await resetStaffPin(currentTenant.id, selectedStaffForResetPin.id, resetPinInput);
+      toast({ title: 'Na-reset na ang 4-digit PIN!' });
+      setSelectedStaffForResetPin(null);
+      setResetPinInput('');
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'Failed to reset PIN.', variant: 'destructive' });
+    } finally {
+      setIsResettingPin(false);
+    }
+  };
 
   // 3. Fetch Pending Invites List
   // Only owners can see invites — non-owners skip this subscription
@@ -780,6 +866,94 @@ export function ProfileTab() {
 
               </CardContent>
             </Card>
+
+            {/* PIN Cashier Account Section (1 Free Account) */}
+            {isPOSModule && (
+              <Card className="bg-white border-blue-200 shadow-sm rounded-[24px] overflow-hidden">
+                <CardHeader className="p-4 pb-2 bg-blue-50/50 flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-xs font-black uppercase tracking-widest text-blue-800 flex items-center gap-2">
+                      <UserPlus className="h-4 w-4 text-blue-600" />
+                      Libreng Cashier Account (1 Free Slot)
+                    </CardTitle>
+                    <CardDescription className="text-[10px] text-blue-600 font-medium mt-0.5">
+                      Gawaan ng username at 4-digit PIN ang cashier para makapag-sell agad.
+                    </CardDescription>
+                  </div>
+                  {pinStaffAccounts.length < 1 && (
+                    <Button
+                      onClick={() => setShowAddCashierModal(true)}
+                      size="sm"
+                      className="h-8 text-[10px] font-extrabold uppercase tracking-wider bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm"
+                    >
+                      + Magdagdag
+                    </Button>
+                  )}
+                </CardHeader>
+                <CardContent className="p-4 pt-3">
+                  {pinStaffAccounts.length === 0 ? (
+                    <div className="text-center py-5 text-slate-400 text-xs border border-dashed border-blue-200 rounded-2xl bg-blue-50/30">
+                      <User className="h-7 w-7 mx-auto opacity-20 mb-1 text-blue-500" />
+                      Wala pang Cashier account. I-click ang <strong>"+ Magdagdag"</strong> sa itaas.
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-100">
+                      {pinStaffAccounts.map((staff) => (
+                        <div key={staff.id} className="flex items-center justify-between py-2">
+                          <div className="flex items-center gap-3">
+                            <div className="h-9 w-9 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center font-black text-sm uppercase">
+                              {staff.username ? staff.username[0] : 'C'}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs font-black text-slate-900">{staff.username}</p>
+                                <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-none font-bold text-[8px] px-2 py-0">
+                                  ACTIVE CASHIER
+                                </Badge>
+                              </div>
+                              <p className="text-[10px] text-slate-400">
+                                Business Code: <strong className="text-slate-600">{currentTenant?.businessCode || '----'}</strong>
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <Button
+                              onClick={() => {
+                                setSelectedStaffForResetPin(staff);
+                                setResetPinInput('');
+                              }}
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-[9px] font-bold uppercase tracking-wider border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg"
+                            >
+                              Reset PIN
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              disabled={isRemovingId === staff.id}
+                              onClick={() => handleRemovePinStaff(staff)}
+                              className="h-7 w-7 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                            >
+                              {isRemovingId === staff.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin text-red-500" />
+                              ) : (
+                                <Trash2 className="h-3.5 w-3.5" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {pinStaffAccounts.length >= 1 && (
+                    <div className="mt-3 p-2 rounded-xl bg-slate-50 border border-slate-100 text-[10px] text-slate-500 font-medium text-center">
+                      ✓ Nagamit na ang inyong 1 Libreng Cashier Account Slot.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Active Staff List */}
             {isPOSModule && (
@@ -1360,6 +1534,105 @@ export function ProfileTab() {
 
       <HelpGuideDrawer isOpen={isSupportOpen} onClose={() => setIsSupportOpen(false)} showFloatingButton={false} />
       <SponsorDialog open={isSponsorOpen} onOpenChange={setIsSponsorOpen} staffName={sponsorStaffName} />
+
+      {/* Create Cashier Modal */}
+      <Dialog open={showAddCashierModal} onOpenChange={setShowAddCashierModal}>
+        <DialogContent className="sm:max-w-md rounded-[24px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-slate-900">Magdagdag ng Cashier Account</DialogTitle>
+            <DialogDescription className="text-slate-500 font-medium text-xs">
+              Gawaan ng username at 4-digit PIN ang inyong staff para makapag-login sa app.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateCashierAccount} className="space-y-4 py-2">
+            <div className="space-y-1">
+              <label htmlFor="modal-cashier-username" className="text-xs font-bold text-slate-700">Cashier Username</label>
+              <Input
+                id="modal-cashier-username"
+                placeholder="e.g. maria"
+                value={newCashierUsername}
+                onChange={(e) => setNewCashierUsername(e.target.value.replace(/\s+/g, ''))}
+                required
+                className="h-11 rounded-xl bg-slate-50 text-sm font-medium"
+              />
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="modal-cashier-pin" className="text-xs font-bold text-slate-700">4-Digit PIN</label>
+              <Input
+                id="modal-cashier-pin"
+                type="password"
+                maxLength={4}
+                placeholder="1234"
+                value={newCashierPin}
+                onChange={(e) => setNewCashierPin(e.target.value.replace(/\D/g, ''))}
+                required
+                className="h-11 rounded-xl bg-slate-50 text-center text-lg font-black tracking-[0.3em]"
+              />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setShowAddCashierModal(false)}
+                className="flex-1 h-11 rounded-xl font-bold"
+              >
+                Kanselahin
+              </Button>
+              <Button
+                type="submit"
+                disabled={isCreatingCashier || !newCashierUsername || newCashierPin.length !== 4}
+                className="flex-1 h-11 rounded-xl font-bold bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {isCreatingCashier ? <Loader2 className="h-4 w-4 animate-spin" /> : 'I-save ang Cashier'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset PIN Modal */}
+      <Dialog open={!!selectedStaffForResetPin} onOpenChange={(open) => !open && setSelectedStaffForResetPin(null)}>
+        <DialogContent className="sm:max-w-md rounded-[24px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-slate-900">Reset 4-Digit PIN</DialogTitle>
+            <DialogDescription className="text-slate-500 font-medium text-xs">
+              Baguhin ang PIN ni <strong className="text-slate-700">{selectedStaffForResetPin?.username}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleResetPinSubmit} className="space-y-4 py-2">
+            <div className="space-y-1">
+              <label htmlFor="modal-reset-pin" className="text-xs font-bold text-slate-700">Bagong 4-Digit PIN</label>
+              <Input
+                id="modal-reset-pin"
+                type="password"
+                maxLength={4}
+                placeholder="1234"
+                value={resetPinInput}
+                onChange={(e) => setResetPinInput(e.target.value.replace(/\D/g, ''))}
+                required
+                className="h-11 rounded-xl bg-slate-50 text-center text-lg font-black tracking-[0.3em]"
+              />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setSelectedStaffForResetPin(null)}
+                className="flex-1 h-11 rounded-xl font-bold"
+              >
+                Kanselahin
+              </Button>
+              <Button
+                type="submit"
+                disabled={isResettingPin || resetPinInput.length !== 4}
+                className="flex-1 h-11 rounded-xl font-bold bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {isResettingPin ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save New PIN'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

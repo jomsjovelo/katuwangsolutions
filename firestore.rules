@@ -70,6 +70,13 @@ service cloud.firestore {
       );
 
       // 2. Sub-collections (Universal Inventory, Sales, etc.)
+      match /staff_accounts/{staffId} {
+        allow get, list: if true; // Public read for cashier PIN verification
+        allow create, update, delete: if isAuthenticated() && (
+          request.auth.uid == getTenantData(tenantId).ownerUid || isMasterAdmin()
+        );
+      }
+
       match /{subcollection}/{document=**} {
         // Strict isolation: Access granted only to verified tenant owners/staff
         allow read, create, update: if hasTenantAccess(tenantId);
@@ -204,7 +211,14 @@ service cloud.firestore {
       allow create: if isMasterAdmin();
     }
 
-    // 17. True Default Deny
+    // 18. Staff Usernames (Public read for uniqueness validation)
+    match /staff_usernames/{username} {
+      allow get: if true; // Publicly readable for username availability check
+      allow list: if isMasterAdmin();
+      allow create, delete: if isAuthenticated();
+    }
+
+    // 19. True Default Deny
     match /{document=**} {
       allow read, write: if false;
     }

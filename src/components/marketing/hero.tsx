@@ -61,36 +61,36 @@ export function Hero() {
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100 ease-out fill-mode-both flex flex-col gap-2">
             <div className="flex items-center gap-3">
               <div className="flex items-baseline gap-1.5">
+                <span className="text-emerald-400 text-xs font-bold uppercase tracking-wider">Promo</span>
                 <span className="text-white/40 text-sm font-semibold line-through">₱199</span>
                 <span className="text-white text-2xl font-black">₱99</span>
-                <span className="text-white/60 text-sm">/buwan</span>
+                <span className="text-white/60 text-xs font-medium">/mo bawat module</span>
               </div>
               <div className="h-4 w-px bg-white/20" />
               <div className="flex gap-2">
                 <div className="flex items-center gap-1 bg-white/10 backdrop-blur-sm border border-white/15 rounded-full px-2.5 py-1">
-                  <WifiOff className="h-2.5 w-2.5 text-emerald-400" />
-                  <span className="text-[9px] font-bold text-emerald-300 uppercase tracking-wide">Works Offline</span>
+                  <span className="text-[9px] font-bold text-emerald-300 uppercase tracking-wide">19 Business Modules</span>
                 </div>
                 <div className="flex items-center gap-1 bg-white/10 backdrop-blur-sm border border-white/15 rounded-full px-2.5 py-1">
-                  <RefreshCw className="h-2.5 w-2.5 text-sky-400" />
-                  <span className="text-[9px] font-bold text-sky-300 uppercase tracking-wide">Auto Sync</span>
+                  <span className="text-[9px] font-bold text-sky-300 uppercase tracking-wide">Budget Mo Personal</span>
                 </div>
               </div>
             </div>
             <p className="text-[11px] text-white/60 font-medium tracking-wide">
-              19 Business Modules (₱99/mo). <span className="text-white/80">Budget Mo promo: ₱50/buwan · regular ₱100</span>
+              19 Business Modules (Promo ₱99/mo bawat module · regular ₱199/mo). <span className="text-white/80">Budget Mo promo: ₱50/mo · regular ₱100/mo</span>
             </p>
           </div>
 
           {/* CTAs */}
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 ease-out fill-mode-both flex flex-col gap-2.5">
             <button
+              data-testid="hero-register-cta"
               onClick={openSheet}
               className="w-full h-14 rounded-2xl font-bold text-base bg-primary text-white border-none shadow-2xl shadow-primary/40 active:scale-[0.97] transition-transform flex items-center justify-between px-6"
             >
-              <span>Register Now</span>
+              <span>Mag-register</span>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-white/75">No credit card required</span>
+                <span className="text-xs font-semibold text-white/75">Walang credit card na kailangan</span>
                 <ChevronRight className="h-4 w-4 opacity-80" />
               </div>
             </button>

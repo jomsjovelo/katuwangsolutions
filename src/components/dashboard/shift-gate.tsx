@@ -12,6 +12,8 @@ import { initializeFirebase } from '@/firebase';
 import { Loader2, Coins, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+import { useStaffSession } from '@/store/use-staff-session';
+
 interface ShiftGateProps {
   children: React.ReactNode;
   activeTab?: string;
@@ -21,6 +23,10 @@ interface ShiftGateProps {
 export function ShiftGate({ children, activeTab, onGoToProfile }: ShiftGateProps) {
   const { currentTenant } = useTenant();
   const { user } = useUser();
+  const staffSession = useStaffSession(state => state.staffSession);
+  const isStaffValid = useStaffSession(state => state.isSessionValid());
+  const currentStaff = isStaffValid ? staffSession : null;
+
   const { db } = initializeFirebase();
   const { data: profile } = useFirestoreDocument(user ? doc(db, 'users', user.uid) : null);
   const { activeShift, loading } = useShift();
@@ -33,11 +39,14 @@ export function ShiftGate({ children, activeTab, onGoToProfile }: ShiftGateProps
   const isOwner = currentTenant?.ownerUid === user?.uid || profile?.role === 'owner';
   
   // Only require shift if they are staff, and not already on the profile tab
-  const isStaff = !isOwner && profile?.role === 'staff';
+  const isStaff = !isOwner && (profile?.role === 'staff' || !!currentStaff);
   const requireShift = isStaff && !loading && !activeShift && activeTab !== 'profile';
 
+  const effectiveStaffId = user?.uid || (currentStaff ? `staff_${currentStaff.staffAccountId}` : null);
+  const effectiveStaffName = profile?.fullName || user?.displayName || user?.email || currentStaff?.username || 'Staff';
+
   const handleOpenShift = async () => {
-    if (!currentTenant || !user || !profile) return;
+    if (!currentTenant || !effectiveStaffId) return;
     const amount = parseFloat(startingCash);
     if (isNaN(amount) || amount < 0) {
       toast({ title: 'Invalid amount', description: 'Please enter a valid starting cash amount.', variant: 'destructive' });
@@ -46,7 +55,7 @@ export function ShiftGate({ children, activeTab, onGoToProfile }: ShiftGateProps
 
     setSubmitting(true);
     try {
-      await openShift(currentTenant.id, user.uid, profile.fullName || user.email || 'Staff', amount);
+      await openShift(currentTenant.id, effectiveStaffId, effectiveStaffName, amount);
       toast({ title: 'Shift Started', description: `Starting cash: ₱${amount.toLocaleString()}`, variant: 'default' });
     } catch (err: any) {
       toast({ title: 'Error', description: err.message || 'Failed to open shift', variant: 'destructive' });

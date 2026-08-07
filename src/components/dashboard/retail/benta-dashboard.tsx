@@ -179,8 +179,18 @@ const CartItemCard = React.memo(({ item, theme, products, removeFromCart, addToC
   );
 });
 
+import { useStaffSession } from '@/store/use-staff-session';
+
 function BentaDashboardContent() {
   const { user } = useUser();
+  const staffSession = useStaffSession(state => state.staffSession);
+  const isStaffValid = useStaffSession(state => state.isSessionValid());
+  const currentStaff = isStaffValid ? staffSession : null;
+
+  const effectiveUid = user?.uid || (currentStaff ? `staff_${currentStaff.staffAccountId}` : 'staff');
+  const effectiveName = user?.displayName || user?.email || currentStaff?.username || 'Cashier';
+  const hasAuthUserOrStaff = !!(user || currentStaff);
+
   const [profile, setProfile] = useState<any>(null);
   const { currentTenant } = useTenant();
   const { isOnline, isSyncing, syncMessage } = useSyncStatus(currentTenant?.id);
@@ -342,7 +352,7 @@ function BentaDashboardContent() {
   };
 
   const handleCheckout = async (paymentMethod: string = 'cash', gcashRef?: string) => {
-    if (!currentTenant || !user || cart.length === 0) return;
+    if (!currentTenant || !hasAuthUserOrStaff || cart.length === 0) return;
     try {
       setIsProcessing(true);
       setError(null);
@@ -357,8 +367,8 @@ function BentaDashboardContent() {
         discountCentavos, 
         discountType,
         discountReason,
-        user.uid,
-        user.displayName || user.email || 'Unknown',
+        effectiveUid,
+        effectiveName,
         activeShift?.id
       );
       
@@ -388,7 +398,7 @@ function BentaDashboardContent() {
   };
 
   const handleVoidSale = async () => {
-    if (!currentTenant || !completedSale?.saleId || !user) return;
+    if (!currentTenant || !completedSale?.saleId || !hasAuthUserOrStaff) return;
     
     // Phase 2: Require Manager PIN for Voids
     const approved = await requireApproval("Voiding a sale requires Manager authorization.");
@@ -401,8 +411,8 @@ function BentaDashboardContent() {
       await deleteSale(
         currentTenant.id, 
         completedSale.saleId, 
-        user.uid,
-        user.displayName || user.email || 'Unknown User'
+        effectiveUid,
+        effectiveName
       );
       
       setShowReceipt(false);
@@ -417,7 +427,7 @@ function BentaDashboardContent() {
   };
 
   const handlePalistaCheckout = async () => {
-    if (!currentTenant || !user || cart.length === 0) return;
+    if (!currentTenant || !hasAuthUserOrStaff || cart.length === 0) return;
     if (!palistaName || palistaName.trim() === '') {
       setError("Ilagay ang pangalan ng Customer.");
       return;
@@ -436,8 +446,8 @@ function BentaDashboardContent() {
         discountCentavos, 
         discountType,
         discountReason,
-        user.uid,
-        user.displayName || user.email || 'Unknown',
+        effectiveUid,
+        effectiveName,
         activeShift?.id
       );
       

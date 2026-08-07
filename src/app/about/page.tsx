@@ -8,6 +8,9 @@ import { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Tungkol sa Amin | Katuwang Solutions',
   description: 'Ang aming kwento at misyon para sa mga Pilipinong negosyante.',
+  alternates: {
+    canonical: 'https://katuwangsolutions.com/about',
+  },
 };
 
 export default function AboutPage() {
@@ -68,12 +71,13 @@ export default function AboutPage() {
           </div>
           <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center">
             <Globe className="h-6 w-6 text-slate-400 mx-auto mb-3" />
-            <div className="font-black text-2xl text-slate-900">100%</div>
-            <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Pinoy Made</div>
+            <div className="font-black text-2xl text-slate-900">Pinoy</div>
+            <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Made in PH</div>
           </div>
           <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center">
-            <div className="text-primary font-black text-2xl mx-auto mb-2 mt-1">₱99</div>
-            <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Per Month</div>
+            <div className="text-primary font-black text-lg mx-auto mb-1 mt-1">Promo Rates</div>
+            <div className="text-xs font-bold text-slate-700">Promo ₱50–₱99/mo</div>
+            <div className="text-xs text-slate-500 font-medium mt-0.5">(regular ₱100–₱199/mo) bawat module</div>
           </div>
         </div>
 

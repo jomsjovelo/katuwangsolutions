@@ -4,15 +4,21 @@ import { initializeFirebase } from '@/firebase';
 import { ShiftRecord } from '@/firebase/firestore/shift-actions';
 import { useTenant } from '@/app/lib/tenant-context';
 import { useUser } from '@/firebase/auth/use-user';
+import { useStaffSession } from '@/store/use-staff-session';
 
 export function useShift() {
   const { currentTenant } = useTenant();
   const { user } = useUser();
+  const staffSession = useStaffSession(state => state.staffSession);
+  const isStaffValid = useStaffSession(state => state.isSessionValid());
+  const currentStaff = isStaffValid ? staffSession : null;
+  const effectiveStaffId = user?.uid || (currentStaff ? `staff_${currentStaff.staffAccountId}` : null);
+
   const [activeShift, setActiveShift] = useState<ShiftRecord | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!currentTenant || !user) {
+    if (!currentTenant || !effectiveStaffId) {
       setActiveShift(null);
       setLoading(false);
       return;
@@ -22,7 +28,7 @@ export function useShift() {
     const shiftsRef = collection(db, 'tenants', currentTenant.id, 'shifts');
     const q = query(
       shiftsRef,
-      where('staffId', '==', user.uid),
+      where('staffId', '==', effectiveStaffId),
       where('status', '==', 'open'),
       limit(1)
     );
@@ -41,7 +47,7 @@ export function useShift() {
     });
 
     return () => unsubscribe();
-  }, [currentTenant, user]);
+  }, [currentTenant, effectiveStaffId]);
 
   return { activeShift, loading };
 }

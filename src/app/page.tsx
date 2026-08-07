@@ -20,6 +20,16 @@ import { FloatingCta } from '@/components/marketing/floating-cta';
 import { InvitationGuard } from '@/components/auth/invitation-guard';
 import { MessengerWidget } from '@/components/marketing/messenger-widget';
 
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Katuwang Solutions | Ang Katuwang mo sa Negosyo',
+  description: 'Sales, inventory, at utang tracking para sa mga tindahan, palengke, at services. Mura. Mabilis. Maaasahan.',
+  alternates: {
+    canonical: 'https://katuwangsolutions.com/',
+  },
+};
+
 export default function Home() {
   return (
     <InvitationGuard>
@@ -75,7 +85,7 @@ export default function Home() {
                     <BrandLogo theme="dark" />
                   </div>
                   <p className="text-slate-500 text-xs leading-relaxed max-w-[220px]">
-                    Ang all-in-one business management system para sa Pilipinong negosyante. {activeModulesCount} business modules · ₱50–₱99/buwan bawat module.
+                    Ang all-in-one platform para sa Pilipinong negosyante. 20 modules (19 business modules + Budget Mo) · Promo ₱50–₱99/mo bawat module (regular ₱100–₱199/mo).
                   </p>
                   {/* Social links */}
                   <div className="flex items-center gap-3 pt-1">
@@ -133,7 +143,7 @@ export default function Home() {
               {/* Bottom bar */}
               <div className="border-t border-slate-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
                 <p className="text-slate-600 text-[10px] font-bold uppercase tracking-[0.2em]">
-                  <span translate="no" className="notranslate">Katuwang Solutions</span> · Framework v1.2
+                  <span translate="no" className="notranslate">Katuwang Solutions</span>
                 </p>
                 <p className="text-slate-600 text-[10px] font-semibold">
                   © {new Date().getFullYear()} All Rights Reserved.

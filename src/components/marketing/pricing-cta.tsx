@@ -4,18 +4,16 @@ import React from 'react';
 import { ChevronRight, Check } from 'lucide-react';
 import { RegisterSheet, useRegisterSheet } from '@/components/marketing/register-sheet';
 
-import { standardModulesCount } from '@/lib/app-data';
-
 export function PricingCta() {
   const { open, openSheet, closeSheet } = useRegisterSheet();
 
   const inclusions = [
-    `19 na business modules + Budget Mo personal finance`,
-    'Works Offline — kahit walang internet',
-    'Auto Sync kapag bumalik ang koneksyon',
-    'Secure Cloud Backup — walang nawawala',
+    '20 modules (19 business modules + Budget Mo)',
+    'Module-based, per-selected-module subscription',
+    'Manual GCash/Maya payment (subject to verification)',
+    'Mobile-first design na madaling gamitin sa cellphone',
     'No auto-renew — ikaw ang may kontrol',
-    'No setup fee — magsimula agad',
+    'Pumili ng module at simulan ang onboarding',
   ];
 
   return (
@@ -35,7 +33,7 @@ export function PricingCta() {
                 <span className="text-primary">palaguin ang negosyo?</span>
               </h2>
               <p className="text-slate-400 text-sm md:text-base leading-relaxed max-w-sm mx-auto md:mx-0">
-                Sumali sa libo-libong Pilipinong negosyante na gumagamit na ng Katuwang. Mas mura pa sa kape mo araw-araw!
+                Ang matapat na Katuwang ng Pilipinong negosyante sa presyong swak sa budget!
               </p>
 
               {/* Inclusions */}
@@ -56,29 +54,30 @@ export function PricingCta() {
               <div className="bg-white/5 backdrop-blur-md border border-white/10 p-7 rounded-[28px] space-y-6 shadow-2xl text-center">
                 <div>
                   <div className="inline-block px-4 py-1.5 bg-secondary text-yellow-900 text-[10px] font-black uppercase tracking-widest rounded-full mb-4 shadow-md">
-                    Limited Time Offer
+                    Special Promo Rate
                   </div>
                   <div className="flex justify-center items-baseline gap-2 mb-1">
                     <span className="text-xl font-bold text-white/40 line-through">₱199</span>
                     <span className="text-6xl font-black text-white tracking-tighter">₱99</span>
                   </div>
-                  <p className="text-slate-400 text-xs font-semibold">/buwan · bawat module</p>
+                  <p className="text-slate-300 text-xs font-semibold">Promo ₱99/mo bawat module (regular ₱199/mo)</p>
                 </div>
 
                 <button
                   onClick={openSheet}
                   className="w-full h-14 rounded-2xl text-base font-bold bg-secondary text-slate-900 hover:bg-secondary/90 transition-all active:scale-[0.98] shadow-xl flex items-center justify-center gap-2"
                 >
-                  Register Now
+                  Mag-register
                   <ChevronRight className="h-5 w-5" />
                 </button>
 
-                <p className="text-[10px] text-white/40 font-bold">
-                  Para sa 19 standard modules · bawat module<br />
-                  <span className="text-white/30 text-[9px] uppercase tracking-[0.1em] mt-1 inline-block">Budget Mo: ₱50/buwan promo · regular ₱100</span>
+                <p className="text-[11px] text-white/60 font-bold leading-relaxed">
+                  Para sa 19 standard business modules (regular ₱199/mo).<br />
+                  <span className="text-white/80 font-medium">Budget Mo promo: ₱50/mo bawat module (regular ₱100/mo)</span>
                 </p>
               </div>
             </div>
+
           </div>
         </div>
       </section>

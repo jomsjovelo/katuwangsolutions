@@ -28,7 +28,7 @@ export function PendingStep({ data }: PendingStepProps) {
           Thank you, <strong>{data.fullName || data.businessName}!</strong> We have received your registration.
         </p>
         <p className="text-slate-500 text-sm font-medium leading-relaxed">
-          Once we verify your payment on Messenger, we'll unlock your access — typically <strong>within 24 hours</strong>.
+          Kapag na-verify na ang inyong bayad ng aming Operations team, mai-unlock ang inyong access sa account.
         </p>
       </div>
 
@@ -37,7 +37,7 @@ export function PendingStep({ data }: PendingStepProps) {
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 mb-1">Final Step: Send Screenshot</p>
           <p className="text-sm text-amber-900 font-medium">
-            If you haven't already, please send your QR payment screenshot to our Facebook Messenger page along with your registered Email or Business Name so we can activate your account immediately.
+            Kung hindi pa naipapadala, paki-send ang inyong payment screenshot sa aming Facebook Messenger page kasama ang inyong rehistradong Email o Business Name para ma-verify ng Operations team.
           </p>
         </div>
       </div>

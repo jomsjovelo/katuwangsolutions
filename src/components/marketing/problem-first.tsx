@@ -166,16 +166,12 @@ export function ProblemFirst() {
                   Learn More
                 </a>
               </div>
-              <p className="text-[11px] text-slate-500 mt-1 text-center">
+              <p className="text-xs text-slate-600 mt-1 text-center font-medium">
                 {selectedProblem.moduleId === 'budget-mo' ? (
-                  <>
-                    <span className="line-through mr-1">₱100</span>
-                    <span className="text-primary font-bold">₱50/buwan</span>
-                  </>
+                  <span>Promo <strong className="text-primary">₱50/mo</strong> (regular ₱100/mo) bawat module · No auto-renew</span>
                 ) : (
-                  <span className="font-bold">₱99/buwan</span>
+                  <span>Promo <strong className="text-primary">₱99/mo</strong> (regular ₱199/mo) bawat module · No auto-renew</span>
                 )}
-                {' '}· bawat module · No auto-renew · Works Offline
               </p>
             </div>
           )}

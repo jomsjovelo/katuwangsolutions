@@ -95,25 +95,21 @@ export function BusinessFinder() {
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-0.5">Para sa iyo</p>
                 <p className="font-black text-slate-900 text-base leading-tight">{selectedIndustry.module}</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">
+                <p className="text-xs text-slate-600 mt-0.5 font-medium">
                   {selectedIndustry.moduleId === 'budget-mo' ? (
-                    <>
-                      <span className="line-through mr-1">₱100</span>
-                      <span className="text-primary font-bold">₱50/buwan</span>
-                    </>
+                    <span>Promo <strong className="text-primary">₱50/mo</strong> (regular ₱100/mo) bawat module</span>
                   ) : (
-                    <span className="font-bold">₱99/buwan</span>
+                    <span>Promo <strong className="text-primary">₱99/mo</strong> (regular ₱199/mo) bawat module</span>
                   )}
-                  {' '}· bawat module
                 </p>
               </div>
               <div className="flex flex-col gap-2 flex-shrink-0">
                 <button
                   onClick={() => openSheet(selectedIndustry.moduleId)}
-                  className="h-9 px-4 rounded-xl font-bold text-[11px] text-white flex items-center justify-center gap-1 active:scale-95 transition-transform"
+                  className="h-9 px-4 rounded-xl font-bold text-xs text-white flex items-center justify-center gap-1 active:scale-95 transition-transform"
                   style={{ backgroundColor: selectedIndustry.color }}
                 >
-                  Register
+                  Mag-register
                   <ChevronRight className="h-3 w-3" />
                 </button>
                 <a

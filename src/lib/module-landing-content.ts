@@ -8,9 +8,9 @@ export interface ModuleLandingCopy {
 
 export const MODULE_LANDING_CONTENT: Record<string, ModuleLandingCopy> = {
   'benta-snap': {
-    headline: 'Mag-checkout sa loob ng 5 segundo flat.',
-    highlightWord: '5 segundo flat',
-    subtitle: 'Bawat pisong nabenta, automatic na bawas sa bodega. Walang kulang sa drawer, walang nawawalang paninda.',
+    headline: 'Mag-checkout sa mabilis na flow.',
+    highlightWord: 'mabilis na flow',
+    subtitle: 'Bawat nabentang paninda ay naitatala sa system. Maayos ang drawer at organisado ang paninda.',
     tagline: 'Mabilis na POS at auto-inventory para sa sari-sari store at retail',
     description: 'Patakbuhin ang iyong sari-sari store o retail shop nang walang stress. 1-tap checkout, awtomatikong bawas sa bodega, at strict shift logging para iwas-kulang sa cashier.',
   },
@@ -19,18 +19,18 @@ export const MODULE_LANDING_CONTENT: Record<string, ModuleLandingCopy> = {
     highlightWord: 'mauunang masira',
     subtitle: 'Huwag hayaang maging tapon ang kita mo. I-track ang expiration dates at batches para maibenta muna ang sariwang supply.',
     tagline: 'Smart inventory at batch tracking para sa sariwang paninda',
-    description: 'Bawat nabubulok na gulay o prutas ay perang nawawala. Bina-batch ng Fresh Tally ang iyong paninda ayon sa expiration date para maibenta muna ang dapat mauna.',
+    description: 'Bawat nabubulok na gulay o prutas ay puhunan na maaring maaksaya. Bina-batch ng Fresh Tally ang iyong paninda ayon sa expiration date para maibenta muna ang dapat mauna.',
   },
   'build-stack': {
-    headline: 'Walang kontraktor o mamimili na makakalusot sa utang.',
-    highlightWord: 'makakalusot sa utang',
+    headline: 'Maayos na talaan para sa bawat kontraktor o mamimili sa utang.',
+    highlightWord: 'talaan para sa bawat kontraktor',
     subtitle: 'Hardware store man o construction supply — bawat utang, discount, at sako ng semento ay may malinaw na talaan.',
     tagline: 'Hardware at construction supply management na may Utang Ledger',
     description: 'Mabilis at ligtas na pamamahala para sa hardware store. Kontrolado ang bulk discounts, credit lines ng kontraktor, at stock ng semento, yero, at pako.',
   },
   'bite-snap': {
-    headline: 'Mula order hanggang kusina — walang nawawalang ticket.',
-    highlightWord: 'walang nawawalang ticket',
+    headline: 'Mula order hanggang kusina — maayos na pag-lista ng ticket.',
+    highlightWord: 'maayos na pag-lista ng ticket',
     subtitle: 'Diretso sa lutuan ang order ng customer. Mabilis ang ikot ng mesa, tumpak ang bayad sa cashier, at maayos ang kainan.',
     tagline: 'Mabilis na order-to-kitchen flow para sa karinderya at kainan',
     description: 'Mula sa pag-upo ng customer hanggang sa pagbabayad, mabilis ang biyahe ng order. Diretso sa kusina ang tickets at tumpak ang kwenta sa cashier.',
@@ -50,18 +50,18 @@ export const MODULE_LANDING_CONTENT: Record<string, ModuleLandingCopy> = {
     description: 'Ang all-in-one command center para sa events: i-track ang vendor payouts, client downpayments, guest RSVPs, at kontrata nang may kumpletong resibo.',
   },
   'spin-snap': {
-    headline: 'Walang nawawalang labada, walang nakakalimutang singil.',
-    highlightWord: 'Walang nawawalang labada',
+    headline: 'Maayos na talaan ng labada, walang nakakalimutang singil.',
+    highlightWord: 'Maayos na talaan ng labada',
     subtitle: 'Mula sa pagtanggap ng damit, paglabak, hanggang sa pagtupi at pickup — malinaw ang status at bayad ng bawat kilo.',
     tagline: 'Laundry job tracking mula drop-off hanggang pickup',
-    description: 'Huwag nang magkamali sa labada ng customer. Bina-tsek ng Spin Snap ang bawat karga mula Received hanggang Ready. Siguradong bayad bago i-release.',
+    description: 'Huwag nang magkamali sa labada ng customer. Bina-tsek ng Spin Snap ang bawat karga mula Received hanggang Ready. Maayos na na-i-record ang bayad bago i-release.',
   },
   'hydro-sync': {
     headline: 'Bawat galong lumabas ng istasyon, may katapat na bayad.',
     highlightWord: 'may katapat na bayad',
-    subtitle: 'Walk-in refill man o delivery sa kapitbahay — i-track ang bawat galon at koleksyon nang walang nawawalang pera.',
+    subtitle: 'Walk-in refill man o delivery sa kapitbahay — i-track ang bawat galon at koleksyon nang may maayos na talaan.',
     tagline: 'Water refilling station order at delivery tracker',
-    description: 'Sa Hydro Sync, madaling i-track ang walk-in refill at neighborhood deliveries. Siguradong bawat galong lumabas ay may katapat na benta.',
+    description: 'Sa Hydro Sync, madaling i-track ang walk-in refill at neighborhood deliveries. Laging may tala ang bawat galong lumabas.',
   },
   'auto-boss': {
     headline: 'Mula diagnose hanggang release — malinaw ang buong repair.',
@@ -87,7 +87,7 @@ export const MODULE_LANDING_CONTENT: Record<string, ModuleLandingCopy> = {
   'rep-sync': {
     headline: 'Pumasok, nag-buhat, nagbayad — ganun kasimple.',
     highlightWord: 'ganun kasimple',
-    subtitle: 'Daily workout rate man o personal training — tracked ang bawat session sa desk nang walang kalat at walang nawawalang bayad.',
+    subtitle: 'Daily workout rate man o personal training — tracked ang bawat session sa desk nang walang kalat at may maayos na resibo.',
     tagline: 'Gym session tracking at daily rate payment system',
     description: 'Patakbuhin ang iyong fitness center nang walang kaguluhan. I-track ang walk-in daily workouts at training sessions nang mabilis at maayos.',
   },
@@ -96,7 +96,7 @@ export const MODULE_LANDING_CONTENT: Record<string, ModuleLandingCopy> = {
     highlightWord: 'may malinaw na tala',
     subtitle: 'TV, ref, cellphone, o handyman service — universal na job order system para sa maayos na repair at tapat na singilan.',
     tagline: 'General repair, handyman, at electronics shop manager',
-    description: 'Nag-aayos ka man ng gamit sa bahay o electronics, maayos ang iyong talaan sa Service Master. Alamin kung ano ang dapat ayusin at siguradong bayad ang serbisyo.',
+    description: 'Nag-aayos ka man ng gamit sa bahay o electronics, maayos ang iyong talaan sa Service Master. Alamin kung ano ang dapat ayusin at i-record ang bawat serbisyo.',
   },
   'biyahe-sync': {
     headline: 'Alam mo kung nasaan ang truck at kung magkano ang gastos.',
@@ -106,8 +106,8 @@ export const MODULE_LANDING_CONTENT: Record<string, ModuleLandingCopy> = {
     description: 'Magkaroon ng buong linaw sa iyong negosyo sa trucking at hakot. I-track ang biyahe, i-record ang singil sa client, at agad na i-bawas ang krudo at toll.',
   },
   'rental': {
-    headline: 'Walang double-booking, walang nawawalang gamit.',
-    highlightWord: 'Walang double-booking',
+    headline: 'Organisadong booking, maayos na talaan ng kagamitan.',
+    highlightWord: 'Organisadong booking',
     subtitle: 'Kagamitan, sasakyan, o gown man ang pinaparentahan — malinaw ang calendar, stocks, at deposit return sa bawat booking.',
     tagline: 'Equipment, vehicle, at gown rental inventory manager',
     description: 'Bina-tsek ng Rental Master ang lahat ng active bookings, pinamamahalaan ang mga gamit, at pinapabilis ang pag-isoli at pagbabayad.',
@@ -143,18 +143,8 @@ export const MODULE_LANDING_CONTENT: Record<string, ModuleLandingCopy> = {
   'budget-mo': {
     headline: 'Huwag nang manghula kung saan napunta ang sweldo mo.',
     highlightWord: 'sweldo mo',
-    subtitle: 'I-track ang daily expenses, ipon goals, at cash flow sa iisang simpleng app. Walang kumplikadong spreadsheet — 1 minuto lang!',
+    subtitle: 'I-track ang daily expenses, ipon goals, at cash flow sa iisang simpleng app. Walang kumplikadong spreadsheet — madaling i-onboard!',
     tagline: 'Your personal budgeting assistant.',
-    description: 'Ang personal budgeting app na iwas-petsa-de-peligro at iwas-ipon-loss. I-budget ang daily gastos, i-track ang utang at pa-utang, at mag-ipon nang walang stress.',
+    description: 'Ang personal budgeting app na iwas-petsa-de-peligro. I-budget ang daily gastos, i-track ang utang at pa-utang, at mag-ipon nang walang stress.',
   },
 };
-
-export function getModuleLandingCopy(moduleId: string): ModuleLandingCopy {
-  return MODULE_LANDING_CONTENT[moduleId] || {
-    headline: `Palaguin ang negosyo gamit ang ${moduleId}`,
-    highlightWord: moduleId,
-    subtitle: 'Ang simpleng software na tutulong sa araw-araw na benta, paninda, at kita ng iyong negosyo.',
-    tagline: 'Katuwang mo sa araw-araw na negosyo',
-    description: 'Patakbuhin ang iyong negosyo nang may buong linaw at proteksyon sa kita gamit ang Katuwang Solutions.',
-  };
-}

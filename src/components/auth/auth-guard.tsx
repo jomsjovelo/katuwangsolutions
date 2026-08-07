@@ -12,6 +12,7 @@ import { BrandLogo } from '@/components/ui/brand-logo';
 import { useFirestore } from '@/firebase/provider';
 import Image from 'next/image';
 import { isValidActiveModuleId } from '@/lib/app-data';
+import { useStaffSession } from '@/store/use-staff-session';
 
 function isPublicPathname(pathname: string): boolean {
   if (!pathname || pathname === '/' || pathname === '/admin' || pathname === '/login' || pathname === '/auth') return true;
@@ -119,6 +120,27 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   // 1b. Routing effect — runs on pathname changes (kept separate to avoid re-triggering admin check)
   useEffect(() => {
+    // Check if there is an active PIN staff session first
+    const { staffSession, isSessionValid } = useStaffSession.getState();
+    if (isSessionValid() && staffSession) {
+      const activeT = useTenantStore.getState().activeTenant;
+      if (!activeT || activeT.id !== staffSession.tenantId) {
+        useTenantStore.getState().setActiveTenant({
+          id: staffSession.tenantId,
+          name: staffSession.tenantName,
+          moduleType: staffSession.moduleType,
+          ownerUid: 'staff_pin',
+          staffUids: [staffSession.staffAccountId],
+          pricingTier: 'standard_100',
+          subscriptionStatus: 'active',
+          createdAt: new Date().toISOString()
+        });
+      }
+      setChecking(false);
+      useTenantStore.getState().setLoading(false);
+      return;
+    }
+
     if (authLoading || isAdmin === null) return;
     if (!user) {
       const isPublicPath = isPublicPathname(pathname);

@@ -8,7 +8,10 @@ import { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Lahat ng Modules | Katuwang Solutions',
-  description: 'Tingnan ang lahat ng 18 business management modules ng Katuwang Solutions.',
+  description: 'Tingnan ang 20 modules (19 business modules + Budget Mo) ng Katuwang Solutions.',
+  alternates: {
+    canonical: 'https://katuwangsolutions.com/modules',
+  },
 };
 
 export default function ModulesPage() {
@@ -32,7 +35,7 @@ export default function ModulesPage() {
             Lahat ng Modules
           </h1>
           <p className="text-lg text-slate-500 font-medium leading-relaxed">
-            Pumili mula sa {activeModulesCount} iba't-ibang Katuwang modules na eksaktong naka-disenyo para sa uri ng iyong negosyo. {standardModulesCount} standard modules (₱99/mo) at Budget Mo (₱50/mo).
+            Pumili mula sa {activeModulesCount} iba't-ibang Katuwang modules na eksaktong naka-disenyo para sa uri ng iyong negosyo. 19 business modules (Promo ₱99/mo, regular ₱199/mo) at Budget Mo (Promo ₱50/mo, regular ₱100/mo) bawat module.
           </p>
         </div>
 
@@ -72,12 +75,15 @@ export default function ModulesPage() {
                     </div>
                     
                     <div className="mt-auto pt-6">
-                      <div className="flex items-center gap-2 mb-4">
-                        <span className="text-xl font-black text-slate-900">{formatPeso(pricing.promotionalMonthlyPrice)}</span>
-                        <span className="text-xs text-slate-500 font-medium">/buwan</span>
-                        {pricing.pricingTier === 'promo_50' && (
-                          <span className="text-[10px] text-white bg-primary px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ml-auto">Promo</span>
-                        )}
+                      <div className="flex items-baseline justify-between gap-2 mb-4">
+                        <div>
+                          <span className="text-xl font-black text-slate-900">Promo {formatPeso(pricing.promotionalMonthlyPrice)}</span>
+                          <span className="text-xs text-slate-500 font-medium">/buwan</span>
+                          <span className="text-[10px] text-slate-500 font-medium block">
+                            (regular {formatPeso(pricing.regularMonthlyPrice)}/mo) bawat module
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-amber-900 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full font-extrabold uppercase tracking-wider shrink-0">Promo Rate</span>
                       </div>
                       <div className="flex flex-wrap gap-2 mb-6">
                         {app.features.slice(0, 2).map((feature, idx) => (

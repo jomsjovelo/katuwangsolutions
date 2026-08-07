@@ -1,38 +1,38 @@
 import React from 'react';
-import { ShieldCheck, Smartphone, Zap, WifiOff, RefreshCw, CloudUpload } from 'lucide-react';
+import { ShieldCheck, Smartphone, Zap, LayoutGrid, PhilippinePeso, Banknote } from 'lucide-react';
 
 const FEATURES = [
   {
-    icon: WifiOff,
+    icon: LayoutGrid,
     iconBg: 'bg-emerald-100',
     iconColor: 'text-emerald-600',
-    title: 'Works Offline',
-    desc: 'Gumagana kahit walang internet. Ituloy ang benta kahit naka-off ang data mo.',
+    title: '20 Specialized Modules',
+    desc: '19 business modules plus Budget Mo personal helper na mapagpipilian para sa uri ng iyong negosyo.',
     highlight: false,
   },
   {
-    icon: RefreshCw,
+    icon: PhilippinePeso,
     iconBg: 'bg-sky-100',
     iconColor: 'text-sky-600',
-    title: 'Auto Sync',
-    desc: 'Automatically nag-a-update ang lahat ng records kapag bumalik na ang internet.',
+    title: 'Module-Based Subscription',
+    desc: 'Promo ₱99/mo (regular ₱199/mo) bawat business module, at Promo ₱50/mo (regular ₱100/mo) para sa Budget Mo.',
     highlight: true,
-    badge: 'Pinaka-Popular',
+    badge: 'Mabilis na Flow',
+  },
+  {
+    icon: Banknote,
+    iconBg: 'bg-orange-100',
+    iconColor: 'text-orange-600',
+    title: 'Manual GCash & Maya Payment',
+    desc: 'Magbayad sa pamamagitan ng manual GCash o Maya transfer na ika-verify bago i-activate ang module.',
+    highlight: false,
   },
   {
     icon: Smartphone,
-    iconBg: 'bg-orange-100',
-    iconColor: 'text-orange-600',
-    title: 'Simple to Use',
-    desc: 'Walang komplikadong setup. Kahit sino, kahit anong phone, kaya gamitin.',
-    highlight: false,
-  },
-  {
-    icon: CloudUpload,
     iconBg: 'bg-violet-100',
     iconColor: 'text-violet-600',
-    title: 'Secure Cloud Backup',
-    desc: 'Kahit masira o mawala ang phone, ligtas ang lahat ng record mo sa cloud.',
+    title: 'Mobile-First Interface',
+    desc: 'Simple at malinaw na interface na madaling gamitin sa cellphone o tablet para sa araw-araw na operasyon.',
     highlight: false,
   },
   {
@@ -47,8 +47,8 @@ const FEATURES = [
     icon: Zap,
     iconBg: 'bg-yellow-100',
     iconColor: 'text-yellow-600',
-    title: 'Walang Nawawalang Benta',
-    desc: 'Real-time tracking ng lahat ng transaksyon. Walang nawawalang pera o stock.',
+    title: 'Organisadong Tracking',
+    desc: 'Module-specific workflows para sa mas maayos na pag-record ng benta, utang, at operational activity.',
     highlight: false,
   },
 ];
@@ -58,38 +58,42 @@ export function Features() {
     <section id="features" className="py-14 md:py-24 px-5 bg-slate-50 border-t border-slate-100">
       <div className="max-w-6xl mx-auto space-y-10">
         <div className="text-center space-y-3 max-w-2xl mx-auto">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Bakit Katuwang?</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Mga Tampok na Kakayahan</p>
           <h2 className="text-2xl sm:text-3xl md:text-5xl font-black text-slate-900 tracking-tight">
-            Ginawa namin ito<br />
-            <span className="text-primary">para sa bawat Pilipino.</span>
+            Bakit <span className="text-primary">Katuwang Solutions</span>?
           </h2>
           <p className="text-slate-500 text-sm md:text-lg">
-            Simpleng gamitin, walang paligoy-ligoy. Para sa tunay na Pilipinong negosyante.
+            Eksaktong mga tool para sa mas organisadong pamamahala ng negosyo.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
-          {FEATURES.map(({ icon: Icon, iconBg, iconColor, title, desc, highlight, badge }) => (
-            <div
-              key={title}
-              className={`p-6 rounded-2xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl relative overflow-hidden ${
-                highlight
-                  ? 'bg-primary/5 border-primary/20 shadow-md'
-                  : 'bg-white border-slate-100 shadow-sm'
-              }`}
-            >
-              {badge && (
-                <div className="absolute top-0 right-0 px-3 py-1 bg-primary text-white text-[9px] font-black uppercase tracking-widest rounded-bl-xl">
-                  {badge}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {FEATURES.map((feat, idx) => {
+            const Icon = feat.icon;
+            return (
+              <div
+                key={idx}
+                className={`p-6 rounded-3xl border transition-all duration-300 relative flex flex-col justify-between ${
+                  feat.highlight
+                    ? 'bg-white border-primary/30 shadow-xl ring-2 ring-primary/20'
+                    : 'bg-white border-slate-200/80 shadow-sm hover:shadow-md'
+                }`}
+              >
+                {feat.badge && (
+                  <span className="absolute -top-3 right-6 bg-primary text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-sm">
+                    {feat.badge}
+                  </span>
+                )}
+                <div className="space-y-4">
+                  <div className={`h-12 w-12 rounded-2xl ${feat.iconBg} ${feat.iconColor} flex items-center justify-center`}>
+                    <Icon className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900">{feat.title}</h3>
+                  <p className="text-slate-500 text-xs md:text-sm leading-relaxed">{feat.desc}</p>
                 </div>
-              )}
-              <div className={`h-12 w-12 ${iconBg} rounded-2xl flex items-center justify-center mb-4`}>
-                <Icon className={`h-6 w-6 ${iconColor}`} strokeWidth={2} />
               </div>
-              <h3 className="text-base font-black text-slate-900 mb-2">{title}</h3>
-              <p className="text-slate-500 text-sm leading-relaxed">{desc}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

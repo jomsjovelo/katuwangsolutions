@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
+import { useUser } from '@/firebase/auth/use-user';
 import { useInventory } from '@/hooks/use-inventory';
 import { useCart } from '@/hooks/use-cart';
 import { useProjects } from '@/hooks/use-projects';
@@ -144,8 +145,19 @@ const CartItemCard = React.memo(({ item, theme, products, removeFromCart, addToC
   );
 });
 
+import { useStaffSession } from '@/store/use-staff-session';
+
 function BuildStackDashboardContent() {
   const { currentTenant } = useTenant();
+  const { user } = useUser();
+  const staffSession = useStaffSession(state => state.staffSession);
+  const isStaffValid = useStaffSession(state => state.isSessionValid());
+  const currentStaff = isStaffValid ? staffSession : null;
+
+  const effectiveUid = user?.uid || (currentStaff ? `staff_${currentStaff.staffAccountId}` : 'staff');
+  const effectiveName = user?.displayName || user?.email || currentStaff?.username || 'Cashier';
+  const hasAuthUserOrStaff = !!(user || currentStaff);
+
   const { products, loading: inventoryLoading } = useInventory();
   const { activeProjects, loading: projectsLoading } = useProjects();
   const { cart, addToCart, removeFromCart, clearCart, totalCentavos, totalPesos, cartItemCount } = useCart();

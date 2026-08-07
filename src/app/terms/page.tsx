@@ -7,6 +7,9 @@ import { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Terms & Conditions | Katuwang Solutions',
   description: 'Terms of Service and Privacy Policy for Katuwang Solutions.',
+  alternates: {
+    canonical: 'https://katuwangsolutions.com/terms',
+  },
 };
 
 export default function TermsPage() {
@@ -169,7 +172,7 @@ export default function TermsPage() {
           <section className="space-y-4">
             <h2 className="text-xl font-bold text-slate-900">16. Service Availability & Maintenance</h2>
             <p className="text-slate-600 leading-relaxed">
-              We strive to maintain a 99%+ uptime for our services, leveraging Firebase/Google infrastructure SLAs. However, we do not guarantee uninterrupted access and may occasionally schedule maintenance windows. We are not liable for any business losses, loss of revenue, or other damages that may occur during any periods of downtime or service interruption.
+              We strive to maintain high service availability for our software, leveraging standard Firebase/Google cloud infrastructure. However, we do not guarantee uninterrupted access and may occasionally schedule maintenance windows. We are not liable for any business losses, loss of revenue, or other damages that may occur during any periods of downtime or service interruption.
             </p>
           </section>
 

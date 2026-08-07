@@ -3,8 +3,25 @@
 import React from 'react';
 
 export function MessengerWidget() {
+  const [isOverlayActive, setIsOverlayActive] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkOverlay = () => {
+      const isCustomOverlay = document.body.getAttribute('data-overlay-open') === 'true';
+      const isRadixDialogOpen = document.querySelector('[role="dialog"]') !== null;
+      setIsOverlayActive(isCustomOverlay || isRadixDialogOpen);
+    };
+    checkOverlay();
+    const observer = new MutationObserver(checkOverlay);
+    observer.observe(document.body, { attributes: true, childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+
+  if (isOverlayActive) return null;
+
   return (
     <a
+      data-testid="floating-messenger-widget"
       href="https://m.me/katuwangsolutions"
       target="_blank"
       rel="noopener noreferrer"

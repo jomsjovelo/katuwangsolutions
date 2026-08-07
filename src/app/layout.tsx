@@ -14,9 +14,6 @@ export const metadata: Metadata = {
   title: 'Katuwang Solutions | Ang Katuwang mo sa Negosyo',
   description: 'Sales, inventory, at utang tracking para sa mga tindahan, palengke, at services. Mura. Mabilis. Maaasahan.',
   manifest: '/manifest.json',
-  alternates: {
-    canonical: '/',
-  },
   openGraph: {
     title: 'Katuwang Solutions | Ang Katuwang mo sa Negosyo',
     description: 'Sales, inventory, at utang tracking para sa mga tindahan, palengke, at services. Mura. Mabilis. Maaasahan.',
@@ -60,8 +57,6 @@ export const viewport: Viewport = {
   themeColor: '#06B6D4',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: 'cover',
 };
 

@@ -11,6 +11,7 @@ import { useFirestoreDocument } from '@/hooks/use-firestore-subscription';
 import { getModuleTheme } from '@/lib/theme-utils';
 import { ShiftGate } from './shift-gate';
 import { PinApprovalModal } from '@/components/common/pin-approval-modal';
+import { useStaffSession } from '@/store/use-staff-session';
 
 // Phase 2: Lazy Load heavy module components to drastically shrink initial JS bundle
 const BentaDashboard = dynamic(() => import('@/components/dashboard/retail/benta-dashboard').then(m => m.BentaDashboard));
@@ -92,6 +93,8 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
   const { loading: tenantsLoading } = useUserTenants();
   const [mounted, setMounted] = useState(false);
   const { isOnline, pendingCount, syncMessage, isSyncing } = useSyncStatus(currentTenant?.id);
+  const staffSession = useStaffSession(state => state.staffSession);
+  const isStaffValid = useStaffSession(state => state.isSessionValid());
 
   useEffect(() => {
     setMounted(true);
@@ -402,7 +405,7 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
             </div>
 
             <div className={activeTab === 'ulat' ? 'block' : 'hidden'}>
-              {profile?.role === 'staff' ? (
+              {profile?.role === 'staff' || isStaffValid ? (
                 <div className="flex-1 flex items-center justify-center p-6 bg-slate-50 min-h-screen">
                   <div className="text-center space-y-4 max-w-xs bg-white rounded-3xl p-6 border border-slate-200 shadow-sm animate-in fade-in">
                     <div className="h-12 w-12 rounded-full bg-amber-50 mx-auto flex items-center justify-center">

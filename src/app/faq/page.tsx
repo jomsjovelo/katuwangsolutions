@@ -7,24 +7,27 @@ import { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'FAQ | Katuwang Solutions',
   description: 'Frequently Asked Questions tungkol sa Katuwang Solutions.',
+  alternates: {
+    canonical: 'https://katuwangsolutions.com/faq',
+  },
 };
 
 const faqs = [
   {
     q: "Magkano ang Katuwang Solutions?",
-    a: "Nagsisimula sa ₱50/buwan (Budget Mo) hanggang ₱99/buwan para sa iba pang standard modules. At ang maganda pa, locked-in na ang presyong ito habang active ang iyong subscription!"
+    a: "Nagsisimula sa Promo ₱50/buwan (Budget Mo, regular ₱100/mo) at Promo ₱99/buwan (regular ₱199/mo) bawat module para sa iba pang standard business modules."
   },
   {
     q: "Paano mag-bayad?",
-    a: "Tumatanggap kami ng payment via GCash o Maya gamit ang aming QR code. Walang auto-debit, kaya safe ang inyong bank accounts. Ikaw mismo ang magse-send ng bayad buwan-buwan."
+    a: "Tumatanggap kami ng payment via GCash o Maya gamit ang aming QR code. Walang auto-debit. Ikaw mismo ang magse-send ng bayad buwan-buwan at ima-verify ng aming Operations team bago ma-activate."
   },
   {
-    q: "Kailangan ba palaging may internet?",
-    a: "May offline mode ang aming POS/Benta module! Pwede kang mag-record ng benta kahit mawalan ng internet. Mag-o-auto sync ito sa aming cloud servers kapag bumalik na ang signal mo."
+    q: "Kailangan ba ng internet?",
+    a: "Naka-design ang Katuwang Solutions para sa web access at mobile operation. Mag-login lang sa iyong rehistradong account gamit ang smartphone o computer para sa pag-record ng iyong negosyo."
   },
   {
     q: "Ilang devices ang pwedeng gumamit?",
-    a: "Unlimited! Pwede kang mag-login sa cellphone, tablet, at laptop nang sabay-sabay gamit ang iisang account nang walang extra bayad."
+    a: "Pwede kang mag-login sa cellphone, tablet, o laptop gamit ang inyong rehistradong account."
   },
   {
     q: "Paano mag-add ng tindera/staff?",
@@ -40,15 +43,15 @@ const faqs = [
   },
   {
     q: "May refund ba kung hindi ko nagustuhan?",
-    a: "Wala pong refund. Ngunit, mayroon kaming ibinibigay na libreng trial period para masubukan mo muna nang buo ang system bago ka mag-desisyon na mag-subscribe."
+    a: "Wala pong refund dahil sa digital subscription nature ng software. Ikaw mismo ang magsa-submit ng bayad buwan-buwan nang walang auto-debit."
   },
   {
     q: "Gaano ka-ligtas ang aking data?",
-    a: "Ang iyong data ay naka-imbak sa Google Firebase servers. Gumagamit kami ng world-class security at encryption para matiyak na ikaw lang ang may access sa iyong negosyo."
+    a: "Ang iyong data ay naka-imbak sa Google Firebase infrastructure gamit ang standard security rules para sa ligtas na data access."
   },
   {
     q: "Paano kung masira o mawala ang cellphone ko?",
-    a: "Huwag mag-alala! Dahil cloud-based ang Katuwang, mag-log in ka lang gamit ang iyong email at password sa bagong cellphone, at makikita mo ulit ang lahat ng data mo."
+    a: "Mag-log in ka lang gamit ang iyong email at password sa bagong device para ma-access muli ang inyong rehistradong account."
   }
 ];
 

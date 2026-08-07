@@ -7,6 +7,9 @@ import { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Privacy Policy | Katuwang Solutions',
   description: 'How we handle, protect, and process your data at Katuwang Solutions.',
+  alternates: {
+    canonical: 'https://katuwangsolutions.com/privacy',
+  },
 };
 
 export default function PrivacyPage() {

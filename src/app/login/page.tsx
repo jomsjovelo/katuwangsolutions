@@ -5,10 +5,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { FirebaseError } from 'firebase/app';
-import { Loader2, LogIn, ArrowLeft } from 'lucide-react';
+import { Loader2, LogIn, ArrowLeft, UserCheck } from 'lucide-react';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { StaffLoginModal } from '@/components/auth/staff-login-modal';
 
 import {
   Form,
@@ -37,6 +38,7 @@ function LoginContent() {
   const existingCode = searchParams?.get('ref') || searchParams?.get('code') || '';
   
   const [authError, setAuthError] = useState<string | null>(null);
+  const [showStaffModal, setShowStaffModal] = useState(false);
   
   // Forgot Password States
   const [view, setView] = useState<'login' | 'forgot'>('login');
@@ -280,8 +282,17 @@ function LoginContent() {
               </form>
             </Form>
 
-            <div className="mt-8 pt-8 border-t border-slate-100 flex flex-col items-center gap-3">
-              <p className="text-xs font-medium text-slate-500">
+            <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowStaffModal(true)}
+                className="w-full h-12 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center gap-2 border border-blue-200 transition-colors"
+              >
+                <UserCheck className="w-4 h-4" />
+                Staff / Cashier Login (PIN)
+              </button>
+
+              <p className="text-xs font-medium text-slate-500 pt-2">
                 Wala pang account? 
               </p>
               <Button 
@@ -297,6 +308,12 @@ function LoginContent() {
           </div>
         )}
       </div>
+
+      <StaffLoginModal 
+        isOpen={showStaffModal} 
+        onClose={() => setShowStaffModal(false)} 
+        initialBusinessCode={existingCode}
+      />
     </div>
   );
 }

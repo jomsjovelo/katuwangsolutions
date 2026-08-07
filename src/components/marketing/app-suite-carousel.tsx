@@ -74,7 +74,7 @@ export function AppSuiteCarousel() {
             <span className="text-primary">may module para sa iyo.</span>
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-2">
-            19 na business modules at 1 personal budgeting app na handa mong gamitin · ₱50–₱99/buwan
+            19 business modules at 1 personal budgeting helper · Promo ₱50–₱99/mo bawat module (regular ₱100–₱199/mo)
           </p>
         </div>
 
@@ -118,24 +118,12 @@ export function AppSuiteCarousel() {
               sizes="(max-width: 768px) 100vw, 800px"
               priority
             />
-            {/* Works Offline Badges */}
-            <div className="absolute bottom-3 left-3 flex gap-1.5">
-              <div className="flex items-center gap-1 bg-slate-900/80 backdrop-blur-md rounded-full px-2.5 py-1">
-                <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-[9px] font-bold text-emerald-300 uppercase tracking-wide">Works Offline</span>
-              </div>
-              <div className="flex items-center gap-1 bg-slate-900/80 backdrop-blur-md rounded-full px-2.5 py-1">
-                <div className="h-1.5 w-1.5 rounded-full bg-sky-400 animate-pulse" />
-                <span className="text-[9px] font-bold text-sky-300 uppercase tracking-wide">Auto Sync</span>
-              </div>
-            </div>
-
             {/* Price Badge */}
             <div
-              className="absolute top-3 right-3 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest text-white shadow-md"
+              className="absolute top-3 right-3 px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider text-white shadow-md"
               style={{ backgroundColor: activeAppColor }}
             >
-              {activeApp.id === 'budget-mo' ? '₱50 / mo Promo' : '₱99 / mo'}
+              Promo {formatPeso(pricing.promotionalMonthlyPrice)}/mo (regular {formatPeso(pricing.regularMonthlyPrice)}/mo) bawat module
             </div>
           </div>
 
@@ -151,7 +139,7 @@ export function AppSuiteCarousel() {
               <div>
                 <h3 className="text-lg font-black text-slate-900 leading-tight">{activeApp.name}</h3>
                 <p className="text-xs font-bold text-slate-500">
-                  {formatPeso(pricing.promotionalMonthlyPrice)} / buwan · bawat module
+                  Promo {formatPeso(pricing.promotionalMonthlyPrice)}/mo bawat module (regular {formatPeso(pricing.regularMonthlyPrice)}/mo)
                 </p>
               </div>
             </div>
@@ -177,7 +165,7 @@ export function AppSuiteCarousel() {
                 className="flex-1 h-12 rounded-2xl font-bold text-xs text-white active:scale-95 transition-transform shadow-md flex items-center justify-center gap-1.5"
                 style={{ backgroundColor: activeAppColor }}
               >
-                <span>Register Now</span>
+                <span>Mag-register</span>
                 <ArrowRight className="h-4 w-4" />
               </button>
               <Link href={`/${activeApp.id}`} className="flex-1">
@@ -216,23 +204,28 @@ export function AppSuiteCarousel() {
                 >
                   <div className="flex items-start justify-between w-full">
                     <div
-                      className="h-8 w-8 rounded-xl flex items-center justify-center"
+                      className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0"
                       style={{ backgroundColor: isSelected ? 'rgba(255,255,255,0.15)' : `${color}18` }}
                     >
                       <app.icon className="h-4 w-4" style={{ color: isSelected ? '#ffffff' : color }} />
                     </div>
-                    <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md ${
-                      isSelected ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-                    }`}>
-                      {formatPeso(appPrice.promotionalMonthlyPrice)}
-                    </span>
+                    <div className="text-right">
+                      <span className={`text-xs font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md block ${
+                        isSelected ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                      }`}>
+                        Promo {formatPeso(appPrice.promotionalMonthlyPrice)}/mo
+                      </span>
+                      <span className={`text-xs font-medium block ${isSelected ? 'text-slate-200' : 'text-slate-500'}`}>
+                        (reg {formatPeso(appPrice.regularMonthlyPrice)}/mo) bawat module
+                      </span>
+                    </div>
                   </div>
 
                   <div>
                     <p className={`font-bold text-xs truncate ${isSelected ? 'text-white' : 'text-slate-900'}`}>
                       {app.name}
                     </p>
-                    <p className={`text-[10px] truncate ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>
+                    <p className={`text-xs truncate ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>
                       {app.tagline}
                     </p>
                   </div>
