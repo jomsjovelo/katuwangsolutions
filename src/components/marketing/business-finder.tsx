@@ -6,7 +6,6 @@ import {
   Scissors, Truck, Hammer, Droplets, ChevronRight, Bed, Banknote
 } from 'lucide-react';
 import { RegisterSheet, useRegisterSheet } from '@/components/marketing/register-sheet';
-import { getModulePricing, formatPeso } from '@/lib/pricing';
 
 const INDUSTRIES = [
   { id: 'retail', label: 'Retail / Sari-Sari', icon: ShoppingCart, module: 'Benta Snap', moduleId: 'benta-snap', color: '#06B6D4' },
@@ -39,7 +38,7 @@ export function BusinessFinder() {
               Anong negosyo<br />
               <span className="text-primary">ang meron ka?</span>
             </h2>
-            <p className="text-slate-500 text-sm">I-tap ang uri ng iyong negosyo at irerekomenda namin ang pinaka-angkop na module para sa iyo.</p>
+            <p className="text-slate-500 text-sm">I-tap ang uri ng iyong negosyo at ipapakita namin ang module na nakatalaga sa napiling uri ng negosyo.</p>
           </div>
 
           {/* Industry grid */}

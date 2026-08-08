@@ -1,16 +1,15 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronRight, Banknote } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { RegisterSheet, useRegisterSheet } from '@/components/marketing/register-sheet';
-import { getModulePricing } from '@/lib/pricing';
 
 const PROBLEMS = [
   {
     id: 'kita',
     emoji: '📊',
     challenge: 'Hindi ko alam ang tunay kong kita',
-    solution: 'Ledger Flow awtomatikong nagtatala ng lahat ng pumasok at lumabas na pera.',
+    solution: 'Ledger Flow para sa pag-record at pag-review ng income at expense records.',
     module: 'Ledger Flow',
     moduleId: 'ledger-flow',
     color: '#6366F1',
@@ -19,7 +18,7 @@ const PROBLEMS = [
     id: 'utang',
     emoji: '📒',
     challenge: 'Nalilimutan ang utang ng suki',
-    solution: '5-6 Tracker at Benta Snap ay may built-in na Utang Tracker para sa bawat suki.',
+    solution: '5-6 Tracker para sa loan, balance, collection, at credit-limit records.',
     module: '5-6 Tracker',
     moduleId: '5-6-tracker',
     color: '#10B981',
@@ -28,7 +27,7 @@ const PROBLEMS = [
     id: 'stock',
     emoji: '📦',
     challenge: 'Laging out of stock ang mga produkto',
-    solution: 'Benta Snap at Fresh Tally awtomatikong nagbabawas ng stock sa bawat benta.',
+    solution: 'Benta Snap para sa sales recording, inventory monitoring, at customer credit tracking.',
     module: 'Benta Snap',
     moduleId: 'benta-snap',
     color: '#06B6D4',
@@ -37,7 +36,7 @@ const PROBLEMS = [
     id: 'inventory',
     emoji: '🏗️',
     challenge: 'Magulo ang inventory ng hardware',
-    solution: 'Build Stack ay espesyal na dinisenyo para sa hardware store at construction supply.',
+    solution: 'Build Stack para sa hardware sales, inventory, at customer credit records.',
     module: 'Build Stack',
     moduleId: 'build-stack',
     color: '#475569',
@@ -46,7 +45,7 @@ const PROBLEMS = [
     id: 'delivery',
     emoji: '🚛',
     challenge: 'Mahirap mag-monitor ng deliveries',
-    solution: 'Biyahe Sync ay nagtatala ng bawat biyahe, gastos, at kita ng iyong trucking.',
+    solution: 'Biyahe Sync para sa trips, customer charges, fuel, tolls, expenses, at income records.',
     module: 'Biyahe Sync',
     moduleId: 'biyahe-sync',
     color: '#3B82F6',
@@ -55,7 +54,7 @@ const PROBLEMS = [
     id: 'records',
     emoji: '🗂️',
     challenge: 'Hindi organize ang records ng negosyo',
-    solution: 'Ledger Flow ang central na sistema para sa lahat ng financial records ng negosyo mo.',
+    solution: 'Ledger Flow para sa pag-record at pag-review ng income at expense records.',
     module: 'Ledger Flow',
     moduleId: 'ledger-flow',
     color: '#6366F1',
@@ -64,7 +63,7 @@ const PROBLEMS = [
     id: 'hospitality',
     emoji: '🏨',
     challenge: 'Magulo ang monitoring ng available rooms at guest check-ins',
-    solution: 'Tsek-In ay nagbibigay ng visual na room status board at mabilis na check-out billing.',
+    solution: 'Tsek-In para sa room status, guest stays, at checkout billing workflow.',
     module: 'Tsek-In',
     moduleId: 'tsek-in',
     color: '#D97706',
@@ -73,7 +72,7 @@ const PROBLEMS = [
     id: 'budget',
     emoji: '💸',
     challenge: 'Saan napupunta ang pera at budget ko?',
-    solution: 'Ang Budget Mo ay tumutulong upang ma-monitor ang bawat sentimo at makapag-ipon.',
+    solution: 'Budget Mo para sa budgets, transactions, debts, at savings records.',
     module: 'Budget Mo',
     moduleId: 'budget-mo',
     color: '#8B5CF6',
@@ -98,7 +97,7 @@ export function ProblemFirst() {
               <span className="text-primary">challenge</span>
               <br />sa negosyo mo?
             </h2>
-            <p className="text-slate-500 text-sm">I-tap ang pinaka-malapit sa iyong sitwasyon at ipapakita namin ang solusyon.</p>
+            <p className="text-slate-500 text-sm">I-tap ang pinaka-malapit sa iyong sitwasyon at ipapakita namin ang module na nakatalaga sa napiling concern.</p>
           </div>
 
           {/* Problem cards */}
@@ -155,7 +154,7 @@ export function ProblemFirst() {
                   className="flex-1 h-12 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
                   style={{ backgroundColor: selectedProblem.color }}
                 >
-                  Subukan ang {selectedProblem.module}
+                  Mag-register para sa {selectedProblem.module}
                   <ChevronRight className="h-4 w-4" />
                 </button>
                 <a
@@ -168,9 +167,9 @@ export function ProblemFirst() {
               </div>
               <p className="text-xs text-slate-600 mt-1 text-center font-medium">
                 {selectedProblem.moduleId === 'budget-mo' ? (
-                  <span>Promo <strong className="text-primary">₱50/mo</strong> (regular ₱100/mo) bawat module · No auto-renew</span>
+                  <span>Promo <strong className="text-primary">₱50/mo</strong> (regular ₱100/mo) bawat module · Manual ang renewal; walang automatic debit sa kasalukuyang workflow.</span>
                 ) : (
-                  <span>Promo <strong className="text-primary">₱99/mo</strong> (regular ₱199/mo) bawat module · No auto-renew</span>
+                  <span>Promo <strong className="text-primary">₱99/mo</strong> (regular ₱199/mo) bawat module · Manual ang renewal; walang automatic debit sa kasalukuyang workflow.</span>
                 )}
               </p>
             </div>

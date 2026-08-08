@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Smartphone, Zap, LayoutGrid, PhilippinePeso, Banknote } from 'lucide-react';
+import { ShieldCheck, Smartphone, ClipboardList, LayoutGrid, PhilippinePeso, Banknote } from 'lucide-react';
 
 const FEATURES = [
   {
@@ -17,7 +17,6 @@ const FEATURES = [
     title: 'Module-Based Subscription',
     desc: 'Promo ₱99/mo (regular ₱199/mo) bawat business module, at Promo ₱50/mo (regular ₱100/mo) para sa Budget Mo.',
     highlight: true,
-    badge: 'Mabilis na Flow',
   },
   {
     icon: Banknote,
@@ -32,19 +31,19 @@ const FEATURES = [
     iconBg: 'bg-violet-100',
     iconColor: 'text-violet-600',
     title: 'Mobile-First Interface',
-    desc: 'Simple at malinaw na interface na madaling gamitin sa cellphone o tablet para sa araw-araw na operasyon.',
+    desc: 'Mobile-first interface para sa smartphone at tablet workflows.',
     highlight: false,
   },
   {
     icon: ShieldCheck,
     iconBg: 'bg-green-100',
     iconColor: 'text-green-600',
-    title: 'Built for Filipinos',
-    desc: 'Dinisenyo para sa negosyong Pinoy — madaling intindihin, naka-Taglish, at swak sa budget ng bawat Pilipino.',
+    title: 'Built for Filipino Entrepreneurs',
+    desc: 'Built for Filipino entrepreneurs.',
     highlight: false,
   },
   {
-    icon: Zap,
+    icon: ClipboardList,
     iconBg: 'bg-yellow-100',
     iconColor: 'text-yellow-600',
     title: 'Organisadong Tracking',
@@ -79,11 +78,6 @@ export function Features() {
                     : 'bg-white border-slate-200/80 shadow-sm hover:shadow-md'
                 }`}
               >
-                {feat.badge && (
-                  <span className="absolute -top-3 right-6 bg-primary text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-sm">
-                    {feat.badge}
-                  </span>
-                )}
                 <div className="space-y-4">
                   <div className={`h-12 w-12 rounded-2xl ${feat.iconBg} ${feat.iconColor} flex items-center justify-center`}>
                     <Icon className="h-6 w-6" />

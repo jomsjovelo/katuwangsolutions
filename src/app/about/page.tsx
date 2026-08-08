@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Facebook, MessageCircle, Mail, Building2, Calendar, Target, Globe } from 'lucide-react';
+import { ArrowLeft, Facebook, MessageCircle, Mail, Building2, Target, WalletCards, Layers3 } from 'lucide-react';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { activeModulesCount } from '@/lib/app-data';
 import { Metadata } from 'next';
@@ -31,7 +31,7 @@ export default function AboutPage() {
         <div className="space-y-4 text-center max-w-2xl mx-auto">
           <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight">Tungkol sa Amin</h1>
           <p className="text-lg text-slate-500 font-medium leading-relaxed">
-            Ang Katuwang Solutions ay ginawa para mapadali ang buhay ng bawat Pilipinong negosyante.
+            Built for Filipino entrepreneurs.
           </p>
         </div>
 
@@ -40,19 +40,19 @@ export default function AboutPage() {
           <Target className="h-12 w-12 text-primary mx-auto mb-6" />
           <h2 className="text-2xl font-black text-slate-900 mb-4">Ang Aming Misyon</h2>
           <p className="text-slate-600 text-lg leading-relaxed max-w-2xl mx-auto">
-            "Ang Katuwang Solutions ay naniniwala na ang bawat Pilipinong negosyante ay may karapatang magkaroon ng propesyonal na sistema ng negosyo nang hindi nangangailangan ng malaking puhunan. Ginawa namin itong abot-kaya at napakadaling gamitin."
+            Katuwang Solutions builds practical digital solutions that help Filipino entrepreneurs and individuals become more organized and productive.
           </p>
         </div>
 
-        {/* ── Story ─────────────────────────────────────────────────────────── */}
+        {/* ── Product ecosystem ─────────────────────────────────────────────── */}
         <div className="space-y-6">
-          <h2 className="text-2xl font-black text-slate-900">Ang Aming Kwento</h2>
+          <h2 className="text-2xl font-black text-slate-900">Ano ang Katuwang Solutions?</h2>
           <div className="prose prose-slate max-w-none">
             <p className="text-slate-600 leading-relaxed text-lg">
-              Nagsimula ang Katuwang Solutions dahil nakita namin ang hirap ng mga maliliit na negosyante (MSMEs) sa Pilipinas. Marami ang nagbabase pa rin sa papel at ballpen para sa kanilang imbentaryo, o kaya naman ay nagbabayad ng napakamahal sa mga kumplikadong POS systems na hindi tugma sa kanilang aktwal na pangangailangan.
+              Ang Katuwang Solutions ay isang software ecosystem na may 20 modules: 19 business modules at Budget Mo para sa personal budgeting.
             </p>
             <p className="text-slate-600 leading-relaxed text-lg mt-4">
-              Kaya naman, binuo namin ang isang all-in-one platform na may {activeModulesCount} na iba't-ibang modules na mapagpipilian — mula Sari-Sari Store, Bigasan, Hardware, hanggang Salon at Car Wash. Anuman ang iyong negosyo, may Katuwang na naka-disenyo para sayo.
+              Pumili at mag-subscribe sa module na kailangan mo. Bawat module ay may hiwalay na subscription.
             </p>
           </div>
         </div>
@@ -60,24 +60,23 @@ export default function AboutPage() {
         {/* ── Quick Facts ─────────────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center">
-            <Calendar className="h-6 w-6 text-slate-400 mx-auto mb-3" />
-            <div className="font-black text-2xl text-slate-900">2024</div>
-            <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Founded</div>
-          </div>
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center">
-            <Building2 className="h-6 w-6 text-slate-400 mx-auto mb-3" />
+            <Layers3 className="h-6 w-6 text-slate-400 mx-auto mb-3" />
             <div className="font-black text-2xl text-slate-900">{activeModulesCount}</div>
             <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Modules</div>
           </div>
           <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center">
-            <Globe className="h-6 w-6 text-slate-400 mx-auto mb-3" />
-            <div className="font-black text-2xl text-slate-900">Pinoy</div>
-            <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Made in PH</div>
+            <Building2 className="h-6 w-6 text-slate-400 mx-auto mb-3" />
+            <div className="font-black text-2xl text-slate-900">19</div>
+            <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Business Modules</div>
           </div>
           <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center">
-            <div className="text-primary font-black text-lg mx-auto mb-1 mt-1">Promo Rates</div>
-            <div className="text-xs font-bold text-slate-700">Promo ₱50–₱99/mo</div>
-            <div className="text-xs text-slate-500 font-medium mt-0.5">(regular ₱100–₱199/mo) bawat module</div>
+            <WalletCards className="h-6 w-6 text-slate-400 mx-auto mb-3" />
+            <div className="font-black text-lg text-slate-900">Budget Mo</div>
+            <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Personal Budgeting</div>
+          </div>
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center">
+            <div className="text-primary font-black text-lg mx-auto mb-1 mt-1">Per Module</div>
+            <div className="text-xs font-bold text-slate-700">Hiwalay na Subscription</div>
           </div>
         </div>
 
@@ -85,7 +84,7 @@ export default function AboutPage() {
         <div className="border-t border-slate-200 pt-12 space-y-8">
           <div className="text-center">
             <h2 className="text-2xl font-black text-slate-900 mb-2">Makipag-ugnayan sa Amin</h2>
-            <p className="text-slate-500">Laging handang tumulong ang aming suporta.</p>
+            <p className="text-slate-500">Makipag-ugnayan sa amin sa pamamagitan ng Facebook, Messenger, o email.</p>
           </div>
           
           <div className="grid sm:grid-cols-3 gap-4">

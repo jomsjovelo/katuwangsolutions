@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Share2, PhilippinePeso, Heart, ChevronRight, ShieldCheck } from 'lucide-react';
+import { Share2, PhilippinePeso, Heart, ChevronRight } from 'lucide-react';
 import { RegisterSheet, useRegisterSheet } from '@/components/marketing/register-sheet';
 
 const STEPS = [
@@ -45,11 +45,6 @@ export function ReferralSection() {
               I-refer ang Katuwang sa iyong mga kakilalang negosyante para matulungan silang mag-onboard.
             </p>
 
-            {/* NOT MLM disclaimer */}
-            <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-2 mx-auto mt-2">
-              <ShieldCheck className="h-4 w-4 text-emerald-400" />
-              <span className="text-xs text-slate-300 font-bold">Direct Referral Program</span>
-            </div>
           </div>
 
           {/* 3 Step Process */}

@@ -11,7 +11,6 @@ import {
   activeModules, appGroups, getActiveAppById, normalizeModuleId, isValidActiveModuleId
 } from '@/lib/app-data';
 import { getModulePricing, formatPeso } from '@/lib/pricing';
-import { getModulePartnerCopy } from '@/lib/module-partner-content';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { ModuleViewTracker } from '@/components/analytics/meta-events';
 
@@ -32,19 +31,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
   }
 
-  const pricing = getModulePricing(foundApp.id);
-  const promoStr = formatPeso(pricing.promotionalMonthlyPrice);
-  const regularStr = formatPeso(pricing.regularMonthlyPrice);
-
   return {
-    title: `${foundApp.name} — Promo ${promoStr}/mo (regular ${regularStr}/mo) bawat module | Katuwang Solutions`,
-    description: `${foundApp.name}: ${foundApp.tagline}. Subukan sa inyong negosyo sa promo rate na Promo ${promoStr}/mo bawat module (regular ${regularStr}/mo).`,
+    title: `${foundApp.name} | Katuwang Solutions`,
+    description: foundApp.description,
     alternates: {
       canonical: `https://katuwangsolutions.com/${foundApp.id}`,
     },
     openGraph: {
-      title: `${foundApp.name} by Katuwang Solutions`,
-      description: foundApp.tagline,
+      title: `${foundApp.name} | Katuwang Solutions`,
+      description: foundApp.description,
       type: 'website',
     },
   };
@@ -75,7 +70,6 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
   }
 
   const pricing = getModulePricing(foundApp.id);
-  const partnerCopy = getModulePartnerCopy(foundApp.id);
 
   let foundGroup: any = null;
   appGroups.forEach(g => {
@@ -86,7 +80,6 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
 
   const Icon = foundApp.icon;
   const primaryColor = foundGroup?.accentColor || '#06B6D4';
-  const headlineParts = partnerCopy.heroHeadline.split(partnerCopy.highlightWord);
 
   // Get cross-sell recommendations from OTHER categories
   const otherGroupApps = activeModules.filter(a => {
@@ -97,27 +90,19 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
 
   const crossSellApps = otherGroupApps.slice(0, 3);
 
-  // Clean FAQs without unverified/held claims
+  // Governed module FAQs: registration, manual payment/activation, and price.
   const defaultFaqs = [
-    { 
-      q: `Kailangan ba ng Credit Card para sa ${foundApp.name}?`, 
-      a: "Hindi! Pwedeng magbayad at mag-subscribe gamit ang GCash o Maya. Walang auto-debit o credit card setup." 
+    {
+      q: 'Paano ang registration?',
+      a: 'Mag-register upang gumawa ng account at simulan ang onboarding. Hindi ito nangangahulugan na verified na ang payment o activated na ang module.'
     },
-    { 
-      q: `Magkano ang subscription fee ng ${foundApp.name}?`, 
-      a: `Ang promo rate ay Promo ${formatPeso(pricing.promotionalMonthlyPrice)}/buwan bawat module (regular price ${formatPeso(pricing.regularMonthlyPrice)}/buwan bawat module).` 
+    {
+      q: 'Paano ang payment at activation?',
+      a: 'Manual ang payment gamit ang GCash o Maya. Ia-activate ang account pagkatapos ma-verify ang payment ng Operations team.'
     },
-    { 
-      q: `Gumagana ba ang ${foundApp.name} sa POS mode?`, 
-      a: "May offline mode ang POS/Benta module para sa pag-record ng benta kahit mawalan ng signal. Nag-a-update ito sa cloud servers kapag na-connect muli sa internet." 
-    },
-    { 
-      q: `Anong mga device ang pwede kong gamitin?`, 
-      a: "Maaari ninyong gamitin ang rehistradong account sa smartphone, tablet, o laptop." 
-    },
-    { 
-      q: `Paano mag-register sa ${foundApp.name}?`, 
-      a: "Pumili ng role at mag-onboard. Ang inyong activation request ay ima-verify ng Operations team matapos mag-submit ng payment." 
+    {
+      q: `Magkano ang ${foundApp.name}?`,
+      a: `Promo ${formatPeso(pricing.promotionalMonthlyPrice)}/buwan bawat module (regular ${formatPeso(pricing.regularMonthlyPrice)}/buwan bawat module).`
     },
   ];
 
@@ -155,57 +140,46 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
               <Icon className="h-3.5 w-3.5" style={{ color: primaryColor }} />
             </div>
             <span className="text-xs font-extrabold uppercase tracking-widest text-slate-600">
-              ANG KATUWANG MO SA <span className="font-black text-slate-900">{partnerCopy.partnerCategory.toUpperCase()}</span>
+              ANG KATUWANG MO SA <span className="font-black text-slate-900">{foundGroup?.label?.toUpperCase()}</span>
             </span>
           </div>
 
           {/* Promo Badge */}
           <div 
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border shadow-sm flex-wrap justify-center"
+            className="inline-flex flex-col items-center gap-1 px-5 py-2 rounded-2xl text-xs font-black border shadow-sm text-center leading-snug w-full max-w-sm sm:w-auto"
             style={{ 
               backgroundColor: '#FEF3C7', 
               borderColor: '#FDE68A',
               color: '#B45309'
             }}
           >
-            <Sparkles className="h-3.5 w-3.5 text-amber-600" />
-            <span>PROMO RATE: Promo {formatPeso(pricing.promotionalMonthlyPrice)}/mo bawat module</span>
-            <span className="opacity-80 font-medium text-xs text-amber-900">(regular {formatPeso(pricing.regularMonthlyPrice)}/mo)</span>
+            <span className="inline-flex items-center justify-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+              Promo {formatPeso(pricing.promotionalMonthlyPrice)}/buwan bawat module
+            </span>
+            <span className="opacity-80 font-medium text-[11px] text-amber-900">(regular {formatPeso(pricing.regularMonthlyPrice)}/buwan bawat module)</span>
           </div>
 
           {/* Main Hero Headline */}
           <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.15] max-w-3xl text-slate-900">
-            {headlineParts.length > 1 ? (
-              <>
-                {headlineParts[0]}
-                <span style={{ color: primaryColor }}>
-                  {partnerCopy.highlightWord}
-                </span>
-                {headlineParts[1]}
-              </>
-            ) : (
-              partnerCopy.heroHeadline
-            )}
+            {foundApp.name}
           </h1>
 
           {/* Sub-headline */}
           <p className="text-base sm:text-lg text-slate-600 font-medium max-w-2xl leading-relaxed">
-            {partnerCopy.heroSubtitle}
+            {foundApp.description}
           </p>
 
           {/* Partner Trust Chips */}
           <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-bold text-slate-600 pt-1">
             <span className="bg-slate-100 border border-slate-200 px-3.5 py-1.5 rounded-full flex items-center gap-1.5">
-              🤝 Matapat na Katuwang
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Manual GCash/Maya
             </span>
             <span className="bg-slate-100 border border-slate-200 px-3.5 py-1.5 rounded-full flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Simple Onboarding
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Activation after payment verification
             </span>
             <span className="bg-slate-100 border border-slate-200 px-3.5 py-1.5 rounded-full flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" /> GCash & Maya Ready
-            </span>
-            <span className="bg-slate-100 border border-slate-200 px-3.5 py-1.5 rounded-full flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" /> No Credit Card Required
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Bawat module ay may hiwalay na subscription
             </span>
           </div>
 
@@ -219,7 +193,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
                   backgroundColor: primaryColor,
                 }}
               >
-                <span>Simulan ang {foundApp.name} (Promo {formatPeso(pricing.promotionalMonthlyPrice)}/mo bawat module)</span>
+                <span>Mag-register para sa {foundApp.name}</span>
                 <ArrowRight className="h-5 w-5 ml-2" />
               </Button>
             </Link>
@@ -233,125 +207,6 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
 
       {/* Main Content Body */}
       <main className="flex-1 max-w-4xl mx-auto w-full px-5 md:px-12 py-12 space-y-16">
-
-        {/* ── Problem & Pain Points vs Solution ── */}
-        <section className="space-y-6">
-          <div className="text-center space-y-2">
-            <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">Bakit Kailangan Mo ng Katuwang</h2>
-            <p className="text-2xl sm:text-3xl font-black text-slate-900">Bago Dumating ang Katuwang Mo vs. May Katuwang Ka Na sa {foundApp.name}</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Bago Dumating ang Katuwang Mo */}
-            <div className="bg-rose-50/80 border border-rose-200 p-6 rounded-3xl space-y-4">
-              <div className="flex items-center gap-2 text-rose-700 font-black text-base uppercase tracking-wider">
-                <span className="text-lg">❌</span> BAGO DUMATING ANG KATUWANG MO
-              </div>
-              <ul className="space-y-3 text-xs sm:text-sm text-slate-700 font-medium">
-                {((partnerCopy as any).beforePoints || [
-                  'Mahirap i-track ang araw-araw na benta sa papel',
-                  'Nalilimutan o nagkakabaligtad ang listahan ng utang',
-                  'Walang malinaw na shift audit at cash audit sa drawer'
-                ]).map((pt: string, i: number) => (
-                  <li key={i} className="flex items-start gap-2.5">
-                    <span className="text-rose-500 font-bold shrink-0">✕</span>
-                    <span>{pt}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* May Katuwang Ka Na */}
-            <div 
-              className="bg-white border p-6 rounded-3xl space-y-4 shadow-md"
-              style={{ borderColor: `${primaryColor}40` }}
-            >
-              <div className="flex items-center gap-2 font-black text-base uppercase tracking-wider" style={{ color: primaryColor }}>
-                <span className="text-lg">✅</span> MAY KATUWANG KA NA SA {foundApp.name.toUpperCase()}
-              </div>
-              <ul className="space-y-3 text-xs sm:text-sm text-slate-800 font-semibold">
-                {((partnerCopy as any).afterPoints || [
-                  'Organisadong pag-record ng benta at transaksyon',
-                  'Malinaw na talaan ng utang ng bawat suki o kontraktor',
-                  'Strict shift tracking para maayos ang cashier drawer'
-                ]).map((pt: string, i: number) => (
-                  <li key={i} className="flex items-start gap-2.5">
-                    <span className="font-bold shrink-0" style={{ color: primaryColor }}>✓</span>
-                    <span>{pt}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </section>
-
-        {/* ── How It Works Step-by-Step ── */}
-        {foundApp.howItWorks && foundApp.howItWorks.length > 0 && (
-          <section className="space-y-6">
-            <div className="text-center space-y-2">
-              <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">Paano Magsimula</h2>
-              <p className="text-2xl sm:text-3xl font-black text-slate-900">3 Hakbang Kasama ang Katuwang Mo</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {foundApp.howItWorks.map((hw: { step: string; detail: string }, idx: number) => (
-                <div key={idx} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-2 relative overflow-hidden">
-                  <div className="text-3xl font-black" style={{ color: primaryColor }}>0{idx + 1}</div>
-                  <h3 className="font-black text-slate-900 text-base">{hw.step}</h3>
-                  <p className="text-xs text-slate-500 leading-relaxed">{hw.detail}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* ── Comparison Table Matrix ── */}
-        <section className="space-y-6">
-          <div className="text-center space-y-2">
-            <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">Ikumpara Mo</h2>
-            <p className="text-2xl sm:text-3xl font-black text-slate-900">Bakit Mas Maganda Kapag May Katuwang Ka</p>
-          </div>
-
-          <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-900 text-white text-xs uppercase tracking-wider">
-                    <th className="p-4 font-black">Feature / Bentahe</th>
-                    <th className="p-4 font-black opacity-60">Notebook / Papel</th>
-                    <th className="p-4 font-black opacity-60">Generic Software</th>
-                    <th className="p-4 font-black text-amber-300" style={{ backgroundColor: `${primaryColor}40` }}>
-                      🤝 {foundApp.name}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-xs font-semibold">
-                  {(partnerCopy.comparisonRows || [
-                    { feature: 'Bilis ng Transaksyon', traditional: '❌ Mabagal sa papel', generic: '⚠️ Katamtaman', katuwang: '✅ Mabilis na Flow' },
-                    { feature: 'Inventory Deduction', traditional: '❌ Manual bilang sa gabi', generic: '⚠️ Formula setup', katuwang: '✅ Na-ia-update sa bawat benta' },
-                    { feature: 'POS Mode Support', traditional: '✅ Pwede sa papel', generic: '⚠️ Kailangan ng PC', katuwang: '✅ May offline mode ang POS/Benta' },
-                    { feature: 'GCash & Maya Payment Tracking', traditional: '❌ Manual listahan', generic: '❌ Manual typing', katuwang: '✅ Integrated Ref Log' },
-                    { feature: 'Shift & Cashier Auditing', traditional: '❌ Mahirap alamin kulang', generic: '❌ Walang audit log', katuwang: '✅ Drawer & Shift Audit' },
-                  ]).map((row, idx) => (
-                    <tr key={idx}>
-                      <td className="p-4 text-slate-800 font-bold">{row.feature}</td>
-                      <td className="p-4 text-rose-500">{row.traditional}</td>
-                      <td className="p-4 text-amber-600">{row.generic}</td>
-                      <td className="p-4 font-black text-emerald-700 bg-emerald-50/50">{row.katuwang}</td>
-                    </tr>
-                  ))}
-                  <tr>
-                    <td className="p-4 text-slate-800 font-bold">Mababang Presyo</td>
-                    <td className="p-4 text-slate-500">₱0 (Pero manual ang pag-lista)</td>
-                    <td className="p-4 text-slate-500">Libre (Pero matagal gamitin)</td>
-                    <td className="p-4 font-black text-emerald-700 bg-emerald-50/50">
-                      ✅ Promo {formatPeso(pricing.promotionalMonthlyPrice)}/buwan bawat module (regular {formatPeso(pricing.regularMonthlyPrice)}/mo)
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
 
         {/* ── FAQ Section ── */}
         <section className="space-y-6 pt-4">
@@ -386,10 +241,10 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
             </span>
 
             <h2 className="text-2xl sm:text-4xl font-black tracking-tight mb-3 text-slate-900">
-              Simulan ang {foundApp.name} Ngayon!
+              Mag-register para sa {foundApp.name}
             </h2>
             <p className="text-slate-600 text-xs sm:text-sm mb-6 max-w-lg mx-auto font-medium">
-              I-onboard ang inyong negosyo sa {foundApp.name} sa promo rate na Promo {formatPeso(pricing.promotionalMonthlyPrice)}/buwan bawat module (regular {formatPeso(pricing.regularMonthlyPrice)}/buwan). Walang credit card required!
+              Promo {formatPeso(pricing.promotionalMonthlyPrice)}/buwan bawat module (regular {formatPeso(pricing.regularMonthlyPrice)}/buwan bawat module). Manual ang payment gamit ang GCash o Maya; activation follows payment verification.
             </p>
             
             <div className="flex flex-col items-center gap-4">

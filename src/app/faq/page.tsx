@@ -14,51 +14,42 @@ export const metadata: Metadata = {
 
 const faqs = [
   {
-    q: "Magkano ang Katuwang Solutions?",
-    a: "Nagsisimula sa Promo ₱50/buwan (Budget Mo, regular ₱100/mo) at Promo ₱99/buwan (regular ₱199/mo) bawat module para sa iba pang standard business modules."
+    q: 'Ano ang Katuwang Solutions?',
+    a: 'Ang Katuwang Solutions ay isang mobile-first business management software ecosystem. Mayroon itong 20 modules para sa iba’t ibang negosyo at personal budgeting needs. Piliin lamang ang module na angkop sa iyong gagamitin.',
   },
   {
-    q: "Paano mag-bayad?",
-    a: "Tumatanggap kami ng payment via GCash o Maya gamit ang aming QR code. Walang auto-debit. Ikaw mismo ang magse-send ng bayad buwan-buwan at ima-verify ng aming Operations team bago ma-activate."
+    q: 'Magkano ang subscription?',
+    a: 'Ang kasalukuyang promo price ay ₱99/buwan bawat standard module, regular ₱199. Ang Budget Mo ay ₱50/buwan, regular ₱100. Magkahiwalay ang subscription at bayad ng bawat module. Ang promo ay hindi lifetime o permanent price guarantee.',
   },
   {
-    q: "Kailangan ba ng internet?",
-    a: "Naka-design ang Katuwang Solutions para sa web access at mobile operation. Mag-login lang sa iyong rehistradong account gamit ang smartphone o computer para sa pag-record ng iyong negosyo."
+    q: 'Libre ba ang paggawa ng account?',
+    a: 'Oo, maaaring gumawa ng account bago magbayad. Kailangan pa ring ma-verify ang payment bago ma-activate ang napiling module. Hindi ito free trial o libreng access sa lahat ng modules.',
   },
   {
-    q: "Ilang devices ang pwedeng gumamit?",
-    a: "Pwede kang mag-login sa cellphone, tablet, o laptop gamit ang inyong rehistradong account."
+    q: 'Paano magbayad?',
+    a: 'GCash at Maya ang kasalukuyang manual payment options. Sundin ang payment instructions at ipadala ang hinihinging payment details o screenshot sa official verification channel.',
   },
   {
-    q: "Paano mag-add ng tindera/staff?",
-    a: "Punta ka lang sa Settings → Staff Management. Ibigay ang iyong 'Business Code' sa iyong staff para makapag-register sila. Ikaw bilang owner ang mag-a-approve sa kanila bago sila makapasok."
+    q: 'Kailan maa-activate ang module?',
+    a: 'Maa-activate lamang ang napiling module pagkatapos ma-verify ang payment. Ang pagpapadala ng screenshot ay hindi pa awtomatikong confirmation ng activation. Walang fixed activation-time promise sa kasalukuyan.',
   },
   {
-    q: "Kailangan ba ng BIR accreditation kung gagamitin ko ito?",
-    a: "Hindi po kailangan. Ang Katuwang Solutions ay isang business management at tracking software, at hindi isang pormal na POS Machine na nag-i-issue ng BIR-registered official receipts."
+    q: 'Automatic ba ang renewal o debit?',
+    a: 'Hindi. Manual ang kasalukuyang renewal at walang automatic debit. Iko-confirm ang applicable module price bago ang bagong payment o renewal.',
   },
   {
-    q: "Pwede bang mag-print ng resibo?",
-    a: "Oo! Compatible ang Katuwang Solutions sa karamihan ng mga Bluetooth Thermal Printers."
+    q: 'Kailangan ba ng internet at anong device ang puwedeng gamitin?',
+    a: 'Gumamit ng supported web browser sa smartphone, tablet, o computer at reliable internet connection para sa normal na access. Maaaring mag-iba ang availability ng features depende sa module, device, browser, permissions, at connection. Hindi kami nangangako ng universal offline operation o compatibility sa lahat ng devices.',
   },
   {
-    q: "May refund ba kung hindi ko nagustuhan?",
-    a: "Wala pong refund dahil sa digital subscription nature ng software. Ikaw mismo ang magsa-submit ng bayad buwan-buwan nang walang auto-debit."
+    q: 'Paano makipag-ugnayan sa support?',
+    a: 'Mag-email sa support@katuwangsolutions.com o mag-message sa official Katuwang Solutions Facebook Page. Maaaring mag-iba ang response time.',
   },
-  {
-    q: "Gaano ka-ligtas ang aking data?",
-    a: "Ang iyong data ay naka-imbak sa Google Firebase infrastructure gamit ang standard security rules para sa ligtas na data access."
-  },
-  {
-    q: "Paano kung masira o mawala ang cellphone ko?",
-    a: "Mag-log in ka lang gamit ang iyong email at password sa bagong device para ma-access muli ang inyong rehistradong account."
-  }
 ];
 
 export default function FAQPage() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
       <header className="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 px-4 py-3 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors">
           <ArrowLeft className="h-5 w-5" />
@@ -68,7 +59,6 @@ export default function FAQPage() {
         <div className="w-10" />
       </header>
 
-      {/* ── Content ─────────────────────────────────────────────────────────── */}
       <main className="flex-1 max-w-3xl mx-auto w-full px-5 py-12 md:py-20 space-y-12">
         <div className="text-center space-y-4">
           <div className="h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -82,9 +72,9 @@ export default function FAQPage() {
           </p>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-4" data-testid="faq-list">
           {faqs.map((faq, index) => (
-            <div key={index} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+            <div key={index} data-testid="faq-card" className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
               <h3 className="text-lg font-bold text-slate-900 mb-2 flex gap-3">
                 <span className="text-primary opacity-50 shrink-0">Q.</span>
                 <span>{faq.q}</span>
@@ -97,7 +87,6 @@ export default function FAQPage() {
           ))}
         </div>
 
-        {/* Support CTA */}
         <div className="bg-primary/10 border border-primary/20 rounded-3xl p-8 text-center mt-12">
           <h3 className="text-xl font-bold text-slate-900 mb-2">May iba ka pa bang tanong?</h3>
           <p className="text-slate-600 mb-6">Mag-message lang sa aming Facebook page o mag-email sa amin.</p>
@@ -107,7 +96,6 @@ export default function FAQPage() {
         </div>
       </main>
 
-      {/* ── Footer ──────────────────────────────────────────────────────────── */}
       <footer className="py-8 bg-slate-950 mt-auto">
         <div className="text-center flex flex-col items-center gap-3">
           <div className="opacity-40">

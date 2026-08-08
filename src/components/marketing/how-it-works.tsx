@@ -1,28 +1,28 @@
 import React from 'react';
-import { UserPlus, AppWindow, TrendingUp } from 'lucide-react';
+import { UserPlus, AppWindow, BadgeCheck } from 'lucide-react';
 
 const STEPS = [
   {
     number: '01',
     icon: AppWindow,
     title: 'Pumili ng Module',
-    desc: 'Pumili sa 20 modules (19 business modules + Budget Mo) na katapat ng uri ng iyong negosyo.',
+    desc: 'Pumili sa 20 modules. Bawat module ay may hiwalay na subscription.',
     color: '#06B6D4',
     bg: 'bg-cyan-50',
   },
   {
     number: '02',
     icon: UserPlus,
-    title: 'Mag-Register',
-    desc: 'Ilagay ang pangalan at detalye ng negosyo. Walang credit card na kailangan para simulan ang onboarding.',
+    title: 'Mag-register at Mag-onboard',
+    desc: 'Gumawa ng account at kumpletuhin ang onboarding para sa napiling module.',
     color: '#8B5CF6',
     bg: 'bg-violet-50',
   },
   {
     number: '03',
-    icon: TrendingUp,
-    title: 'Simulan ang Pamamahala',
-    desc: 'I-track ang benta, stock, utang, at operational activities sa inyong napiling module.',
+    icon: BadgeCheck,
+    title: 'Manual Payment at Verification',
+    desc: 'Magbayad gamit ang GCash o Maya. Ia-activate ang account pagkatapos ma-verify ng Operations team ang payment.',
     color: '#10B981',
     bg: 'bg-emerald-50',
   },
@@ -36,10 +36,10 @@ export function HowItWorks() {
         <div className="text-center mb-12 space-y-2">
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Paano Ito Gamitin</p>
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 tracking-tight">
-            Magsimula sa <span className="text-primary">3 simpleng hakbang</span>
+            Proseso ng <span className="text-primary">pagpaparehistro</span>
           </h2>
           <p className="text-slate-500 text-sm max-w-sm mx-auto">
-            Simple lang. Hindi mo kailangan ng IT background para gamitin ang Katuwang.
+            Mula pagpili ng module hanggang manual payment verification.
           </p>
         </div>
 

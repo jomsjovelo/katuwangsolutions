@@ -15,7 +15,6 @@ export const metadata: Metadata = {
 export default function TermsPage() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
       <header className="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 px-4 py-3 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors">
           <ArrowLeft className="h-5 w-5" />
@@ -25,169 +24,94 @@ export default function TermsPage() {
         <div className="w-10" />
       </header>
 
-      {/* ── Content ─────────────────────────────────────────────────────────── */}
       <main className="flex-1 max-w-4xl mx-auto w-full px-5 py-12 md:py-20 space-y-10">
         <div className="space-y-4">
           <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight">Terms & Conditions</h1>
-          <p className="text-slate-500 font-medium">Last Updated: June 2026</p>
+          <p className="text-slate-500 font-medium">Last updated: August 2026</p>
+          <p className="text-slate-600 leading-relaxed">
+            These Terms explain the basic rules for using Katuwang Solutions. By creating an account or using the service, you agree to follow these Terms.
+          </p>
         </div>
 
         <div className="prose prose-slate max-w-none space-y-8">
           <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">1. Acceptance of Terms</h2>
+            <h2 className="text-xl font-bold text-slate-900">1. Your account</h2>
             <p className="text-slate-600 leading-relaxed">
-              By accessing and using Katuwang Solutions ("Service", "App", "We", "Us"), you agree to be bound by these Terms and Conditions. If you do not agree with any part of these terms, you must not use our service. Our services are specifically designed for Micro, Small, and Medium Enterprises (MSMEs) operating in the Philippines. You must be at least 18 years old to create a business account.
+              Provide accurate account information and keep your email address and password secure. You are responsible for activity performed through your account and for reviewing the access given to staff members or other users connected to your business.
+            </p>
+            <p className="text-slate-600 leading-relaxed">
+              Contact us promptly if you believe someone has accessed your account without permission.
             </p>
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">2. Account Security & Access</h2>
+            <h2 className="text-xl font-bold text-slate-900">2. Modules, subscriptions, and payment</h2>
             <p className="text-slate-600 leading-relaxed">
-              <strong>Account Ownership:</strong> You are responsible for maintaining the confidentiality of your login credentials. 
-              <br /><br />
-              <strong>Email Access Requirement:</strong> Katuwang Solutions uses email verification for account recovery and password resets. You are strictly responsible for maintaining access to the email address associated with your Katuwang account. If you lose access to your email address or forget its password, resulting in an inability to reset your Katuwang password, Katuwang Solutions is not responsible for the lost access to your account or any resulting business interruption. For security reasons, we cannot manually bypass email verification.
+              Katuwang Solutions modules are subscribed to separately. One subscription does not unlock all modules.
+            </p>
+            <p className="text-slate-600 leading-relaxed">
+              The current promotional price is ₱99 per month for each standard module, with a regular price of ₱199. Budget Mo is currently ₱50 per month, with a regular price of ₱100.
+            </p>
+            <p className="text-slate-600 leading-relaxed">
+              Promotional pricing applies only while the approved promotion is active. It is not a lifetime or permanent price guarantee. The applicable price will be shown or confirmed before a new payment or manual renewal.
+            </p>
+            <p className="text-slate-600 leading-relaxed">
+              Payments are currently made manually through GCash or Maya. The selected module is activated only after Katuwang Solutions verifies the payment. Sending a screenshot or payment message does not by itself confirm that payment has been verified.
+            </p>
+            <p className="text-slate-600 leading-relaxed">
+              The current workflow does not automatically charge your payment method. Renewal requires a new manual payment and verification.
             </p>
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">3. Subscription and Billing</h2>
+            <h2 className="text-xl font-bold text-slate-900">3. Information entered into the service</h2>
             <p className="text-slate-600 leading-relaxed">
-              <strong>Pricing:</strong> Our modules follow a dual-tier structure. The standard rate for a single Katuwang module is ₱199.00 per month. The standard rate for the Budget Mo module is ₱100.00 per month. <br />
-              <strong>Promotional Rates & Grandfather Clause:</strong> We frequently offer promotional rates (e.g., ₱99.00/month for standard modules, and ₱50.00/month for Budget Mo). If you subscribe during a promotional period, you lock in that discounted rate for the lifetime of your continuous subscription. However, if your subscription lapses or expires, you will be subject to the standard non-promotional rate upon reactivation.<br />
-              <strong>No Auto-Renew:</strong> We do not automatically charge your payment method at the end of your billing cycle. You must manually renew your subscription to continue accessing the module. <br />
-              <strong>Cancellation:</strong> You may cancel your use of the service at any time. Because there is no auto-renew, simply allowing your subscription to expire acts as cancellation.
+              You are responsible for the completeness and accuracy of the information entered through your account, including business, transaction, inventory, customer, employee, booking, budgeting, or other module records.
             </p>
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mt-4">
-              <strong className="text-red-800 block mb-1">Strict No Refunds Policy</strong>
-              <p className="text-red-700 text-sm">
-                All payments made for subscriptions and module unlocks are final and non-refundable. We do not provide refunds or credits for any partial-month membership periods or unused software features. Please ensure you fully intend to use the module before making a payment.
-              </p>
-            </div>
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">4. Offline Mode & Data Syncing</h2>
             <p className="text-slate-600 leading-relaxed">
-              <strong>Local Data Storage:</strong> Katuwang Solutions features an offline mode where certain transactions (such as Benta/Sales) are stored locally on your device's browser cache when an internet connection is unavailable.
-              <br /><br />
-              <strong>Device Failure Liability:</strong> This local data is only backed up to our cloud servers once a stable internet connection is restored. If your device is lost, stolen, damaged, or if its browser cache is cleared <em>before</em> the local data successfully syncs to the cloud, that data is permanently lost. Katuwang Solutions is not liable for any unsynced data loss.
-              <br /><br />
-              <strong>Warning Mechanism:</strong> To help prevent accidental data loss, the app will warn you before you close or refresh the page if there are pending unsynced transactions.
+              Katuwang Solutions helps users record, organize, monitor, and review information. Users should review their records before relying on them for business, financial, tax, or other decisions.
             </p>
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">5. Data Accuracy & Financial Liability</h2>
+            <h2 className="text-xl font-bold text-slate-900">4. Acceptable use</h2>
             <p className="text-slate-600 leading-relaxed">
-              <strong>User Input Dependency:</strong> All financial reports (Ulat), inventory counts (Stock), and lending records generated by the app rely entirely on the accuracy of the data inputted by the user.
-              <br /><br />
-              <strong>No Tax or Legal Advice:</strong> The system is a recording tool designed to assist your business. It is not a substitute for a licensed accountant or legal counsel. We are not liable for tax miscalculations, BIR audit discrepancies, or financial losses resulting from user input errors or misunderstanding of the reports.
-              <br /><br />
-              <strong>Lending Module Disclaimer:</strong> Katuwang Solutions is solely a software provider. We are not a lending institution or a collection agency. We hold no responsibility if your customers or borrowers fail to repay their debts or loans recorded within the app.
+              Do not use Katuwang Solutions to break the law, access another account without permission, interfere with the service, submit fraudulent payment or referral information, impersonate another person, or harm other users or the platform.
+            </p>
+            <p className="text-slate-600 leading-relaxed">
+              We may restrict access when reasonably necessary to protect accounts, users, the service, or its data while a suspected misuse or security concern is reviewed.
             </p>
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">6. Staff Accounts & Management Liability</h2>
+            <h2 className="text-xl font-bold text-slate-900">5. Software-only service</h2>
             <p className="text-slate-600 leading-relaxed">
-              <strong>Owner Responsibility:</strong> The business owner (Store Owner) is strictly responsible for all actions taken by authorized Staff accounts. Katuwang Solutions is not liable for any accidental data deletion, unauthorized discounts, theft, or misconduct perpetrated by your staff members using the app.
-              <br /><br />
-              <strong>Enterprise Business Code & Approval:</strong> Katuwang Solutions uses a "One Code Per Owner" architecture. A single Business Code represents the owner's entire enterprise. When staff register using this code, they are placed in a "Pending" status and cannot access any business data. The Store Owner must manually Approve the staff member from their dashboard and assign them to a specific store/module before they can gain access.
+              Katuwang Solutions provides software. It does not supply phones, computers, printers, scanners, internet service, or other user-owned equipment.
+            </p>
+            <p className="text-slate-600 leading-relaxed">
+              Records, previews, or documents produced by the service do not automatically replace invoices, permits, registrations, professional advice, or other requirements that may apply to a user or business.
+            </p>
+            <p className="text-slate-600 leading-relaxed">
+              Katuwang Solutions does not claim to be approved or accredited by the BIR, NPC, DTI, or another government agency.
             </p>
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">7. Hardware & Network Dependencies</h2>
+            <h2 className="text-xl font-bold text-slate-900">6. Service availability</h2>
             <p className="text-slate-600 leading-relaxed">
-              <strong>Software Only:</strong> Katuwang Solutions provides software as a service. We do not provide, nor are we responsible for the malfunction of user-owned hardware, including but not limited to smartphones, tablets, thermal Bluetooth printers, barcode scanners, or local internet connections.
+              The service may sometimes be unavailable because of maintenance, internet problems, provider interruptions, technical issues, or other causes. We do not promise uninterrupted availability or a fixed response or restoration time.
             </p>
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">8. App Marketplace & Modules</h2>
+            <h2 className="text-xl font-bold text-slate-900">7. Support</h2>
             <p className="text-slate-600 leading-relaxed">
-              Katuwang Solutions offers an ecosystem of modules (e.g., Sari-Sari, Food & Bev, Salon, Farm, Rental, Lending). 
-              You may request access to additional modules through the App Marketplace inside your dashboard. 
-              Activation of additional modules requires manual verification and payment of the corresponding subscription fee.
-            </p>
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">9. Referral Program</h2>
-            <p className="text-slate-600 leading-relaxed">
-              We offer a single-tier affiliate Referral Program allowing users to earn commission by inviting other businesses to use Katuwang Solutions.
-              <br /><br />
-              <strong>Earnings Structure:</strong> Referrers earn a base commission of ₱10.00 upon a successful activation or renewal by a referred user. An additional ₱10.00 is awarded for every extra App Module the referred user has active.
-              <br />
-              <strong>Withdrawals:</strong> Earnings can be withdrawn to a GCash or Maya account once the minimum threshold of ₱200.00 is reached.
-              <br />
-              <strong>Fraud & Abuse:</strong> Katuwang Solutions strictly monitors the referral system. We reserve the right to permanently suspend accounts, forfeit referral balances, and reject withdrawal requests if we detect any fraudulent activities, self-referrals, or abuse of the referral program.
-            </p>
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">10. Limitation of Liability & Indemnification</h2>
-            <p className="text-slate-600 leading-relaxed">
-              To the maximum extent permitted by applicable law, Katuwang Solutions shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits or revenues, whether incurred directly or indirectly, or any loss of data, use, goodwill, or other intangible losses, resulting from (a) your access to or use of or inability to access or use the service; (b) any conduct or content of any third party on the service; or (c) unauthorized access, use, or alteration of your transmissions or content.
-              <br /><br />
-              You agree to defend, indemnify, and hold harmless Katuwang Solutions from and against any claims, liabilities, damages, judgments, awards, losses, costs, expenses, or fees resulting from your violation of these Terms or your use of the Service.
-            </p>
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">11. Modifications to Terms</h2>
-            <p className="text-slate-600 leading-relaxed">
-              We reserve the right to modify these terms at any time. We will notify users of any significant changes via email or an in-app announcement. Continued use of the service after such changes constitutes acceptance of the new terms.
-            </p>
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">12. Activity Logs & Data Retention</h2>
-            <p className="text-slate-600 leading-relaxed">
-              To ensure optimal app performance and reduce visual clutter, Katuwang Solutions aggregates and displays Activity Logs (e.g., recent sales, stock alerts, system events) for a rolling window of <strong>7 days only</strong>. Activity data older than 7 days is automatically hidden and overwritten from the Activity Organizer views. We do not provide long-term historical exports of minor activity events.
-            </p>
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">13. Privacy & Data Collection</h2>
-            <p className="text-slate-600 leading-relaxed">
-              We collect necessary information such as your email, business name, and transaction records to provide our services. Your data is securely stored using Firebase/Google infrastructure. We respect your privacy and align with the principles of the Data Privacy Act of 2012 (Republic Act No. 10173) of the Philippines. We do not and will never sell your personal or business data to third parties.
-            </p>
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">14. Acceptable Use Policy</h2>
-            <p className="text-slate-600 leading-relaxed">
-              You agree not to use the Service for any unlawful purpose or in any way that interrupts, damages, or impairs the service. Prohibited activities include, but are not limited to: creating fake business accounts, spamming, abusing the referral system, using the app for illegal activities, and impersonating Katuwang Solutions staff. Violation of this policy may result in immediate account termination and forfeiture of any balances or referral earnings.
-            </p>
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">15. Intellectual Property</h2>
-            <p className="text-slate-600 leading-relaxed">
-              All rights, title, and interest in and to the Katuwang Solutions app, including but not limited to its UI, content, module names, logos, and brand assets, are and will remain the exclusive property of Katuwang Solutions. We grant you a limited, non-exclusive, non-transferable, and revocable license to use our software for your business operations in accordance with these Terms.
-            </p>
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">16. Service Availability & Maintenance</h2>
-            <p className="text-slate-600 leading-relaxed">
-              We strive to maintain high service availability for our software, leveraging standard Firebase/Google cloud infrastructure. However, we do not guarantee uninterrupted access and may occasionally schedule maintenance windows. We are not liable for any business losses, loss of revenue, or other damages that may occur during any periods of downtime or service interruption.
-            </p>
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">17. Contact & Support</h2>
-            <p className="text-slate-600 leading-relaxed">
-              For official support, please email us at <a href="mailto:support@katuwangsolutions.com" className="text-blue-600 hover:underline">support@katuwangsolutions.com</a>. We aim to respond within 1–3 business days. For urgent concerns, you may also reach out via our official Facebook Page.
-              <br /><br />
-              These Terms and Conditions shall be governed by and construed in accordance with the laws of the Republic of the Philippines.
+              For account or service concerns, email <a href="mailto:support@katuwangsolutions.com" className="text-blue-600 hover:underline">support@katuwangsolutions.com</a> or contact the official Katuwang Solutions Facebook Page. Response times may vary.
             </p>
           </section>
         </div>
       </main>
 
-      {/* ── Footer ──────────────────────────────────────────────────────────── */}
       <footer className="py-8 bg-slate-950">
         <div className="text-center flex flex-col items-center gap-3">
           <div className="opacity-40">
