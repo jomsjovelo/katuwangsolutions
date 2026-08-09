@@ -88,9 +88,7 @@ export function HelpGuideDrawer({
         )}
 
         <SheetContent className="sm:max-w-md w-full flex flex-col h-full bg-slate-50 p-0 overflow-hidden z-[60]">
-          {isOpen && (
-            <>
-              <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between z-10 shrink-0">
+          <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between z-10 shrink-0">
                 <div className="flex items-center gap-3">
                   <SheetHeader className="text-left space-y-0">
                     <SheetTitle className="text-lg font-black text-slate-800 tracking-tight flex items-center gap-2">
@@ -162,7 +160,7 @@ export function HelpGuideDrawer({
 
                 <div className="bg-gradient-to-br from-indigo-900 to-slate-900 text-white rounded-3xl p-5 space-y-4 shadow-xl relative overflow-hidden">
                   <div className="flex items-center gap-3 border-b border-indigo-700/50 pb-3">
-                    <div className="h-10 w-10 rounded-2xl bg-indigo-500/30 flex items-center justify-center shrink-0 border border-indigo-400/30">
+                    <div className="h-10 w-10 rounded-2xl bg-indigo-500/30 backdrop-blur-md flex items-center justify-center shrink-0 border border-indigo-400/30">
                       <Printer className="h-5 w-5 text-indigo-300 animate-pulse" />
                     </div>
                     <div>
@@ -172,7 +170,7 @@ export function HelpGuideDrawer({
                   </div>
 
                   <div className="space-y-3 pt-1">
-                    <div className="flex gap-3 items-start bg-white/10 p-3.5 rounded-2xl border border-white/10">
+                    <div className="flex gap-3 items-start bg-white/10 backdrop-blur-sm p-3.5 rounded-2xl border border-white/10">
                       <span className="h-6 w-6 rounded-xl bg-indigo-500 text-white font-black text-xs flex items-center justify-center shrink-0">1</span>
                       <div>
                         <h5 className="text-xs font-bold text-white mb-0.5">I-on ang Printer at Bluetooth</h5>
@@ -182,7 +180,7 @@ export function HelpGuideDrawer({
                       </div>
                     </div>
 
-                    <div className="flex gap-3 items-start bg-white/10 p-3.5 rounded-2xl border border-white/10">
+                    <div className="flex gap-3 items-start bg-white/10 backdrop-blur-sm p-3.5 rounded-2xl border border-white/10">
                       <span className="h-6 w-6 rounded-xl bg-indigo-500 text-white font-black text-xs flex items-center justify-center shrink-0">2</span>
                       <div>
                         <h5 className="text-xs font-bold text-white mb-0.5">I-click ang "Print Receipt" sa POS</h5>
@@ -192,7 +190,7 @@ export function HelpGuideDrawer({
                       </div>
                     </div>
 
-                    <div className="flex gap-3 items-start bg-white/10 p-3.5 rounded-2xl border border-white/10">
+                    <div className="flex gap-3 items-start bg-white/10 backdrop-blur-sm p-3.5 rounded-2xl border border-white/10">
                       <span className="h-6 w-6 rounded-xl bg-indigo-500 text-white font-black text-xs flex items-center justify-center shrink-0">3</span>
                       <div>
                         <h5 className="text-xs font-bold text-white mb-0.5">Auto-Reconnect (Kusa Nang Nakatanda)</h5>
@@ -384,7 +382,7 @@ export function HelpGuideDrawer({
                 {!isInstalled && (
                   <div className="bg-gradient-to-r from-emerald-500 to-emerald-400 p-5 rounded-2xl text-white flex flex-col gap-4 shadow-md shadow-emerald-500/20">
                     <div className="flex items-center gap-3">
-                      <div className="bg-white/20 p-2.5 rounded-xl">
+                      <div className="bg-white/20 p-2.5 rounded-xl backdrop-blur-sm">
                         <Smartphone className="h-6 w-6 text-white animate-pulse" />
                       </div>
                       <div>
@@ -488,8 +486,6 @@ export function HelpGuideDrawer({
                    Nakuha Ko Na! 👍
                  </Button>
               </div>
-            </>
-          )}
         </SheetContent>
       </Sheet>
       

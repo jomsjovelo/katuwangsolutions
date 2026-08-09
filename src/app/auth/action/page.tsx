@@ -41,7 +41,7 @@ function AuthActionHandler() {
         setSuccess(true);
       } catch (e) {
       const err = e as Error & { code?: string };
-        if (err.code === 'auth/invalid-action-code') {
+        if (err.code === 'auth/invalid-action-code' || err.code === 'auth/expired-action-code') {
           setError('Ang link na ito ay expired na o nagamit na.');
         } else {
           setError('May error na naganap: ' + err.message);
@@ -57,7 +57,7 @@ function AuthActionHandler() {
         setResetEmail(email);
       } catch (e) {
       const err = e as Error & { code?: string };
-        if (err.code === 'auth/invalid-action-code') {
+        if (err.code === 'auth/invalid-action-code' || err.code === 'auth/expired-action-code') {
           setError('Ang link na ito ay expired na o nagamit na.');
         } else {
           setError('May error na naganap: ' + err.message);

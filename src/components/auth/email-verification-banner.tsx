@@ -3,11 +3,49 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@/firebase/auth/use-user';
 
+import { AlertTriangle, MailCheck, Loader2 } from 'lucide-react';
+
 export function EmailVerificationBanner() {
   const { user, loading } = useUser();
   const [isSending, setIsSending] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [cooldown, setCooldown] = useState(0);
+
+  // Wait for loading or missing user to resolve before potentially returning null
+  // We must define all hooks BEFORE any early returns!
+
+  const handleResend = async () => {
+    if (!user || cooldown > 0 || isSending) return;
+
+    try {
+      setIsSending(true);
+      setMessage(null);
+      // Using the custom backend email sender instead of Firebase default
+      const res = await fetch('/api/auth/send-verification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: user.email }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to send email');
+      }
+      setMessage({ type: 'success', text: 'Naipadala na ulit ang verification link. I-check ang inyong inbox.' });
+      setCooldown(60);
+    } catch (e) {
+      const error = e as Error & { code?: string };
+      if (error.code === 'auth/too-many-requests') {
+        setMessage({ type: 'error', text: 'Masyadong maraming request. Subukan ulit mamaya.' });
+      } else {
+        setMessage({ type: 'error', text: 'May error sa pagpadala ng link. Subukan ulit.' });
+      }
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   useEffect(() => {
     if (cooldown > 0) {
@@ -16,6 +54,51 @@ export function EmailVerificationBanner() {
     }
   }, [cooldown]);
 
-  // Temporarily hidden while verification link handling is updated
-  return null;
+  // Early return MUST be after all hooks!
+  if (loading || !user || user.emailVerified) {
+    return null;
+  }
+
+  return (
+    <div className="w-full bg-amber-50 border-b border-amber-200 px-4 py-3 text-amber-900 text-sm font-medium z-50">
+      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex items-start gap-2.5">
+          <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex flex-col">
+            <p>
+              I-verify ang iyong email address para maprotektahan ang account. I-check ang <strong>{user.email}</strong> para sa aming link.
+            </p>
+            <p className="text-[11px] text-amber-800/90 font-medium mt-0.5">
+              💡 <strong>Paalala:</strong> Paki-check din ang inyong Spam / Junk folder. Kung nag-error, mag-antay ng 1–2 minuto bago mag-click ulit ng "Magpadala Ulit".
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4 shrink-0">
+          {message && (
+            <span className={`text-xs font-bold ${message.type === 'success' ? 'text-emerald-600' : 'text-red-600'}`}>
+              {message.text}
+            </span>
+          )}
+
+          <button
+            onClick={handleResend}
+            disabled={isSending || cooldown > 0}
+            className="flex items-center gap-1.5 bg-amber-200 hover:bg-amber-300 disabled:opacity-50 disabled:hover:bg-amber-200 text-amber-900 px-3 py-1.5 rounded-lg font-bold transition-colors text-xs"
+          >
+            {isSending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : cooldown > 0 ? (
+              `Magpadala Ulit (${cooldown}s)`
+            ) : (
+              <>
+                <MailCheck className="h-3.5 w-3.5" />
+                Magpadala Ulit
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }

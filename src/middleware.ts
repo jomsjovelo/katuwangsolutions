@@ -15,6 +15,20 @@ export function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  if (pathname === '/__/auth/action') {
+    const canonicalUrl = new URL('/auth/action', request.url);
+    const permittedActionParams = ['mode', 'oobCode', 'apiKey', 'continueUrl', 'lang'];
+
+    canonicalUrl.search = '';
+    for (const param of permittedActionParams) {
+      for (const value of request.nextUrl.searchParams.getAll(param)) {
+        canonicalUrl.searchParams.append(param, value);
+      }
+    }
+
+    return NextResponse.redirect(canonicalUrl);
+  }
+
   // Example Edge Protection (assuming we start using next-firebase-auth or similar):
   // const session = request.cookies.get('session');
   // if (!session && (pathname.startsWith('/app') || pathname.startsWith('/admin'))) {
@@ -28,5 +42,6 @@ export const config = {
   matcher: [
     '/app/:path*',
     '/admin/:path*',
+    '/__/auth/action',
   ],
 };

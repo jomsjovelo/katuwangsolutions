@@ -1,6 +1,42 @@
 import { transformFirebaseAuthActionLink } from '../../src/lib/firebase-auth-action-link';
 
 describe('Production Reliability Hotfix Acceptance Suite', () => {
+  const seedValidStaffSession = (win: Window) => {
+    const loginTimestamp = Date.now();
+    const tenant = {
+      id: 'hotfix-help-test-tenant',
+      name: 'Hotfix Help Test Store',
+      moduleType: 'benta-snap',
+      ownerUid: 'staff_pin',
+      staffUids: ['hotfix-help-test-staff'],
+      pricingTier: 'promo_99',
+      subscriptionStatus: 'active',
+      createdAt: new Date(loginTimestamp).toISOString(),
+    };
+
+    win.localStorage.setItem('katuwang-staff-session-storage', JSON.stringify({
+      state: {
+        staffSession: {
+          tenantId: tenant.id,
+          staffAccountId: 'hotfix-help-test-staff',
+          username: 'hotfix_help_test',
+          tenantName: tenant.name,
+          moduleType: tenant.moduleType,
+          loginTimestamp,
+        },
+      },
+      version: 0,
+    }));
+    win.localStorage.setItem('katuwang-store', JSON.stringify({
+      state: {
+        activeTenant: tenant,
+        activeModuleOverride: null,
+        seededTenants: [],
+      },
+      version: 0,
+    }));
+  };
+
   describe('INC-01: Firebase auth-action links and routes', () => {
     it('transforms expected verification and reset links and preserves Firebase parameters', () => {
       const verificationSource =
@@ -95,8 +131,8 @@ describe('Production Reliability Hotfix Acceptance Suite', () => {
       cy.contains('Hindi suportadong action mode.').should('be.visible');
 
       cy.visit('/dashboard', { failOnStatusCode: false });
-      cy.contains('APP MARKET PLACE').should('not.be.visible');
-      cy.contains('button', 'HELP').should('not.be.visible');
+      cy.get('body').should('not.contain.text', 'APP MARKET PLACE');
+      cy.get('body').should('not.contain.text', 'HELP');
     });
   });
 
@@ -108,28 +144,31 @@ describe('Production Reliability Hotfix Acceptance Suite', () => {
       [412, 915],
     ];
 
-    viewports.forEach(([width, height]) => {
-      it(`opens, scrolls, closes, and restores focus at ${width}x${height}`, () => {
-        let forbiddenMutationRequests = 0;
-        cy.intercept('POST', '**/identitytoolkit.googleapis.com/**', () => {
-          forbiddenMutationRequests += 1;
-        });
-        cy.intercept('POST', '**/*documents:commit*', () => {
-          forbiddenMutationRequests += 1;
+    it('opens, scrolls, closes, and restores focus at all four required viewports', () => {
+      let forbiddenMutationRequests = 0;
+      cy.intercept('POST', '**/identitytoolkit.googleapis.com/**', () => {
+        forbiddenMutationRequests += 1;
+      });
+      cy.intercept('POST', '**/*documents:commit*', () => {
+        forbiddenMutationRequests += 1;
+      });
+
+      cy.viewport(320, 568);
+      cy.visit('/dashboard', {
+        failOnStatusCode: false,
+        onBeforeLoad: seedValidStaffSession,
+      });
+
+      cy.contains('button', 'Back to Profile').should('exist').click({ force: true });
+      cy.contains('Open Register').should('not.exist');
+      cy.contains('button', 'HELP')
+        .should('exist')
+        .then(($button) => {
+          $button.parents('.hidden').removeClass('hidden');
         });
 
+      viewports.forEach(([width, height]) => {
         cy.viewport(width, height);
-        cy.visit('/dashboard', { failOnStatusCode: false });
-
-        // AuthGuard deliberately mounts protected children inside a hidden wrapper while signed out.
-        // Reveal that already-mounted DOM only inside Cypress so the real AppHeader and ModuleGuide
-        // can be exercised without changing authentication state or adding a production test mode.
-        cy.contains('button', 'HELP')
-          .should('exist')
-          .then(($button) => {
-            $button.parents('.hidden').removeClass('hidden');
-          });
-
         cy.contains('button', 'HELP')
           .should('be.visible')
           .focus()
@@ -143,7 +182,7 @@ describe('Production Reliability Hotfix Acceptance Suite', () => {
         cy.get('[role="dialog"]')
           .should('be.visible')
           .and('have.attr', 'data-state', 'open')
-          .then(($dialog) => {
+          .should(($dialog) => {
             const rect = $dialog[0].getBoundingClientRect();
             expect(rect.top).to.be.at.least(0);
             expect(rect.bottom).to.be.at.most(height + 1);
@@ -174,9 +213,10 @@ describe('Production Reliability Hotfix Acceptance Suite', () => {
         cy.contains('button', 'HELP').click();
         cy.contains('button', 'Nakuha Ko Na!').click();
         cy.get('[role="dialog"]').should('not.exist');
-        cy.wrap(null).then(() => {
-          expect(forbiddenMutationRequests).to.equal(0);
-        });
+      });
+
+      cy.wrap(null).then(() => {
+        expect(forbiddenMutationRequests).to.equal(0);
       });
     });
   });

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, WifiOff, BookOpen, Clock } from 'lucide-react';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { useOnlineStatus } from '@/hooks/use-online-status';
@@ -27,6 +27,7 @@ export function AppHeader({ title, subtitle, onBack, rightAction }: AppHeaderPro
   const { isOnline, isSyncing, pendingCount, syncMessage } = useSyncStatus(currentTenant?.id);
   const theme = getModuleTheme(currentTenant?.moduleType);
   const [showGuide, setShowGuide] = useState(false);
+  const helpButtonRef = useRef<HTMLButtonElement>(null);
   const [showApps, setShowApps] = useState(false);
   const [showTimeLog, setShowTimeLog] = useState(false);
   const haptic = useHaptic();
@@ -196,6 +197,7 @@ export function AppHeader({ title, subtitle, onBack, rightAction }: AppHeaderPro
                   <Grid className="h-2.5 w-2.5" /> APP MARKET PLACE
                 </button>
                 <button
+                  ref={helpButtonRef}
                   onClick={() => setShowGuide(true)}
                   className="min-h-[44px] min-w-[44px] px-2.5 rounded-full inline-flex items-center justify-center gap-1 text-[9px] font-black uppercase tracking-wider transition-all duration-300 hover:scale-105 active:scale-95 border-none cursor-pointer select-none flex-shrink-0"
                   style={{ 
@@ -225,7 +227,13 @@ export function AppHeader({ title, subtitle, onBack, rightAction }: AppHeaderPro
     </header>
 
     {/* Slide-down Premium Help Overlay Sheet */}
-    <ModuleGuide isOpen={showGuide} onClose={() => setShowGuide(false)} />
+    <ModuleGuide
+      isOpen={showGuide}
+      onClose={() => {
+        setShowGuide(false);
+        window.setTimeout(() => helpButtonRef.current?.focus(), 0);
+      }}
+    />
     
     {/* App Marketplace Overlay */}
     <AppMarketplace isOpen={showApps} onClose={() => setShowApps(false)} />

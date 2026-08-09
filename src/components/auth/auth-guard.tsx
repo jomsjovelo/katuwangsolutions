@@ -141,12 +141,13 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (authLoading || isAdmin === null) return;
+    if (authLoading) return;
     if (!user) {
       const isPublicPath = isPublicPathname(pathname);
       if (!isPublicPath) router.push('/');
       return;
     }
+    if (isAdmin === null) return;
     if (isAdmin === true) {
       if (pathname !== '/admin' && pathname !== '/dashboard' && !pathname.startsWith('/module/')) {
         router.push('/admin');
