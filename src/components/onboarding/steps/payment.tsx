@@ -1,10 +1,10 @@
-"use client"
-
 import React, { useState } from 'react';
-import { ExternalLink, Copy, Check } from 'lucide-react';
+import { ExternalLink, Copy, Check, AlertTriangle, MailCheck, Loader2 } from 'lucide-react';
 import { getModulePricing, formatPesoWithCents, formatPeso } from '@/lib/pricing';
 import { getActiveAppById } from '@/lib/app-data';
 import { trackPaymentMessengerClick, trackPaymentMarkedSent } from '@/lib/conversion-events';
+import { getAuth } from 'firebase/auth';
+import { app } from '@/firebase/config';
 
 const FB_MESSENGER_BASE = 'https://m.me/katuwangsolutions';
 const PAYMENT_NUMBER = '09951665423';
@@ -12,15 +12,60 @@ const PAYMENT_NUMBER_DISPLAY = '0995 166 5423';
 
 interface PaymentStepProps {
   data: any;
+  emailDeliveryFailed?: boolean;
   onPaymentSent: () => void;
   trackerSet?: Set<string>;
 }
 
-export function PaymentStep({ data, onPaymentSent, trackerSet }: PaymentStepProps) {
+export function PaymentStep({ data, emailDeliveryFailed, onPaymentSent, trackerSet }: PaymentStepProps) {
   const pricing = getModulePricing(data.appId || '');
-  const app = getActiveAppById(data.appId || '');
+  const appModule = getActiveAppById(data.appId || '');
   const [gcashCopied, setGcashCopied] = useState(false);
   const [mayaCopied, setMayaCopied] = useState(false);
+
+  const [isSending, setIsSending] = useState(false);
+  const [resendStatus, setResendStatus] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [cooldown, setCooldown] = useState(0);
+
+  const handleResendVerification = async () => {
+    const auth = getAuth(app);
+    const user = auth.currentUser;
+    if (!user || isSending || cooldown > 0) return;
+
+    try {
+      setIsSending(true);
+      setResendStatus(null);
+      const idToken = await user.getIdToken();
+      const res = await fetch('/api/auth/send-verification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ email: user.email }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to send verification email');
+      }
+
+      setResendStatus({ type: 'success', text: 'Naipadala na ulit ang verification link!' });
+      setCooldown(60);
+      const timer = setInterval(() => {
+        setCooldown((c) => {
+          if (c <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return c - 1;
+        });
+      }, 1000);
+    } catch {
+      setResendStatus({ type: 'error', text: 'May kaunting problema sa pagpapadala ng link. Subukan ulit mamaya.' });
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   const copyNumber = (type: 'gcash' | 'maya') => {
     navigator.clipboard.writeText(PAYMENT_NUMBER).catch(() => {});
@@ -39,7 +84,7 @@ export function PaymentStep({ data, onPaymentSent, trackerSet }: PaymentStepProp
     `Pangalan: ${data.fullName || ''}`,
     `Email: ${data.email || ''}`,
     `Negosyo: ${data.businessName || ''}`,
-    `Module: ${app?.name || data.appId}`,
+    `Module: ${appModule?.name || data.appId}`,
     `Halaga: ${formatPesoWithCents(pricing.promotionalMonthlyPrice)}`,
     '',
     '(Screenshot attached below 👇)',
@@ -49,6 +94,51 @@ export function PaymentStep({ data, onPaymentSent, trackerSet }: PaymentStepProp
 
   return (
     <div className="p-6 space-y-7 animate-in fade-in slide-in-from-right-4 duration-500 pb-12">
+      {/* Email Delivery Advisory Banner */}
+      {emailDeliveryFailed && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="space-y-1 flex-1">
+              <p className="text-xs font-bold text-amber-900">
+                Nagawa na ang iyong account! Subalit may kaunting delay sa pagpapadala ng verification email sa <strong>{data.email}</strong>.
+              </p>
+              <p className="text-[11px] text-amber-800 font-medium">
+                Huwag mag-alala, maaari mo pa ring ituloy ang payment ngayon. Pagkatapos magbayad, maaari mong i-click ang button sa ibaba para magpadala ulit.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 pt-1 border-t border-amber-200/60">
+            {resendStatus ? (
+              <span className={`text-xs font-bold ${resendStatus.type === 'success' ? 'text-emerald-700' : 'text-red-700'}`}>
+                {resendStatus.text}
+              </span>
+            ) : (
+              <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">
+                Resend Verification Link
+              </span>
+            )}
+            <button
+              onClick={handleResendVerification}
+              disabled={isSending || cooldown > 0}
+              className="flex items-center gap-1.5 bg-amber-200 hover:bg-amber-300 disabled:opacity-50 text-amber-900 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shrink-0"
+            >
+              {isSending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : cooldown > 0 ? (
+                `Mag-antay (${cooldown}s)`
+              ) : (
+                <>
+                  <MailCheck className="h-3.5 w-3.5" />
+                  Magpadala Ulit
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Dynamic Pricing Badge */}
       {data.appId === 'budget-mo' ? (
         <div className="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-full inline-block border border-amber-200">

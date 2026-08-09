@@ -246,11 +246,16 @@ export async function registerNewTenant(
     }
 
     // Send email verification as the very last step
+    let emailDeliveryFailed = false;
     try {
-      // Using custom backend email sender instead of Firebase default
+      const idToken = await userCredential.user.getIdToken();
+      // Using custom backend email sender with authenticated ID Token
       const res = await dependencies.fetchRequest('/api/auth/send-verification', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+        },
         body: JSON.stringify({ email: userCredential.user.email }),
       });
       if (!res.ok) {
@@ -259,10 +264,11 @@ export async function registerNewTenant(
       console.log('Email verification sent.');
     } catch (verifyError) {
       console.error('Failed to send verification email:', verifyError);
-      // We don't throw here because the user is already successfully created
+      emailDeliveryFailed = true;
+      // We don't throw here because the user account is already created
     }
 
-    return { success: true };
+    return { success: true, emailDeliveryFailed };
   } catch (e) {
       const error = e as Error & { code?: string };
     console.error('Registration failed:', error);

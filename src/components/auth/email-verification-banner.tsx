@@ -20,11 +20,13 @@ export function EmailVerificationBanner() {
     try {
       setIsSending(true);
       setMessage(null);
-      // Using the custom backend email sender instead of Firebase default
+      const idToken = await user.getIdToken();
+      // Using the custom backend email sender with authenticated ID Token
       const res = await fetch('/api/auth/send-verification', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
         },
         body: JSON.stringify({ email: user.email }),
       });

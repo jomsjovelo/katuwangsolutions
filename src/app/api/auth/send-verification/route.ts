@@ -13,17 +13,55 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+const GENERIC_AUTH_ERROR = { error: 'Invalid or unauthorized request' };
+const GENERIC_SERVER_ERROR = { error: 'Failed to process request' };
+
 export async function POST(request: Request) {
   try {
-    const { email } = await request.json();
-
-    if (!email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(GENERIC_AUTH_ERROR, { status: 401 });
     }
 
+    const token = authHeader.split('Bearer ')[1]?.trim();
+    if (!token) {
+      return NextResponse.json(GENERIC_AUTH_ERROR, { status: 401 });
+    }
+
+    let decodedToken;
+    try {
+      decodedToken = await getAdminAuth().verifyIdToken(token);
+    } catch {
+      console.error('[send-verification] Token verification failed.');
+      return NextResponse.json(GENERIC_AUTH_ERROR, { status: 401 });
+    }
+
+    const verifiedEmail = decodedToken.email?.trim().toLowerCase();
+    if (!verifiedEmail) {
+      console.error('[send-verification] Decoded token missing email.');
+      return NextResponse.json(GENERIC_AUTH_ERROR, { status: 401 });
+    }
+
+    let bodyEmail: string | undefined;
+    try {
+      const body = await request.json();
+      if (body && typeof body.email === 'string') {
+        bodyEmail = body.email.trim().toLowerCase();
+      }
+    } catch {
+      // Body is optional
+    }
+
+    if (bodyEmail && bodyEmail !== verifiedEmail) {
+      console.error('[send-verification] Body email does not match token email.');
+      return NextResponse.json(GENERIC_AUTH_ERROR, { status: 401 });
+    }
+
+    const email = verifiedEmail;
+
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS || process.env.SMTP_PASS === 'YOUR_16_LETTER_APP_PASSWORD_HERE') {
-      console.error('SMTP credentials are not configured properly.');
-      return NextResponse.json({ error: 'Server email configuration is incomplete' }, { status: 500 });
+      console.error('[send-verification] SMTP configuration missing or incomplete.');
+      return NextResponse.json(GENERIC_SERVER_ERROR, { status: 500 });
     }
 
     // 1. Generate the verification link using Firebase Admin SDK
@@ -86,11 +124,8 @@ export async function POST(request: Request) {
     console.log('Verification email sent successfully:', info.messageId);
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    console.error('Error in send-verification route:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to send verification email' },
-      { status: 500 }
-    );
+  } catch {
+    console.error('[send-verification] Failed to send verification email.');
+    return NextResponse.json(GENERIC_SERVER_ERROR, { status: 500 });
   }
 }

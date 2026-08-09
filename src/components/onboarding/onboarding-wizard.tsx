@@ -37,7 +37,7 @@ interface RegistrationCompletionInput {
   data: any;
   referredBy: string | null;
   acquisition: ReturnType<typeof getStoredAcquisitionSnapshot>;
-  moveToPayment: () => void;
+  moveToPayment: (emailDeliveryFailed?: boolean) => void;
 }
 
 interface RegistrationCompletionDependencies {
@@ -62,13 +62,13 @@ export async function completeRegistrationAndAdvance(
     trackMetaEvent('CompleteRegistration', payload);
   });
 
-  await registerTenant({ ...input.data, referredBy: input.referredBy, acquisition: input.acquisition });
+  const res = await registerTenant({ ...input.data, referredBy: input.referredBy, acquisition: input.acquisition });
   trackCompleteRegistration({
     content_ids: [input.data.appId],
     content_name: input.data.appId === 'budget-mo' ? 'Budget Mo' : input.data.appId,
     content_type: 'product',
   });
-  input.moveToPayment();
+  input.moveToPayment(res?.emailDeliveryFailed);
 }
 
 export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, onCancel }: OnboardingWizardProps) {
@@ -121,6 +121,7 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
 
   const update = (patch: Partial<typeof data>) => setData((d) => ({ ...d, ...patch }));
   const [isRecovered, setIsRecovered] = useState(false);
+  const [emailDeliveryFailed, setEmailDeliveryFailed] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('katuwang_onboarding_draft');
@@ -205,7 +206,10 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
           data,
           referredBy,
           acquisition,
-          moveToPayment: () => setStep('payment'),
+          moveToPayment: (failed) => {
+            if (failed) setEmailDeliveryFailed(true);
+            setStep('payment');
+          },
         });
       } catch (cause) {
         const err = cause as Error & { code?: string };
@@ -359,6 +363,7 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
         {step === 'payment' && (
           <PaymentStep
             data={data}
+            emailDeliveryFailed={emailDeliveryFailed}
             onPaymentSent={() => setStep(getVerificationStepAfterPayment())}
             trackerSet={trackerSetRef.current}
           />
