@@ -15,7 +15,7 @@ import { isValidActiveModuleId } from '@/lib/app-data';
 import { useStaffSession } from '@/store/use-staff-session';
 
 function isPublicPathname(pathname: string): boolean {
-  if (!pathname || pathname === '/' || pathname === '/admin' || pathname === '/login' || pathname === '/auth') return true;
+  if (!pathname || pathname === '/' || pathname === '/admin' || pathname === '/login' || pathname === '/auth' || pathname === '/auth/action' || pathname === '/__/auth/action') return true;
   
   const publicPrefixes = [
     '/rsvp', '/product', '/terms', '/onboarding', 

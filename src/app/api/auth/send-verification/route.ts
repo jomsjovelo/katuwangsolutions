@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminAuth } from '@/firebase/admin';
 import nodemailer from 'nodemailer';
+import { transformFirebaseAuthActionLink } from '@/lib/firebase-auth-action-link';
 
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
@@ -35,11 +36,8 @@ export async function POST(request: Request) {
     
     const firebaseLink = await getAdminAuth().generateEmailVerificationLink(email, actionCodeSettings);
     
-    // 1.5 Rewrite the URL to use our custom domain instead of firebaseapp.com
-    const verificationLink = firebaseLink.replace(
-      'studio-5538116689-bdfb2.firebaseapp.com',
-      'katuwangsolutions.com'
-    );
+    // 1.5 Transform URL to use canonical domain and path: https://katuwangsolutions.com/auth/action
+    const verificationLink = transformFirebaseAuthActionLink(firebaseLink);
 
     // 2. Construct the beautifully branded HTML email
     const htmlContent = `
@@ -53,7 +51,7 @@ export async function POST(request: Request) {
           <h2 style="color: #334155; font-size: 18px; margin-top: 0;">Verify your email address</h2>
           <p style="color: #475569; font-size: 15px; line-height: 1.5;">
             Hello,<br><br>
-            Please follow the link below to verify your email address and activate your Katuwang Solutions account.
+            I-verify ang iyong email address para makatulong na maprotektahan ang iyong Katuwang account.
           </p>
           
           <div style="text-align: center; margin: 30px 0;">

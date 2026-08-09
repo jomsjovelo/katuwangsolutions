@@ -4,6 +4,7 @@ import React from 'react';
 import { X, Play, BookOpen, Star } from 'lucide-react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { getModuleTheme } from '@/lib/theme-utils';
+import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 export interface ModuleGuideProps {
   isOpen: boolean;
@@ -293,7 +294,6 @@ export const MODULE_GUIDES: Record<string, GuideContent> = {
     steps: [
       'I-setup ang mga kwarto gamit ang "Settings & Rates" para ilagay ang presyo at kapasidad.',
       'Pindutin ang "+ Check-In Guest" kapag may dumating na bisita para i-assign sa available na kwarto.',
-      'I-click ang kwarto para mag-add ng extra charges (tulad ng extra bed) at i-checkout para makita ang final bill.'
     ],
     example: {
       scenario: 'Nag-check in ang isang pamilya sa Standard Room para sa 2 gabi.',
@@ -334,85 +334,98 @@ export function ModuleGuide({ isOpen, onClose }: ModuleGuideProps) {
   const { currentTenant } = useTenant();
   const theme = getModuleTheme(currentTenant?.moduleType);
 
-  if (!isOpen) return null;
-
   const moduleType = currentTenant?.moduleType || 'benta-snap';
   const guide = MODULE_GUIDES[moduleType] || DEFAULT_GUIDE;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center p-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="absolute inset-0" onClick={onClose} />
-      <div 
-        className="relative bg-white border-t border-slate-100 rounded-t-[32px] p-6 pb-nav shadow-2xl w-full max-w-[430px] space-y-6 animate-in slide-in-from-bottom duration-300"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' }}
-      >
-        <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto -mt-2 mb-2" onClick={onClose} />
-
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5">
-              <span className="p-1 rounded-lg text-white" style={{ backgroundColor: theme.primary }}>
-                <BookOpen className="h-4 w-4" />
-              </span>
-              <h2 className="font-headline font-black text-slate-800 text-lg uppercase tracking-tight">
-                Gabay sa Paggamit
-              </h2>
-            </div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-              {currentTenant?.name || 'Katuwang'} · {currentTenant?.moduleType}
-            </p>
-          </div>
-          
-          <button onClick={onClose} className="h-8 w-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 active:scale-90 transition-transform">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="p-4 rounded-2xl flex items-start gap-3 border border-dashed text-left" style={{ backgroundColor: `${theme.primary}08`, borderColor: `${theme.primary}30` }}>
-          <span className="text-xl">💡</span>
-          <p className="text-xs font-bold leading-relaxed" style={{ color: theme.primary }}>{guide.tagline}</p>
-        </div>
-
-        <div className="space-y-4 text-left">
-          {guide.steps.map((step, idx) => (
-            <div key={idx} className="flex items-start gap-4 animate-in fade-in duration-300" style={{ animationDelay: `${idx * 0.1}s` }}>
-              <span className="h-6 w-6 rounded-full flex items-center justify-center text-xs font-black text-white flex-shrink-0 shadow-sm" style={{ backgroundColor: theme.primary }}>
-                {idx + 1}
-              </span>
-              <p className="text-xs text-slate-600 font-medium leading-relaxed pt-0.5">{step}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Display the new example section */}
-        {guide.example && (
-          <div className="mt-6 pt-6 border-t border-slate-100 space-y-3">
-            <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Halimbawa ng Transaksyon</h4>
-            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 space-y-3">
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Sitwasyon</span>
-                <p className="text-sm font-semibold text-slate-700">{guide.example.scenario}</p>
-              </div>
-              <div className="border-t border-slate-200/50 pt-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Paano Gawin</span>
-                <p className="text-sm text-slate-600">{guide.example.action}</p>
-              </div>
-              <div className="border-t border-slate-200/50 pt-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Resulta</span>
-                <p className="text-sm font-medium" style={{ color: theme.primary }}>{guide.example.result}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <button 
-          onClick={onClose}
-          className="w-full h-12 text-white font-bold rounded-xl flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md select-none border-none"
-          style={{ backgroundColor: theme.primary, boxShadow: `0 10px 20px -5px ${theme.primary}50` }}
+    <Sheet open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      {isOpen && (
+        <SheetContent
+          side="bottom"
+          className="rounded-t-[32px] p-6 max-h-[100dvh] sm:max-h-[85vh] max-w-[430px] mx-auto flex flex-col border-t border-slate-100 bg-white shadow-2xl space-y-0 text-left overflow-hidden [&>button:last-child]:hidden"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' }}
         >
-          Nakuha Ko Na! 👍
-        </button>
-      </div>
-    </div>
+          <SheetHeader className="flex-shrink-0 space-y-0 text-left pb-4">
+            <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto -mt-2 mb-3" aria-hidden="true" />
+
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="p-1 rounded-lg text-white" style={{ backgroundColor: theme.primary }}>
+                    <BookOpen className="h-4 w-4" />
+                  </span>
+                  <SheetTitle className="font-headline font-black text-slate-800 text-lg uppercase tracking-tight">
+                    Gabay sa Paggamit
+                  </SheetTitle>
+                </div>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                  {currentTenant?.name || 'Katuwang'} · {currentTenant?.moduleType}
+                </p>
+              </div>
+              
+              <SheetClose asChild>
+                <button
+                  type="button"
+                  aria-label="Isara ang gabay"
+                  className="h-11 w-11 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 active:scale-90 transition-transform border-none cursor-pointer flex-shrink-0"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </SheetClose>
+            </div>
+          </SheetHeader>
+
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-6 pr-1 my-2">
+            <div className="p-4 rounded-2xl flex items-start gap-3 border border-dashed text-left" style={{ backgroundColor: `${theme.primary}08`, borderColor: `${theme.primary}30` }}>
+              <span className="text-xl">💡</span>
+              <p className="text-xs font-bold leading-relaxed" style={{ color: theme.primary }}>{guide.tagline}</p>
+            </div>
+
+            <div className="space-y-4 text-left">
+              {guide.steps.map((step, idx) => (
+                <div key={idx} className="flex items-start gap-4">
+                  <span className="h-6 w-6 rounded-full flex items-center justify-center text-xs font-black text-white flex-shrink-0 shadow-sm" style={{ backgroundColor: theme.primary }}>
+                    {idx + 1}
+                  </span>
+                  <p className="text-xs text-slate-600 font-medium leading-relaxed pt-0.5">{step}</p>
+                </div>
+              ))}
+            </div>
+
+            {guide.example && (
+              <div className="mt-6 pt-6 border-t border-slate-100 space-y-3">
+                <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Halimbawa ng Transaksyon</h4>
+                <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 space-y-3">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Sitwasyon</span>
+                    <p className="text-sm font-semibold text-slate-700">{guide.example.scenario}</p>
+                  </div>
+                  <div className="border-t border-slate-200/50 pt-2">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Paano Gawin</span>
+                    <p className="text-sm text-slate-600">{guide.example.action}</p>
+                  </div>
+                  <div className="border-t border-slate-200/50 pt-2">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Resulta</span>
+                    <p className="text-sm font-medium" style={{ color: theme.primary }}>{guide.example.result}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex-shrink-0 pt-3">
+            <SheetClose asChild>
+              <button
+                type="button"
+                className="w-full h-12 text-white font-bold rounded-xl flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md select-none border-none cursor-pointer"
+                style={{ backgroundColor: theme.primary, boxShadow: `0 10px 20px -5px ${theme.primary}50` }}
+              >
+                Nakuha Ko Na! 👍
+              </button>
+            </SheetClose>
+          </div>
+        </SheetContent>
+      )}
+    </Sheet>
   );
 }

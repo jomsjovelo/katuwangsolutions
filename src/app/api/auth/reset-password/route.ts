@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminAuth } from '@/firebase/admin';
 import nodemailer from 'nodemailer';
+import { transformFirebaseAuthActionLink } from '@/lib/firebase-auth-action-link';
 
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
@@ -45,11 +46,8 @@ export async function POST(request: Request) {
       throw e;
     }
 
-    // 1.5 Rewrite the URL to use our custom domain instead of firebaseapp.com
-    const resetLink = firebaseLink.replace(
-      'studio-5538116689-bdfb2.firebaseapp.com',
-      'katuwangsolutions.com'
-    );
+    // 1.5 Transform URL to use canonical domain and path: https://katuwangsolutions.com/auth/action
+    const resetLink = transformFirebaseAuthActionLink(firebaseLink);
 
     // 2. Construct the beautifully branded HTML email
     const htmlContent = `

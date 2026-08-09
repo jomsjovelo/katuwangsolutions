@@ -126,7 +126,7 @@ export function AppHeader({ title, subtitle, onBack, rightAction }: AppHeaderPro
 
         {/* Title block */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
             <h1 className="text-sm font-black text-slate-900 tracking-tight truncate">{title}</h1>
             
             {/* Real-time Network Connection Pill */}
@@ -197,13 +197,13 @@ export function AppHeader({ title, subtitle, onBack, rightAction }: AppHeaderPro
                 </button>
                 <button
                   onClick={() => setShowGuide(true)}
-                  className="h-5 px-2 rounded-full flex items-center justify-center gap-0.5 text-[8px] font-black uppercase tracking-wider transition-all duration-300 hover:scale-105 active:scale-95 border-none cursor-pointer select-none"
+                  className="min-h-[44px] min-w-[44px] px-2.5 rounded-full inline-flex items-center justify-center gap-1 text-[9px] font-black uppercase tracking-wider transition-all duration-300 hover:scale-105 active:scale-95 border-none cursor-pointer select-none flex-shrink-0"
                   style={{ 
                     backgroundColor: `${theme.primary}12`, 
                     color: theme.primary 
                   }}
                 >
-                  <BookOpen className="h-2.5 w-2.5" /> HELP
+                  <BookOpen className="h-3 w-3" /> HELP
                 </button>
                 <button
                   onClick={() => { haptic(10); setShowTimeLog(true); }}
