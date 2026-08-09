@@ -6,6 +6,7 @@ import {
   Scissors, Truck, Hammer, Droplets, ChevronRight, Bed, Banknote
 } from 'lucide-react';
 import { RegisterSheet, useRegisterSheet } from '@/components/marketing/register-sheet';
+import { trackModuleDiscovery } from '@/lib/conversion-events';
 
 const INDUSTRIES = [
   { id: 'retail', label: 'Retail / Sari-Sari', icon: ShoppingCart, module: 'Benta Snap', moduleId: 'benta-snap', color: '#06B6D4' },
@@ -23,13 +24,25 @@ const INDUSTRIES = [
 
 export function BusinessFinder() {
   const [selected, setSelected] = useState<string | null>(null);
-  const { open, openSheet, closeSheet } = useRegisterSheet();
+  const { open, openSheet, closeSheet, initialAppId } = useRegisterSheet();
 
   const selectedIndustry = INDUSTRIES.find(i => i.id === selected);
 
+  const handleSelect = (id: string) => {
+    if (selected === id) {
+      setSelected(null);
+    } else {
+      setSelected(id);
+      const ind = INDUSTRIES.find(i => i.id === id);
+      if (ind) {
+        trackModuleDiscovery(ind.moduleId, 'business_finder');
+      }
+    }
+  };
+
   return (
     <>
-      <section className="py-14 px-5 bg-slate-50 border-t border-slate-100">
+      <section id="business-finder" className="py-14 px-5 bg-slate-50 border-t border-slate-100 scroll-mt-16">
         <div className="max-w-2xl mx-auto">
           {/* Header */}
           <div className="text-center mb-8 space-y-2">
@@ -48,7 +61,7 @@ export function BusinessFinder() {
               return (
                 <button
                   key={id}
-                  onClick={() => setSelected(isSelected ? null : id)}
+                  onClick={() => handleSelect(id)}
                   className="flex flex-col items-center gap-2 p-3.5 rounded-2xl border text-center transition-all active:scale-95 duration-150"
                   style={isSelected
                     ? { backgroundColor: `${color}15`, borderColor: color }
@@ -105,7 +118,7 @@ export function BusinessFinder() {
               <div className="flex flex-col gap-2 flex-shrink-0">
                 <button
                   onClick={() => openSheet(selectedIndustry.moduleId)}
-                  className="h-9 px-4 rounded-xl font-bold text-xs text-white flex items-center justify-center gap-1 active:scale-95 transition-transform"
+                  className="h-11 min-h-[44px] px-4 rounded-xl font-bold text-xs text-white flex items-center justify-center gap-1 active:scale-95 transition-transform"
                   style={{ backgroundColor: selectedIndustry.color }}
                 >
                   Mag-register
@@ -124,7 +137,7 @@ export function BusinessFinder() {
         </div>
       </section>
 
-      <RegisterSheet open={open} onClose={closeSheet} />
+      <RegisterSheet open={open} onClose={closeSheet} initialAppId={initialAppId || selectedIndustry?.moduleId} ctaSource="business_finder" />
     </>
   );
 }

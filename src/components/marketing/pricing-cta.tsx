@@ -82,7 +82,7 @@ export function PricingCta() {
         </div>
       </section>
 
-      <RegisterSheet open={open} onClose={closeSheet} />
+      <RegisterSheet open={open} onClose={closeSheet} ctaSource="pricing_section" />
     </>
   );
 }

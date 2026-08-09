@@ -120,7 +120,8 @@ describe('NC-06 simplified MVP policy pages', () => {
     ['PageView', 'ViewContent', 'InitiateCheckout', 'CompleteRegistration'].forEach((eventName) => {
       cy.get('main').contains(eventName).should('be.visible');
     });
-    cy.contains("These application event parameters do not include the account holder's name, email, business records, or payment screenshot.").should('be.visible');
+    cy.contains('We do not send registration-field values, names, email addresses, phone numbers, addresses, birth dates, gender, business records, payment screenshots, tenant IDs, user IDs, referral codes, raw URLs, or raw query strings to Meta through these application events.').should('be.visible');
+    cy.contains('When a new business account is created, Katuwang Solutions may store a limited first-party acquisition record with the tenant account').should('be.visible');
     cy.contains('To request account or data deletion').should('be.visible');
   });
 

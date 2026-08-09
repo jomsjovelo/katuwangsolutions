@@ -3,7 +3,7 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ChevronRight, WifiOff, RefreshCw } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { LoginDialog } from '@/components/auth/login-dialog';
 import { StaffRegisterDialog } from '@/components/auth/staff-register-dialog';
 import { BrandLogo } from '@/components/ui/brand-logo';
@@ -14,7 +14,7 @@ export function Hero() {
 
   return (
     <>
-      <section className="relative w-full min-h-[100svh] overflow-hidden flex flex-col justify-between">
+      <section id="homepage-hero" className="relative w-full min-h-[100svh] overflow-hidden flex flex-col justify-between">
         {/* Full-bleed background image */}
         <Image
           src="/katuwang-partnership.png"
@@ -31,12 +31,12 @@ export function Hero() {
         <div className="relative z-30 w-full px-6 md:px-12 flex justify-between items-center pt-[max(1.25rem,env(safe-area-inset-top))] md:pt-8 pb-4">
           <BrandLogo theme="dark" />
           <React.Suspense fallback={
-            <button className="h-8 px-4 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-white text-[11px] font-bold tracking-widest uppercase active:scale-95 transition-transform">
+            <button className="h-11 min-h-[44px] px-5 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-white text-[11px] font-bold tracking-widest uppercase active:scale-95 transition-transform motion-reduce:transition-none motion-reduce:transform-none flex items-center justify-center">
               Login
             </button>
           }>
             <LoginDialog>
-              <button className="h-8 px-4 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-white text-[11px] font-bold tracking-widest uppercase active:scale-95 transition-transform">
+              <button className="h-11 min-h-[44px] px-5 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-white text-[11px] font-bold tracking-widest uppercase active:scale-95 transition-transform motion-reduce:transition-none motion-reduce:transform-none flex items-center justify-center">
                 Login
               </button>
             </LoginDialog>
@@ -86,7 +86,7 @@ export function Hero() {
             <button
               data-testid="hero-register-cta"
               onClick={openSheet}
-              className="w-full h-14 rounded-2xl font-bold text-base bg-primary text-white border-none shadow-2xl shadow-primary/40 active:scale-[0.97] transition-transform flex items-center justify-between px-6"
+              className="w-full h-14 min-h-[44px] rounded-2xl font-bold text-base bg-primary text-white border-none shadow-2xl shadow-primary/40 active:scale-[0.97] transition-transform motion-reduce:transition-none motion-reduce:transform-none flex items-center justify-between px-6"
             >
               <span>Mag-register</span>
               <div className="flex items-center gap-2">
@@ -97,11 +97,12 @@ export function Hero() {
 
             <Link
               href="#products"
-              className="w-full h-11 rounded-2xl font-bold text-sm bg-white/10 backdrop-blur-md border border-white/20 text-white active:scale-[0.97] transition-transform flex items-center justify-center gap-2 hover:bg-white/15"
+              className="w-full h-11 min-h-[44px] rounded-2xl font-bold text-sm bg-white/10 backdrop-blur-md border border-white/20 text-white active:scale-[0.97] transition-transform motion-reduce:transition-none motion-reduce:transform-none flex items-center justify-center gap-2 hover:bg-white/15"
             >
-              Tingnan ang Modules
-              <ChevronRight className="h-3.5 w-3.5 opacity-70" />
+              <span>Tingnan ang Modules</span>
+              <ChevronRight className="h-4 w-4 opacity-80" />
             </Link>
+
           </div>
 
           {/* Scroll hint */}
@@ -111,7 +112,7 @@ export function Hero() {
         </div>
       </section>
 
-      <RegisterSheet open={open} onClose={closeSheet} />
+      <RegisterSheet open={open} onClose={closeSheet} ctaSource="hero" />
 
       {/* Staff invite URL handler */}
       <React.Suspense fallback={null}>

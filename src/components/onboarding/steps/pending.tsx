@@ -22,13 +22,13 @@ export function PendingStep({ data }: PendingStepProps) {
       </div>
 
       {/* Heading */}
-      <div className="space-y-3 max-w-xs mx-auto">
-        <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900">Pending Activation</h2>
+      <div className="space-y-3 max-w-sm mx-auto">
+        <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900">Pending Payment Verification</h2>
         <p className="text-slate-600 text-sm font-medium leading-relaxed">
-          Thank you, <strong>{data.fullName || data.businessName}!</strong> We have received your registration.
+          Natanggap namin ang registration mo. Hindi pa ito kumpirmasyon na na-verify ang payment o active na ang module.
         </p>
         <p className="text-slate-500 text-sm font-medium leading-relaxed">
-          Kapag na-verify na ang inyong bayad ng aming Operations team, mai-unlock ang inyong access sa account.
+          Kapag na-verify ng Operations team ang payment, saka ia-activate ang napili mong module.
         </p>
       </div>
 

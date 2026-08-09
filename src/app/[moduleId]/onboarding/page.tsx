@@ -4,6 +4,15 @@ import { OnboardingWizard } from '@/components/onboarding/onboarding-wizard';
 import { isValidActiveModuleId, activeModules, getActiveAppById } from '@/lib/app-data';
 import { OnboardingStartTracker } from '@/components/analytics/meta-events';
 
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: true,
+  },
+};
+
 type Props = {
   params: Promise<{ moduleId: string }>;
 };

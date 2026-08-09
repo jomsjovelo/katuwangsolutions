@@ -1,6 +1,7 @@
-"use client"
+"use client";
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,16 +9,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 import { AccountSchema } from '@/lib/schemas/onboarding';
-import { getActiveAppById } from '@/lib/app-data';
-import { getModulePricing, formatPesoWithCents } from '@/lib/pricing';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface AccountStepProps {
   data: any;
@@ -26,16 +17,10 @@ interface AccountStepProps {
   isLoading?: boolean;
 }
 
-
-
 export function AccountStep({ data, onUpdate, onNext, isLoading }: AccountStepProps) {
   const [errors, setErrors] = useState<any>({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isTermsOpen, setIsTermsOpen] = useState(false);
-
-  const app = getActiveAppById(data.appId || '');
-  const pricing = getModulePricing(data.appId || '');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,20 +36,20 @@ export function AccountStep({ data, onUpdate, onNext, isLoading }: AccountStepPr
     }
     
     if (!data.termsAccepted) {
-      return; // Disabled button should prevent this, but just in case
+      return;
     }
     
     setErrors({});
     onNext();
   };
 
-
-
   return (
     <div className="p-6 space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
       <div className="space-y-1">
-        <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900">Login Details</h2>
-        <p className="text-slate-600 text-sm font-medium">Konting detalye na lang, pwede ka na mag-lista!</p>
+        <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900">Gumawa ng Account</h2>
+        <p className="text-slate-600 text-sm font-medium">
+          Gumawa ng login. Pagkatapos nito, makikita mo ang payment instructions. Maa-activate lamang ang module pagkatapos ma-verify ang payment.
+        </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -97,11 +82,15 @@ export function AccountStep({ data, onUpdate, onNext, isLoading }: AccountStepPr
                 placeholder="Min. 8 characters with a number"
                 value={data.password || ''}
                 onChange={(e) => onUpdate({ password: e.target.value })}
-                className={`pr-10 ${errors.password ? 'border-destructive' : ''}`}
+                className={`pr-12 ${errors.password ? 'border-destructive' : ''}`}
               />
-              <button type="button" onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              <button
+                type="button"
+                aria-label={showPassword ? 'Itago ang password' : 'Ipakita ang password'}
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg"
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
             </div>
             {errors.password && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.password}</p>}
@@ -118,11 +107,15 @@ export function AccountStep({ data, onUpdate, onNext, isLoading }: AccountStepPr
                 placeholder="Re-type your password"
                 value={data.confirmPassword || ''}
                 onChange={(e) => onUpdate({ confirmPassword: e.target.value })}
-                className={`pr-10 ${errors.confirmPassword ? 'border-destructive' : ''}`}
+                className={`pr-12 ${errors.confirmPassword ? 'border-destructive' : ''}`}
               />
-              <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              <button
+                type="button"
+                aria-label={showConfirmPassword ? 'Itago ang kumpirmasyon ng password' : 'Ipakita ang kumpirmasyon ng password'}
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg"
+              >
+                {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
             </div>
             {errors.confirmPassword && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.confirmPassword}</p>}
@@ -142,21 +135,29 @@ export function AccountStep({ data, onUpdate, onNext, isLoading }: AccountStepPr
               htmlFor="terms"
               className="text-sm font-medium leading-snug text-slate-700 cursor-pointer"
             >
-              I confirm that I am at least 18 years old, and I agree to the{' '}
-              <button 
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setIsTermsOpen(true);
-                }}
-                className="text-primary hover:underline font-bold"
+              I confirm that I am at least 18 years old and agree to the{' '}
+              <Link
+                href="/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="text-primary hover:underline font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-0.5"
               >
-                Terms & Conditions
-              </button>
-              {' '}and Privacy Policy.
+                Terms &amp; Conditions
+              </Link>
+              {' '}and{' '}
+              <Link
+                href="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="text-primary hover:underline font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-0.5"
+              >
+                Privacy Policy
+              </Link>.
             </label>
             <p className="text-xs text-slate-500">
-              Required to create a business account.
+              Basahin ang dalawang dokumento bago gumawa ng account.
             </p>
           </div>
         </div>
@@ -164,74 +165,11 @@ export function AccountStep({ data, onUpdate, onNext, isLoading }: AccountStepPr
         <Button 
           type="submit" 
           disabled={!data.termsAccepted || isLoading}
-          className="w-full h-14 rounded-2xl text-base font-bold shadow-xl active:scale-[0.98] transition-transform flex items-center justify-center gap-2 disabled:opacity-50 disabled:active:scale-100"
+          className="w-full h-14 rounded-2xl text-base font-bold shadow-xl active:scale-[0.98] transition-transform flex items-center justify-center gap-2 disabled:opacity-50 disabled:active:scale-100 min-h-[44px]"
         >
-          {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Gawa na ang Account'}
+          {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Gumawa ng Account at Magpatuloy sa Payment'}
         </Button>
       </form>
-
-      {/* ── Terms Sheet ── */}
-      <Sheet open={isTermsOpen} onOpenChange={setIsTermsOpen}>
-        <SheetContent side="bottom" className="h-[85vh] sm:h-[80vh] rounded-t-3xl flex flex-col p-0">
-          <SheetHeader className="px-6 py-4 border-b border-slate-100 text-left shrink-0">
-            <SheetTitle className="text-2xl font-black text-slate-900 tracking-tight">Terms & Conditions</SheetTitle>
-            <SheetDescription>
-              Please read our terms before creating your Katuwang account.
-            </SheetDescription>
-          </SheetHeader>
-          <ScrollArea className="flex-1 px-6 py-6">
-            <div className="prose prose-slate prose-sm max-w-none space-y-6 pb-8">
-              <section>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">1. Acceptance of Terms</h3>
-                <p className="text-slate-600">By accessing and using Katuwang Solutions, you agree to be bound by these Terms and Conditions. Our services are specifically designed for Micro, Small, and Medium Enterprises (MSMEs) operating in the Philippines. You must be at least 18 years old.</p>
-              </section>
-              <section>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">2. Account Security & Email Access</h3>
-                <p className="text-slate-600">
-                  We use email verification for password resets. <strong>If you lose access to your email address or forget its password, Katuwang Solutions is not responsible for the lost access to your account.</strong> We cannot manually bypass email verification for security reasons.
-                </p>
-              </section>
-              <section>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">3. Offline Mode & Data Syncing</h3>
-                <p className="text-slate-600">
-                  Transactions made offline are saved locally on your device. <strong>If your device breaks, is lost, or its cache is cleared before syncing to the cloud, that data is permanently lost.</strong> We are not liable for unsynced data.
-                </p>
-              </section>
-              <section>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">4. Data Accuracy & Staff Liability</h3>
-                <p className="text-slate-600">
-                  You are solely responsible for the accuracy of all data (sales, inventory, loans) entered into the app. Katuwang Solutions is a recording tool, not a lending agency or tax accountant. Business owners are strictly liable for the actions of their staff accounts.
-                </p>
-              </section>
-              <section>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">5. Activity Logs & Data Retention</h3>
-                <p className="text-slate-600">
-                  To keep the app fast and organized, minor Activity Logs (e.g., recent sales, stock alerts) are only retained for a rolling window of <strong>7 days</strong>. Older logs are automatically hidden and overwritten.
-                </p>
-              </section>
-              <section>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">6. Subscription</h3>
-                <p className="text-slate-600">
-                  <strong>Pricing:</strong> Access to {app?.name || 'the module'} is billed at {formatPesoWithCents(pricing.promotionalMonthlyPrice)} per month (Philippine Peso) on promo. (Regular rate: {formatPesoWithCents(pricing.regularMonthlyPrice)}).<br />
-                  <strong>No Auto-Renew:</strong> We do not automatically charge your payment method. You must manually renew to continue.
-                </p>
-              </section>
-            </div>
-          </ScrollArea>
-          <div className="p-4 border-t border-slate-100 bg-white shrink-0">
-            <Button 
-              type="button" 
-              className="w-full h-14 rounded-2xl font-bold shadow-xl active:scale-[0.98] transition-transform"
-              onClick={() => {
-                onUpdate({ termsAccepted: true });
-                setIsTermsOpen(false);
-              }}
-            >
-              I Agree & Close
-            </Button>
-          </div>
-        </SheetContent>
-      </Sheet>
     </div>
   );
 }

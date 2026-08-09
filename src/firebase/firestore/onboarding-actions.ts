@@ -10,9 +10,98 @@ import { initializeFirebase } from '../index';
 import { BusinessInfoSchema, AccountSchema } from '@/lib/schemas/onboarding';
 import { generateUniqueReferralCode } from './referral-utils';
 import { getModulePricing } from '@/lib/pricing';
+import { isValidCtaSource } from '@/lib/conversion-events';
 
-export async function registerNewTenant(onboardingData: any) {
-  const { auth, db } = initializeFirebase();
+export interface RegistrationDependencies {
+  initializeFirebase: typeof initializeFirebase;
+  createUser: typeof createUserWithEmailAndPassword;
+  getDocument: typeof getDoc;
+  document: typeof doc;
+  collectionRef: typeof collection;
+  runTransaction: typeof runTransactionResilient;
+  timestamp: typeof serverTimestamp;
+  fetchRequest: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+
+const productionRegistrationDependencies: RegistrationDependencies = {
+  initializeFirebase,
+  createUser: createUserWithEmailAndPassword,
+  getDocument: getDoc,
+  document: doc,
+  collectionRef: collection,
+  runTransaction: runTransactionResilient,
+  timestamp: serverTimestamp,
+  fetchRequest: (input, init) => fetch(input, init),
+};
+
+function buildSanitizedAcquisitionData(raw: any, timestamp: typeof serverTimestamp) {
+  if (!raw || typeof raw !== 'object') return null;
+
+  const sanitized: Record<string, any> = {};
+
+  if (
+    typeof raw.landingPath === 'string' &&
+    raw.landingPath.startsWith('/') &&
+    raw.landingPath.length <= 120 &&
+    !raw.landingPath.includes('://') &&
+    !raw.landingPath.includes('?') &&
+    !raw.landingPath.includes('#') &&
+    !raw.landingPath.includes('@') &&
+    !raw.landingPath.includes('\\') &&
+    !/[\x00-\x1F\x7F]/.test(raw.landingPath)
+  ) {
+    sanitized.landingPath = raw.landingPath;
+  }
+
+  const sanitizeUtm = (val: any): string | undefined => {
+    if (typeof val !== 'string') return undefined;
+    const trimmed = val.trim();
+    if (!trimmed || trimmed.length > 100) return undefined;
+    if (
+      trimmed.includes('@') ||
+      trimmed.includes('://') ||
+      trimmed.includes('/') ||
+      trimmed.includes('\\') ||
+      /[\x00-\x1F\x7F]/.test(trimmed) ||
+      /[^a-zA-Z0-9 _.-]/.test(trimmed)
+    ) {
+      return undefined;
+    }
+    return trimmed;
+  };
+
+  const utmSource = sanitizeUtm(raw.utmSource);
+  if (utmSource) sanitized.utmSource = utmSource;
+
+  const utmMedium = sanitizeUtm(raw.utmMedium);
+  if (utmMedium) sanitized.utmMedium = utmMedium;
+
+  const utmCampaign = sanitizeUtm(raw.utmCampaign);
+  if (utmCampaign) sanitized.utmCampaign = utmCampaign;
+
+  const utmContent = sanitizeUtm(raw.utmContent);
+  if (utmContent) sanitized.utmContent = utmContent;
+
+  if (isValidCtaSource(raw.ctaSource)) {
+    sanitized.ctaSource = raw.ctaSource;
+  }
+
+  if (Object.keys(sanitized).length > 0) {
+    sanitized.capturedAt = timestamp();
+    return sanitized;
+  }
+
+  return null;
+}
+
+export async function registerNewTenant(
+  onboardingData: any,
+  injectedDependencies?: Partial<RegistrationDependencies>
+) {
+  const dependencies = injectedDependencies
+    ? { ...productionRegistrationDependencies, ...injectedDependencies }
+    : productionRegistrationDependencies;
+  const { auth, db } = dependencies.initializeFirebase();
 
   // Validate inputs
   const businessInfo = BusinessInfoSchema.parse({
@@ -29,9 +118,11 @@ export async function registerNewTenant(onboardingData: any) {
     confirmPassword: onboardingData.confirmPassword,
   });
 
+  const acquisitionData = buildSanitizedAcquisitionData(onboardingData.acquisition, dependencies.timestamp);
+
   try {
     // 1. Create Auth User
-    const userCredential = await createUserWithEmailAndPassword(
+    const userCredential = await dependencies.createUser(
       auth, 
       accountInfo.email, 
       accountInfo.password
@@ -46,9 +137,12 @@ export async function registerNewTenant(onboardingData: any) {
     
     while (!isUnique && attempts < 10) {
       unifiedCode = Array.from({ length: 7 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
-      const codeRef = doc(db, 'business_codes', unifiedCode);
-      const refRef = doc(db, 'referral_codes', unifiedCode);
-      const [codeSnap, refSnap] = await Promise.all([getDoc(codeRef), getDoc(refRef)]);
+      const codeRef = dependencies.document(db, 'business_codes', unifiedCode);
+      const refRef = dependencies.document(db, 'referral_codes', unifiedCode);
+      const [codeSnap, refSnap] = await Promise.all([
+        dependencies.getDocument(codeRef),
+        dependencies.getDocument(refRef),
+      ]);
       
       if (!codeSnap.exists() && !refSnap.exists()) {
         isUnique = true;
@@ -65,22 +159,22 @@ export async function registerNewTenant(onboardingData: any) {
 
     // 3. Atomic Firestore Write
     try {
-      await runTransactionResilient(db, async (transaction) => {
+      await dependencies.runTransaction(db, async (transaction) => {
         // Double-check inside transaction (optional but safe)
-        const codeRef = doc(db, 'business_codes', businessCode);
+        const codeRef = dependencies.document(db, 'business_codes', businessCode);
         const codeSnap = await transaction.get(codeRef);
         if (codeSnap.exists()) {
            throw new Error("Collision during transaction. Please try again.");
         }
 
-        const refCodeDoc = doc(db, 'referral_codes', referralCode);
+        const refCodeDoc = dependencies.document(db, 'referral_codes', referralCode);
         const refCodeSnap = await transaction.get(refCodeDoc);
         if (refCodeSnap.exists()) {
            throw new Error("Collision during transaction for referral code.");
         }
 
         // Create Tenant Doc
-        const tenantRef = doc(collection(db, 'tenants'));
+        const tenantRef = dependencies.document(dependencies.collectionRef(db, 'tenants'));
         const tenantId = tenantRef.id;
 
         transaction.set(codeRef, {
@@ -88,12 +182,12 @@ export async function registerNewTenant(onboardingData: any) {
           tenantId: tenantId,
           businessName: businessInfo.businessName,
           ownerEmail: accountInfo.email,
-          createdAt: serverTimestamp(),
+          createdAt: dependencies.timestamp(),
         });
 
         transaction.set(refCodeDoc, {
           uid: uid,
-          createdAt: serverTimestamp(),
+          createdAt: dependencies.timestamp(),
         });
 
         transaction.set(tenantRef, {
@@ -111,15 +205,16 @@ export async function registerNewTenant(onboardingData: any) {
           moduleType: onboardingData.appId,
           staffUids: [],
           referredBy: onboardingData.referredBy || null,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
+          acquisition: acquisitionData,
+          createdAt: dependencies.timestamp(),
+          updatedAt: dependencies.timestamp(),
           settings: {
             theme: 'default'
           }
         });
 
         // Create User Profile Doc
-        const userRef = doc(db, 'users', uid);
+        const userRef = dependencies.document(db, 'users', uid);
         transaction.set(userRef, {
           uid: uid,
           fullName: businessInfo.fullName,
@@ -134,9 +229,9 @@ export async function registerNewTenant(onboardingData: any) {
           referralCode: referralCode,
           referralEarnings: 0,
           termsAccepted: onboardingData.termsAccepted || false,
-          termsAcceptedAt: onboardingData.termsAccepted ? serverTimestamp() : null,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
+          termsAcceptedAt: onboardingData.termsAccepted ? dependencies.timestamp() : null,
+          createdAt: dependencies.timestamp(),
+          updatedAt: dependencies.timestamp(),
         });
       });
     } catch (transactionError: any) {
@@ -153,7 +248,7 @@ export async function registerNewTenant(onboardingData: any) {
     // Send email verification as the very last step
     try {
       // Using custom backend email sender instead of Firebase default
-      const res = await fetch('/api/auth/send-verification', {
+      const res = await dependencies.fetchRequest('/api/auth/send-verification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: userCredential.user.email }),
@@ -174,4 +269,3 @@ export async function registerNewTenant(onboardingData: any) {
     throw new Error(error.message || 'Registration failed. Please try again.');
   }
 }
-

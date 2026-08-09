@@ -17,7 +17,8 @@ declare global {
 }
 
 type QueuedEvent = {
-  eventName: MetaEventName;
+  method: 'track' | 'trackCustom';
+  eventName: string;
   parameters: MetaEventParameters;
 };
 
@@ -34,7 +35,7 @@ export function flushMetaEventQueue() {
   while (eventQueue.length > 0) {
     const item = eventQueue.shift();
     if (item) {
-      window.fbq('track', item.eventName, item.parameters);
+      window.fbq(item.method, item.eventName, item.parameters);
     }
   }
 }
@@ -55,6 +56,22 @@ export function trackMetaEvent(
     flushMetaEventQueue();
     window.fbq('track', eventName, parameters);
   } else {
-    eventQueue.push({ eventName, parameters });
+    eventQueue.push({ method: 'track', eventName, parameters });
+  }
+}
+
+export function trackMetaCustomEvent(
+  eventName: string,
+  parameters: MetaEventParameters = {}
+) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  if (typeof window.fbq === 'function') {
+    flushMetaEventQueue();
+    window.fbq('trackCustom', eventName, parameters);
+  } else {
+    eventQueue.push({ method: 'trackCustom', eventName, parameters });
   }
 }

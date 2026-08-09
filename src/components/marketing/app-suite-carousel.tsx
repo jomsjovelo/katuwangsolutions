@@ -7,6 +7,7 @@ import { RegisterSheet, useRegisterSheet } from '@/components/marketing/register
 import { appGroups, activeModules, activeModulesCount, AppModule } from '@/lib/app-data';
 import { getModulePricing, formatPeso } from '@/lib/pricing';
 import Image from 'next/image';
+import { trackModuleDiscovery } from '@/lib/conversion-events';
 
 const CATEGORY_TABS = [
   { id: 'all', label: '✨ Lahat ng Modules (20)' },
@@ -45,6 +46,11 @@ export function AppSuiteCarousel() {
   const { open, openSheet, closeSheet, initialAppId } = useRegisterSheet();
   const [activeCategory, setActiveCategory] = useState('all');
   const [activeModuleId, setActiveModuleId] = useState('benta-snap');
+
+  const handleSelectModule = (id: string) => {
+    setActiveModuleId(id);
+    trackModuleDiscovery(id, 'module_carousel');
+  };
 
   // Filter modules based on category tab
   const filteredModules = activeModules.filter((module) => {
@@ -195,7 +201,7 @@ export function AppSuiteCarousel() {
               return (
                 <button
                   key={app.id}
-                  onClick={() => setActiveModuleId(app.id)}
+                  onClick={() => handleSelectModule(app.id)}
                   className={`p-3 rounded-2xl text-left border transition-all flex flex-col justify-between h-28 relative overflow-hidden ${
                     isSelected
                       ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-900 ring-offset-1'
@@ -247,7 +253,7 @@ export function AppSuiteCarousel() {
         </div>
       </section>
 
-      <RegisterSheet open={open} onClose={closeSheet} initialAppId={initialAppId} />
+      <RegisterSheet open={open} onClose={closeSheet} initialAppId={initialAppId} ctaSource="module_carousel" />
     </>
   );
 }

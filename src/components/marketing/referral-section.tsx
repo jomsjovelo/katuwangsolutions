@@ -84,7 +84,7 @@ export function ReferralSection() {
         </div>
       </section>
 
-      <RegisterSheet open={open} onClose={closeSheet} />
+      <RegisterSheet open={open} onClose={closeSheet} ctaSource="referral_section" />
     </>
   );
 }

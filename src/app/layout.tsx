@@ -8,6 +8,7 @@ import { ReferralCatcher } from '@/components/referral-catcher';
 import { InAppBrowserBlocker } from '@/components/common/in-app-browser-blocker';
 import { IosInstallPrompt } from '@/components/common/ios-install-prompt';
 import { MetaPixel } from '@/components/analytics/meta-pixel';
+import { AcquisitionCatcher } from '@/components/analytics/acquisition-catcher';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://katuwangsolutions.com'),
@@ -80,6 +81,7 @@ export default function RootLayout({
             <Toaster />
             <Suspense fallback={null}>
               <ReferralCatcher />
+              <AcquisitionCatcher />
             </Suspense>
           </AuthGuard>
         </FirebaseClientProvider>

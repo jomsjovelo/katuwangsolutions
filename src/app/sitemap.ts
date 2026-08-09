@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next';
 import { activeModules } from '@/lib/app-data';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://www.katuwangsolutions.com';
+  const baseUrl = 'https://katuwangsolutions.com';
 
   const staticRoutes = [
     {
@@ -10,12 +10,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(),
       changeFrequency: 'monthly' as const,
       priority: 1,
-    },
-    {
-      url: `${baseUrl}/onboarding`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly' as const,
-      priority: 0.8,
     },
     {
       url: `${baseUrl}/about`,
@@ -49,23 +43,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 
-  // Dedicated module landing pages and direct onboarding routes
+  // Dedicated canonical public module landing pages only
   const moduleRoutes = activeModules
     .filter(app => app.id !== 'farm-master')
-    .flatMap(app => [
-      {
-        url: `${baseUrl}/${app.id}`,
-        lastModified: new Date(),
-        changeFrequency: 'monthly' as const,
-        priority: 0.8,
-      },
-      {
-        url: `${baseUrl}/${app.id}/onboarding`,
-        lastModified: new Date(),
-        changeFrequency: 'monthly' as const,
-        priority: 0.7,
-      },
-    ]);
+    .map(app => ({
+      url: `${baseUrl}/${app.id}`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly' as const,
+      priority: 0.8,
+    }));
 
   return [...staticRoutes, ...moduleRoutes];
 }

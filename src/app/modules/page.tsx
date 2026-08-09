@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { appGroups, activeModulesCount, standardModulesCount } from '@/lib/app-data';
 import { getModulePricing, formatPeso } from '@/lib/pricing';
+import { TrackedOnboardingLink } from '@/components/analytics/tracked-onboarding-link';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -96,10 +97,10 @@ export default function ModulesPage() {
                         <Link href={`/${app.id}`} className="flex-1 text-center text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors p-3 rounded-xl">
                           Details
                         </Link>
-                        <Link href={`/${app.id}/onboarding`} className="flex-1 flex items-center justify-center gap-1 text-xs font-bold text-white bg-primary hover:bg-primary/90 transition-colors p-3 rounded-xl shadow-sm">
-                          <span>Gamitin na</span>
+                        <TrackedOnboardingLink href={`/${app.id}/onboarding`} ctaSource="module_catalogue_card" moduleId={app.id} className="flex-1 flex items-center justify-center gap-1 text-xs font-bold text-white bg-primary hover:bg-primary/90 transition-colors p-3 rounded-xl shadow-sm">
+                          <span>Mag-register</span>
                           <ArrowRight className="h-3.5 w-3.5" />
-                        </Link>
+                        </TrackedOnboardingLink>
                       </div>
                     </div>
                   </div>
@@ -112,13 +113,13 @@ export default function ModulesPage() {
         {/* ── Bottom CTA ─────────────────────────────────────────────────────────── */}
         <div className="bg-slate-950 rounded-[2rem] p-10 md:p-16 text-center text-white mt-20 relative overflow-hidden">
           <div className="relative z-10 space-y-6 max-w-2xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-black">Handa nang mag-upgrade?</h2>
+            <h2 className="text-3xl md:text-4xl font-black">Handa nang pumili ng module?</h2>
             <p className="text-slate-400 text-lg">
-              Isang account lang ang kailangan. Mag-register nang libre para masubukan.
+              Libre ang paggawa ng account. Kailangan ang manual GCash o Maya payment at payment verification bago ma-activate ang napiling module. Hindi ito free trial.
             </p>
-            <Link href="/onboarding" className="inline-block bg-primary text-white font-bold text-lg px-10 py-4 rounded-full hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/20">
-              Magsimula Ngayon
-            </Link>
+            <TrackedOnboardingLink href="/onboarding" ctaSource="module_catalogue_footer" className="inline-block bg-primary text-white font-bold text-lg px-10 py-4 rounded-full hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/20">
+              Pumili at Mag-register
+            </TrackedOnboardingLink>
           </div>
           {/* Subtle bg decoration */}
           <div className="absolute inset-0 opacity-5 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 50% 0%, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />

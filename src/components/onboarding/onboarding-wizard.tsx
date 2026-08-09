@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Logo } from '@/components/ui/logo';
 import { ChevronLeft } from 'lucide-react';
@@ -17,11 +17,15 @@ import { AlertCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 import { normalizeModuleId, isValidActiveModuleId } from '@/lib/app-data';
-import { trackMetaEvent } from '@/lib/meta-pixel';
+import { trackMetaEvent, type MetaEventParameters } from '@/lib/meta-pixel';
 
-type Step = 'mode' | 'apps' | 'business' | 'account' | 'success' | 'payment' | 'pending';
+import { trackOnboardingStageView } from '@/lib/conversion-events';
+import { getStoredAcquisitionSnapshot } from '@/lib/conversion-attribution';
 
-const FORM_STEPS: Step[] = ['apps', 'business', 'account'];
+export type OnboardingStep = 'mode' | 'apps' | 'business' | 'account' | 'success' | 'payment' | 'pending';
+
+const FORM_STEPS: OnboardingStep[] = ['apps', 'business', 'account'];
+const JOURNEY_STEPS: OnboardingStep[] = ['mode', 'apps', 'business', 'account', 'payment', 'pending', 'success'];
 
 interface OnboardingWizardProps {
   initialAppId?: string;
@@ -29,15 +33,54 @@ interface OnboardingWizardProps {
   onCancel?: () => void;
 }
 
+interface RegistrationCompletionInput {
+  data: any;
+  referredBy: string | null;
+  acquisition: ReturnType<typeof getStoredAcquisitionSnapshot>;
+  moveToPayment: () => void;
+}
+
+interface RegistrationCompletionDependencies {
+  registerTenant?: typeof registerNewTenant;
+  trackCompleteRegistration?: (payload: MetaEventParameters) => void;
+}
+
+export function getNextOnboardingStep(step: OnboardingStep): OnboardingStep | undefined {
+  return JOURNEY_STEPS[JOURNEY_STEPS.indexOf(step) + 1];
+}
+
+export function getVerificationStepAfterPayment(): OnboardingStep {
+  return getNextOnboardingStep('payment') ?? 'pending';
+}
+
+export async function completeRegistrationAndAdvance(
+  input: RegistrationCompletionInput,
+  dependencies: RegistrationCompletionDependencies = {}
+) {
+  const registerTenant = dependencies.registerTenant ?? registerNewTenant;
+  const trackCompleteRegistration = dependencies.trackCompleteRegistration ?? ((payload) => {
+    trackMetaEvent('CompleteRegistration', payload);
+  });
+
+  await registerTenant({ ...input.data, referredBy: input.referredBy, acquisition: input.acquisition });
+  trackCompleteRegistration({
+    content_ids: [input.data.appId],
+    content_name: input.data.appId === 'budget-mo' ? 'Budget Mo' : input.data.appId,
+    content_type: 'product',
+  });
+  input.moveToPayment();
+}
+
 export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, onCancel }: OnboardingWizardProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+  const trackerSetRef = useRef<Set<string>>(new Set());
+
   const rawAppId = initialAppIdProp ?? searchParams.get('app') ?? '';
   const normalizedAppId = normalizeModuleId(rawAppId);
 
   let resolvedAppId = '';
-  let initialStep: Step = 'mode';
+  let initialStep: OnboardingStep = 'mode';
   let initialError: string | null = null;
 
   if (rawAppId) {
@@ -54,7 +97,7 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
 
   const handleComplete = onComplete ?? (() => router.push('/dashboard'));
   const handleCancel = onCancel ?? (() => router.push('/'));
-  const [step, setStep] = useState<Step>(initialStep);
+  const [step, setStep] = useState<OnboardingStep>(initialStep);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(initialError);
   const [data, setData] = useState({
@@ -77,7 +120,6 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
   });
 
   const update = (patch: Partial<typeof data>) => setData((d) => ({ ...d, ...patch }));
-
   const [isRecovered, setIsRecovered] = useState(false);
 
   useEffect(() => {
@@ -90,11 +132,10 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
             setIsRecovered(true);
             return;
           }
-          
-          let updatedData = { ...parsed.data };
+
+          const updatedData = { ...parsed.data };
           let updatedStep = parsed.step;
           let draftError: string | null = null;
-
           const draftAppId = normalizeModuleId(updatedData.appId || '');
 
           if (draftAppId === 'farm-master') {
@@ -108,8 +149,6 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
             updatedData.appId = draftAppId;
           }
 
-          // If a specific module was specified via URL or prop (e.g. /budget-mo/onboarding),
-          // prioritize the URL module and skip the 'apps' picker step!
           if (resolvedAppId) {
             updatedData.appId = resolvedAppId;
             if (updatedStep === 'apps' || updatedStep === 'mode' || !updatedData.appId) {
@@ -118,17 +157,15 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
           }
 
           setStep(updatedStep);
-          setData((d) => ({ ...d, ...updatedData }));
-          if (draftError) {
-            setError(draftError);
-          }
+          setData((current) => ({ ...current, ...updatedData }));
+          if (draftError) setError(draftError);
         }
-      } catch (e) {
-        // ignore safely
+      } catch {
+        // Ignore malformed legacy drafts safely.
       }
     } else if (resolvedAppId) {
       setStep('business');
-      setData((d) => ({ ...d, appId: resolvedAppId }));
+      setData((current) => ({ ...current, appId: resolvedAppId }));
     }
     setIsRecovered(true);
   }, [resolvedAppId]);
@@ -142,25 +179,36 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
     }
   }, [step, data, isRecovered]);
 
+  useEffect(() => {
+    if (!isRecovered) return;
+    if (data.appId) {
+      if (step === 'business' || step === 'account') {
+        trackOnboardingStageView(data.appId, 'account_setup', trackerSetRef.current);
+      } else if (step === 'payment') {
+        trackOnboardingStageView(data.appId, 'payment', trackerSetRef.current);
+      } else if (step === 'pending') {
+        trackOnboardingStageView(data.appId, 'verification', trackerSetRef.current);
+      }
+    }
+  }, [step, data.appId, isRecovered]);
+
   const next = async () => {
     setError(null);
-    const all: Step[] = ['mode', 'apps', 'business', 'account', 'payment', 'pending', 'success'];
-    const currentIndex = all.indexOf(step);
-    const nextStep = all[currentIndex + 1];
+    const nextStep = getNextOnboardingStep(step);
 
     if (step === 'account') {
       setIsLoading(true);
       try {
         const referredBy = typeof window !== 'undefined' ? localStorage.getItem('katuwang_ref') : null;
-        await registerNewTenant({ ...data, referredBy });
-        trackMetaEvent('CompleteRegistration', {
-          content_ids: [data.appId],
-          content_name: data.appId === 'budget-mo' ? 'Budget Mo' : data.appId,
-          content_type: 'product',
+        const acquisition = getStoredAcquisitionSnapshot();
+        await completeRegistrationAndAdvance({
+          data,
+          referredBy,
+          acquisition,
+          moveToPayment: () => setStep('payment'),
         });
-        setStep('payment');
-      } catch (e) {
-      const err = e as Error & { code?: string };
+      } catch (cause) {
+        const err = cause as Error & { code?: string };
         setError(err.message || 'Failed to create account. Please try again.');
         return;
       } finally {
@@ -179,49 +227,69 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
     if (step === 'apps') { setStep('mode'); return; }
     if (step === 'business' && resolvedAppId) { handleCancel(); return; }
     if (step === 'success' || step === 'payment' || step === 'pending') return;
-    const all: Step[] = ['apps', 'business', 'account'];
-    const idx = all.indexOf(step);
-    if (idx > 0) setStep(all[idx - 1]);
+    const all: OnboardingStep[] = ['apps', 'business', 'account'];
+    const index = all.indexOf(step);
+    if (index > 0) setStep(all[index - 1]);
   };
 
   const isFormStep = FORM_STEPS.includes(step);
-  const formStepIndex = FORM_STEPS.indexOf(step); // 0, 1, 2 or -1
+  const showsJourneyProgress = isFormStep || step === 'payment' || step === 'pending';
+
+  const getJourneyLabel = () => {
+    if (step === 'business' || step === 'account' || step === 'apps') {
+      return 'ACCOUNT SETUP · HAKBANG 1 SA 4';
+    }
+    if (step === 'payment') {
+      return 'PAYMENT · HAKBANG 2 SA 4';
+    }
+    if (step === 'pending') {
+      return 'VERIFICATION · HAKBANG 3 SA 4';
+    }
+    return '';
+  };
+
+  const getProgressPercentage = () => {
+    if (step === 'apps' || step === 'business' || step === 'account') return 25;
+    if (step === 'payment') return 50;
+    if (step === 'pending') return 75;
+    return 0;
+  };
 
   return (
     <div className="fixed inset-0 bg-white z-50 flex flex-col">
       {/* ── Header ── */}
       <header className="h-16 flex items-center justify-between px-6 border-b border-slate-100 bg-white shrink-0">
-        {isFormStep
-          ? (
-            <button 
-              onClick={back} 
-              disabled={isLoading}
-              className="h-10 w-10 flex items-center justify-center -ml-2 text-slate-400 active:scale-90 transition-transform disabled:opacity-30"
-            >
-              <ChevronLeft className="h-6 w-6" />
-            </button>
-          )
-          : <div className="w-10" />
-        }
+        {FORM_STEPS.includes(step) ? (
+          <button
+            onClick={back}
+            disabled={isLoading}
+            aria-label="Bumalik sa nakaraang hakbang"
+            className="h-11 w-11 min-h-[44px] min-w-[44px] flex items-center justify-center -ml-2 text-slate-400 active:scale-90 transition-transform disabled:opacity-30"
+          >
+            <ChevronLeft className="h-6 w-6" />
+          </button>
+        ) : (
+          <div className="w-11" />
+        )}
 
         <div className="flex flex-col items-center">
           <Logo className="h-5 w-5 mb-0.5" />
-          {isFormStep && (
+          {showsJourneyProgress && (
             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
-              STEP {formStepIndex + 1} OF 3
+              {getJourneyLabel()}
             </span>
           )}
         </div>
 
-        <div className="w-10" />
+        <div className="w-11" />
       </header>
 
-      {/* ── Progress Bar (form steps only) ── */}
-      {isFormStep && (
+      {/* ── Progress Bar ── */}
+      {showsJourneyProgress && (
         <div className="h-1 bg-slate-100 w-full overflow-hidden shrink-0">
           <div
             className="h-full bg-primary transition-all duration-500 ease-out"
-            style={{ width: `${((formStepIndex + 1) / 3) * 100}%` }}
+            style={{ width: `${getProgressPercentage()}%` }}
           />
         </div>
       )}
@@ -248,19 +316,21 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
         </div>
       )}
 
-      {/* ── Step Content ── */}
+      {/* ── Content ── */}
       <div className={cn("flex-1 overflow-y-auto bg-slate-50/30", isLoading && "pointer-events-none opacity-50")}>
         {step === 'mode' && (
-          <ModeSelectionStep 
+          <ModeSelectionStep
             onSelectStartBusiness={() => setStep('apps')}
           />
         )}
+
         {step === 'apps' && (
           <AppPickerStep
             selectedId={data.appId}
             onSelect={(id) => { update({ appId: id }); next(); }}
           />
         )}
+
         {step === 'business' && (
           <BusinessInfoStep
             data={data}
@@ -269,6 +339,7 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
             isLoading={isLoading}
           />
         )}
+
         {step === 'account' && (
           <AccountStep
             data={data}
@@ -277,18 +348,22 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
             isLoading={isLoading}
           />
         )}
+
         {step === 'success' && (
           <SuccessStep
             data={data}
             onProceed={next}
           />
         )}
+
         {step === 'payment' && (
           <PaymentStep
             data={data}
-            onPaymentSent={next}
+            onPaymentSent={() => setStep(getVerificationStepAfterPayment())}
+            trackerSet={trackerSetRef.current}
           />
         )}
+
         {step === 'pending' && (
           <PendingStep data={data} />
         )}

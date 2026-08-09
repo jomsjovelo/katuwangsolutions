@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { RegisterSheet, useRegisterSheet } from '@/components/marketing/register-sheet';
+import { trackModuleDiscovery } from '@/lib/conversion-events';
 
 const PROBLEMS = [
   {
@@ -81,9 +82,21 @@ const PROBLEMS = [
 
 export function ProblemFirst() {
   const [selected, setSelected] = useState<string | null>(null);
-  const { open, openSheet, closeSheet } = useRegisterSheet();
+  const { open, openSheet, closeSheet, initialAppId } = useRegisterSheet();
 
   const selectedProblem = PROBLEMS.find(p => p.id === selected);
+
+  const handleSelect = (id: string) => {
+    if (selected === id) {
+      setSelected(null);
+    } else {
+      setSelected(id);
+      const prob = PROBLEMS.find(p => p.id === id);
+      if (prob) {
+        trackModuleDiscovery(prob.moduleId, 'problem_finder');
+      }
+    }
+  };
 
   return (
     <>
@@ -107,7 +120,7 @@ export function ProblemFirst() {
               return (
                 <button
                   key={id}
-                  onClick={() => setSelected(isSelected ? null : id)}
+                  onClick={() => handleSelect(id)}
                   className="flex items-center gap-3.5 p-4 rounded-2xl border text-left transition-all active:scale-[0.99] duration-150 w-full"
                   style={isSelected
                     ? { backgroundColor: `${color}10`, borderColor: color }
@@ -177,7 +190,7 @@ export function ProblemFirst() {
         </div>
       </section>
 
-      <RegisterSheet open={open} onClose={closeSheet} />
+      <RegisterSheet open={open} onClose={closeSheet} initialAppId={initialAppId || selectedProblem?.moduleId} ctaSource="problem_finder" />
     </>
   );
 }

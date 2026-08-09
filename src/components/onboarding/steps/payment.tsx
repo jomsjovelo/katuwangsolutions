@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { ExternalLink, Copy, Check } from 'lucide-react';
 import { getModulePricing, formatPesoWithCents, formatPeso } from '@/lib/pricing';
 import { getActiveAppById } from '@/lib/app-data';
+import { trackPaymentMessengerClick, trackPaymentMarkedSent } from '@/lib/conversion-events';
 
 const FB_MESSENGER_BASE = 'https://m.me/katuwangsolutions';
 const PAYMENT_NUMBER = '09951665423';
@@ -12,9 +13,10 @@ const PAYMENT_NUMBER_DISPLAY = '0995 166 5423';
 interface PaymentStepProps {
   data: any;
   onPaymentSent: () => void;
+  trackerSet?: Set<string>;
 }
 
-export function PaymentStep({ data, onPaymentSent }: PaymentStepProps) {
+export function PaymentStep({ data, onPaymentSent, trackerSet }: PaymentStepProps) {
   const pricing = getModulePricing(data.appId || '');
   const app = getActiveAppById(data.appId || '');
   const [gcashCopied, setGcashCopied] = useState(false);
@@ -31,7 +33,6 @@ export function PaymentStep({ data, onPaymentSent }: PaymentStepProps) {
     }
   };
 
-  // Build pre-filled Messenger message so admin gets all info at once
   const messengerMessage = [
     'Bayad ko na po!',
     '',
@@ -99,7 +100,7 @@ export function PaymentStep({ data, onPaymentSent }: PaymentStepProps) {
             </p>
             <button
               onClick={() => copyNumber('gcash')}
-              className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg w-full justify-center transition-all duration-200 active:scale-95 ${
+              className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg w-full justify-center transition-all duration-200 active:scale-95 min-h-[44px] ${
                 gcashCopied
                   ? 'bg-green-100 text-green-700 border border-green-200'
                   : 'bg-[#007DFE] text-white hover:bg-blue-700'
@@ -125,7 +126,7 @@ export function PaymentStep({ data, onPaymentSent }: PaymentStepProps) {
             </p>
             <button
               onClick={() => copyNumber('maya')}
-              className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg w-full justify-center transition-all duration-200 active:scale-95 ${
+              className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg w-full justify-center transition-all duration-200 active:scale-95 min-h-[44px] ${
                 mayaCopied
                   ? 'bg-green-100 text-green-700 border border-green-200'
                   : 'bg-[#00A14B] text-white hover:bg-green-700'
@@ -160,12 +161,13 @@ export function PaymentStep({ data, onPaymentSent }: PaymentStepProps) {
         </div>
       </div>
 
-      {/* Messenger CTA — pre-filled with user's onboarding info */}
+      {/* Messenger CTA */}
       <a
         href={messengerUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="w-full h-14 rounded-2xl text-white font-bold text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-xl"
+        onClick={() => trackPaymentMessengerClick(data.appId)}
+        className="w-full h-14 min-h-[44px] rounded-2xl text-white font-bold text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-xl"
         style={{ background: '#0099FF' }}
       >
         <ExternalLink className="h-5 w-5" />
@@ -174,13 +176,14 @@ export function PaymentStep({ data, onPaymentSent }: PaymentStepProps) {
 
       {/* Already sent */}
       <button
-        onClick={onPaymentSent}
-        className="w-full text-center text-sm font-semibold text-slate-400 hover:text-slate-600 transition-colors py-2"
+        onClick={() => {
+          trackPaymentMarkedSent(data.appId, trackerSet);
+          onPaymentSent();
+        }}
+        className="w-full text-center text-sm font-semibold text-slate-400 hover:text-slate-600 transition-colors py-2 h-11 min-h-[44px] flex items-center justify-center"
       >
-        I've already sent my payment →
+        Naipadala ko na ang payment screenshot →
       </button>
     </div>
   );
 }
-
-
