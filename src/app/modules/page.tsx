@@ -94,10 +94,10 @@ export default function ModulesPage() {
                         ))}
                       </div>
                       <div className="flex gap-2">
-                        <Link href={`/${app.id}`} className="flex-1 text-center text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors p-3 rounded-xl">
-                          Details
+                        <Link href={`/${app.id}`} className="flex-1 text-center text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors py-3 px-3 rounded-xl min-h-[44px] flex items-center justify-center">
+                          Detalye
                         </Link>
-                        <TrackedOnboardingLink href={`/${app.id}/onboarding`} ctaSource="module_catalogue_card" moduleId={app.id} className="flex-1 flex items-center justify-center gap-1 text-xs font-bold text-white bg-primary hover:bg-primary/90 transition-colors p-3 rounded-xl shadow-sm">
+                        <TrackedOnboardingLink href={`/${app.id}/onboarding`} ctaSource="module_catalogue_card" moduleId={app.id} className="flex-1 flex items-center justify-center gap-1 text-xs font-bold text-white bg-primary hover:bg-primary/90 transition-colors py-3 px-3 rounded-xl shadow-sm min-h-[44px]">
                           <span>Mag-register</span>
                           <ArrowRight className="h-3.5 w-3.5" />
                         </TrackedOnboardingLink>

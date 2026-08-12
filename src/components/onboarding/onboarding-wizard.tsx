@@ -247,7 +247,7 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
       return 'PAYMENT · HAKBANG 2 SA 4';
     }
     if (step === 'pending') {
-      return 'VERIFICATION · HAKBANG 3 SA 4';
+      return 'PAYMENT VERIFICATION · HAKBANG 3 SA 4';
     }
     return '';
   };

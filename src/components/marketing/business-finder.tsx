@@ -126,10 +126,10 @@ export function BusinessFinder() {
                 </button>
                 <a
                   href={`/${selectedIndustry.moduleId}`}
-                  className="h-8 px-3 rounded-lg font-bold text-[10px] flex items-center justify-center gap-1 active:scale-95 transition-all"
+                  className="h-11 min-h-[44px] px-3.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1 active:scale-95 transition-all text-center"
                   style={{ color: selectedIndustry.color, backgroundColor: `${selectedIndustry.color}15` }}
                 >
-                  Learn More
+                  Tingnan ang Detalye
                 </a>
               </div>
             </div>

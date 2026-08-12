@@ -187,17 +187,21 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
 
           {/* Primary Hero CTA Button */}
           <div className="pt-3 w-full sm:w-auto">
-            <TrackedOnboardingLink href={`/${foundApp.id}/onboarding`} ctaSource="module_page_hero" moduleId={foundApp.id} className="w-full sm:w-auto inline-block">
-              <Button
-                size="lg"
-                className="w-full sm:w-auto h-14 px-9 text-base font-black text-white shadow-lg hover:shadow-xl hover:scale-[1.01] active:scale-[0.98] transition-all rounded-2xl border-none"
+            <TrackedOnboardingLink
+              href={`/${foundApp.id}/onboarding`}
+              ctaSource="module_page_hero"
+              moduleId={foundApp.id}
+              className="w-full sm:w-auto inline-block"
+            >
+              <span
+                className="w-full sm:w-auto min-h-[56px] px-8 py-4 text-base font-black text-white shadow-lg hover:shadow-xl hover:scale-[1.01] active:scale-[0.98] transition-all rounded-2xl border-none flex items-center justify-center gap-2 text-center text-balance leading-normal"
                 style={{ 
                   backgroundColor: primaryColor,
                 }}
               >
                 <span>Mag-register para sa {foundApp.name}</span>
-                <ArrowRight className="h-5 w-5 ml-2" />
-              </Button>
+                <ArrowRight className="h-5 w-5 shrink-0" />
+              </span>
             </TrackedOnboardingLink>
             <p className="text-xs text-slate-500 font-medium mt-2.5">
               Promo {formatPeso(pricing.promotionalMonthlyPrice)}/mo bawat module (regular {formatPeso(pricing.regularMonthlyPrice)}/mo) · Manual payment via GCash/Maya
@@ -250,17 +254,21 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
             </p>
             
             <div className="flex flex-col items-center gap-4">
-              <TrackedOnboardingLink href={`/${foundApp.id}/onboarding`} ctaSource="module_page_final" moduleId={foundApp.id} className="w-full sm:w-auto">
-                <Button
-                  size="lg"
-                  className="w-full sm:w-auto h-15 px-10 text-base font-black text-white shadow-xl hover:scale-105 active:scale-95 transition-all rounded-2xl border-none"
+              <TrackedOnboardingLink
+                href={`/${foundApp.id}/onboarding`}
+                ctaSource="module_page_final"
+                moduleId={foundApp.id}
+                className="w-full sm:w-auto inline-block"
+              >
+                <span
+                  className="w-full sm:w-auto min-h-[56px] px-9 py-4 text-base font-black text-white shadow-xl hover:scale-105 active:scale-95 transition-all rounded-2xl border-none flex items-center justify-center gap-2 text-center text-balance leading-normal"
                   style={{ 
                     backgroundColor: primaryColor,
                   }}
                 >
                   <span>Mag-register para sa {foundApp.name}</span>
-                  <ArrowRight className="h-5 w-5 ml-2" />
-                </Button>
+                  <ArrowRight className="h-5 w-5 shrink-0" />
+                </span>
               </TrackedOnboardingLink>
               <p className="text-xs text-slate-500 font-medium">
                 Promo {formatPeso(pricing.promotionalMonthlyPrice)}/mo bawat module (regular {formatPeso(pricing.regularMonthlyPrice)}/mo) · Manual payment via GCash/Maya

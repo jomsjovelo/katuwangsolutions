@@ -501,7 +501,7 @@ describe('Sprint 2 Package A — Comprehensive Acceptance Suite (Correction Pass
           },
         }, {
           initializeFirebase: () => ({ auth: { controlled: true }, db: { controlled: true } }),
-          createUser: async (_auth: unknown, email: string) => ({ user: { uid: 'user-controlled', email, delete: async () => undefined } }),
+          createUser: async (_auth: unknown, email: string) => ({ user: { uid: 'user-controlled', email, getIdToken: async () => 'controlled-token', delete: async () => undefined } }),
           getDocument: async () => ({ exists: () => false }),
           document,
           collectionRef: () => ({ path: 'tenants' }),

@@ -23,12 +23,12 @@ export function PendingStep({ data }: PendingStepProps) {
 
       {/* Heading */}
       <div className="space-y-3 max-w-sm mx-auto">
-        <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900">Pending Payment Verification</h2>
+        <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900">Hinihintay ang Payment Verification</h2>
         <p className="text-slate-600 text-sm font-medium leading-relaxed">
-          Natanggap namin ang registration mo. Hindi pa ito kumpirmasyon na na-verify ang payment o active na ang module.
+          Naitala na ang registration mo at dinala ka namin sa payment-verification status. Hindi pa ito kumpirmasyon na verified ang payment o active na ang module.
         </p>
         <p className="text-slate-500 text-sm font-medium leading-relaxed">
-          Kapag na-verify ng Operations team ang payment, saka ia-activate ang napili mong module.
+          Susuriin ng Operations team ang payment screenshot na ipinadala sa Messenger. Kapag na-verify ang payment, saka ia-activate ang napili mong module.
         </p>
       </div>
 
@@ -48,11 +48,11 @@ export function PendingStep({ data }: PendingStepProps) {
           href={FB_MESSENGER_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="w-full h-14 rounded-2xl text-white font-bold text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-xl"
+          className="w-full h-14 min-h-[44px] rounded-2xl text-white font-bold text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-xl px-4 text-center"
           style={{ background: '#0099FF' }}
         >
-          <ExternalLink className="h-5 w-5" />
-          Send Payment Screenshot on Messenger
+          <ExternalLink className="h-5 w-5 shrink-0" />
+          Buksan ang Messenger at Ipadala ang Screenshot
         </a>
         <p className="text-[9px] text-slate-400 uppercase tracking-widest font-bold">
           <span translate="no" className="notranslate">Katuwang Solutions</span>

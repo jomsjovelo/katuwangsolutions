@@ -101,7 +101,7 @@ export function AppSuiteCarousel() {
                     if (firstInGroup) setActiveModuleId(firstInGroup.id);
                   }
                 }}
-                className={`flex-shrink-0 h-9 px-4 rounded-full text-xs font-black tracking-wide uppercase transition-all active:scale-95 shadow-sm border ${
+                className={`flex-shrink-0 h-11 min-h-[44px] px-4 rounded-full text-xs font-black tracking-wide uppercase transition-all active:scale-95 shadow-sm border flex items-center justify-center ${
                   isActive
                     ? 'bg-slate-900 text-white border-slate-900 shadow-md'
                     : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
@@ -168,17 +168,18 @@ export function AppSuiteCarousel() {
             <div className="flex gap-2 pt-2">
               <button
                 onClick={() => openSheet(activeApp.id)}
-                className="flex-1 h-12 rounded-2xl font-bold text-xs text-white active:scale-95 transition-transform shadow-md flex items-center justify-center gap-1.5"
+                className="flex-1 h-12 min-h-[44px] rounded-2xl font-bold text-xs text-white active:scale-95 transition-transform shadow-md flex items-center justify-center gap-1.5"
                 style={{ backgroundColor: activeAppColor }}
               >
                 <span>Mag-register</span>
                 <ArrowRight className="h-4 w-4" />
               </button>
-              <Link href={`/${activeApp.id}`} className="flex-1">
-                <button className="w-full h-12 rounded-2xl font-bold text-xs text-slate-700 border border-slate-200 bg-slate-50 active:scale-95 transition-transform flex items-center justify-center gap-1 hover:bg-slate-100">
-                  Learn More
-                  <ChevronRight className="h-4 w-4" />
-                </button>
+              <Link
+                href={`/${activeApp.id}`}
+                className="flex-1 h-12 min-h-[44px] rounded-2xl font-bold text-xs text-slate-700 border border-slate-200 bg-slate-50 active:scale-95 transition-transform flex items-center justify-center gap-1 hover:bg-slate-100 text-center"
+              >
+                <span>Tingnan ang Detalye</span>
+                <ChevronRight className="h-4 w-4" />
               </Link>
             </div>
           </div>

@@ -20,8 +20,8 @@ interface PaymentStepProps {
 export function PaymentStep({ data, emailDeliveryFailed, onPaymentSent, trackerSet }: PaymentStepProps) {
   const pricing = getModulePricing(data.appId || '');
   const appModule = getActiveAppById(data.appId || '');
-  const [gcashCopied, setGcashCopied] = useState(false);
-  const [mayaCopied, setMayaCopied] = useState(false);
+  const [gcashStatus, setGcashStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [mayaStatus, setMayaStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   const [isSending, setIsSending] = useState(false);
   const [resendStatus, setResendStatus] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -67,14 +67,27 @@ export function PaymentStep({ data, emailDeliveryFailed, onPaymentSent, trackerS
     }
   };
 
-  const copyNumber = (type: 'gcash' | 'maya') => {
-    navigator.clipboard.writeText(PAYMENT_NUMBER).catch(() => {});
-    if (type === 'gcash') {
-      setGcashCopied(true);
-      setTimeout(() => setGcashCopied(false), 2500);
-    } else {
-      setMayaCopied(true);
-      setTimeout(() => setMayaCopied(false), 2500);
+  const copyNumber = async (type: 'gcash' | 'maya') => {
+    try {
+      if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+        throw new Error('Clipboard unavailable');
+      }
+      await navigator.clipboard.writeText(PAYMENT_NUMBER);
+      if (type === 'gcash') {
+        setGcashStatus('success');
+        setTimeout(() => setGcashStatus('idle'), 2500);
+      } else {
+        setMayaStatus('success');
+        setTimeout(() => setMayaStatus('idle'), 2500);
+      }
+    } catch {
+      if (type === 'gcash') {
+        setGcashStatus('error');
+        setTimeout(() => setGcashStatus('idle'), 4000);
+      } else {
+        setMayaStatus('error');
+        setTimeout(() => setMayaStatus('idle'), 4000);
+      }
     }
   };
 
@@ -122,7 +135,7 @@ export function PaymentStep({ data, emailDeliveryFailed, onPaymentSent, trackerS
             <button
               onClick={handleResendVerification}
               disabled={isSending || cooldown > 0}
-              className="flex items-center gap-1.5 bg-amber-200 hover:bg-amber-300 disabled:opacity-50 text-amber-900 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shrink-0"
+              className="flex items-center gap-1.5 bg-amber-200 hover:bg-amber-300 disabled:opacity-50 text-amber-900 px-3.5 py-2.5 rounded-lg text-xs font-bold transition-colors shrink-0 min-h-[44px]"
             >
               {isSending ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -148,10 +161,21 @@ export function PaymentStep({ data, emailDeliveryFailed, onPaymentSent, trackerS
 
       {/* Header */}
       <div className="space-y-1">
-        <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900">Complete Your Payment</h2>
+        <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900">Mga Tagubilin sa Pagbabayad</h2>
         <p className="text-slate-600 text-sm font-medium">
-          Send <strong>{formatPesoWithCents(pricing.promotionalMonthlyPrice)}</strong> via GCash or Maya to activate your account.
+          Magbayad ng <strong>{formatPesoWithCents(pricing.promotionalMonthlyPrice)}</strong> gamit ang GCash o Maya. Pagkatapos, ipadala ang payment screenshot sa Messenger. Ia-activate ang napiling module matapos ma-verify ang payment.
         </p>
+      </div>
+
+      {/* Compact Journey Explanation */}
+      <div className="bg-slate-100 border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-700 flex items-center justify-between flex-wrap gap-1 text-center" data-testid="payment-journey-banner">
+        <span>Account created</span>
+        <span className="text-slate-400">→</span>
+        <span>Magbayad</span>
+        <span className="text-slate-400">→</span>
+        <span>Iva-verify ang payment</span>
+        <span className="text-slate-400">→</span>
+        <span>Ia-activate ang module</span>
       </div>
 
       {/* Amount Due Card */}
@@ -185,22 +209,32 @@ export function PaymentStep({ data, emailDeliveryFailed, onPaymentSent, trackerS
               </div>
               <span className="text-sm font-black text-[#007DFE] uppercase tracking-wide">GCash</span>
             </div>
-            <p className="text-base font-black text-slate-900 tracking-widest leading-tight tabular-nums">
+            <p className="text-base font-black text-slate-900 tracking-widest leading-tight tabular-nums" data-testid="gcash-number">
               {PAYMENT_NUMBER_DISPLAY}
             </p>
             <button
               onClick={() => copyNumber('gcash')}
               className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg w-full justify-center transition-all duration-200 active:scale-95 min-h-[44px] ${
-                gcashCopied
+                gcashStatus === 'success'
                   ? 'bg-green-100 text-green-700 border border-green-200'
+                  : gcashStatus === 'error'
+                  ? 'bg-red-100 text-red-700 border border-red-200'
                   : 'bg-[#007DFE] text-white hover:bg-blue-700'
               }`}
             >
-              {gcashCopied
-                ? <><Check className="h-3 w-3" /> Copied!</>
-                : <><Copy className="h-3 w-3" /> Copy Number</>
-              }
+              {gcashStatus === 'success' ? (
+                <><Check className="h-3 w-3" /> Copied!</>
+              ) : (
+                <><Copy className="h-3 w-3" /> Copy Number</>
+              )}
             </button>
+            <div aria-live="polite" className="w-full text-center">
+              {gcashStatus === 'error' && (
+                <p className="text-[10px] font-medium text-red-600 leading-tight mt-1" data-testid="gcash-copy-error">
+                  Hindi nakopya. Pindutin nang matagal ang numero para piliin at kopyahin.
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Maya Card */}
@@ -211,22 +245,32 @@ export function PaymentStep({ data, emailDeliveryFailed, onPaymentSent, trackerS
               </div>
               <span className="text-sm font-black text-[#00A14B] uppercase tracking-wide">Maya</span>
             </div>
-            <p className="text-base font-black text-slate-900 tracking-widest leading-tight tabular-nums">
+            <p className="text-base font-black text-slate-900 tracking-widest leading-tight tabular-nums" data-testid="maya-number">
               {PAYMENT_NUMBER_DISPLAY}
             </p>
             <button
               onClick={() => copyNumber('maya')}
               className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg w-full justify-center transition-all duration-200 active:scale-95 min-h-[44px] ${
-                mayaCopied
+                mayaStatus === 'success'
                   ? 'bg-green-100 text-green-700 border border-green-200'
+                  : mayaStatus === 'error'
+                  ? 'bg-red-100 text-red-700 border border-red-200'
                   : 'bg-[#00A14B] text-white hover:bg-green-700'
               }`}
             >
-              {mayaCopied
-                ? <><Check className="h-3 w-3" /> Copied!</>
-                : <><Copy className="h-3 w-3" /> Copy Number</>
-              }
+              {mayaStatus === 'success' ? (
+                <><Check className="h-3 w-3" /> Copied!</>
+              ) : (
+                <><Copy className="h-3 w-3" /> Copy Number</>
+              )}
             </button>
+            <div aria-live="polite" className="w-full text-center">
+              {mayaStatus === 'error' && (
+                <p className="text-[10px] font-medium text-red-600 leading-tight mt-1" data-testid="maya-copy-error">
+                  Hindi nakopya. Pindutin nang matagal ang numero para piliin at kopyahin.
+                </p>
+              )}
+            </div>
           </div>
 
         </div>
@@ -234,12 +278,12 @@ export function PaymentStep({ data, emailDeliveryFailed, onPaymentSent, trackerS
 
       {/* Streamlined Instructions */}
       <div className="space-y-3">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">How to Pay</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Paano Magbayad</p>
         <div className="space-y-3">
           {[
-            'Open GCash or Maya → tap Send Money → paste the number above.',
-            `Enter the exact amount: ${formatPesoWithCents(pricing.promotionalMonthlyPrice)}.`,
-            'Take a screenshot of your confirmation, then send it to us on Messenger below — your details will be pre-filled!',
+            'Buksan ang GCash o Maya → i-tap ang Send Money → i-paste ang numero sa itaas.',
+            `Ipasok ang eksaktong halaga: ${formatPesoWithCents(pricing.promotionalMonthlyPrice)}.`,
+            'Kumuha ng screenshot ng kumpirmasyon, pagkatapos ay ipadala ito sa amin sa Messenger sa ibaba — naka-prefill na ang iyong mga detalye!',
           ].map((text, i) => (
             <div key={i} className="flex gap-3 items-start">
               <div className="h-6 w-6 rounded-full bg-primary text-white text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">
@@ -251,17 +295,22 @@ export function PaymentStep({ data, emailDeliveryFailed, onPaymentSent, trackerS
         </div>
       </div>
 
+      {/* Clarification Disclaimer */}
+      <p className="text-xs text-slate-500 text-center font-medium leading-relaxed" data-testid="payment-verification-disclaimer">
+        Manual ang verification. Ang pagpapadala ng screenshot o pag-click sa button sa ibaba ay hindi pa kumpirmasyon na verified ang payment o active na ang module.
+      </p>
+
       {/* Messenger CTA */}
       <a
         href={messengerUrl}
         target="_blank"
         rel="noopener noreferrer"
         onClick={() => trackPaymentMessengerClick(data.appId)}
-        className="w-full h-14 min-h-[44px] rounded-2xl text-white font-bold text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-xl"
+        className="w-full h-14 min-h-[44px] rounded-2xl text-white font-bold text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-xl px-4 text-center"
         style={{ background: '#0099FF' }}
       >
-        <ExternalLink className="h-5 w-5" />
-        Send Screenshot on Messenger
+        <ExternalLink className="h-5 w-5 shrink-0" />
+        Buksan ang Messenger at Ipadala ang Screenshot
       </a>
 
       {/* Already sent */}
@@ -270,9 +319,9 @@ export function PaymentStep({ data, emailDeliveryFailed, onPaymentSent, trackerS
           trackPaymentMarkedSent(data.appId, trackerSet);
           onPaymentSent();
         }}
-        className="w-full text-center text-sm font-semibold text-slate-400 hover:text-slate-600 transition-colors py-2 h-11 min-h-[44px] flex items-center justify-center"
+        className="w-full text-center text-sm font-semibold text-slate-500 hover:text-slate-700 transition-colors py-2 h-11 min-h-[44px] flex items-center justify-center"
       >
-        Naipadala ko na ang payment screenshot →
+        Naipadala ko na sa Messenger
       </button>
     </div>
   );
