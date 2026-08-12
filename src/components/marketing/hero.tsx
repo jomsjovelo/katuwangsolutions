@@ -2,7 +2,6 @@
 
 import React from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { LoginDialog } from '@/components/auth/login-dialog';
 import { StaffRegisterDialog } from '@/components/auth/staff-register-dialog';
@@ -25,10 +24,10 @@ export function Hero() {
         />
 
         {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-black/20 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/30 pointer-events-none" />
 
         {/* Top nav */}
-        <div className="relative z-30 w-full px-6 md:px-12 flex justify-between items-center pt-[max(1.25rem,env(safe-area-inset-top))] md:pt-8 pb-4">
+        <div className="relative z-30 w-full px-4 sm:px-6 md:px-12 flex justify-between items-center pt-3 sm:pt-4 md:pt-8 pb-2 sm:pb-4">
           <BrandLogo theme="dark" />
           <React.Suspense fallback={
             <button className="h-11 min-h-[44px] px-5 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-white text-[11px] font-bold tracking-widest uppercase active:scale-95 transition-transform motion-reduce:transition-none motion-reduce:transform-none flex items-center justify-center">
@@ -44,69 +43,62 @@ export function Hero() {
         </div>
 
         {/* Bottom content */}
-        <div className="relative z-10 w-full px-6 pb-8 space-y-4 mt-auto">
+        <div className="relative z-10 w-full max-w-xl mx-auto px-4 sm:px-6 pb-4 sm:pb-8 space-y-3 sm:space-y-4 mt-auto">
 
-          {/* Main Headline */}
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out fill-mode-both">
-            <h1 className="text-[2.4rem] font-black text-white leading-[1.06] tracking-tight mb-2">
-              Mas madaling<br />patakbuhin ang{' '}
-              <span className="text-primary">negosyo.</span>
+          {/* Eyebrow, Headline & Supporting Copy */}
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out fill-mode-both space-y-1.5 sm:space-y-2">
+            <span className="inline-block px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-primary/20 border border-primary/30 text-emerald-300 font-bold text-[10px] sm:text-[11px] uppercase tracking-wider">
+              Business software para sa Filipino entrepreneurs
+            </span>
+            <h1 className="text-xl sm:text-3xl md:text-4xl font-black text-white leading-tight tracking-tight">
+              Mas organisadong negosyo, isang module sa bawat pangangailangan.
             </h1>
-            <p className="text-white/70 text-sm leading-relaxed max-w-xs">
-              Isang sistema para sa benta, inventory, gastos, utang, trucking, payroll, at marami pang iba.
+            <p className="text-white/80 text-xs sm:text-sm leading-relaxed max-w-lg">
+              Pumili ng praktikal na module para sa benta, inventory, orders, payroll, gastos, at iba pang araw-araw na trabaho.
             </p>
           </div>
 
-          {/* Pricing row */}
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100 ease-out fill-mode-both flex flex-col gap-2">
-            <div className="flex items-center gap-3">
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-emerald-400 text-xs font-bold uppercase tracking-wider">Promo</span>
-                <span className="text-white/40 text-sm font-semibold line-through">₱199</span>
-                <span className="text-white text-2xl font-black">₱99</span>
-                <span className="text-white/60 text-xs font-medium">/mo bawat module</span>
-              </div>
-              <div className="h-4 w-px bg-white/20" />
-              <div className="flex gap-2">
-                <div className="flex items-center gap-1 bg-white/10 backdrop-blur-sm border border-white/15 rounded-full px-2.5 py-1">
-                  <span className="text-[9px] font-bold text-emerald-300 uppercase tracking-wide">19 Business Modules</span>
-                </div>
-                <div className="flex items-center gap-1 bg-white/10 backdrop-blur-sm border border-white/15 rounded-full px-2.5 py-1">
-                  <span className="text-[9px] font-bold text-sky-300 uppercase tracking-wide">Budget Mo Personal</span>
-                </div>
+          {/* Pricing Presentation — Two compact, readable rows */}
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100 ease-out fill-mode-both flex flex-col gap-1.5 sm:gap-2 bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-2.5 sm:p-4">
+            <div className="flex items-center justify-between gap-2 text-xs text-white">
+              <span className="font-bold text-white/90">Business modules</span>
+              <div className="flex items-center gap-1.5 text-right">
+                <span className="text-emerald-300 font-extrabold text-[11px] sm:text-xs">Promo ₱99/mo bawat module</span>
+                <span className="text-white/70 line-through text-[11px] sm:text-xs font-semibold">regular ₱199/mo</span>
               </div>
             </div>
-            <p className="text-[11px] text-white/60 font-medium tracking-wide">
-              19 Business Modules (Promo ₱99/mo bawat module · regular ₱199/mo). <span className="text-white/80">Budget Mo promo: ₱50/mo · regular ₱100/mo</span>
-            </p>
+            <div className="h-px bg-white/10" />
+            <div className="flex items-center justify-between gap-2 text-xs text-white">
+              <span className="font-bold text-white/90">Budget Mo</span>
+              <div className="flex items-center gap-1.5 text-right">
+                <span className="text-sky-300 font-extrabold text-[11px] sm:text-xs">Promo ₱50/mo</span>
+                <span className="text-white/70 line-through text-[11px] sm:text-xs font-semibold">regular ₱100/mo</span>
+              </div>
+            </div>
           </div>
 
           {/* CTAs */}
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 ease-out fill-mode-both flex flex-col gap-2.5">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-2.5">
+            <a
+              href="#business-finder"
+              className="w-full sm:flex-1 h-11 sm:h-12 min-h-[44px] rounded-xl font-bold text-xs sm:text-sm bg-primary text-white border-none shadow-lg shadow-primary/30 active:scale-[0.98] transition-transform motion-reduce:transition-none motion-reduce:transform-none flex items-center justify-center gap-2 px-4 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-black"
+            >
+              <span>Hanapin ang Module Ko</span>
+              <ChevronRight className="h-4 w-4 opacity-90 shrink-0" />
+            </a>
+
             <button
               data-testid="hero-register-cta"
               onClick={openSheet}
-              className="w-full h-14 min-h-[44px] rounded-2xl font-bold text-base bg-primary text-white border-none shadow-2xl shadow-primary/40 active:scale-[0.97] transition-transform motion-reduce:transition-none motion-reduce:transform-none flex items-center justify-between px-6"
+              className="w-full sm:flex-1 h-11 sm:h-12 min-h-[44px] rounded-xl font-bold text-xs sm:text-sm bg-white/10 backdrop-blur-md border border-white/20 text-white active:scale-[0.98] transition-transform motion-reduce:transition-none motion-reduce:transform-none flex items-center justify-center gap-2 px-4 hover:bg-white/15 text-center focus:outline-none focus:ring-2 focus:ring-white/50"
             >
-              <span>Mag-register</span>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-white/75">Walang credit card na kailangan</span>
-                <ChevronRight className="h-4 w-4 opacity-80" />
-              </div>
+              <span>May napili na? Mag-register</span>
+              <ChevronRight className="h-4 w-4 opacity-80 shrink-0" />
             </button>
-
-            <Link
-              href="#products"
-              className="w-full h-11 min-h-[44px] rounded-2xl font-bold text-sm bg-white/10 backdrop-blur-md border border-white/20 text-white active:scale-[0.97] transition-transform motion-reduce:transition-none motion-reduce:transform-none flex items-center justify-center gap-2 hover:bg-white/15"
-            >
-              <span>Tingnan ang Modules</span>
-              <ChevronRight className="h-4 w-4 opacity-80" />
-            </Link>
-
           </div>
 
           {/* Scroll hint */}
-          <p className="text-white/35 text-[10px] text-center uppercase tracking-[0.25em] font-bold pt-1">
+          <p className="text-white/40 text-[9px] sm:text-[10px] text-center uppercase tracking-[0.2em] font-semibold pt-0.5">
             Scroll pababa para malaman pa ↓
           </p>
         </div>

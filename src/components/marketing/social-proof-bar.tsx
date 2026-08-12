@@ -1,62 +1,27 @@
 import React from 'react';
-import { Store, PhilippinePeso, Users, LayoutGrid, CheckCircle2, Shield } from 'lucide-react';
+import { LayoutGrid, Layers, CreditCard, ShieldCheck } from 'lucide-react';
 
-const TRUST_PILLS = [
-  { icon: LayoutGrid, label: '19 Business Modules', color: 'text-emerald-400', bg: 'bg-emerald-400/10 border-emerald-400/20' },
-  { icon: Store, label: 'Budget Mo Personal App', color: 'text-sky-400', bg: 'bg-sky-400/10 border-sky-400/20' },
-  { icon: Users, label: 'Made for Filipinos', color: 'text-yellow-400', bg: 'bg-yellow-400/10 border-yellow-400/20' },
-  { icon: PhilippinePeso, label: 'Manual Payment (GCash/Maya)', color: 'text-violet-400', bg: 'bg-violet-400/10 border-violet-400/20' },
-  { icon: CheckCircle2, label: 'Modular System', color: 'text-primary', bg: 'bg-primary/10 border-primary/20' },
-  { icon: Shield, label: 'Easy Onboarding', color: 'text-orange-400', bg: 'bg-orange-400/10 border-orange-400/20' },
+const CONFIDENCE_FACTS = [
+  { icon: LayoutGrid, label: '20 practical modules', color: 'text-emerald-400', bg: 'bg-emerald-400/10 border-emerald-400/20' },
+  { icon: Layers, label: 'Hiwalay na subscription bawat module', color: 'text-sky-400', bg: 'bg-sky-400/10 border-sky-400/20' },
+  { icon: CreditCard, label: 'Manual GCash/Maya payment', color: 'text-amber-400', bg: 'bg-amber-400/10 border-amber-400/20' },
+  { icon: ShieldCheck, label: 'Activation pagkatapos ng payment verification', color: 'text-primary', bg: 'bg-primary/10 border-primary/20' },
 ];
 
 export function SocialProofBar() {
   return (
-    <section className="w-full bg-slate-900 py-10 md:py-16 border-y border-slate-800">
+    <section className="w-full bg-slate-900 py-6 sm:py-8 border-y border-slate-800">
       <div className="max-w-5xl mx-auto px-5">
-        {/* Trust label */}
-        <p className="text-[10px] md:text-xs text-slate-400 font-black uppercase tracking-[0.2em] text-center mb-8">
-          Isang sistema para sa benta, badyet, at operational tracking
-        </p>
-
-        {/* Trust pills */}
-        <div className="flex flex-wrap justify-center gap-2.5 mb-10">
-          {TRUST_PILLS.map(({ icon: Icon, label, color, bg }) => (
+        <div className="flex flex-wrap justify-center gap-2.5 sm:gap-3">
+          {CONFIDENCE_FACTS.map(({ icon: Icon, label, color, bg }) => (
             <div
               key={label}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full border ${bg} backdrop-blur-sm`}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-full border ${bg} backdrop-blur-sm`}
             >
-              <Icon className={`h-3.5 w-3.5 ${color} flex-shrink-0`} />
+              <Icon className={`h-3.5 w-3.5 ${color} shrink-0`} />
               <span className={`text-xs font-bold ${color}`}>{label}</span>
             </div>
           ))}
-        </div>
-
-        {/* Stats row */}
-        <div className="grid grid-cols-3 gap-2 border-t border-slate-800 pt-8">
-          <div className="flex flex-col items-center text-center space-y-1">
-            <div className="p-2 bg-slate-800 rounded-full mb-1">
-              <LayoutGrid className="h-4 w-4 md:h-5 md:w-5 text-primary" />
-            </div>
-            <h3 className="text-xl md:text-2xl font-black text-white tracking-tight">20</h3>
-            <p className="text-xs text-white/90 font-bold uppercase tracking-wider">Modules Available</p>
-          </div>
-
-          <div className="flex flex-col items-center text-center space-y-1 border-x border-slate-700 px-1">
-            <div className="p-2 bg-slate-800 rounded-full mb-1">
-              <PhilippinePeso className="h-4 w-4 md:h-5 md:w-5 text-secondary" />
-            </div>
-            <h3 className="text-base sm:text-lg md:text-2xl font-black text-white tracking-tight">Promo ₱50–₱99</h3>
-            <p className="text-xs text-white/90 font-bold uppercase tracking-wider">bawat module (regular ₱100–₱199/mo)</p>
-          </div>
-
-          <div className="flex flex-col items-center text-center space-y-1">
-            <div className="p-2 bg-slate-800 rounded-full mb-1">
-              <Store className="h-4 w-4 md:h-5 md:w-5 text-emerald-400" />
-            </div>
-            <h3 className="text-xl md:text-2xl font-black text-white tracking-tight">19 + 1</h3>
-            <p className="text-xs text-white/90 font-bold uppercase tracking-wider">Business + Budget Mo</p>
-          </div>
         </div>
       </div>
     </section>
