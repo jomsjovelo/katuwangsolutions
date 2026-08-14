@@ -4,7 +4,7 @@ import { notFound, permanentRedirect } from 'next/navigation';
 import { Metadata } from 'next';
 
 import {
-  CheckCircle2, ArrowRight, ArrowLeft, Sparkles, HelpCircle, ChevronRight
+  CheckCircle2, ArrowRight, ArrowLeft, Sparkles, HelpCircle, ChevronRight, Check
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -213,6 +213,139 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
 
       {/* Main Content Body */}
       <main className="flex-1 max-w-4xl mx-auto w-full px-5 md:px-12 py-12 space-y-16">
+
+        {/* ── 1. Target Audience: Para Kanino Ito? ── */}
+        {foundApp.targetUsers && foundApp.targetUsers.length > 0 && (
+          <section id="target-audience" className="space-y-3">
+            <div className="space-y-1">
+              <p className="text-[10px] sm:text-xs font-black uppercase tracking-widest" style={{ color: primaryColor }}>
+                Para Kanino Ito?
+              </p>
+              <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
+                Bagay ang {foundApp.name} para sa:
+              </h2>
+            </div>
+
+            <ul className="flex flex-wrap gap-2 pt-1 list-none p-0 m-0">
+              {foundApp.targetUsers.map((user, idx) => (
+                <li
+                  key={idx}
+                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 shadow-sm text-xs sm:text-sm font-bold text-slate-800"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" style={{ color: primaryColor }} />
+                  <span>{user}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {/* ── 2. Business Value & Capabilities: Anong tinutulungan nitong ayusin & Ano ang magagawa nito? ── */}
+        <section id="features" className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-[10px] sm:text-xs font-black uppercase tracking-widest" style={{ color: primaryColor }}>
+              Anong tinutulungan nitong ayusin?
+            </p>
+            <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
+              Mga pangunahing trabahong matutulungan nitong ayusin:
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed max-w-2xl">
+              {foundApp.description}
+            </p>
+          </div>
+
+          <div className="space-y-2 pt-1">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Ano ang magagawa nito:
+            </h3>
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 list-none p-0 m-0">
+              {foundApp.features.map((feature, idx) => (
+                <li
+                  key={idx}
+                  className="bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3 text-xs sm:text-sm font-bold text-slate-900"
+                >
+                  <div
+                    className="h-6 w-6 rounded-lg flex items-center justify-center shrink-0"
+                    style={{ backgroundColor: `${primaryColor}15`, color: primaryColor }}
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                  </div>
+                  <span>{feature}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        {/* ── 3. Truthful Onboarding & Activation Journey: Paano Magsimula ── */}
+        <section id="how-to-start" className="space-y-4">
+          <div className="space-y-1">
+            <p className="text-[10px] sm:text-xs font-black uppercase tracking-widest" style={{ color: primaryColor }}>
+              Paano Magsimula
+            </p>
+            <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
+              Simpleng 3-hakbang na proseso:
+            </h2>
+          </div>
+
+          <ol className="grid grid-cols-1 sm:grid-cols-3 gap-3 list-none p-0 m-0">
+            {/* Step 1 */}
+            <li className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="h-6 w-6 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center">
+                  1
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Hakbang 1</span>
+              </div>
+              <h3 className="text-xs sm:text-sm font-black text-slate-900">
+                Gumawa ng account
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Piliin ang role at kumpletuhin ang registration para sa {foundApp.name}.
+              </p>
+            </li>
+
+            {/* Step 2 */}
+            <li className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="h-6 w-6 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center">
+                  2
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Hakbang 2</span>
+              </div>
+              <h3 className="text-xs sm:text-sm font-black text-slate-900">
+                Sundin ang GCash/Maya payment instructions
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Ipadala ang manual payment gamit ang official account details at i-submit ang screenshot sa Messenger.
+              </p>
+            </li>
+
+            {/* Step 3 */}
+            <li className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="h-6 w-6 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center">
+                  3
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Hakbang 3</span>
+              </div>
+              <h3 className="text-xs sm:text-sm font-black text-slate-900">
+                Hintayin ang payment verification at account activation
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Ibe-verify ng Operations team ang bayad bago i-activate ang module.
+              </p>
+            </li>
+          </ol>
+
+          {/* Operational clarity note */}
+          <div className="bg-slate-100/80 border border-slate-200/80 rounded-2xl p-4 text-xs text-slate-600 leading-relaxed flex items-start gap-2.5">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+            <p>
+              <strong>Mahalagang Paalala:</strong> Bawat Katuwang module ay may hiwalay na subscription ({foundApp.id === 'budget-mo' ? 'Promo ₱50/buwan' : 'Promo ₱99/buwan'}). Ang pag-register at pagpapadala ng screenshot ay hindi nangangahulugang verified na agad o activated na ang account; manual na iberipika ng Operations team ang payment bago ang activation. Walang free trial o instant automated activation.
+            </p>
+          </div>
+        </section>
 
         {/* ── FAQ Section ── */}
         <section className="space-y-6 pt-4">
