@@ -1,7 +1,9 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import deepEqual from 'fast-deep-equal';
+import type { BentaBusinessProfile } from '@/lib/app-data';
 
+export type { BentaBusinessProfile };
 export type PricingTier = 'promo_50' | 'promo_99' | 'standard_100' | 'standard_199' | 'enterprise' | 'foc';
 export type SubscriptionStatus = 'active' | 'suspended' | 'trial' | 'pending' | 'expired';
 
@@ -12,6 +14,7 @@ export interface Tenant {
   staffUids: string[];
   moduleType: string;
   primaryModuleType?: string;
+  businessProfile?: BentaBusinessProfile;
   unlockedModules?: string[]; // Array of additional purchased apps
   pendingModuleRequests?: Array<{ moduleId: string; moduleName?: string; price?: number; requestedAt?: string }>;
   lastPaymentRequestedModule?: string;
@@ -35,6 +38,11 @@ export interface Tenant {
   standardCheckInTime?: string;
   standardCheckOutTime?: string;
   extraPaxFee?: number;
+}
+
+export function getBentaBusinessProfile(tenant?: Tenant | null): BentaBusinessProfile {
+  if (!tenant || tenant.moduleType !== 'benta-snap') return 'standard-retail';
+  return tenant.businessProfile || 'standard-retail';
 }
 
 export interface UserProfile {

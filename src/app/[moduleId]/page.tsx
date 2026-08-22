@@ -52,7 +52,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
   const resolvedSearchParams = (await searchParams) || {};
   const rawId = resolvedParams.moduleId;
 
-  // Handle alias redirects (e.g. fleet-sync -> biyahe-sync)
+  // Handle alias redirects (e.g. fleet-sync -> biyahe-sync, fresh-tally -> benta-snap?profile=fresh-goods, build-stack -> benta-snap?profile=hardware-supplies)
   const canonicalId = normalizeModuleId(rawId);
   if (rawId !== canonicalId && isValidActiveModuleId(canonicalId)) {
     const urlParams = new URLSearchParams();
@@ -61,6 +61,11 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
         if (typeof val === 'string') urlParams.set(key, val);
         else if (Array.isArray(val)) val.forEach(v => urlParams.append(key, v));
       });
+    }
+    if (rawId === 'fresh-tally' && !urlParams.has('profile')) {
+      urlParams.set('profile', 'fresh-goods');
+    } else if (rawId === 'build-stack' && !urlParams.has('profile')) {
+      urlParams.set('profile', 'hardware-supplies');
     }
     const queryString = urlParams.toString();
     permanentRedirect(`/${canonicalId}${queryString ? `?${queryString}` : ''}`);
@@ -418,7 +423,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
               Tingnan ang iba pang Katuwang sa Negosyo
             </h3>
             <p className="text-xs sm:text-sm text-slate-500 max-w-lg mx-auto">
-              Pumili sa 19 na business modules para sa tindahan, kainan, at serbisyo — plus ang Budget Mo para sa personal mong Budget.
+              Pumili sa 17 na business modules para sa tindahan, kainan, at serbisyo — plus ang Budget Mo para sa personal mong Budget.
             </p>
           </div>
 

@@ -186,7 +186,7 @@ describe('Sprint 2 Package B — Batch 1: Homepage First-Viewport Conversion Cla
     });
 
     it('displays only approved facts and excludes pseudo-statistics', () => {
-      cy.contains('20 practical modules').should('be.visible');
+      cy.contains('18 practical modules').should('be.visible');
       cy.contains('Hiwalay na subscription bawat module').should('be.visible');
       cy.contains('Manual GCash/Maya payment').should('be.visible');
       cy.contains('Activation pagkatapos ng payment verification').should('be.visible');

@@ -21,9 +21,42 @@ service cloud.firestore {
       return isMasterAdmin() && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.get('role', 'superadmin') == 'superadmin';
     }
 
+    function isTenantOwner(tenantId) {
+      return isAuthenticated() && request.auth.uid == getTenantData(tenantId).ownerUid;
+    }
+
+    /**
+     * Explicit 6-Point Cashier Authorization Validator:
+     * 1. Authenticated
+     * 2. Custom claim role == 'cashier'
+     * 3. Custom claim tenantId == tenantId
+     * 4. Custom claim staffAccountId is non-empty
+     * 5. auth.uid matches stored deterministic authUid on the active staff record
+     * 6. Staff status is strictly 'active' and token sessionVersion matches stored sessionVersion
+     */
+    function isTenantCashier(tenantId) {
+      let staffAccountId = request.auth.token.get('staffAccountId', '');
+      let staffDoc = get(/databases/$(database)/documents/tenants/$(tenantId)/staff_accounts/$(staffAccountId));
+      return isAuthenticated() &&
+        request.auth.token.get('role', '') == 'cashier' &&
+        request.auth.token.get('tenantId', '') == tenantId &&
+        staffAccountId != '' &&
+        request.auth.uid == staffDoc.data.get('authUid', '') &&
+        staffDoc.data.get('status', '') == 'active' &&
+        staffDoc.data.get('sessionVersion', 0) == request.auth.token.get('sessionVersion', -1);
+    }
+
+    function cashierActorId() {
+      return 'staff_' + request.auth.token.get('staffAccountId', '');
+    }
+
+    /**
+     * Universal Tenant Access (Owner, Staff with Firebase Auth, Super/Master Admins).
+     * NOTE: Cashier is strictly EXCLUDED from universal tenant access.
+     */
     function hasTenantAccess(tenantId) {
       let tenant = getTenantData(tenantId);
-      return isAuthenticated() && (
+      return isAuthenticated() && request.auth.token.get('role', '') != 'cashier' && (
         request.auth.uid == tenant.ownerUid || 
         request.auth.uid in tenant.get('staffUids', []) ||
         isMasterAdmin()
@@ -34,7 +67,6 @@ service cloud.firestore {
 
     // 0. Admins Collection
     match /admins/{uid} {
-      // Allow users to check their own admin status cleanly without permission errors
       allow get: if isAuthenticated() && request.auth.uid == uid;
       allow read: if isMasterAdmin();
       allow write: if isSuperAdmin();
@@ -42,68 +74,103 @@ service cloud.firestore {
 
     // 1. Tenants Collection (The Isolation Shield)
     match /tenants/{tenantId} {
-      // Allow any authenticated user to fetch basic tenant metadata (needed for AuthGuard verification)
-      // Strict data isolation is enforced on the subcollections.
-      allow get: if isAuthenticated();
+      allow get: if isAuthenticated() && request.auth.token.get('role', '') != 'cashier';
       allow list: if isMasterAdmin();
       
-      // Allow users to create their own tenant document
-      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.ownerUid;
+      allow create: if isAuthenticated() && request.auth.token.get('role', '') != 'cashier' && request.auth.uid == request.resource.data.ownerUid;
       
-      // Only the owner or Master Admin can update.
-      // LOCK: businessCode is immutable after creation — cannot be changed via client.
-      allow update: if isAuthenticated() && (
+      allow update: if isAuthenticated() && request.auth.token.get('role', '') != 'cashier' && (
         request.auth.uid == resource.data.ownerUid || 
         isMasterAdmin()
       ) && (
-        // Block businessCode changes by non-admins once it is set
         isMasterAdmin() ||
         (!('businessCode' in resource.data) || request.resource.data.businessCode == resource.data.businessCode)
       ) && (
-        // Block ownerUid transfer unless MasterAdmin
         isMasterAdmin() ||
         (!('ownerUid' in request.resource.data) || request.resource.data.ownerUid == resource.data.ownerUid)
       );
-      allow delete: if isAuthenticated() && (
+
+      allow delete: if isAuthenticated() && request.auth.token.get('role', '') != 'cashier' && (
         request.auth.uid == resource.data.ownerUid || 
         isSuperAdmin()
       );
 
-      // 2. Sub-collections (Universal Inventory, Sales, etc.)
+      // --- SUB-COLLECTION RULES ---
+
+      // 2. Staff Accounts Subcollection (Owner/Admin Only - Cashier Strictly Denied)
       match /staff_accounts/{staffId} {
-        allow get, list: if true; // Public read for cashier PIN verification
-        allow create, update, delete: if isAuthenticated() && (
-          request.auth.uid == getTenantData(tenantId).ownerUid || isMasterAdmin()
-        );
+        allow get, list, create, update, delete: if isTenantOwner(tenantId) || isMasterAdmin();
       }
 
-      match /{subcollection}/{document=**} {
-        // Strict isolation: Access granted only to verified tenant owners/staff
-        allow read, create, update: if hasTenantAccess(tenantId);
-        // Fraud Prevention & Right to be Forgotten: Only Store Owners or SuperAdmins can delete their data
-        allow delete: if isSuperAdmin() || (isAuthenticated() && request.auth.uid == getTenantData(tenantId).ownerUid);
+      // 3. Products Subcollection (Owner/Admin/non-Cashier only; Secure Cashier uses server APIs)
+      match /products/{productId} {
+        allow get, list, create, update, delete: if hasTenantAccess(tenantId);
       }
-      
-      // 2.5 Allow Public RSVP Creation
+
+      // 4. Sales Subcollection (Secure Cashier uses trusted checkout/receipt APIs)
+      match /sales/{saleId} {
+        allow get, list, create, update, delete: if hasTenantAccess(tenantId);
+      }
+
+      // 5. Inventory Transactions (Secure Cashier uses trusted checkout APIs)
+      match /inventory_transactions/{txId} {
+        allow get, list, create, update, delete: if hasTenantAccess(tenantId);
+      }
+
+      // 6. Shifts (Secure Cashier uses trusted shift/receipt APIs)
+      match /shifts/{shiftId} {
+        allow get, list, create, update, delete: if hasTenantAccess(tenantId);
+      }
+
+      // 7. Transactions (Financial ledger writes require a trusted server operation.)
+      match /transactions/{txId} {
+        allow get, list: if hasTenantAccess(tenantId);
+        allow create, update: if hasTenantAccess(tenantId);
+        allow delete: if hasTenantAccess(tenantId);
+      }
+
+      // 8. Retail Credits (Financial writes require a trusted server operation.)
+      match /retail_credits/{creditId} {
+        allow get, list: if hasTenantAccess(tenantId);
+        allow create, update: if hasTenantAccess(tenantId);
+        allow delete: if hasTenantAccess(tenantId);
+      }
+
+      // 9. Accounts (Owner/Admin/non-Cashier only; Secure Cashier has no master-cash access.)
+      match /accounts/{accountId} {
+        allow get, list, create, update, delete: if hasTenantAccess(tenantId);
+      }
+
+      // 10. Audit Log (immutable; Secure Cashier writes only through trusted server APIs)
+      match /audit_log/{logId} {
+        allow create: if hasTenantAccess(tenantId);
+        allow read: if hasTenantAccess(tenantId);
+        allow update, delete: if false; // Immutable audit trail
+      }
+
+      // 11. Public RSVP Creation
       match /events/{eventId}/guests/{guestId} {
-        // Allow anyone to create a guest entry for RSVPs, but tightly restrict payload
-        // to prevent Denial of Wallet attacks
         allow create: if request.resource.data.keys().size() <= 15;
+      }
+
+      // 12. Catch-all Tenant Subcollections (Strict isolation: Owner/Staff only, Cashier Denied)
+      match /{subcollection}/{document=**} {
+        allow read, create, update: if hasTenantAccess(tenantId);
+        allow delete: if isSuperAdmin() || (isAuthenticated() && request.auth.uid == getTenantData(tenantId).ownerUid);
       }
     }
 
-    // 3. System Collection (Publicly readable for maintenance mode & pricing configs)
+    // 13. System Collection (Publicly readable for maintenance mode & pricing configs)
     match /system/{document=**} {
       allow read: if true;
       allow write: if isSuperAdmin();
     }
 
-    // 5. Users Collection (Staff profiles and owner profiles)
+    // 14. Users Collection (Owner and Staff Profiles - Cashier Strictly Denied)
     match /users/{userId} {
-      // LOCK: businessCode is immutable after it is set — only MasterAdmin can override.
-      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow create: if isAuthenticated() && request.auth.token.get('role', '') != 'cashier' && request.auth.uid == userId;
       
-      allow update: if isAuthenticated() && (
+      allow update: if isAuthenticated() && request.auth.token.get('role', '') != 'cashier' && (
         request.auth.uid == userId || isMasterAdmin() ||
         request.auth.uid == resource.data.enterpriseOwnerUid
       ) && (
@@ -113,112 +180,105 @@ service cloud.firestore {
         request.resource.data.businessCode == resource.data.businessCode
       );
 
-      allow delete: if isAuthenticated() && (request.auth.uid == userId || isMasterAdmin());
+      allow delete: if isAuthenticated() && request.auth.token.get('role', '') != 'cashier' && (request.auth.uid == userId || isMasterAdmin());
       
-      allow get: if isAuthenticated() && (
+      allow get: if isAuthenticated() && request.auth.token.get('role', '') != 'cashier' && (
         isMasterAdmin() ||
         request.auth.uid == userId ||
         (resource != null && 'tenantId' in resource.data && resource.data.tenantId != null && resource.data.tenantId != '' && hasTenantAccess(resource.data.tenantId)) ||
         (resource != null && 'enterpriseOwnerUid' in resource.data && request.auth.uid == resource.data.enterpriseOwnerUid)
       );
       
-      // Allow tenant owners/staff to list users belonging to their own tenant
-      // (needed for the staff management list in ProfileTab)
       allow list: if isMasterAdmin() || (
-        isAuthenticated() &&
+        isAuthenticated() && request.auth.token.get('role', '') != 'cashier' &&
         (
-          // Store Owners can list all staff they own
           resource.data.enterpriseOwnerUid == request.auth.uid ||
-          // Existing staff can list their co-workers in the same store
           resource.data.tenantId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId
         )
       );
     }
 
-    // 5.5 User Referral History
+    // 15. User Referral History
     match /users/{userId}/referral_history/{historyId} {
       allow read: if isAuthenticated() && request.auth.uid == userId;
       allow write: if isMasterAdmin();
     }
 
-    // 6. Invites Collection (Staff invitation flow)
+    // 16. Invites Collection (Staff invitation flow)
     match /invites/{inviteId} {
-      // Users can read invites sent to their email
       allow read: if isAuthenticated() && (
         resource.data.email == request.auth.token.email || 
         hasTenantAccess(resource.data.tenantId)
       );
-      // Only tenant staff/owner can create invites for their tenant
       allow create, update: if isAuthenticated() && 
         hasTenantAccess(request.resource.data.tenantId);
-      // Users can delete their own invites (reject), or tenant staff can delete
       allow delete: if isAuthenticated() && (
         resource.data.email == request.auth.token.email ||
         hasTenantAccess(resource.data.tenantId)
       );
     }
 
-    // 8. Global Announcements
+    // 17. Global Announcements
     match /announcements/{annId} {
       allow read: if isAuthenticated();
       allow write: if isSuperAdmin();
     }
 
-    // 9. Billing Logs
+    // 18. Billing Logs
     match /billing_logs/{logId} {
       allow read, write: if isMasterAdmin();
     }
     
-    // 10. Admin Audit Logs (Immutable)
+    // 19. Admin Audit Logs (Immutable)
     match /admin_logs/{logId} {
       allow read: if isMasterAdmin();
       allow create: if isMasterAdmin();
-      allow update, delete: if false; // Immutable audit trail
+      allow update, delete: if false;
     }
 
-    // 11. Support Tickets Collection Group (For Admins)
+    // 20. Support Tickets Collection Group
     match /{path=**}/support_tickets/{ticketId} {
       allow read, write: if isMasterAdmin();
     }
     
-    // 12. Business Codes (Public read for login validation)
+    // 21. Business Codes (server-resolved for Cashier login; no public read)
     match /business_codes/{codeId} {
-      allow get: if true; // Publicly readable for pre-login validation
+      allow get: if isAuthenticated() && request.auth.token.get('role', '') != 'cashier';
       allow list: if isMasterAdmin();
-      allow write: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.token.get('role', '') != 'cashier';
     }
     
-    // 13. Referral Codes (Public read for validation)
+    // 22. Referral Codes (Public read for validation; non-cashier authenticated write)
     match /referral_codes/{codeId} {
       allow get: if true;
       allow list: if isMasterAdmin();
-      allow write: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.token.get('role', '') != 'cashier';
     }
     
-    // 14. Referral Withdrawals
+    // 23. Referral Withdrawals
     match /referral_withdrawals/{withdrawalId} {
       allow read, update: if isMasterAdmin();
-      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow create: if isAuthenticated() && request.auth.token.get('role', '') != 'cashier' && request.resource.data.uid == request.auth.uid;
     }
     
-    // 15. System Expenses
+    // 24. System Expenses
     match /system_expenses/{expenseId} {
       allow read, write: if isMasterAdmin();
     }
 
-    // 16. Mail Collection (Firebase Trigger Email)
+    // 25. Mail Collection (Firebase Trigger Email)
     match /mail/{mailId} {
       allow create: if isMasterAdmin();
     }
 
-    // 18. Staff Usernames (Public read for uniqueness validation)
+    // 26. Staff Usernames (server-managed for Cashier lifecycle; no public read)
     match /staff_usernames/{username} {
-      allow get: if true; // Publicly readable for username availability check
+      allow get: if isAuthenticated() && request.auth.token.get('role', '') != 'cashier';
       allow list: if isMasterAdmin();
-      allow create, delete: if isAuthenticated();
+      allow create, delete: if isAuthenticated() && request.auth.token.get('role', '') != 'cashier';
     }
 
-    // 19. True Default Deny
+    // 27. True Default Deny
     match /{document=**} {
       allow read, write: if false;
     }

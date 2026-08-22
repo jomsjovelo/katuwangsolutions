@@ -8,7 +8,7 @@ export function PricingCta() {
   const { open, openSheet, closeSheet } = useRegisterSheet();
 
   const inclusions = [
-    '20 modules (19 business modules + Budget Mo)',
+    '18 modules (17 business modules + Budget Mo)',
     'Module-based, per-selected-module subscription',
     'Manual GCash/Maya payment (subject to verification)',
     'Mobile-first design na madaling gamitin sa cellphone',
@@ -72,7 +72,7 @@ export function PricingCta() {
                 </button>
 
                 <p className="text-[11px] text-white/60 font-bold leading-relaxed">
-                  Para sa 19 standard business modules (regular ₱199/mo).<br />
+                  Para sa 17 standard business modules (regular ₱199/mo).<br />
                   <span className="text-white/80 font-medium">Budget Mo promo: ₱50/mo bawat module (regular ₱100/mo)</span>
                 </p>
               </div>

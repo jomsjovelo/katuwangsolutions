@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Facebook, MessageCircle, Mail, Building2, Target, WalletCards, Layers3 } from 'lucide-react';
 import { BrandLogo } from '@/components/ui/brand-logo';
-import { activeModulesCount } from '@/lib/app-data';
+import { activeModulesCount, standardModulesCount } from '@/lib/app-data';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -49,7 +49,7 @@ export default function AboutPage() {
           <h2 className="text-2xl font-black text-slate-900">Ano ang Katuwang Solutions?</h2>
           <div className="prose prose-slate max-w-none">
             <p className="text-slate-600 leading-relaxed text-lg">
-              Ang Katuwang Solutions ay isang software ecosystem na may 20 modules: 19 business modules at Budget Mo para sa personal budgeting.
+              Ang Katuwang Solutions ay isang software ecosystem na may 18 modules: 17 business modules at Budget Mo para sa personal budgeting.
             </p>
             <p className="text-slate-600 leading-relaxed text-lg mt-4">
               Pumili at mag-subscribe sa module na kailangan mo. Bawat module ay may hiwalay na subscription.
@@ -66,7 +66,7 @@ export default function AboutPage() {
           </div>
           <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center">
             <Building2 className="h-6 w-6 text-slate-400 mx-auto mb-3" />
-            <div className="font-black text-2xl text-slate-900">19</div>
+            <div className="font-black text-2xl text-slate-900">{standardModulesCount}</div>
             <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Business Modules</div>
           </div>
           <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center">

@@ -7,11 +7,21 @@ import { BottomNav } from '@/components/shell/bottom-nav';
 import { AppHeader } from '@/components/shell/app-header';
 import { BrandLogo } from '@/components/ui/brand-logo';
 
+import { useSecureCashierStore } from '@/store/use-secure-cashier-store';
+
 export default function TenantDashboardPage() {
+  const isCashier = useSecureCashierStore(state => state.isCashierAuthenticated);
   const [activeTab, setActiveTab] = useState<'home' | 'benta' | 'stock' | 'ulat' | 'kita' | 'profile'>('home');
   const isLoading = useTenantStore(state => state.isLoading);
   const isSeeding = useTenantStore(state => state.isSeeding);
   const activeTenant = useTenantStore(state => state.activeTenant);
+
+  // If cashier enters dashboard, ensure default tab is benta (POS)
+  React.useEffect(() => {
+    if (isCashier && !['benta', 'profile'].includes(activeTab)) {
+      setActiveTab('benta');
+    }
+  }, [isCashier, activeTab]);
 
   // Listen for programmatic tab navigation from child components (e.g., Kita Ko shortcut in ProfileTab)
   React.useEffect(() => {

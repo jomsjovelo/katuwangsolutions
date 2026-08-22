@@ -17,7 +17,7 @@ export function initializeFirebase() {
     db = initializeFirestore(app, {
       localCache: memoryLocalCache()
     });
-    
+
     // We wrap browser APIs in a try/catch or typeof window check to prevent SSR crashes
     if (typeof window !== 'undefined') {
       setPersistence(auth, browserLocalPersistence).catch(console.error);

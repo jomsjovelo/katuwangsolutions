@@ -214,6 +214,30 @@ export function BusinessInfoStep({ data, onUpdate, onNext, isLoading }: Business
                   />
                   {errors.businessName && <p className="text-[10px] text-destructive font-bold uppercase tracking-wide">{errors.businessName}</p>}
                 </div>
+
+                {data.appId === 'benta-snap' && (
+                  <div className="space-y-2">
+                    <div className="flex flex-col gap-0.5">
+                      <Label htmlFor="businessProfile" className="text-xs font-bold uppercase tracking-widest text-slate-500">Uri ng Tindahan / Negosyo</Label>
+                      <span className="text-[10px] text-slate-400 font-medium">Piliin ang uri ng iyong negosyo para sa setup ng iyong account</span>
+                    </div>
+                    <Select
+                      name="businessProfile"
+                      value={data.businessProfile || 'standard-retail'}
+                      onValueChange={(val) => onUpdate({ businessProfile: val })}
+                    >
+                      <SelectTrigger id="businessProfile" className="h-14">
+                        <SelectValue placeholder="Pumili ng uri..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="standard-retail">General Retail / Sari-Sari / Grocery</SelectItem>
+                        <SelectItem value="fresh-goods">Palengke / Fresh Goods / Karne / Isda</SelectItem>
+                        <SelectItem value="hardware-supplies">Hardware / Construction Supplies</SelectItem>
+                        <SelectItem value="wholesale">Wholesale / Bagsakan</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
 
             <div className="space-y-3">

@@ -18,9 +18,7 @@ interface AppMarketplaceProps {
 
 const APPS = [
   { id: 'budget-mo', name: 'Budget Mo', category: 'Finance', desc: 'Personal finance & cash flow management', price: 100 },
-  { id: 'benta-snap', name: 'Benta Snap', category: 'Retail', desc: 'Retail POS & Sari-Sari Store checkout', price: 199 },
-  { id: 'fresh-tally', name: 'Fresh Tally', category: 'Retail', desc: 'Palengke and fresh goods inventory', price: 199 },
-  { id: 'build-stack', name: 'Build Stack', category: 'Retail', desc: 'Hardware and construction supplies', price: 199 },
+  { id: 'benta-snap', name: 'Benta Snap', category: 'Retail', desc: 'POS, Sales & Inventory para sa sari-sari, grocery, hardware at retail', price: 199 },
   { id: '5-6-tracker', name: '5-6 Tracker', category: 'Finance', desc: 'Micro-lending and collection tracker', price: 199 },
   
   { id: 'ledger-flow', name: 'Ledger Flow', category: 'Corporate', desc: 'Simple, clear accounting and main cash', price: 199 },

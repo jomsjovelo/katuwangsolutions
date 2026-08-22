@@ -9,14 +9,14 @@ import { RegisterSheet, useRegisterSheet } from '@/components/marketing/register
 import { trackModuleDiscovery } from '@/lib/conversion-events';
 
 const INDUSTRIES = [
-  { id: 'retail', label: 'Retail / Sari-Sari', icon: ShoppingCart, module: 'Benta Snap', moduleId: 'benta-snap', color: '#06B6D4' },
-  { id: 'palengke', label: 'Palengke', icon: Leaf, module: 'Fresh Tally', moduleId: 'fresh-tally', color: '#10B981' },
+  { id: 'retail', label: 'Retail / Sari-Sari', icon: ShoppingCart, module: 'Benta Snap', moduleId: 'benta-snap', profile: 'standard-retail', color: '#06B6D4' },
+  { id: 'palengke', label: 'Palengke / Fresh', icon: Leaf, module: 'Benta Snap (Basic POS)', moduleId: 'benta-snap', profile: 'fresh-goods', color: '#10B981' },
   { id: 'restaurant', label: 'Kainan / Restaurant', icon: Utensils, module: 'Bite Snap', moduleId: 'bite-snap', color: '#F97316' },
   { id: 'cafe', label: 'Coffee Shop', icon: Coffee, module: 'Timpla Track', moduleId: 'timpla-track', color: '#EF4444' },
   { id: 'laundry', label: 'Laundry Shop', icon: RotateCcw, module: 'Spin Snap', moduleId: 'spin-snap', color: '#22D3EE' },
   { id: 'salon', label: 'Salon / Barbershop', icon: Scissors, module: 'Trim Track', moduleId: 'trim-track', color: '#E11D48' },
   { id: 'trucking', label: 'Trucking', icon: Truck, module: 'Biyahe Sync', moduleId: 'biyahe-sync', color: '#3B82F6' },
-  { id: 'hardware', label: 'Hardware Store', icon: Hammer, module: 'Build Stack', moduleId: 'build-stack', color: '#475569' },
+  { id: 'hardware', label: 'Hardware Store', icon: Hammer, module: 'Benta Snap (Hardware POS)', moduleId: 'benta-snap', profile: 'hardware-supplies', color: '#475569' },
   { id: 'water', label: 'Water Refilling', icon: Droplets, module: 'Hydro Sync', moduleId: 'hydro-sync', color: '#0284C7' },
   { id: 'hospitality', label: 'Resort / Motel', icon: Bed, module: 'Tsek-In', moduleId: 'tsek-in', color: '#D97706' },
   { id: 'finance', label: 'Personal / Business Finance', icon: Banknote, module: 'Budget Mo', moduleId: 'budget-mo', color: '#8B5CF6' },
@@ -24,7 +24,7 @@ const INDUSTRIES = [
 
 export function BusinessFinder() {
   const [selected, setSelected] = useState<string | null>(null);
-  const { open, openSheet, closeSheet, initialAppId } = useRegisterSheet();
+  const { open, openSheet, closeSheet, initialAppId, initialProfile } = useRegisterSheet();
 
   const selectedIndustry = INDUSTRIES.find(i => i.id === selected);
 
@@ -117,7 +117,7 @@ export function BusinessFinder() {
               </div>
               <div className="flex flex-col gap-2 flex-shrink-0">
                 <button
-                  onClick={() => openSheet(selectedIndustry.moduleId)}
+                  onClick={() => openSheet(selectedIndustry.moduleId, selectedIndustry.profile)}
                   className="h-11 min-h-[44px] px-4 rounded-xl font-bold text-xs text-white flex items-center justify-center gap-1 active:scale-95 transition-transform"
                   style={{ backgroundColor: selectedIndustry.color }}
                 >
@@ -125,7 +125,7 @@ export function BusinessFinder() {
                   <ChevronRight className="h-3 w-3" />
                 </button>
                 <a
-                  href={`/${selectedIndustry.moduleId}`}
+                  href={`/${selectedIndustry.moduleId}${selectedIndustry.profile ? `?profile=${selectedIndustry.profile}` : ''}`}
                   className="h-11 min-h-[44px] px-3.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1 active:scale-95 transition-all text-center"
                   style={{ color: selectedIndustry.color, backgroundColor: `${selectedIndustry.color}15` }}
                 >
@@ -137,7 +137,13 @@ export function BusinessFinder() {
         </div>
       </section>
 
-      <RegisterSheet open={open} onClose={closeSheet} initialAppId={initialAppId || selectedIndustry?.moduleId} ctaSource="business_finder" />
+      <RegisterSheet
+        open={open}
+        onClose={closeSheet}
+        initialAppId={initialAppId || selectedIndustry?.moduleId}
+        initialProfile={initialProfile || selectedIndustry?.profile}
+        ctaSource="business_finder"
+      />
     </>
   );
 }

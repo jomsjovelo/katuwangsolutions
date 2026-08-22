@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 const faqs = [
   {
     q: 'Ano ang Katuwang Solutions?',
-    a: 'Ang Katuwang Solutions ay isang mobile-first business management software ecosystem. Mayroon itong 20 modules para sa iba’t ibang negosyo at personal budgeting needs. Piliin lamang ang module na angkop sa iyong gagamitin.',
+    a: 'Ang Katuwang Solutions ay isang mobile-first business management software ecosystem. Mayroon itong 18 modules para sa iba’t ibang negosyo at personal budgeting needs. Piliin lamang ang module na angkop sa iyong gagamitin.',
   },
   {
     q: 'Magkano ang subscription?',

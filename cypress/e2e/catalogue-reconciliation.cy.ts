@@ -1,11 +1,10 @@
 /**
- * Catalogue Reconciliation E2E Tests (Restored Full 41 Test Blocks + Additive Coverage)
+ * Catalogue Reconciliation E2E Tests (18 Canonical Modules + Benta Snap Consolidation)
  *
  * No global uncaught:exception suppression is used.
- * All 41 original test purposes from HEAD are restored and updated from 18 to 20 canonical modules.
- * Farm Master exclusion, Service Master, aliases, redirects, query preservation, onboarding normalization,
- * draft recovery, picker behavior, back navigation, pricing, choice-versus-bundle copy, sitemap,
- * and 4 mobile viewports are fully tested.
+ * Covers: 18 canonical modules (17 business modules + Budget Mo), Fresh Tally & Build Stack retirement
+ * into Benta Snap, alias normalization and redirection, draft recovery, picker behavior, back navigation,
+ * pricing integrity, sitemap validation, and mobile geometry.
  */
 
 // ─── Helper: wait for app to be ready (not stuck on loading screen) ──────────
@@ -15,8 +14,6 @@ const waitForApp = (timeout = 20000) => {
 
 const canonicalModuleIds = [
   'benta-snap',
-  'fresh-tally',
-  'build-stack',
   'bite-snap',
   'timpla-track',
   'ganap-master',
@@ -43,7 +40,7 @@ describe('1. Active Modules Catalogue', () => {
     waitForApp();
   });
 
-  it('displays exactly 20 unique active canonical IDs', () => {
+  it('displays exactly 18 unique active canonical IDs', () => {
     const ids: string[] = [];
     cy.get('[data-module-id]')
       .each(($el) => {
@@ -52,8 +49,18 @@ describe('1. Active Modules Catalogue', () => {
         ids.push(id);
       })
       .then(() => {
-        expect(ids.length, 'Expected exactly 20 unique active module IDs').to.equal(20);
+        expect(ids.length, 'Expected exactly 18 unique active module IDs').to.equal(18);
       });
+  });
+
+  it('Benta Snap is present as the unified retail module', () => {
+    cy.get('[data-module-id="benta-snap"]').should('exist');
+    cy.get('a[href*="/benta-snap"]').should('exist');
+  });
+
+  it('Fresh Tally and Build Stack are retired from active public cards', () => {
+    cy.get('[data-module-id="fresh-tally"]').should('not.exist');
+    cy.get('[data-module-id="build-stack"]').should('not.exist');
   });
 
   it('Service Master is present and has an onboarding CTA', () => {
@@ -90,25 +97,28 @@ describe('1. Active Modules Catalogue', () => {
     });
   });
 
-  it('dynamic activeModulesCount shows 20 in page description', () => {
-    cy.contains("Pumili mula sa 20 iba't-ibang Katuwang modules").should('exist');
+  it('dynamic activeModulesCount shows 18 in page description', () => {
+    cy.contains("Pumili mula sa 18 iba't-ibang Katuwang modules").should('exist');
   });
 
-  it('no alias IDs (fleet-sync, rental-track) appear as module IDs', () => {
+  it('no alias IDs (fleet-sync, rental-track, fresh-tally, build-stack) appear as module IDs', () => {
     cy.get('[data-module-id="fleet-sync"]').should('not.exist');
     cy.get('[data-module-id="rental-track"]').should('not.exist');
+    cy.get('[data-module-id="fresh-tally"]').should('not.exist');
+    cy.get('[data-module-id="build-stack"]').should('not.exist');
   });
 });
 
 // ─── 2. Redirects and Obsolete IDs ───────────────────────────────────────────
 describe('2. Redirects and Obsolete IDs', () => {
-  it('/product/fleet-sync permanently redirects to /product/biyahe-sync', () => {
+  it('/product/fleet-sync permanently redirects (308) to /product/biyahe-sync', () => {
     cy.request({
       url: '/product/fleet-sync',
       followRedirect: false,
       failOnStatusCode: false,
     }).then((resp) => {
-      expect(resp.status).to.be.oneOf([301, 307, 308]);
+      expect(resp.status).to.equal(308);
+      expect(resp.headers.location).to.include('/biyahe-sync');
     });
   });
 
@@ -119,13 +129,14 @@ describe('2. Redirects and Obsolete IDs', () => {
     cy.url().should('include', 'ref=test-ref');
   });
 
-  it('/product/rental-track permanently redirects to /product/rental', () => {
+  it('/product/rental-track permanently redirects (308) to /product/rental', () => {
     cy.request({
       url: '/product/rental-track',
       followRedirect: false,
       failOnStatusCode: false,
     }).then((resp) => {
-      expect(resp.status).to.be.oneOf([301, 307, 308]);
+      expect(resp.status).to.equal(308);
+      expect(resp.headers.location).to.include('/rental');
     });
   });
 
@@ -134,6 +145,80 @@ describe('2. Redirects and Obsolete IDs', () => {
     waitForApp();
     cy.url().should('include', '/rental');
     cy.url().should('include', 'code=test-code');
+  });
+
+  it('/fresh-tally permanently redirects (308) to /benta-snap?profile=fresh-goods', () => {
+    cy.request({
+      url: '/fresh-tally',
+      followRedirect: false,
+      failOnStatusCode: false,
+    }).then((resp) => {
+      expect(resp.status).to.equal(308);
+      expect(resp.headers.location).to.include('/benta-snap');
+      expect(resp.headers.location).to.include('profile=fresh-goods');
+    });
+  });
+
+  it('/fresh-tally preserves query params in permanent redirect', () => {
+    cy.request({
+      url: '/fresh-tally?ref=fresh-promo',
+      followRedirect: false,
+      failOnStatusCode: false,
+    }).then((resp) => {
+      expect(resp.status).to.equal(308);
+      expect(resp.headers.location).to.include('/benta-snap');
+      expect(resp.headers.location).to.include('profile=fresh-goods');
+      expect(resp.headers.location).to.include('ref=fresh-promo');
+    });
+  });
+
+  it('/build-stack permanently redirects (308) to /benta-snap?profile=hardware-supplies', () => {
+    cy.request({
+      url: '/build-stack',
+      followRedirect: false,
+      failOnStatusCode: false,
+    }).then((resp) => {
+      expect(resp.status).to.equal(308);
+      expect(resp.headers.location).to.include('/benta-snap');
+      expect(resp.headers.location).to.include('profile=hardware-supplies');
+    });
+  });
+
+  it('/build-stack preserves query params in permanent redirect', () => {
+    cy.request({
+      url: '/build-stack?code=hw-discount',
+      followRedirect: false,
+      failOnStatusCode: false,
+    }).then((resp) => {
+      expect(resp.status).to.equal(308);
+      expect(resp.headers.location).to.include('/benta-snap');
+      expect(resp.headers.location).to.include('profile=hardware-supplies');
+      expect(resp.headers.location).to.include('code=hw-discount');
+    });
+  });
+
+  it('/fresh-tally/onboarding permanently redirects (308) to /benta-snap/onboarding?profile=fresh-goods', () => {
+    cy.request({
+      url: '/fresh-tally/onboarding',
+      followRedirect: false,
+      failOnStatusCode: false,
+    }).then((resp) => {
+      expect(resp.status).to.equal(308);
+      expect(resp.headers.location).to.include('/benta-snap/onboarding');
+      expect(resp.headers.location).to.include('profile=fresh-goods');
+    });
+  });
+
+  it('/build-stack/onboarding permanently redirects (308) to /benta-snap/onboarding?profile=hardware-supplies', () => {
+    cy.request({
+      url: '/build-stack/onboarding',
+      followRedirect: false,
+      failOnStatusCode: false,
+    }).then((resp) => {
+      expect(resp.status).to.equal(308);
+      expect(resp.headers.location).to.include('/benta-snap/onboarding');
+      expect(resp.headers.location).to.include('profile=hardware-supplies');
+    });
   });
 
   it('/product/farm-master returns HTTP 404 status (not 200)', () => {
@@ -165,6 +250,18 @@ describe('3. Onboarding Parameter Normalization', () => {
     cy.contains('Mga Detalye Mo', { timeout: 10000 }).should('exist');
   });
 
+  it('/onboarding?app=fresh-tally normalizes to benta-snap and opens business step', () => {
+    cy.visit('/onboarding?app=fresh-tally');
+    waitForApp();
+    cy.contains('Mga Detalye Mo', { timeout: 10000 }).should('exist');
+  });
+
+  it('/onboarding?app=build-stack normalizes to benta-snap and opens business step', () => {
+    cy.visit('/onboarding?app=build-stack');
+    waitForApp();
+    cy.contains('Mga Detalye Mo', { timeout: 10000 }).should('exist');
+  });
+
   it('/onboarding?app=unknown-id returns to the app picker', () => {
     cy.visit('/onboarding?app=unknown-id-xyz');
     waitForApp();
@@ -188,13 +285,15 @@ describe('4. Onboarding App Picker', () => {
     cy.contains('What is your business type?', { timeout: 10000 }).should('exist');
   });
 
-  it('app picker contains exactly 20 module controls', () => {
-    cy.get('[data-module-id]').should('have.length', 20);
+  it('app picker contains exactly 18 module controls', () => {
+    cy.get('[data-module-id]').should('have.length', 18);
   });
 
-  it('app picker contains Service Master and does not contain Farm Master', () => {
+  it('app picker contains Service Master and does not contain Farm Master, Fresh Tally or Build Stack', () => {
     cy.get('[data-module-id="service-master"]').should('exist');
     cy.get('[data-module-id="farm-master"]').should('not.exist');
+    cy.get('[data-module-id="fresh-tally"]').should('not.exist');
+    cy.get('[data-module-id="build-stack"]').should('not.exist');
   });
 
   it('selecting a module advances to the business info step', () => {
@@ -272,6 +371,50 @@ describe('5. Draft Recovery', () => {
     });
   });
 
+  it('legacy fresh-tally draft normalizes to benta-snap + fresh-goods profile and preserves fields', () => {
+    cy.window().then((win) => {
+      win.localStorage.setItem('katuwang_onboarding_draft', JSON.stringify({
+        step: 'business',
+        data: {
+          appId: 'fresh-tally',
+          businessName: 'Gulay & Baboy Stand',
+          businessPhone: '09171112233',
+        },
+      }));
+    });
+    cy.visit('/onboarding');
+    waitForApp();
+    cy.contains('Mga Detalye Mo', { timeout: 10000 }).should('exist');
+    cy.window().should((win) => {
+      const draft = JSON.parse(win.localStorage.getItem('katuwang_onboarding_draft') || '{}');
+      expect(draft.data?.appId, 'legacy fresh-tally is normalized to benta-snap').to.equal('benta-snap');
+      expect(draft.data?.businessProfile, 'fresh-goods profile is assigned').to.equal('fresh-goods');
+      expect(draft.data?.businessName, 'business name is preserved').to.equal('Gulay & Baboy Stand');
+    });
+  });
+
+  it('legacy build-stack draft normalizes to benta-snap + hardware-supplies profile and preserves fields', () => {
+    cy.window().then((win) => {
+      win.localStorage.setItem('katuwang_onboarding_draft', JSON.stringify({
+        step: 'business',
+        data: {
+          appId: 'build-stack',
+          businessName: 'Ace Construction Supply',
+          businessPhone: '09182223344',
+        },
+      }));
+    });
+    cy.visit('/onboarding');
+    waitForApp();
+    cy.contains('Mga Detalye Mo', { timeout: 10000 }).should('exist');
+    cy.window().should((win) => {
+      const draft = JSON.parse(win.localStorage.getItem('katuwang_onboarding_draft') || '{}');
+      expect(draft.data?.appId, 'legacy build-stack is normalized to benta-snap').to.equal('benta-snap');
+      expect(draft.data?.businessProfile, 'hardware-supplies profile is assigned').to.equal('hardware-supplies');
+      expect(draft.data?.businessName, 'business name is preserved').to.equal('Ace Construction Supply');
+    });
+  });
+
   it('unknown-id draft clears selection and returns to picker', () => {
     cy.window().then((win) => {
       win.localStorage.setItem('katuwang_onboarding_draft', JSON.stringify({
@@ -291,7 +434,7 @@ describe('6. Pricing and Copy Integrity', () => {
     cy.visit('/modules');
     waitForApp();
     cy.contains('Promo ₱99').should('exist');
-    cy.get('body').should('not.contain.text', 'all 20 modules');
+    cy.get('body').should('not.contain.text', 'all 18 modules');
     cy.get('body').should('not.contain.text', 'all modules');
   });
 
@@ -318,7 +461,7 @@ describe('6. Pricing and Copy Integrity', () => {
 
 // ─── 7. Sitemap Validation ────────────────────────────────────────────────────
 describe('7. Sitemap Validation', () => {
-  it('contains exactly 20 canonical product URLs', () => {
+  it('contains exactly 18 canonical product URLs', () => {
     cy.request('/sitemap.xml').then((response) => {
       expect(response.status).to.equal(200);
       const xml = response.body as string;
@@ -331,20 +474,22 @@ describe('7. Sitemap Validation', () => {
         canonicalModuleIds.includes(pathname as (typeof canonicalModuleIds)[number])
       );
 
-      expect(modulePaths.length, 'Expected exactly 20 canonical root module URLs').to.equal(20);
-      expect(new Set(modulePaths).size, 'Expected no duplicate canonical module URLs').to.equal(20);
+      expect(modulePaths.length, 'Expected exactly 18 canonical root module URLs').to.equal(18);
+      expect(new Set(modulePaths).size, 'Expected no duplicate canonical module URLs').to.equal(18);
       canonicalModuleIds.forEach((moduleId) => {
         expect(modulePaths, `Expected /${moduleId} in sitemap`).to.include(moduleId);
       });
     });
   });
 
-  it('sitemap excludes farm-master, fleet-sync, and rental-track', () => {
+  it('sitemap excludes farm-master, fleet-sync, rental-track, fresh-tally, and build-stack', () => {
     cy.request('/sitemap.xml').then((response) => {
       const xml = response.body as string;
       expect(xml).to.not.include('/farm-master');
       expect(xml).to.not.include('/fleet-sync');
       expect(xml).to.not.include('/rental-track');
+      expect(xml).to.not.include('/fresh-tally');
+      expect(xml).to.not.include('/build-stack');
     });
   });
 });
@@ -375,10 +520,10 @@ describe('8. Mobile Geometry Verification', () => {
         });
       });
 
-      it(`/modules shows exactly 20 module cards`, () => {
+      it(`/modules shows exactly 18 module cards`, () => {
         cy.visit('/modules');
         waitForApp();
-        cy.get('[data-module-id]').should('have.length', 20);
+        cy.get('[data-module-id]').should('have.length', 18);
       });
 
       it(`Service Master is reachable on /modules`, () => {
@@ -393,12 +538,12 @@ describe('8. Mobile Geometry Verification', () => {
         cy.get('[data-module-id="farm-master"]').should('not.exist');
       });
 
-      it(`app picker shows 20 module buttons with minimum 44px touch area`, () => {
+      it(`app picker shows 18 module buttons with minimum 44px touch area`, () => {
         cy.visit('/onboarding');
         waitForApp();
         cy.contains('Magsimula ng Negosyo').click();
         cy.contains('What is your business type?', { timeout: 10000 }).should('exist');
-        cy.get('[data-module-id]').should('have.length', 20);
+        cy.get('[data-module-id]').should('have.length', 18);
 
         cy.get('[data-module-id]').each(($btn) => {
           const height = $btn[0].getBoundingClientRect().height;

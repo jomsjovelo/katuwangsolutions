@@ -2,7 +2,7 @@ import React from 'react';
 import { LayoutGrid, Layers, CreditCard, ShieldCheck } from 'lucide-react';
 
 const CONFIDENCE_FACTS = [
-  { icon: LayoutGrid, label: '20 practical modules', color: 'text-emerald-400', bg: 'bg-emerald-400/10 border-emerald-400/20' },
+  { icon: LayoutGrid, label: '18 practical modules', color: 'text-emerald-400', bg: 'bg-emerald-400/10 border-emerald-400/20' },
   { icon: Layers, label: 'Hiwalay na subscription bawat module', color: 'text-sky-400', bg: 'bg-sky-400/10 border-sky-400/20' },
   { icon: CreditCard, label: 'Manual GCash/Maya payment', color: 'text-amber-400', bg: 'bg-amber-400/10 border-amber-400/20' },
   { icon: ShieldCheck, label: 'Activation pagkatapos ng payment verification', color: 'text-primary', bg: 'bg-primary/10 border-primary/20' },

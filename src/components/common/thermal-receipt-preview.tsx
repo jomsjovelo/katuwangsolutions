@@ -227,7 +227,7 @@ export function ThermalReceiptPreview({
             <div className="space-y-1 mb-4 text-[9px] text-slate-600">
               <div>Petsa: <span className="text-slate-800 font-bold">{dateStr}</span></div>
               {transactionId && (
-                <div className="truncate">Ref: <span className="text-slate-800 font-bold uppercase">{transactionId.slice(0, 10)}</span></div>
+                <div className="truncate">Ref: <span className="text-slate-800 font-bold uppercase">{transactionId}</span></div>
               )}
               <div>Bayad: <span className="text-slate-800 font-bold uppercase">{paymentMethod}</span></div>
               <div className="text-slate-300 tracking-tighter text-[9px] text-center">--------------------------------</div>

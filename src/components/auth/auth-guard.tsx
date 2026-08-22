@@ -10,15 +10,16 @@ import { app } from '@/firebase/config';
 import { ShieldAlert, Loader2, AlertCircle, Copy, Check, ExternalLink } from 'lucide-react';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { useFirestore } from '@/firebase/provider';
-import Image from 'next/image';
 import { isValidActiveModuleId } from '@/lib/app-data';
-import { useStaffSession } from '@/store/use-staff-session';
+import { useSecureCashierStore } from '@/store/use-secure-cashier-store';
+import { fetchBentaBootstrap } from '@/lib/client/secure-benta-cashier-client';
+import { selectAuthoritativeTenantId, validateAuthoritativeTenant, UserProfileAuthData } from '@/lib/auth/owner-tenant-authorization';
 
 function isPublicPathname(pathname: string): boolean {
   if (!pathname || pathname === '/' || pathname === '/admin' || pathname === '/login' || pathname === '/auth' || pathname === '/auth/action' || pathname === '/__/auth/action') return true;
-  
+
   const publicPrefixes = [
-    '/rsvp', '/product', '/terms', '/onboarding', 
+    '/rsvp', '/product', '/terms', '/onboarding',
     '/about', '/faq', '/modules', '/privacy'
   ];
   if (publicPrefixes.some(prefix => pathname.startsWith(prefix))) return true;
@@ -29,11 +30,19 @@ function isPublicPathname(pathname: string): boolean {
   return false;
 }
 
+// Purge any stale legacy localStorage on module execution
+if (typeof window !== 'undefined' && window.localStorage) {
+  try {
+    window.localStorage.removeItem('katuwang-staff-session-storage');
+  } catch {
+    // Ignore storage access error
+  }
+}
+
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const db = useFirestore();
   const { user, loading: authLoading } = useUser();
   const activeTenant = useTenantStore(state => state.activeTenant);
-  const setActiveTenant = useTenantStore(state => state.setActiveTenant);
   const userProfile = useTenantStore(state => state.userProfile);
   const isLoading = useTenantStore(state => state.isLoading);
   const error = useTenantStore(state => state.error);
@@ -41,8 +50,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [checking, setChecking] = useState(true);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [isCashierUser, setIsCashierUser] = useState<boolean>(false);
   const [tenantId, setTenantId] = useState<string | null>(null);
-  const [profileTenantId, setProfileTenantId] = useState<string | null>(null);
+  const [, setProfileTenantId] = useState<string | null>(null);
   const [maintenance, setMaintenance] = useState<{ mode: boolean; message: string } | null>(null);
 
   // Payment states for GCash/Maya
@@ -58,6 +68,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       setTimeout(() => setMayaCopied(false), 2500);
     }
   };
+
   // Stable refs for store actions — prevents spurious effect re-runs
   const setLoadingRef = useRef(useTenantStore.getState().setLoading);
   const setErrorRef = useRef(useTenantStore.getState().setError);
@@ -72,7 +83,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         setMaintenance({ mode: data.maintenanceMode, message: data.maintenanceMessage });
       }
     }, (err) => {
-      // Suppress harmless Firebase 400 Bad Request / Listen channel fallback errors from cluttering the console
       if (err.code !== 'permission-denied') {
         console.debug('Firebase system config listener network status:', err.message);
       }
@@ -80,37 +90,81 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     return () => unsub();
   }, [db]);
 
-  // 1. Auth Status & Admin Check — only re-runs when the logged-in user identity changes
+  // 1. Auth Status & Role Resolution
   const userUid = user?.uid ?? null;
   useEffect(() => {
     if (authLoading) return;
 
     if (!user) {
       useTenantStore.getState().reset();
+      useSecureCashierStore.getState().clearCashierSession();
       setIsAdmin(null);
+      setIsCashierUser(false);
       setChecking(false);
       return;
     }
 
-    // isAdmin already resolved — nothing more to do here
-    if (isAdmin !== null) return;
+    user.getIdTokenResult().then(async (tokenResult) => {
+      const claims = tokenResult.claims || {};
 
-    // We only reach here if user is logged in AND isAdmin is null (initial load or fresh login)
-    user.getIdToken().then(() => {
-      const adminRef = doc(db, 'admins', user.uid);
-      import('firebase/firestore').then(({ getDoc }) => {
-        getDoc(adminRef).then((snap) => {
-          const isUserAdmin = snap.exists();
-          setIsAdmin(isUserAdmin);
-          if (isUserAdmin) {
-            setChecking(false);
-            setLoadingRef.current(false);
-          }
-        }).catch((err) => {
-          console.error('Admin check error:', err);
-          setIsAdmin(false);
-        });
-      });
+      // A. Secure Cashier Identity via Firebase Token Claims
+      if (claims.role === 'cashier') {
+        setIsCashierUser(true);
+        setIsAdmin(false);
+        try {
+          const idToken = await user.getIdToken();
+          const bootstrap = await fetchBentaBootstrap(idToken);
+          useSecureCashierStore.getState().setBootstrap(bootstrap);
+
+          useTenantStore.getState().setActiveTenant({
+            id: bootstrap.tenantId,
+            name: bootstrap.tenantDisplayName,
+            moduleType: bootstrap.moduleId,
+            ownerUid: 'staff_authenticated',
+            staffUids: [bootstrap.staffAccountId],
+            pricingTier: 'standard_100',
+            subscriptionStatus: 'active',
+            createdAt: new Date().toISOString()
+          });
+
+          setChecking(false);
+          setLoadingRef.current(false);
+        } catch (err: any) {
+          console.warn('AuthGuard: Cashier bootstrap validation failed, signing out:', err?.message);
+          useSecureCashierStore.getState().clearCashierSession();
+          const auth = getAuth(app);
+          await signOut(auth);
+          router.push('/');
+        }
+        return;
+      }
+
+      // B. Normal Account (Owner / Staff / Member / Admin)
+      setIsCashierUser(false);
+      const isClaimAdmin = Boolean(claims.admin === true || claims.role === 'admin');
+      setIsAdmin(isClaimAdmin);
+      if (isClaimAdmin) {
+        setChecking(false);
+        setLoadingRef.current(false);
+        return;
+      }
+
+      // Signed token claims (cryptographically signed by Firebase Auth server):
+      const tokenTenantId = typeof claims.tenantId === 'string' && claims.tenantId.trim().length > 0 ? claims.tenantId : undefined;
+      const tokenRole = typeof claims.role === 'string' ? claims.role : undefined;
+
+      if (tokenTenantId) {
+        const tokenAuthoritativeProfile: UserProfileAuthData = {
+          tenantId: tokenTenantId,
+          tenantIds: [tokenTenantId],
+          role: tokenRole || 'owner'
+        };
+        const persistedTenantId = useTenantStore.getState().activeTenant?.id;
+        const resolution = selectAuthoritativeTenantId(tokenAuthoritativeProfile, persistedTenantId);
+        if (resolution.selectedTenantId) {
+          setTenantId(resolution.selectedTenantId);
+        }
+      }
     }).catch((err) => {
       console.error('Token fetch error:', err);
       setIsAdmin(false);
@@ -118,35 +172,23 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userUid, db, authLoading]);
 
-  // 1b. Routing effect — runs on pathname changes (kept separate to avoid re-triggering admin check)
+  // 1b. Routing effect — runs on pathname changes
   useEffect(() => {
-    // Check if there is an active PIN staff session first
-    const { staffSession, isSessionValid } = useStaffSession.getState();
-    if (isSessionValid() && staffSession) {
-      const activeT = useTenantStore.getState().activeTenant;
-      if (!activeT || activeT.id !== staffSession.tenantId) {
-        useTenantStore.getState().setActiveTenant({
-          id: staffSession.tenantId,
-          name: staffSession.tenantName,
-          moduleType: staffSession.moduleType,
-          ownerUid: 'staff_pin',
-          staffUids: [staffSession.staffAccountId],
-          pricingTier: 'standard_100',
-          subscriptionStatus: 'active',
-          createdAt: new Date().toISOString()
-        });
-      }
-      setChecking(false);
-      useTenantStore.getState().setLoading(false);
-      return;
-    }
+    if (authLoading || checking) return;
 
-    if (authLoading) return;
     if (!user) {
       const isPublicPath = isPublicPathname(pathname);
       if (!isPublicPath) router.push('/');
       return;
     }
+
+    if (isCashierUser) {
+      if (pathname === '/admin') {
+        router.push('/dashboard');
+      }
+      return;
+    }
+
     if (isAdmin === null) return;
     if (isAdmin === true) {
       if (pathname !== '/admin' && pathname !== '/dashboard' && !pathname.startsWith('/module/')) {
@@ -155,37 +197,33 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     } else if (isAdmin === false) {
       if (pathname === '/admin') router.push('/dashboard');
     }
-  }, [user, isAdmin, pathname, router, authLoading]);
+  }, [user, isAdmin, isCashierUser, pathname, router, authLoading, checking]);
 
-  // 2. Fetch User Profile to get Tenant ID — only re-attaches when user identity or admin status changes
+  // 2. Fetch User Profile to get Authoritative Tenant ID — for non-Cashier, non-Admin users
   useEffect(() => {
-    // Only fetch tenant if the user is authenticated and NOT an admin
-    if (!userUid || isAdmin === true || isAdmin === null || !user) return;
-    
-    setLoadingRef.current(true);
+    if (!userUid || isAdmin === true || isAdmin === null || isCashierUser || !user) return;
+
     const userRef = doc(db, 'users', user.uid);
-    
+
     const unsubscribeUser = onSnapshot(userRef, (userSnap) => {
       if (userSnap.exists()) {
-        const userData = userSnap.data() as any;
-        useTenantStore.getState().setUserProfile(userData);
+        const userData = userSnap.data() as UserProfileAuthData;
+        useTenantStore.getState().setUserProfile(userData as any);
         setProfileTenantId(userData.tenantId || null);
 
-        const persistedTenant = useTenantStore.getState().activeTenant;
-        // Verify that the persisted tenant actually belongs to the newly logged-in user
-        const isAuthorizedForPersisted = persistedTenant && 
-          (persistedTenant.ownerUid === user.uid || (persistedTenant.staffUids || []).includes(user.uid));
-
         if (userData.approvalStatus === 'pending_owner' || userData.approvalStatus === 'pending_admin' || userData.approvalStatus === 'pending') {
-          // If staff is pending, we don't need to fetch tenant. Drop checking immediately.
           setChecking(false);
           setLoadingRef.current(false);
-        } else if (persistedTenant && isAuthorizedForPersisted) {
-          setTenantId(persistedTenant.id);
-        } else if (userData.tenantId) {
-          setTenantId(userData.tenantId);
+          return;
+        }
+
+        const persistedTenantId = useTenantStore.getState().activeTenant?.id;
+        const resolution = selectAuthoritativeTenantId(userData, persistedTenantId);
+
+        if (resolution.selectedTenantId) {
+          setTenantId(resolution.selectedTenantId);
         } else {
-          setErrorRef.current('User is not associated with any business.');
+          setErrorRef.current(resolution.error || 'User is not associated with any business.');
           setChecking(false);
           setLoadingRef.current(false);
         }
@@ -203,15 +241,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
     return () => unsubscribeUser();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userUid, isAdmin, db]);
+  }, [userUid, isAdmin, isCashierUser, db]);
 
-  // 3. Fetch Tenant Data — only re-attaches when the tenantId changes
+  // 3. Fetch Tenant Data — for non-Cashier, non-Admin users
   useEffect(() => {
-    if (!tenantId) return;
-    
-    setLoadingRef.current(true);
+    if (!tenantId || isCashierUser) return;
+
     const tenantRef = doc(db, 'tenants', tenantId);
-    
+
     let unsubscribeTenant: (() => void) | undefined;
     let retryTimeout: NodeJS.Timeout;
     let retryCount = 0;
@@ -220,21 +257,28 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     const attachListener = () => {
       unsubscribeTenant = onSnapshot(tenantRef, (tenantSnap) => {
         if (tenantSnap.exists()) {
-          const tenantData = { id: tenantSnap.id, ...tenantSnap.data() } as Tenant;
-          setActiveTenantRef.current(tenantData);
-          // Use latest pathname via the ref to avoid stale closure without adding pathname as dep
-          if (window.location.pathname === '/') router.push('/dashboard');
+          const authoritativeTenantData = { id: tenantSnap.id, ...tenantSnap.data() } as Tenant;
+
+          // Authoritative validation strictly on the verified Firestore document snapshot:
+          const validation = validateAuthoritativeTenant(user?.uid || '', authoritativeTenantData);
+
+          if (validation.isAuthorized) {
+            setActiveTenantRef.current(authoritativeTenantData);
+            if (window.location.pathname === '/') router.push('/dashboard');
+          } else {
+            // Forged or unauthorized tenant: fail closed
+            useTenantStore.getState().reset();
+            setErrorRef.current(validation.error || 'Unauthorized tenant access.');
+          }
         } else {
+          useTenantStore.getState().reset();
           setErrorRef.current('Business account not found or was deleted.');
         }
         setChecking(false);
         setLoadingRef.current(false);
       }, (err) => {
         const auth = getAuth(app);
-        if (!auth.currentUser) {
-          console.log('AuthGuard: Ignoring fetch error because user is signed out.');
-          return;
-        }
+        if (!auth.currentUser) return;
 
         console.error(`AuthGuard: Tenant Fetch Security/Network Error (Attempt ${retryCount + 1}/${MAX_RETRIES})`, err);
         if (retryCount < MAX_RETRIES) {
@@ -255,27 +299,20 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       clearTimeout(retryTimeout);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId, db]);
+  }, [tenantId, isCashierUser, db]);
 
   const isPublicRoute = isPublicPathname(pathname);
-  const isOnboarding = pathname.startsWith('/onboarding');
 
   // 1. Initial Loading/Hydration State
-  // Public routes (marketing pages, product pages, onboarding, etc.) must NOT block on authLoading.
-  // They render immediately; auth state resolves in the background. Only authenticated routes
-  // (/dashboard, /admin) need to block on authLoading to prevent flashing unauthorized content.
-  // Note: onboarding is already excluded because creating an account logs the user in mid-flow.
-  if (!isPublicRoute && (authLoading || checking || isLoading || (user && isAdmin === null))) {
+  if (!isPublicRoute && !error && (authLoading || checking || (user && isAdmin === null && !isCashierUser))) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-white">
         <div className="relative flex flex-col items-center gap-6">
-          {/* Official brand logo, animate-pulse for loading feel */}
           <BrandLogo showText={false} className="[&>div]:h-20 [&>div]:w-20 [&>div]:sm:h-24 [&>div]:sm:w-24 animate-pulse" />
           <div className="flex flex-col items-center gap-2">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
               Initializing Ecosystem...
             </p>
-            {/* Branded loading bar */}
             <div className="w-32 h-0.5 bg-slate-100 rounded-full overflow-hidden">
               <div className="h-full bg-[#00BFFF] rounded-full animate-[loading_1.5s_ease-in-out_infinite]"
                 style={{ animation: 'loading 1.5s ease-in-out infinite' }} />
@@ -306,7 +343,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
             {maintenance.message || "We are currently undergoing scheduled maintenance to upgrade our systems. We will be back shortly."}
           </p>
           <div className="w-full">
-            <button 
+            <button
               onClick={() => {
                 const auth = getAuth(app);
                 signOut(auth).then(() => {
@@ -323,10 +360,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // 2. Pending Activation & Suspended View
-  const isOwnerPendingOrSuspended = activeTenant?.subscriptionStatus === 'pending' || activeTenant?.subscriptionStatus === 'suspended';
-  const isStaffPendingOwner = (userProfile?.role === 'guest' || userProfile?.role === 'pending_staff' || userProfile?.role === 'staff') && userProfile?.approvalStatus === 'pending_owner';
-  const isStaffPendingAdmin = (userProfile?.role === 'guest' || userProfile?.role === 'pending_staff' || userProfile?.role === 'staff') && userProfile?.approvalStatus === 'pending_admin';
+  // 2. Pending Activation & Suspended View (Owners/Members)
+  const isOwnerPendingOrSuspended = !isCashierUser && (activeTenant?.subscriptionStatus === 'pending' || activeTenant?.subscriptionStatus === 'suspended');
+  const isStaffPendingOwner = !isCashierUser && (userProfile?.role === 'guest' || userProfile?.role === 'pending_staff' || userProfile?.role === 'staff') && userProfile?.approvalStatus === 'pending_owner';
+  const isStaffPendingAdmin = !isCashierUser && (userProfile?.role === 'guest' || userProfile?.role === 'pending_staff' || userProfile?.role === 'staff') && userProfile?.approvalStatus === 'pending_admin';
   const isBudgetMo = activeTenant?.pricingTier === 'promo_50' || activeTenant?.moduleType === 'budget-mo';
 
   if ((isOwnerPendingOrSuspended || isStaffPendingOwner || isStaffPendingAdmin) && !isPublicRoute && !isAdmin) {
@@ -351,11 +388,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
             )}
           </p>
 
-          {/* Payment Number Cards */}
           <div className="w-full space-y-3 mb-6">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 text-center">Send Payment To</p>
             <div className="grid grid-cols-2 gap-3">
-              {/* GCash Card */}
               <div className="bg-blue-50 border-2 border-blue-100 rounded-2xl p-4 flex flex-col items-center text-center gap-3">
                 <div className="flex items-center gap-1.5">
                   <div className="w-5 h-5 rounded-full bg-[#007DFE] flex items-center justify-center shrink-0">
@@ -374,7 +409,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
                 </button>
               </div>
 
-              {/* Maya Card */}
               <div className="bg-green-50 border-2 border-green-100 rounded-2xl p-4 flex flex-col items-center text-center gap-3">
                 <div className="flex items-center gap-1.5">
                   <div className="w-5 h-5 rounded-full bg-[#00A14B] flex items-center justify-center shrink-0">
@@ -395,25 +429,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          {/* Payment Instructions */}
-          <div className="w-full bg-amber-50 border border-amber-100 rounded-xl p-4 text-left space-y-3 mb-6">
-            <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 mb-1">How to Pay</p>
-            <div className="space-y-2">
-              {[
-                'Open GCash or Maya → tap Send Money → paste the number above.',
-                `Enter the exact amount: ${isBudgetMo ? '₱50.00' : '₱99.00'}.`,
-                'Take a screenshot of your confirmation, then send it to us on Messenger below — your details will be pre-filled!'
-              ].map((text, i) => (
-                <div key={i} className="flex gap-2 items-start">
-                  <div className="h-4 w-4 rounded-full bg-amber-500 text-white text-[8px] font-black flex items-center justify-center shrink-0 mt-0.5">{i + 1}</div>
-                  <p className="text-xs text-amber-900 font-medium leading-tight">{text}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
           <div className="w-full space-y-3">
-            <a 
+            <a
               href={`https://m.me/katuwangsolutions?text=${encodeURIComponent(`Bayad ko na po!\n\nPangalan: ${userProfile?.fullName || 'N/A'}\nEmail: ${user?.email || 'N/A'}\nNegosyo: ${activeTenant?.name || 'N/A'}\nHalaga: ${isBudgetMo ? '₱50.00' : '₱99.00'}\n\n(Screenshot attached below 👇)`)}`}
               target="_blank"
               rel="noopener noreferrer"
@@ -423,7 +440,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
               <ExternalLink className="h-5 w-5" />
               Send Receipt on Messenger
             </a>
-            <button 
+            <button
               onClick={() => {
                 const auth = getAuth(app);
                 signOut(auth).then(() => {
@@ -440,37 +457,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // 2.5 Pending Staff Approval View
-  if (userProfile?.approvalStatus === 'pending' && !isPublicRoute && !isAdmin) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-8 text-center">
-        <div className="p-6 bg-white rounded-[24px] shadow-2xl border border-blue-100 flex flex-col items-center w-full max-w-sm">
-          <div className="p-4 bg-blue-50 rounded-full mb-4">
-            <Loader2 className="h-12 w-12 text-blue-500 animate-spin" />
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Waiting for Approval</h1>
-          <p className="text-sm font-medium text-slate-600 mb-6 max-w-sm mx-auto leading-relaxed">
-            Your staff account has been created successfully. Please ask your Store Owner to approve your account from their dashboard.
-          </p>
-          <div className="w-full space-y-3">
-            <button 
-              onClick={() => {
-                const auth = getAuth(app);
-                signOut(auth).then(() => {
-                  router.push('/');
-                });
-              }}
-              className="w-full bg-slate-100 text-slate-600 h-12 rounded-xl font-bold active:scale-[0.98] transition-transform hover:bg-slate-200"
-            >
-              Sign Out & Return
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-
   // 3. Error / Missing Configuration View
   if (error && !activeTenant && !isAdmin && !isPublicRoute) {
     return (
@@ -484,13 +470,13 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
             {error}
           </p>
           <div className="w-full space-y-3">
-            <button 
+            <button
               onClick={() => window.location.href = 'mailto:support@katuwangsolutions.com'}
               className="w-full bg-primary text-white h-12 rounded-xl font-bold shadow-lg hover:opacity-90 transition-opacity"
             >
               Contact Support
             </button>
-            <button 
+            <button
               onClick={() => {
                 const auth = getAuth(app);
                 signOut(auth).then(() => {
@@ -507,14 +493,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // 4. Strict Routing Render Locks (Prevents FOUC)
-  const isUnauthorized = 
+  // 4. Strict Routing Render Locks
+  const isUnauthorized =
     (!user && !isPublicRoute) ||
-    (user !== null && isAdmin === false && pathname === '/admin') ||
+    (user !== null && isAdmin === false && !isCashierUser && pathname === '/admin') ||
+    (user !== null && isCashierUser && pathname === '/admin') ||
     (isAdmin === true && pathname !== '/admin' && pathname !== '/dashboard' && !pathname.startsWith('/module/'));
 
   if (isUnauthorized) {
-    // console.log("AuthGuard: Unauthorized route, hiding content while redirecting. Path:", pathname);
     return (
       <div className="w-full min-h-screen bg-white">
         <div className="hidden">{children}</div>

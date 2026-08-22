@@ -11,7 +11,8 @@ import { useFirestoreDocument } from '@/hooks/use-firestore-subscription';
 import { getModuleTheme } from '@/lib/theme-utils';
 import { ShiftGate } from './shift-gate';
 import { PinApprovalModal } from '@/components/common/pin-approval-modal';
-import { useStaffSession } from '@/store/use-staff-session';
+import { useSecureCashierStore } from '@/store/use-secure-cashier-store';
+import { CashierProfileView } from './cashier-profile-view';
 
 // Phase 2: Lazy Load heavy module components to drastically shrink initial JS bundle
 const BentaDashboard = dynamic(() => import('@/components/dashboard/retail/benta-dashboard').then(m => m.BentaDashboard));
@@ -93,8 +94,7 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
   const { loading: tenantsLoading } = useUserTenants();
   const [mounted, setMounted] = useState(false);
   const { isOnline, pendingCount, syncMessage, isSyncing } = useSyncStatus(currentTenant?.id);
-  const staffSession = useStaffSession(state => state.staffSession);
-  const isStaffValid = useStaffSession(state => state.isSessionValid());
+  const isCashier = useSecureCashierStore(state => state.isCashierAuthenticated);
 
   useEffect(() => {
     setMounted(true);
@@ -331,6 +331,29 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
     );
   }
 
+  // ISOLATED SECURE CASHIER VIEW
+  // Only mounts BentaDashboard (POS) or CashierProfileView (Shift/Logout)
+  // Strictly avoids mounting Owner Home, Stock, Reports, Referrals, and Owner Profile
+  if (isCashier) {
+    return (
+      <ShiftGate activeTab={activeTab} onGoToProfile={() => onTabChange?.('profile')}>
+        <KatuwangErrorBoundary>
+          {!isOnline && (
+            <div className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 sticky top-0 z-50 bg-destructive text-destructive-foreground">
+              <WifiOff className="h-4 w-4 shrink-0" />
+              <span>{syncMessage}</span>
+            </div>
+          )}
+          {activeTab === 'profile' ? (
+            <CashierProfileView />
+          ) : (
+            <BentaDashboard />
+          )}
+        </KatuwangErrorBoundary>
+      </ShiftGate>
+    );
+  }
+
   return (
     <ShiftGate activeTab={activeTab} onGoToProfile={() => onTabChange?.('profile')}>
       <KatuwangErrorBoundary>
@@ -343,9 +366,7 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
             <span>{syncMessage}</span>
           </div>
         )}
-        
 
-        
         {/* 3-Day Expiry Warning Banner */}
         {(() => {
           if (!currentTenant?.nextBillingDate) return null;
@@ -405,7 +426,7 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
             </div>
 
             <div className={activeTab === 'ulat' ? 'block' : 'hidden'}>
-              {profile?.role === 'staff' || isStaffValid ? (
+              {profile?.role === 'staff' || isCashier ? (
                 <div className="flex-1 flex items-center justify-center p-6 bg-slate-50 min-h-screen">
                   <div className="text-center space-y-4 max-w-xs bg-white rounded-3xl p-6 border border-slate-200 shadow-sm animate-in fade-in">
                     <div className="h-12 w-12 rounded-full bg-amber-50 mx-auto flex items-center justify-center">

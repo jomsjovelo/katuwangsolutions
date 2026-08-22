@@ -10,7 +10,7 @@ const withSerwist = withSerwistInit({
 const nextConfig: NextConfig = {
   /* config options here */
   experimental: {
-    optimizePackageImports: ['lucide-react', 'recharts', 'firebase'],
+    optimizePackageImports: ['lucide-react', 'recharts'],
   },
   eslint: {
     // ESLint v8 is used but eslint.config.mjs uses flat config (v9 format).

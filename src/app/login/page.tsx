@@ -36,10 +36,10 @@ function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const existingCode = searchParams?.get('ref') || searchParams?.get('code') || '';
-  
+
   const [authError, setAuthError] = useState<string | null>(null);
   const [showStaffModal, setShowStaffModal] = useState(false);
-  
+
   // Forgot Password States
   const [view, setView] = useState<'login' | 'forgot'>('login');
   const [resetEmail, setResetEmail] = useState('');
@@ -58,7 +58,7 @@ function LoginContent() {
     try {
       setAuthError(null);
       await loginUser(data.email, data.password);
-      
+
       // Force a hard navigation to dashboard to guarantee AuthGuard sees the clean persisted auth state
       window.location.href = '/dashboard';
     } catch (e) {
@@ -86,7 +86,7 @@ function LoginContent() {
       setResetMessage({ type: 'error', text: 'Mangyaring maglagay ng valid na email address.' });
       return;
     }
-    
+
     try {
       setResetLoading(true);
       setResetMessage(null);
@@ -99,16 +99,16 @@ function LoginContent() {
       if (!res.ok) {
         throw new Error('Failed to send reset email');
       }
-      setResetMessage({ 
-        type: 'success', 
-        text: `Nagpadala na kami ng reset link sa ${resetEmail}. I-check ang inyong inbox at spam folder.` 
+      setResetMessage({
+        type: 'success',
+        text: `Nagpadala na kami ng reset link sa ${resetEmail}. I-check ang inyong inbox at spam folder.`
       });
       setResetEmail('');
     } catch (e) {
       const error = e as Error & { code?: string };
-      setResetMessage({ 
-        type: 'error', 
-        text: 'Maaaring hindi nakarehistro ang email na ito, o may error sa network.' 
+      setResetMessage({
+        type: 'error',
+        text: 'Maaaring hindi nakarehistro ang email na ito, o may error sa network.'
       });
     } finally {
       setResetLoading(false);
@@ -119,8 +119,8 @@ function LoginContent() {
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 sm:p-8">
       {/* Back to Home Link */}
       <div className="w-full max-w-md mb-6">
-        <Link 
-          href="/" 
+        <Link
+          href="/"
           className="inline-flex items-center text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -141,7 +141,7 @@ function LoginContent() {
               {view === 'login' ? 'Magsimula Na' : 'I-reset ang Password'}
             </h1>
             <p className="text-slate-500 font-medium mt-2 text-sm max-w-[280px] mx-auto">
-              {view === 'login' 
+              {view === 'login'
                 ? 'I-enter ang inyong account details upang makapasok sa Katuwang Environment.'
                 : 'I-enter ang inyong email at padadalhan ka namin ng link para mag-set ng bagong password.'}
             </p>
@@ -151,8 +151,8 @@ function LoginContent() {
         {view === 'forgot' ? (
           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
             {resetMessage && (
-              <Alert 
-                variant={resetMessage.type === 'error' ? 'destructive' : 'default'} 
+              <Alert
+                variant={resetMessage.type === 'error' ? 'destructive' : 'default'}
                 className={`mb-6 border-none ${resetMessage.type === 'error' ? 'bg-destructive/10' : 'bg-emerald-50 text-emerald-800'}`}
               >
                 <AlertDescription className="font-bold text-center">
@@ -160,24 +160,24 @@ function LoginContent() {
                 </AlertDescription>
               </Alert>
             )}
-            
+
             <form onSubmit={handleResetPassword} className="space-y-4">
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-widest text-slate-400">Email Address</label>
-                <Input 
+                <Input
                   type="email"
-                  placeholder="pangalan@negosyo.com" 
+                  placeholder="pangalan@negosyo.com"
                   autoComplete="email"
                   value={resetEmail}
                   onChange={(e) => setResetEmail(e.target.value)}
-                  className="h-14 rounded-xl border-slate-200 bg-slate-50 focus-visible:ring-primary focus-visible:ring-offset-2 px-4" 
+                  className="h-14 rounded-xl border-slate-200 bg-slate-50 focus-visible:ring-primary focus-visible:ring-offset-2 px-4"
                   disabled={resetLoading}
                 />
               </div>
-              
+
               <div className="pt-6 space-y-3">
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="w-full h-14 rounded-xl text-base font-bold shadow-lg hover:shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2"
                   disabled={resetLoading}
                 >
@@ -187,9 +187,9 @@ function LoginContent() {
                     'Magpadala ng Reset Link'
                   )}
                 </Button>
-                
-                <Button 
-                  type="button" 
+
+                <Button
+                  type="button"
                   variant="ghost"
                   className="w-full h-12 text-slate-500 font-bold hover:text-slate-700"
                   onClick={() => {
@@ -222,11 +222,11 @@ function LoginContent() {
                     <FormItem>
                       <FormLabel className="text-xs font-bold uppercase tracking-widest text-slate-400">Email Address</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="pangalan@negosyo.com" 
+                        <Input
+                          placeholder="pangalan@negosyo.com"
                           autoComplete="email"
-                          className="h-14 rounded-xl border-slate-200 bg-slate-50 focus-visible:ring-primary focus-visible:ring-offset-2 px-4" 
-                          {...field} 
+                          className="h-14 rounded-xl border-slate-200 bg-slate-50 focus-visible:ring-primary focus-visible:ring-offset-2 px-4"
+                          {...field}
                         />
                       </FormControl>
                       <FormMessage className="text-xs font-bold" />
@@ -240,19 +240,19 @@ function LoginContent() {
                     <FormItem>
                       <FormLabel className="text-xs font-bold uppercase tracking-widest text-slate-400">Password</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="password" 
-                          placeholder="••••••••" 
+                        <Input
+                          type="password"
+                          placeholder="••••••••"
                           autoComplete="current-password"
-                          className="h-14 rounded-xl border-slate-200 bg-slate-50 focus-visible:ring-primary focus-visible:ring-offset-2 px-4" 
-                          {...field} 
+                          className="h-14 rounded-xl border-slate-200 bg-slate-50 focus-visible:ring-primary focus-visible:ring-offset-2 px-4"
+                          {...field}
                         />
                       </FormControl>
                       <FormMessage className="text-xs font-bold" />
                     </FormItem>
                   )}
                 />
-                
+
                 <div className="flex justify-end pt-1">
                   <button
                     type="button"
@@ -262,10 +262,10 @@ function LoginContent() {
                     Nakalimutan ang password?
                   </button>
                 </div>
-                
+
                 <div className="pt-4 space-y-4">
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     className="w-full h-14 rounded-xl text-base font-bold shadow-lg hover:shadow-xl transition-all joy-glow active:scale-95 flex items-center justify-center gap-2"
                     disabled={form.formState.isSubmitting}
                   >
@@ -289,14 +289,14 @@ function LoginContent() {
                 className="w-full h-12 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center gap-2 border border-blue-200 transition-colors"
               >
                 <UserCheck className="w-4 h-4" />
-                Staff / Cashier Login (PIN)
+                Cashier Login — Business Code + PIN
               </button>
 
               <p className="text-xs font-medium text-slate-500 pt-2">
-                Wala pang account? 
+                Wala pang account?
               </p>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full h-12 rounded-xl border-dashed border-slate-300 text-slate-600 font-bold active:scale-95 transition-transform"
                 onClick={() => {
                   router.push(`/onboarding${existingCode ? `?code=${existingCode}` : ''}`);
@@ -309,9 +309,9 @@ function LoginContent() {
         )}
       </div>
 
-      <StaffLoginModal 
-        isOpen={showStaffModal} 
-        onClose={() => setShowStaffModal(false)} 
+      <StaffLoginModal
+        isOpen={showStaffModal}
+        onClose={() => setShowStaffModal(false)}
         initialBusinessCode={existingCode}
       />
     </div>

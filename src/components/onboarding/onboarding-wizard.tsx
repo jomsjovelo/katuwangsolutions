@@ -79,6 +79,11 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
   const rawAppId = initialAppIdProp ?? searchParams.get('app') ?? '';
   const normalizedAppId = normalizeModuleId(rawAppId);
 
+  const rawProfileParam = searchParams.get('profile') || searchParams.get('businessProfile') || '';
+  const initialProfile = ['standard-retail', 'fresh-goods', 'hardware-supplies', 'wholesale'].includes(rawProfileParam)
+    ? rawProfileParam
+    : (rawAppId === 'fresh-tally' ? 'fresh-goods' : (rawAppId === 'build-stack' ? 'hardware-supplies' : 'standard-retail'));
+
   let resolvedAppId = '';
   let initialStep: OnboardingStep = 'mode';
   let initialError: string | null = null;
@@ -103,6 +108,7 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
   const [data, setData] = useState({
     // Business / Personal Ledger Name
     appId: resolvedAppId,
+    businessProfile: resolvedAppId === 'benta-snap' ? initialProfile : undefined,
     businessName: resolvedAppId === 'budget-mo' ? 'Aking Personal Budget' : '',
     businessPhone: '',
     // Personal
@@ -129,15 +135,11 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
       try {
         const parsed = JSON.parse(saved);
         if (parsed.step && parsed.data) {
-          if (['payment', 'pending', 'success'].includes(parsed.step)) {
-            setIsRecovered(true);
-            return;
-          }
-
           const updatedData = { ...parsed.data };
           let updatedStep = parsed.step;
           let draftError: string | null = null;
-          const draftAppId = normalizeModuleId(updatedData.appId || '');
+          const rawSavedAppId = (parsed.data.appId || '').toLowerCase();
+          const draftAppId = normalizeModuleId(rawSavedAppId);
 
           if (draftAppId === 'farm-master') {
             updatedData.appId = '';
@@ -148,10 +150,29 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
             updatedStep = 'apps';
           } else {
             updatedData.appId = draftAppId;
+            if (rawSavedAppId === 'fresh-tally' && !updatedData.businessProfile) {
+              updatedData.businessProfile = 'fresh-goods';
+            } else if (rawSavedAppId === 'build-stack' && !updatedData.businessProfile) {
+              updatedData.businessProfile = 'hardware-supplies';
+            }
+          }
+
+          if (['payment', 'pending', 'success'].includes(updatedStep)) {
+            setIsRecovered(true);
+            setStep(updatedStep);
+            setData((current) => ({ ...current, ...updatedData }));
+            return;
           }
 
           if (resolvedAppId) {
             updatedData.appId = resolvedAppId;
+            if (resolvedAppId === 'benta-snap') {
+              if (rawProfileParam && ['standard-retail', 'fresh-goods', 'hardware-supplies', 'wholesale'].includes(rawProfileParam)) {
+                updatedData.businessProfile = rawProfileParam;
+              } else if (!updatedData.businessProfile) {
+                updatedData.businessProfile = initialProfile;
+              }
+            }
             if (updatedStep === 'apps' || updatedStep === 'mode' || !updatedData.appId) {
               updatedStep = 'business';
             }

@@ -11,6 +11,7 @@ import { BusinessInfoSchema, AccountSchema } from '@/lib/schemas/onboarding';
 import { generateUniqueReferralCode } from './referral-utils';
 import { getModulePricing } from '@/lib/pricing';
 import { isValidCtaSource } from '@/lib/conversion-events';
+import { normalizeModuleId, isValidActiveModuleId, type BentaBusinessProfile } from '@/lib/app-data';
 
 export interface RegistrationDependencies {
   initializeFirebase: typeof initializeFirebase;
@@ -110,6 +111,7 @@ export async function registerNewTenant(
     gender: onboardingData.gender,
     address: onboardingData.address,
     businessName: onboardingData.businessName,
+    businessProfile: onboardingData.businessProfile,
   });
 
   const accountInfo = AccountSchema.parse({
@@ -117,6 +119,28 @@ export async function registerNewTenant(
     password: onboardingData.password,
     confirmPassword: onboardingData.confirmPassword,
   });
+
+  // Authoritative Module Canonicalization & Validation Boundary
+  const rawAppId = String(onboardingData.appId || '').trim().toLowerCase();
+  const canonicalModuleId = normalizeModuleId(rawAppId);
+
+  if (!canonicalModuleId || !isValidActiveModuleId(canonicalModuleId)) {
+    throw new Error(`Ang napiling module (${onboardingData.appId || 'unknown'}) ay hindi aktibo o hindi magagamit.`);
+  }
+
+  let resolvedBusinessProfile: BentaBusinessProfile | undefined = undefined;
+  if (canonicalModuleId === 'benta-snap') {
+    const validProfiles: BentaBusinessProfile[] = ['standard-retail', 'fresh-goods', 'hardware-supplies', 'wholesale'];
+    if (businessInfo.businessProfile && validProfiles.includes(businessInfo.businessProfile as BentaBusinessProfile)) {
+      resolvedBusinessProfile = businessInfo.businessProfile as BentaBusinessProfile;
+    } else if (rawAppId === 'fresh-tally') {
+      resolvedBusinessProfile = 'fresh-goods';
+    } else if (rawAppId === 'build-stack') {
+      resolvedBusinessProfile = 'hardware-supplies';
+    } else {
+      resolvedBusinessProfile = 'standard-retail';
+    }
+  }
 
   const acquisitionData = buildSanitizedAcquisitionData(onboardingData.acquisition, dependencies.timestamp);
 
@@ -190,19 +214,19 @@ export async function registerNewTenant(
           createdAt: dependencies.timestamp(),
         });
 
-        transaction.set(tenantRef, {
+        const tenantData: Record<string, any> = {
           id: tenantId,
           name: businessInfo.businessName,
           searchableName: businessInfo.businessName.toLowerCase(),
           ownerUid: uid,
           ownerEmail: accountInfo.email,
           businessCode: businessCode,
-          pricingTier: getModulePricing(onboardingData.appId).pricingTier,
+          pricingTier: getModulePricing(canonicalModuleId).pricingTier,
           nextBillingDate: null,
           subscriptionStatus: 'pending',
           contactPhone: '',
           address: businessInfo.address,
-          moduleType: onboardingData.appId,
+          moduleType: canonicalModuleId,
           staffUids: [],
           referredBy: onboardingData.referredBy || null,
           acquisition: acquisitionData,
@@ -211,7 +235,13 @@ export async function registerNewTenant(
           settings: {
             theme: 'default'
           }
-        });
+        };
+
+        if (canonicalModuleId === 'benta-snap') {
+          tenantData.businessProfile = resolvedBusinessProfile;
+        }
+
+        transaction.set(tenantRef, tenantData);
 
         // Create User Profile Doc
         const userRef = dependencies.document(db, 'users', uid);
@@ -225,7 +255,7 @@ export async function registerNewTenant(
           address: businessInfo.address,
           role: 'owner',
           tenantId: tenantId,
-          moduleType: onboardingData.appId,
+          moduleType: canonicalModuleId,
           referralCode: referralCode,
           referralEarnings: 0,
           termsAccepted: onboardingData.termsAccepted || false,

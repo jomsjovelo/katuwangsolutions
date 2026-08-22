@@ -9,6 +9,7 @@ import { InAppBrowserBlocker } from '@/components/common/in-app-browser-blocker'
 import { IosInstallPrompt } from '@/components/common/ios-install-prompt';
 import { MetaPixel } from '@/components/analytics/meta-pixel';
 import { AcquisitionCatcher } from '@/components/analytics/acquisition-catcher';
+import { SecurePwaCompatibilityGuard } from '@/components/common/secure-pwa-compatibility-guard';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://katuwangsolutions.com'),
@@ -71,6 +72,7 @@ export default function RootLayout({
       <head />
       <body className="font-body antialiased min-h-screen overflow-x-hidden bg-white selection:bg-cyan-500/30" translate="no" suppressHydrationWarning>
         <MetaPixel />
+        <SecurePwaCompatibilityGuard />
         <FirebaseClientProvider>
           <AuthGuard>
             <div className="w-full min-h-screen bg-white relative flex flex-col">

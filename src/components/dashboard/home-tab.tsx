@@ -15,11 +15,11 @@ import { CreditTracker } from './credit-tracker';
 import { CashDrawerLedger } from './retail/cash-drawer-ledger';
 import { useActivityTimeline } from '@/hooks/use-activity-timeline';
 import { cn } from '@/lib/utils';
-import { 
-  TrendingUp, 
-  Package, 
-  ShoppingCart, 
-  Plus, 
+import {
+  TrendingUp,
+  Package,
+  ShoppingCart,
+  Plus,
   Calendar,
   Clock,
   ArrowRight,
@@ -141,7 +141,7 @@ const getMockActivity = (module: string = 'benta-snap') => {
       { id: 3, type: 'alert', title: 'Overdue: Folding Table', amount: null, time: '2 hours ago', icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' },
     ],
   };
-  
+
   // Default fallback
   return data[module] || data['benta-snap'];
 };
@@ -150,7 +150,7 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
   const { currentTenant } = useTenant();
   const { user } = useUser();
   const theme = getModuleTheme(currentTenant?.moduleType);
-  
+
   const [selectedDate] = useState<Date>(new Date());
   const { sales = [], dailyTotalPesos, loading: salesLoading } = useSales(selectedDate);
   const { products, lowStockItems, outOfStockItems, loading: inventoryLoading } = useInventory();
@@ -163,7 +163,7 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
 
   useEffect(() => {
     if (currentTenant?.moduleType !== '5-6-tracker') return;
-    
+
     setCreditTransactionsLoading(true);
     const { db } = initializeFirebase();
     const start = new Date();
@@ -188,7 +188,7 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
     return () => unsubscribe();
   }, [currentTenant?.id]);
 
-  const displayDailyTotalPesos = currentTenant?.moduleType === '5-6-tracker' 
+  const displayDailyTotalPesos = currentTenant?.moduleType === '5-6-tracker'
     ? creditTransactions.filter(tx => tx.type === 'payment').reduce((acc, curr) => acc + curr.amount, 0) / 100
     : dailyTotalPesos;
 
@@ -233,7 +233,7 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
     return 'Magandang Gabi';
   };
 
-  const isDemo = currentTenant?.id === 'demo' || currentTenant?.name?.toLowerCase().includes('demo');
+  const isDemo = currentTenant?.id === 'demo';
 
   let displayActivity: any[] = [];
   if (isDemo || !currentTenant) {
@@ -246,9 +246,9 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
     <div className="flex-1 flex flex-col bg-slate-50 min-h-screen pb-24 lg:pb-6 relative">
       {showOrganizer && <ActivityOrganizer onClose={() => setShowOrganizer(false)} />}
       <main className="p-4 space-y-6 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-        
+
         {/* Dynamic Header */}
-        <section 
+        <section
           className={cn(
             "rounded-[32px] p-6 text-white shadow-xl relative overflow-hidden transition-all duration-500 bg-gradient-to-br",
             theme.primaryBg,
@@ -258,7 +258,7 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
           <div className="absolute -right-6 -top-6 opacity-10">
             <Activity className="h-48 w-48" />
           </div>
-          
+
           <div className="relative z-10 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -268,7 +268,7 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
               </div>
               <Clock className="h-5 w-5 text-white/80" />
             </div>
-            
+
             <div>
               <h2 className="text-3xl font-black font-headline tracking-tighter mt-1">
                 {getGreeting()}{user?.displayName ? `, ${user.displayName.split(' ')[0]}` : ''}!
@@ -375,7 +375,7 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
             <div className="flex items-center justify-between mb-3 px-1">
               <h3 className="text-[11px] font-black uppercase tracking-widest text-slate-400">Restock Watchlist</h3>
             </div>
-          
+
           <Card className="rounded-[24px] border-slate-100 shadow-sm overflow-hidden">
             <div className="divide-y divide-slate-100">
               {inventoryLoading ? (
@@ -441,7 +441,7 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
             <h3 className="text-[11px] font-black uppercase tracking-widest text-slate-400">Quick Actions</h3>
           </div>
           <div className={cn("grid gap-3", currentTenant?.moduleType === '5-6-tracker' ? "grid-cols-1" : "grid-cols-2")}>
-            <Button 
+            <Button
               onClick={() => setTab?.('benta')}
               className={cn(
                 "h-14 rounded-2xl font-bold shadow-md active:scale-95 transition-transform flex items-center justify-center gap-2",
@@ -451,7 +451,7 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
               {currentTenant?.moduleType === '5-6-tracker' ? <><Banknote className="h-4 w-4" /> Buksan ang Ledger</> : <><ShoppingCart className="h-4 w-4" /> New Sale</>}
             </Button>
             {currentTenant?.moduleType !== '5-6-tracker' && (
-              <Button 
+              <Button
                 onClick={() => setTab?.('stock')}
                 className="h-14 rounded-2xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold shadow-sm active:scale-95 transition-transform flex items-center justify-center gap-2"
               >
@@ -467,14 +467,14 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
             <h3 className="text-[11px] font-black uppercase tracking-widest text-slate-400">
               Business Activity Timeline
             </h3>
-            <button 
+            <button
               onClick={() => setShowOrganizer(true)}
               className="text-[10px] font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"
             >
               View All Activity <ArrowRight className="h-3 w-3" />
             </button>
           </div>
-          
+
           <Card className="rounded-[24px] border-slate-100 shadow-sm overflow-hidden min-h-[150px]">
             <div className="divide-y divide-slate-100">
               {displayActivity.length === 0 ? (

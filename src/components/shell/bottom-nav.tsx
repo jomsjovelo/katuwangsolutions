@@ -6,6 +6,7 @@ import { useTenant } from '@/app/lib/tenant-context';
 import { getModuleTheme } from '@/lib/theme-utils';
 import { useHaptic } from '@/hooks/use-haptic';
 import { useInventory } from '@/hooks/use-inventory';
+import { useSecureCashierStore } from '@/store/use-secure-cashier-store';
 
 type TabId = 'home' | 'benta' | 'stock' | 'ulat' | 'kita' | 'profile';
 
@@ -63,6 +64,7 @@ const NavItem = React.memo(({
 
 export function BottomNav({ activeTab = 'home', onTabChange }: BottomNavProps) {
   const { currentTenant } = useTenant();
+  const isCashier = useSecureCashierStore(state => state.isCashierAuthenticated);
   const theme = getModuleTheme(currentTenant?.moduleType);
   const haptic = useHaptic();
   
@@ -89,15 +91,21 @@ export function BottomNav({ activeTab = 'home', onTabChange }: BottomNavProps) {
     return ShoppingCart;
   };
 
-  const tabs = [
-    { id: 'home',    label: isBudgeting ? 'Dashboard' : 'Home',    Icon: Home },
-    ...(isHospitality || isBudgeting ? [] : [{ id: 'benta',   label: getBentaLabel(),   Icon: getBentaIcon() }]),
-    ...(isHospitality ? [{ id: 'rooms', label: 'Rooms', Icon: Bed }] : []),
-    ...(isLending ? [] : [{ id: 'stock',   label: isBudgeting ? 'Savings' : 'Stock',   Icon: isBudgeting ? PiggyBank : Package }]),
-    { id: 'ulat',    label: isBudgeting ? 'Insights' : 'Report',    Icon: isBudgeting ? Target : BarChart2 },
-    ...(isHospitality ? [] : [{ id: 'kita',    label: 'Kita Ko', Icon: Banknote }]),
-    { id: 'profile', label: 'Profile', Icon: User },
-  ] as const;
+  // Cashier Role: Expose strictly Sale and Profile tabs
+  const tabs = isCashier
+    ? [
+        { id: 'benta' as const, label: 'Sale', Icon: ShoppingCart },
+        { id: 'profile' as const, label: 'Profile', Icon: User }
+      ]
+    : [
+        { id: 'home' as const, label: isBudgeting ? 'Dashboard' : 'Home', Icon: Home },
+        ...(isHospitality || isBudgeting ? [] : [{ id: 'benta' as const, label: getBentaLabel(), Icon: getBentaIcon() }]),
+        ...(isHospitality ? [{ id: 'rooms' as const, label: 'Rooms', Icon: Bed }] : []),
+        ...(isLending ? [] : [{ id: 'stock' as const, label: isBudgeting ? 'Savings' : 'Stock', Icon: isBudgeting ? PiggyBank : Package }]),
+        { id: 'ulat' as const, label: isBudgeting ? 'Insights' : 'Report', Icon: isBudgeting ? Target : BarChart2 },
+        ...(isHospitality ? [] : [{ id: 'kita' as const, label: 'Kita Ko', Icon: Banknote }]),
+        { id: 'profile' as const, label: 'Profile', Icon: User },
+      ];
 
   return (
     <nav

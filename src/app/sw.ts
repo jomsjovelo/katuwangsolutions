@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 import { defaultCache } from '@serwist/next/worker';
 import type { PrecacheEntry, SerwistGlobalConfig, RuntimeCaching } from 'serwist';
-import { Serwist, CacheFirst, StaleWhileRevalidate, ExpirationPlugin } from 'serwist';
+import { Serwist, CacheFirst, NetworkFirst, StaleWhileRevalidate, ExpirationPlugin } from 'serwist';
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -37,7 +37,20 @@ const customCaching: RuntimeCaching[] = [
     }),
   },
   {
-    matcher: ({ url }) => url.pathname.startsWith('/dashboard') || url.pathname.startsWith('/admin') || url.pathname.startsWith('/onboarding'),
+    matcher: ({ url }) => url.pathname.startsWith('/dashboard'),
+    handler: new NetworkFirst({
+      cacheName: 'katuwang-authenticated-dashboard',
+      networkTimeoutSeconds: 5,
+      plugins: [
+        new ExpirationPlugin({
+          maxEntries: 20,
+          maxAgeSeconds: 60 * 60, // never retain an authenticated app shell for a week
+        }),
+      ],
+    }),
+  },
+  {
+    matcher: ({ url }) => url.pathname.startsWith('/admin') || url.pathname.startsWith('/onboarding'),
     handler: new StaleWhileRevalidate({
       cacheName: 'katuwang-ui',
       plugins: [

@@ -22,6 +22,17 @@ export type AppGroup = {
   apps: AppModule[];
 };
 
+export type BentaBusinessProfile = 'standard-retail' | 'fresh-goods' | 'hardware-supplies' | 'wholesale';
+
+export const BENTA_PROFILES: { id: BentaBusinessProfile; label: string; description: string }[] = [
+  { id: 'standard-retail', label: 'General Retail / Sari-Sari', description: 'Para sa sari-sari store, grocery, mini mart, RTW, at general retail' },
+  { id: 'fresh-goods', label: 'Palengke / Fresh Goods', description: 'Basic POS at sales recording para sa paninda' },
+  { id: 'hardware-supplies', label: 'Hardware / Construction', description: 'POS, benta, inventory, at pautang tracking para sa hardware' },
+  { id: 'wholesale', label: 'Wholesale / Distribution', description: 'POS, benta, at inventory para sa wholesale selling' },
+];
+
+export const DEFAULT_BENTA_BUSINESS_PROFILE: BentaBusinessProfile = 'standard-retail';
+
 export const appGroups: AppGroup[] = [
   {
     id: 'retail',
@@ -32,31 +43,11 @@ export const appGroups: AppGroup[] = [
         id: 'benta-snap',
         name: 'Benta Snap',
         icon: ShoppingCart,
-        tagline: 'Record sales, monitor inventory, and track customer credit.',
+        tagline: 'POS, Sales & Inventory para sa negosyo mo.',
         imageSrc: '/apps/benta-snap.png',
-        features: ['Sales Recording', 'Inventory Monitoring', 'Customer Credit Tracking'],
-        description: 'Record sales, monitor inventory, and track customer credit.',
-        targetUsers: ['Sari-sari Stores', 'Retail Shops', 'Pharmacies', 'Mini Marts']
-      },
-      {
-        id: 'fresh-tally',
-        name: 'Fresh Tally',
-        icon: Leaf,
-        tagline: 'Track produce batches, suppliers, stock, and waste records.',
-        imageSrc: '/apps/fresh-tally.png',
-        features: ['Batch Tracking', 'Supplier Records', 'Stock Tracking', 'Waste Records'],
-        description: 'Track produce batches, suppliers, stock, and waste records.',
-        targetUsers: ['Produce Vendors', 'Meat & Fish Shops', 'Grocery Stores', 'Fruit Stands']
-      },
-      {
-        id: 'build-stack',
-        name: 'Build Stack',
-        icon: Hammer,
-        tagline: 'Manage hardware sales, inventory, and customer credit.',
-        imageSrc: '/apps/build-stack.png',
-        features: ['Sales Records', 'Inventory Tracking', 'Customer Credit'],
-        description: 'Manage hardware sales, inventory, and customer credit.',
-        targetUsers: ['Hardware Stores', 'Construction Supply', 'Lumber Yards']
+        features: ['Sales Recording & POS', 'Inventory Monitoring', 'Customer Credit Tracking', 'Thermal Receipts & Cashier Shift'],
+        description: 'POS, Sales & Inventory para sa Sari-Sari, Grocery, General Retail, Hardware at negosyo mo.',
+        targetUsers: ['Sari-Sari Stores', 'Groceries & Mini Marts', 'Retail Shops', 'Hardware Stores', 'General Retail & Wholesale']
       }
     ]
   },
@@ -294,5 +285,6 @@ export function normalizeModuleId(id: string): string {
   const lower = id.toLowerCase();
   if (lower === 'fleet-sync') return 'biyahe-sync';
   if (lower === 'rental-track') return 'rental';
+  if (lower === 'fresh-tally' || lower === 'build-stack') return 'benta-snap';
   return lower;
 }

@@ -1,7 +1,7 @@
 import React, { Suspense } from 'react';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { OnboardingWizard } from '@/components/onboarding/onboarding-wizard';
-import { isValidActiveModuleId, activeModules, getActiveAppById } from '@/lib/app-data';
+import { isValidActiveModuleId, activeModules, getActiveAppById, normalizeModuleId } from '@/lib/app-data';
 import { OnboardingStartTracker } from '@/components/analytics/meta-events';
 
 import { Metadata } from 'next';
@@ -15,6 +15,7 @@ export const metadata: Metadata = {
 
 type Props = {
   params: Promise<{ moduleId: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
 export async function generateStaticParams() {
@@ -23,15 +24,34 @@ export async function generateStaticParams() {
   }));
 }
 
-export default async function DedicatedModuleOnboardingPage({ params }: Props) {
+export default async function DedicatedModuleOnboardingPage({ params, searchParams }: Props) {
   const resolvedParams = await params;
-  const moduleId = resolvedParams.moduleId;
+  const resolvedSearchParams = (await searchParams) || {};
+  const rawId = resolvedParams.moduleId;
+  const canonicalId = normalizeModuleId(rawId);
 
-  if (!isValidActiveModuleId(moduleId)) {
+  if (rawId !== canonicalId && isValidActiveModuleId(canonicalId)) {
+    const urlParams = new URLSearchParams();
+    if (resolvedSearchParams && typeof resolvedSearchParams === 'object') {
+      Object.entries(resolvedSearchParams).forEach(([key, val]) => {
+        if (typeof val === 'string') urlParams.set(key, val);
+        else if (Array.isArray(val)) val.forEach(v => urlParams.append(key, v));
+      });
+    }
+    if (rawId === 'fresh-tally' && !urlParams.has('profile')) {
+      urlParams.set('profile', 'fresh-goods');
+    } else if (rawId === 'build-stack' && !urlParams.has('profile')) {
+      urlParams.set('profile', 'hardware-supplies');
+    }
+    const queryString = urlParams.toString();
+    permanentRedirect(`/${canonicalId}/onboarding${queryString ? `?${queryString}` : ''}`);
+  }
+
+  if (!isValidActiveModuleId(rawId)) {
     notFound();
   }
 
-  const selectedModule = getActiveAppById(moduleId);
+  const selectedModule = getActiveAppById(rawId);
 
   return (
     <Suspense fallback={
@@ -41,10 +61,10 @@ export default async function DedicatedModuleOnboardingPage({ params }: Props) {
     }>
       <div className="min-h-screen w-full relative">
         <OnboardingStartTracker
-          moduleId={moduleId}
+          moduleId={rawId}
           moduleName={selectedModule?.name}
         />
-        <OnboardingWizard initialAppId={moduleId} />
+        <OnboardingWizard initialAppId={rawId} />
       </div>
     </Suspense>
   );

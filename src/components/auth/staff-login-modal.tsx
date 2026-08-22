@@ -6,21 +6,24 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { verifyStaffLogin } from '@/firebase/firestore/staff-pin-actions';
-import { useStaffSession } from '@/store/use-staff-session';
+import { staffPinLogin, fetchBentaBootstrap } from '@/lib/client/secure-benta-cashier-client';
+import { useSecureCashierStore } from '@/store/use-secure-cashier-store';
+import { useTenantStore } from '@/store/use-tenant-store';
 import { useRouter } from 'next/navigation';
 import { UserCheck, KeyRound, Building2, Loader2, Store } from 'lucide-react';
+import { getAuth, signInWithCustomToken, signOut } from 'firebase/auth';
+import { app } from '@/firebase/config';
 
 interface StaffLoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialBusinessCode?: string;
+  onLoginSuccess?: () => void;
 }
 
-export function StaffLoginModal({ isOpen, onClose, initialBusinessCode = '' }: StaffLoginModalProps) {
+export function StaffLoginModal({ isOpen, onClose, initialBusinessCode = '', onLoginSuccess }: StaffLoginModalProps) {
   const { toast } = useToast();
   const router = useRouter();
-  const setStaffSession = useStaffSession(state => state.setStaffSession);
 
   const [businessCode, setBusinessCode] = useState(initialBusinessCode);
   const [username, setUsername] = useState('');
@@ -33,27 +36,66 @@ export function StaffLoginModal({ isOpen, onClose, initialBusinessCode = '' }: S
 
     try {
       setIsSubmitting(true);
-      const result = await verifyStaffLogin(businessCode, username, pin);
 
-      setStaffSession({
-        tenantId: result.tenantId,
-        staffAccountId: result.staffAccount.id,
-        username: result.staffAccount.username,
-        tenantName: result.tenantName || 'Store',
-        moduleType: result.moduleType || 'benta-snap'
+      // 1. Submit Business Code + Username + 4-digit PIN to trusted server PIN endpoint
+      const result = await staffPinLogin(businessCode, username, pin);
+
+      // 2. Authenticate Firebase client using the minted custom token
+      const auth = getAuth(app);
+      const userCredential = await signInWithCustomToken(auth, result.customToken);
+
+      // 3. Obtain the authenticated Firebase ID token
+      const idToken = await userCredential.user.getIdToken(true);
+
+      // 4. Fetch authoritative Cashier bootstrap
+      const bootstrap = await fetchBentaBootstrap(idToken);
+
+      // 5. Establish Cashier session in secure in-memory store
+      useSecureCashierStore.getState().setBootstrap(bootstrap);
+
+      // 6. Synchronize active tenant display state in tenant store
+      useTenantStore.getState().setActiveTenant({
+        id: bootstrap.tenantId,
+        name: bootstrap.tenantDisplayName,
+        moduleType: bootstrap.moduleId,
+        ownerUid: 'staff_authenticated',
+        staffUids: [bootstrap.staffAccountId],
+        pricingTier: 'standard_100',
+        subscriptionStatus: 'active',
+        createdAt: new Date().toISOString()
       });
 
       toast({
         title: 'Maligayang Pagdating!',
-        description: `Naka-login bilang Cashier (${result.staffAccount.username}) sa ${result.tenantName}.`
+        description: `Naka-login bilang Cashier (${bootstrap.cashierDisplayName}) sa ${bootstrap.tenantDisplayName}.`
       });
 
       onClose();
-      router.push('/dashboard');
+      if (onLoginSuccess) {
+        onLoginSuccess();
+      } else {
+        router.push('/dashboard');
+      }
     } catch (err: any) {
+      try {
+        const auth = getAuth(app);
+        if (auth.currentUser) {
+          await signOut(auth);
+        }
+      } catch {
+        // Ignore signout cleanup errors
+      }
+      useSecureCashierStore.getState().clearCashierSession();
+      useTenantStore.getState().reset();
+
+      // Sanitized error message — never leak raw Firebase, server, or transaction errors
+      const sanitizedMessage = (err?.status === 401 || err?.status === 403 || err?.status === 404 || err?.status === 429)
+        ? (err.message || 'Maling Business Code, Username, o PIN. Paki-check at subukan muli.')
+        : 'Hindi makapasok. Paki-check ang koneksyon at subukan muli.';
+
       toast({
         title: 'Hindi Nakapasok',
-        description: err.message || 'Maling impormasyon. Subukan muli.',
+        description: sanitizedMessage,
         variant: 'destructive'
       });
     } finally {

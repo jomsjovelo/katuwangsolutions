@@ -16,6 +16,7 @@ export const BusinessInfoSchema = z.object({
   gender: z.enum(['Lalaki', 'Babae', 'Iba pa', 'Prefer not to say']),
   address: z.string().min(5, 'Kailangan ng kumpletong address'),
   businessName: z.string().min(2, 'Kailangan ang pangalan ng tindahan').max(100),
+  businessProfile: z.enum(['standard-retail', 'fresh-goods', 'hardware-supplies', 'wholesale']).optional(),
 });
 
 export const AccountSchema = z.object({

@@ -12,6 +12,8 @@ import { getFirestore, collection, query, where, onSnapshot } from 'firebase/fir
 import { Mail, Key, Store, Calendar, Layers, ShieldAlert, Activity, User, Fingerprint, X, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+import { activeModules } from '@/lib/app-data';
+
 interface AdminTenantDetailsProps {
   tenant: Tenant | null;
   isOpen: boolean;
@@ -22,7 +24,7 @@ interface AdminTenantDetailsProps {
   onUpdateStatus?: (tenant: Tenant, status: any) => Promise<void>;
 }
 
-const AVAILABLE_MODULES = ['budget-mo', 'benta-snap', 'fresh-tally', 'build-stack', '5-6-tracker', 'ledger-flow', 'sahod-flow', 'biyahe-sync', 'bite-snap', 'timpla-track', 'ganap-master', 'spin-snap', 'hydro-sync', 'auto-boss', 'wellness-pro', 'trim-track', 'rep-sync', 'rental', 'service-master'];
+const AVAILABLE_MODULES = activeModules.map(m => m.id);
 
 export function AdminTenantDetails({ tenant, isOpen, onClose, updateNextBillingDate, processTenantRenewal, toggleTenantModule, onUpdateStatus }: AdminTenantDetailsProps) {
   const [isSendingReset, setIsSendingReset] = useState(false);

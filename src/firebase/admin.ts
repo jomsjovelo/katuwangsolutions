@@ -1,6 +1,6 @@
 import * as admin from 'firebase-admin';
 
-export const getAdminAuth = () => {
+export const getAdminApp = () => {
   if (!admin.apps.length) {
     const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'studio-5538116689-bdfb2';
     const clientEmail = process.env.ADMIN_CLIENT_EMAIL?.trim();
@@ -30,5 +30,15 @@ export const getAdminAuth = () => {
       }
     }
   }
+  return admin.app();
+};
+
+export const getAdminAuth = () => {
+  getAdminApp();
   return admin.auth();
+};
+
+export const getAdminFirestore = () => {
+  getAdminApp();
+  return admin.firestore();
 };

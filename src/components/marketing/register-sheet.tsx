@@ -20,12 +20,14 @@ interface RegisterSheetProps {
   open: boolean;
   onClose: () => void;
   initialAppId?: string;
+  initialProfile?: string;
   ctaSource?: CtaSource;
 }
 function RegisterSheetContent({
   open,
   onClose,
   initialAppId = '',
+  initialProfile = '',
   ctaSource = 'floating_bar',
 }: RegisterSheetProps) {
   const router = useRouter();
@@ -124,12 +126,22 @@ function RegisterSheetContent({
   };
 
   const handleContinue = () => {
+    const buildOnboardingUrl = (appId: string) => {
+      const urlParams = new URLSearchParams();
+      if (existingCode) urlParams.set('ref', existingCode);
+      if (appId === 'benta-snap' && initialProfile) {
+        urlParams.set('profile', initialProfile);
+      }
+      const qs = urlParams.toString();
+      return `/${appId}/onboarding${qs ? `?${qs}` : ''}`;
+    };
+
     if (step === 'role') {
       if (role === 'owner') {
         if (selectedId) {
           emitModuleConfirmedOnce(selectedId);
           onClose();
-          router.push(`/${selectedId}/onboarding`);
+          router.push(buildOnboardingUrl(selectedId));
         } else {
           setStep('app');
         }
@@ -143,7 +155,7 @@ function RegisterSheetContent({
       if (!selectedId) return;
       emitModuleConfirmedOnce(selectedId);
       onClose();
-      router.push(`/${selectedId}/onboarding`);
+      router.push(buildOnboardingUrl(selectedId));
     }
   };
 
@@ -489,13 +501,19 @@ export function RegisterSheet(props: RegisterSheetProps) {
   return <RegisterSheetContent {...props} />;
 }
 
-export function useRegisterSheet(defaultAppId = '') {
+export function useRegisterSheet(defaultAppId = '', defaultProfile = '') {
   const [open, setOpen] = useState(false);
   const [initialAppId, setInitialAppId] = useState(defaultAppId);
+  const [initialProfile, setInitialProfile] = useState(defaultProfile);
 
-  const openSheet = (appId?: any) => {
+  const openSheet = (appId?: any, profile?: string) => {
     if (typeof appId === 'string') {
       setInitialAppId(appId);
+    }
+    if (typeof profile === 'string') {
+      setInitialProfile(profile);
+    } else {
+      setInitialProfile('');
     }
     setOpen(true);
   };
@@ -507,6 +525,7 @@ export function useRegisterSheet(defaultAppId = '') {
   return {
     open,
     initialAppId,
+    initialProfile,
     openSheet,
     closeSheet,
   };

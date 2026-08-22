@@ -6,12 +6,12 @@ import { getAuth, signOut } from 'firebase/auth';
 import { useFirestore } from '@/firebase/provider';
 import { useTenant } from '@/app/lib/tenant-context';
 import { usePWAInstall } from '@/hooks/use-pwa-install';
-import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot, 
-  doc, 
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  doc,
   getFirestore,
   updateDoc,
   setDoc,
@@ -20,7 +20,15 @@ import {
 } from 'firebase/firestore';
 import { app } from '@/firebase/config';
 import { sendStaffInvite, removeStaffMember, regenerateBusinessCode } from '@/firebase/firestore/staff-actions';
-import { createStaffAccount, removeStaffAccount, resetStaffPin } from '@/firebase/firestore/staff-pin-actions';
+import {
+  listOwnerCashiers,
+  createOwnerCashier,
+  resetOwnerCashierPin,
+  disableOwnerCashier,
+  removeOwnerCashier
+} from '@/lib/client/owner-cashier-client';
+import { useSecureCashierStore } from '@/store/use-secure-cashier-store';
+import { staffLogout } from '@/lib/client/secure-benta-cashier-client';
 import { useToast } from '@/hooks/use-toast';
 import { getModuleTheme, MODULE_THEMES, ModuleTheme } from '@/lib/theme-utils';
 import { Button } from '@/components/ui/button';
@@ -40,14 +48,14 @@ import { ActivityOrganizer } from './activity-organizer';
 import { EmailVerificationBanner } from '@/components/auth/email-verification-banner';
 import { BluetoothPrinterModal } from '@/components/common/bluetooth-printer-modal';
 import { EscPosBluetoothDriver } from '@/lib/hardware/print-driver';
-import { 
-  User, 
-  Users, 
-  UserPlus, 
-  Mail, 
-  Trash2, 
-  Loader2, 
-  LogOut, 
+import {
+  User,
+  Users,
+  UserPlus,
+  Mail,
+  Trash2,
+  Loader2,
+  LogOut,
   CheckCircle,
   HelpCircle,
   Clock,
@@ -89,12 +97,12 @@ export function ProfileTab() {
   const switchActiveModule = useTenantStore(state => state.switchActiveModule);
   const activeModuleOverride = useTenantStore(state => state.activeModuleOverride);
   const { deferredPrompt, isInstalled, triggerInstall, isIOS } = usePWAInstall();
-  
+
   const [profile, setProfile] = useState<any>(null);
   const [activeStaff, setActiveStaff] = useState<any[]>([]);
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
   const [pendingStaffApprovals, setPendingStaffApprovals] = useState<any[]>([]);
-  
+
   const [inviteEmail, setInviteEmail] = useState('');
   const [isInviting, setIsInviting] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -104,7 +112,7 @@ export function ProfileTab() {
   const [isSponsorOpen, setIsSponsorOpen] = useState(false);
   const [sponsorStaffName, setSponsorStaffName] = useState('');
 
-  
+
   // New referral state
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [referralHistory, setReferralHistory] = useState<any[]>([]);
@@ -124,7 +132,7 @@ export function ProfileTab() {
   const { toast } = useToast();
   const theme = getModuleTheme(currentTenant?.moduleType);
   const isOwner = profile?.role === 'owner';
-  
+
   // PIN Cashier State
   const [pinStaffAccounts, setPinStaffAccounts] = useState<any[]>([]);
   const [showAddCashierModal, setShowAddCashierModal] = useState(false);
@@ -142,7 +150,7 @@ export function ProfileTab() {
   // 1. Fetch Real-time User Profile
   useEffect(() => {
     if (!user) return;
-    
+
     const userRef = doc(db, 'users', user.uid);
     const unsubscribe = onSnapshot(userRef, (snap) => {
       if (snap.exists()) {
@@ -159,19 +167,19 @@ export function ProfileTab() {
   // 1.5 Fetch Referral History
   useEffect(() => {
     if (!user) return;
-    
+
     const fetchHistory = async () => {
       const { query, collection, orderBy, limit, getDocs } = await import('firebase/firestore');
       const historyRef = collection(db, 'users', user.uid, 'referral_history');
       const q = query(historyRef, orderBy('creditedAt', 'desc'), limit(10));
-      
+
       getDocs(q).then((snap) => {
         setReferralHistory(snap.docs.map(d => d.data()));
       }).catch((err) => {
         console.warn('ProfileTab: Referral history unavailable:', err.message);
       });
     };
-    
+
     fetchHistory();
   }, [user, db]);
 
@@ -219,21 +227,21 @@ export function ProfileTab() {
     return () => unsubscribe();
   }, [user, profile?.role, db, currentTenant]);
 
-  // 2b. Fetch PIN-Based Staff Accounts List (staff_accounts subcollection)
-  useEffect(() => {
+  // 2b. Fetch PIN-Based Staff Accounts List via Trusted Owner API
+  const refreshCashiers = React.useCallback(async () => {
     if (!currentTenant || !profile || profile.role !== 'owner') return;
-
-    const staffAccountsRef = collection(db, 'tenants', currentTenant.id, 'staff_accounts');
-    const unsubscribe = onSnapshot(staffAccountsRef, (snapshot) => {
-      const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    try {
+      const list = await listOwnerCashiers(currentTenant.id);
       setPinStaffAccounts(list);
-    }, (err) => {
+    } catch (err: any) {
       console.warn('ProfileTab: PIN staff list unavailable:', err.message);
       setPinStaffAccounts([]);
-    });
+    }
+  }, [currentTenant, profile?.role]);
 
-    return () => unsubscribe();
-  }, [currentTenant, profile?.role, db]);
+  useEffect(() => {
+    refreshCashiers();
+  }, [refreshCashiers]);
 
   const handleCreateCashierAccount = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -241,7 +249,8 @@ export function ProfileTab() {
 
     try {
       setIsCreatingCashier(true);
-      await createStaffAccount(currentTenant.id, newCashierUsername, newCashierPin);
+      await createOwnerCashier(currentTenant.id, newCashierUsername, newCashierPin);
+      await refreshCashiers();
       toast({
         title: 'Na-create na ang Cashier Account!',
         description: `Ang username na "${newCashierUsername}" ay maaari nang mag-login gamit ang inyong Business Code.`
@@ -266,10 +275,27 @@ export function ProfileTab() {
 
     try {
       setIsRemovingId(staff.id);
-      await removeStaffAccount(currentTenant.id, staff.id, staff.usernameLower || staff.username);
+      await removeOwnerCashier(currentTenant.id, staff.id);
+      await refreshCashiers();
       toast({ title: 'Na-delete na ang Cashier Account' });
     } catch (err: any) {
       toast({ title: 'Error', description: err.message || 'Failed to remove staff.', variant: 'destructive' });
+    } finally {
+      setIsRemovingId(null);
+    }
+  };
+
+  const handleDisablePinStaff = async (staff: any) => {
+    if (!currentTenant) return;
+    if (!confirm(`Sigurado ka ba na gusto mong i-disable ang Cashier account ni "${staff.username}"?`)) return;
+
+    try {
+      setIsRemovingId(staff.id);
+      await disableOwnerCashier(currentTenant.id, staff.id);
+      await refreshCashiers();
+      toast({ title: 'Na-disable na ang Cashier Account' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'Failed to disable staff.', variant: 'destructive' });
     } finally {
       setIsRemovingId(null);
     }
@@ -281,7 +307,8 @@ export function ProfileTab() {
 
     try {
       setIsResettingPin(true);
-      await resetStaffPin(currentTenant.id, selectedStaffForResetPin.id, resetPinInput);
+      await resetOwnerCashierPin(currentTenant.id, selectedStaffForResetPin.id, resetPinInput);
+      await refreshCashiers();
       toast({ title: 'Na-reset na ang 4-digit PIN!' });
       setSelectedStaffForResetPin(null);
       setResetPinInput('');
@@ -344,8 +371,8 @@ export function ProfileTab() {
     if (!currentTenant.businessCode || (profile && !profile.referralCode)) {
       const patchCode = async () => {
         try {
-          const isDemo = currentTenant.id === 'demo' || currentTenant.name.toLowerCase().includes('demo');
-          
+          const isDemo = currentTenant.id === 'demo';
+
           let codeToUse = 'DEMO123';
           if (!isDemo) {
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -359,7 +386,7 @@ export function ProfileTab() {
               attempts++;
             }
           }
-          
+
           // Patch business code
           if (!currentTenant.businessCode) {
             await setDoc(doc(db, 'business_codes', codeToUse), { tenantId: currentTenant.id });
@@ -435,10 +462,10 @@ export function ProfileTab() {
   const handleQrUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !currentTenant) return;
-    
+
     setIsUploadingQr(true);
     setQrUploadError(null);
-    
+
     try {
       const reader = new FileReader();
       reader.onload = (event) => {
@@ -466,18 +493,18 @@ export function ProfileTab() {
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           if (!ctx) throw new Error("Could not get canvas context");
-          
+
           ctx.fillStyle = '#ffffff';
           ctx.fillRect(0, 0, width, height);
           ctx.drawImage(img, 0, 0, width, height);
-          
+
           const base64String = canvas.toDataURL('image/jpeg', 0.8);
-          
+
           await updateDoc(doc(db, 'tenants', currentTenant.id), {
             gcashQrImageBase64: base64String,
             updatedAt: new Date()
           });
-          
+
           setIsUploadingQr(false);
         };
         img.src = event.target?.result as string;
@@ -496,7 +523,7 @@ export function ProfileTab() {
   const handleRemoveQr = async () => {
     if (!currentTenant) return;
     if (!confirm("Sigurado ka bang gusto mong alisin ang GCash QR Code na ito?")) return;
-    
+
     setIsUploadingQr(true);
     try {
       await updateDoc(doc(db, 'tenants', currentTenant.id), {
@@ -513,12 +540,41 @@ export function ProfileTab() {
 
   const handleSignOut = async () => {
     try {
-      const auth = getAuth(app);
-      await signOut(auth);
+      const isCashier = useSecureCashierStore.getState().isCashierAuthenticated;
+      const cashierShift = useSecureCashierStore.getState().activeShift;
+
+      if (isCashier && cashierShift) {
+        const confirmed = window.confirm(
+          "May bukas ka pang shift. Nais mo bang mag-logout pa rin? Ang inyong shift ay mananatiling bukas sa server para sa inyong pagbabalik."
+        );
+        if (!confirmed) return;
+      }
+
+      if (isCashier && user) {
+        const idToken = await user.getIdToken();
+        await staffLogout(idToken);
+      }
+
+      try {
+        const auth = getAuth(app);
+        await signOut(auth);
+      } catch (authErr) {
+        console.warn('Auth signOut error after server revocation:', authErr);
+      }
+
+      useSecureCashierStore.getState().clearCashierSession();
       reset();
-      window.location.href = '/'; // Clear and route safely
-    } catch (e) {
+      try {
+        localStorage.removeItem('katuwang-staff-session-storage');
+      } catch {}
+      window.location.href = '/login';
+    } catch (e: any) {
       console.error("Sign out error:", e);
+      toast({
+        title: 'Hindi Natapos ang Logout',
+        description: 'Hindi natapos ang logout sa server. Paki-check ang koneksyon at subukan muli.',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -589,12 +645,12 @@ export function ProfileTab() {
       {showOrganizer && <ActivityOrganizer onClose={() => setShowOrganizer(false)} />}
       <EmailVerificationBanner />
       <main className="p-4 space-y-6 pb-24">
-        
+
         {/* User Card */}
         <Card className="bg-white border-slate-200 shadow-sm overflow-hidden rounded-[24px]">
           <div className="h-2 bg-gradient-to-r" style={{ backgroundImage: `linear-gradient(to right, ${theme.primary}, ${theme.secondary})` }} />
           <CardHeader className="p-5 flex flex-row items-center gap-4">
-            <div 
+            <div
               className="h-12 w-12 rounded-2xl flex items-center justify-center text-white"
               style={{ backgroundColor: theme.primary }}
             >
@@ -668,7 +724,7 @@ export function ProfileTab() {
         )}
 
         {/* Unlocked Modules Switcher */}
-        {currentTenant && ((currentTenant.unlockedModules?.length ?? 0) > 0 || currentTenant.id === 'demo' || currentTenant.name.toLowerCase().includes('demo')) && (
+        {currentTenant && ((currentTenant.unlockedModules?.length ?? 0) > 0 || currentTenant.id === 'demo') && (
           <Card className="bg-white border-slate-200 shadow-sm overflow-hidden rounded-[24px]">
             <CardHeader className="p-4 pb-2 flex flex-row items-center gap-2">
               <PlusSquare className="h-4 w-4" style={{ color: theme.primary }} />
@@ -676,10 +732,9 @@ export function ProfileTab() {
             </CardHeader>
             <CardContent className="p-0">
               <div className="divide-y divide-slate-100">
-                {Object.entries(MODULE_THEMES).filter(([key]) => 
-                  currentTenant.id === 'demo' || 
-                  currentTenant.name.toLowerCase().includes('demo') || 
-                  key === currentTenant.moduleType || 
+                {Object.entries(MODULE_THEMES).filter(([key]) =>
+                  currentTenant.id === 'demo' ||
+                  key === currentTenant.moduleType ||
                   key === currentTenant.primaryModuleType ||
                   currentTenant.unlockedModules?.includes(key)
                 ).map(([key, modTheme]) => {
@@ -734,7 +789,7 @@ export function ProfileTab() {
           </CardHeader>
           <CardContent className="p-4 pt-2">
             <div className="flex flex-col gap-2">
-              <Button 
+              <Button
                 onClick={() => setShowPrinterSetupModal(true)}
                 variant="outline"
                 className="w-full h-11 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border-slate-200 hover:bg-slate-50 cursor-pointer"
@@ -777,9 +832,9 @@ export function ProfileTab() {
                 {currentTenant?.gcashQrImageBase64 ? (
                   <div className="flex flex-col items-center gap-3">
                     <div className="relative border-4 border-blue-500 rounded-2xl p-2 bg-white shadow-sm inline-block">
-                      <img 
-                        src={currentTenant.gcashQrImageBase64} 
-                        alt="My GCash QR" 
+                      <img
+                        src={currentTenant.gcashQrImageBase64}
+                        alt="My GCash QR"
                         className="w-32 h-32 object-contain rounded-xl"
                       />
                       {isUploadingQr && (
@@ -788,9 +843,9 @@ export function ProfileTab() {
                         </div>
                       )}
                     </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={handleRemoveQr}
                       disabled={isUploadingQr}
                       className="text-red-500 hover:text-red-600 hover:bg-red-50 border-red-200 text-[10px] font-bold h-8 rounded-lg"
@@ -809,11 +864,11 @@ export function ProfileTab() {
                           </p>
                           <p className="text-[9px] text-slate-400">PNG, JPG (Max 5MB)</p>
                         </div>
-                        <input 
-                          id="qr-upload" 
-                          type="file" 
-                          accept="image/*" 
-                          className="hidden" 
+                        <input
+                          id="qr-upload"
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
                           onChange={handleQrUpload}
                           disabled={isUploadingQr}
                         />
@@ -907,9 +962,15 @@ export function ProfileTab() {
                             <div>
                               <div className="flex items-center gap-2">
                                 <p className="text-xs font-black text-slate-900">{staff.username}</p>
-                                <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-none font-bold text-[8px] px-2 py-0">
-                                  ACTIVE CASHIER
-                                </Badge>
+                                {staff.status === 'disabled' ? (
+                                  <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border-none font-bold text-[8px] px-2 py-0">
+                                    DISABLED
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-none font-bold text-[8px] px-2 py-0">
+                                    ACTIVE CASHIER
+                                  </Badge>
+                                )}
                               </div>
                               <p className="text-[10px] text-slate-400">
                                 Business Code: <strong className="text-slate-600">{currentTenant?.businessCode || '----'}</strong>
@@ -917,17 +978,30 @@ export function ProfileTab() {
                             </div>
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <Button
-                              onClick={() => {
-                                setSelectedStaffForResetPin(staff);
-                                setResetPinInput('');
-                              }}
-                              variant="outline"
-                              size="sm"
-                              className="h-7 text-[9px] font-bold uppercase tracking-wider border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg"
-                            >
-                              Reset PIN
-                            </Button>
+                            {staff.status !== 'disabled' && (
+                              <Button
+                                onClick={() => {
+                                  setSelectedStaffForResetPin(staff);
+                                  setResetPinInput('');
+                                }}
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-[9px] font-bold uppercase tracking-wider border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg"
+                              >
+                                Reset PIN
+                              </Button>
+                            )}
+                            {staff.status !== 'disabled' && (
+                              <Button
+                                onClick={() => handleDisablePinStaff(staff)}
+                                variant="outline"
+                                size="sm"
+                                disabled={isRemovingId === staff.id}
+                                className="h-7 text-[9px] font-bold uppercase tracking-wider border-slate-200 text-amber-700 hover:bg-amber-50 rounded-lg"
+                              >
+                                Disable
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="icon"
@@ -1098,7 +1172,7 @@ export function ProfileTab() {
                 </CardContent>
               </Card>
             )}
-            
+
             {/* Activity Log (Owner Only) */}
             {!isBudgetMo && (
               <Card className="bg-white border-slate-200 shadow-sm rounded-[24px]">
@@ -1106,7 +1180,7 @@ export function ProfileTab() {
                   <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
                     <Activity className="h-4 w-4" /> System Audit Log
                   </CardTitle>
-                  <button 
+                  <button
                     onClick={() => setShowOrganizer(true)}
                     className="text-[10px] font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"
                   >
@@ -1122,7 +1196,7 @@ export function ProfileTab() {
                     <div className="divide-y divide-slate-100">
                       {auditLogs.map((log) => {
                         const date = log.createdAt?.toDate ? log.createdAt.toDate() : new Date();
-                        
+
                         let icon = <Activity className="h-3.5 w-3.5 text-slate-400" />;
                         if (log.type === 'delete_transaction' || log.type === 'void_sale' || log.type === 'delete_record') {
                           icon = <Trash2 className="h-3.5 w-3.5 text-red-500" />;
@@ -1228,9 +1302,9 @@ export function ProfileTab() {
           </DialogContent>
         </Dialog>
 
-        <WithdrawReferralSheet 
-          open={withdrawOpen} 
-          onOpenChange={setWithdrawOpen} 
+        <WithdrawReferralSheet
+          open={withdrawOpen}
+          onOpenChange={setWithdrawOpen}
           availableBalance={profile?.availableBalance || 0}
           uid={user?.uid || ''}
           userFullName={profile?.fullName || ''}
@@ -1265,7 +1339,7 @@ export function ProfileTab() {
               </CardContent>
             </Card>
 
-            <ManagerPinSetup 
+            <ManagerPinSetup
               title="Security PIN"
               description="Set a 4-digit PIN. You will be required to enter this PIN to validate sensitive updates like deleting records."
             />
@@ -1291,7 +1365,7 @@ export function ProfileTab() {
               </CardContent>
             </Card>
 
-            <ManagerPinSetup 
+            <ManagerPinSetup
               title="Admin Security PIN"
               description="Set a 4-digit PIN. You will be required to enter this PIN to validate sensitive updates like voiding debt records."
             />
@@ -1375,12 +1449,12 @@ export function ProfileTab() {
                 I-install sa Home Screen
               </Button>
             ) : (
-              <Button 
+              <Button
                 onClick={handleInstallClick}
                 className="w-full h-12 rounded-xl text-white font-bold text-sm shadow-md active:scale-95 transition-all gap-2"
                 style={{ backgroundColor: theme.primary }}
               >
-                <Download className="h-4 w-4" /> 
+                <Download className="h-4 w-4" />
                 I-install Ngayon
               </Button>
             )}
@@ -1436,7 +1510,7 @@ export function ProfileTab() {
 
         {/* Support & Sign Out */}
         <div className="pt-2 space-y-3">
-          <Button 
+          <Button
             onClick={() => setIsSupportOpen(true)}
             variant="outline"
             className="w-full h-12 rounded-xl font-bold uppercase tracking-widest text-[10px] border-slate-200 text-slate-600 hover:bg-slate-100 flex items-center justify-center gap-2 active:scale-95 transition-transform"
@@ -1444,7 +1518,7 @@ export function ProfileTab() {
             <HelpCircle className="h-4 w-4" /> Help & Support
           </Button>
 
-          <Button 
+          <Button
             onClick={handleSignOut}
             variant="outline"
             className="w-full h-12 rounded-xl font-bold uppercase tracking-widest text-[10px] border-red-200 text-red-600 hover:bg-red-50 flex items-center justify-center gap-2 active:scale-95 transition-transform"
@@ -1454,7 +1528,7 @@ export function ProfileTab() {
         </div>
 
       </main>
-      
+
       <Dialog open={!!staffToApprove} onOpenChange={(open) => !open && setStaffToApprove(null)}>
         <DialogContent className="sm:max-w-md rounded-[24px]">
           <DialogHeader>
@@ -1481,8 +1555,8 @@ export function ProfileTab() {
               </button>
             ))}
           </div>
-          <Button 
-            onClick={() => setStaffToApprove(null)} 
+          <Button
+            onClick={() => setStaffToApprove(null)}
             disabled={approveLoading}
             variant="outline"
             className="w-full h-12 rounded-xl font-bold bg-white text-slate-600 border-slate-200"
@@ -1508,22 +1582,22 @@ export function ProfileTab() {
               4. We will verify your payment and activate the staff.
             </div>
             <div className="relative w-48 h-48 bg-slate-50 rounded-xl overflow-hidden border border-slate-200">
-              <Image 
-                src="/images/gcash-qr.jpg" 
-                alt="Katuwang Solutions QR Code" 
-                fill 
+              <Image
+                src="/images/gcash-qr.jpg"
+                alt="Katuwang Solutions QR Code"
+                fill
                 className="object-contain"
                 unoptimized
               />
             </div>
             <p className="text-xs text-slate-500 font-bold">Manual Mobile No: 09951665423</p>
           </div>
-          <Button 
+          <Button
             onClick={() => {
               if (staffToPayFor) {
                 executeApprove(staffToPayFor.staff.uid, staffToPayFor.tenantId, staffToPayFor.moduleType);
               }
-            }} 
+            }}
             disabled={approveLoading}
             className="w-full h-12 rounded-xl font-bold bg-[#0099FF] text-white hover:bg-[#0099FF]/90"
           >
@@ -1596,7 +1670,7 @@ export function ProfileTab() {
           <DialogHeader>
             <DialogTitle className="text-xl font-black text-slate-900">Reset 4-Digit PIN</DialogTitle>
             <DialogDescription className="text-slate-500 font-medium text-xs">
-              Baguhin ang PIN ni <strong className="text-slate-700">{selectedStaffForResetPin?.username}</strong>.
+              Baguhin ang PIN ni <strong className="text-slate-700">{selectedStaffForResetPin?.username}</strong>. Paalala: Ang pag-reset ng PIN ay hindi mag-a-activate ng naka-disable na account.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleResetPinSubmit} className="space-y-4 py-2">

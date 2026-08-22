@@ -1,36 +1,39 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useUser } from '@/firebase/auth/use-user';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, orderBy } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { Tenant } from '@/store/use-tenant-store';
 import { useTenantStore } from '@/store/use-tenant-store';
+import { useSecureCashierStore } from '@/store/use-secure-cashier-store';
 
 export function useUserTenants() {
   const { user, loading: userLoading } = useUser();
   const db = useFirestore();
+  const isCashier = useSecureCashierStore(state => state.isCashierAuthenticated);
 
   const ownerQuery = useMemo(() => {
-    return user && db
+    return user && db && !isCashier
       ? query(collection(db, 'tenants'), where('ownerUid', '==', user.uid))
       : null;
-  }, [user?.uid, db]);
+  }, [user?.uid, db, isCashier]);
 
   const staffQuery = useMemo(() => {
-    return user && db
+    return user && db && !isCashier
       ? query(collection(db, 'tenants'), where('staffUids', 'array-contains', user.uid))
       : null;
-  }, [user?.uid, db]);
+  }, [user?.uid, db, isCashier]);
 
   const { data: ownerTenants, loading: ownerLoading } = useCollection<Tenant>(ownerQuery as any);
   const { data: staffTenants, loading: staffLoading, error } = useCollection<Tenant>(staffQuery as any);
 
-  const loading = userLoading || ownerLoading || staffLoading;
+  const loading = isCashier ? false : (userLoading || ownerLoading || staffLoading);
 
-  // Memoize the merged/deduped/sorted tenant list so its reference is stable
+  // Memoize the merged/deduped/sorted tenant list
   const uniqueTenants = useMemo(() => {
+    if (isCashier) return [];
     const merged = [...ownerTenants, ...staffTenants];
     const deduped = Array.from(new Map(merged.map(t => [t.id, t])).values());
     deduped.sort((a, b) => {
@@ -39,19 +42,27 @@ export function useUserTenants() {
       return timeB - timeA;
     });
     return deduped;
-  }, [ownerTenants, staffTenants]);
+  }, [ownerTenants, staffTenants, isCashier]);
+
+  const hasActiveTenant = !!useTenantStore(state => state.activeTenant);
 
   useEffect(() => {
-    if (loading) return;
-    // Read actions directly from the store singleton — NOT via hook selector.
-    // This way we never need to put them in the dependency array, which was
-    // the direct cause of the infinite "Maximum update depth" loop.
+    if (isCashier) return;
+    if (loading) {
+      if (hasActiveTenant) {
+        useTenantStore.getState().setLoading(false);
+      }
+      return;
+    }
     const { setAllTenants, setLoading } = useTenantStore.getState();
     setAllTenants(uniqueTenants);
     setLoading(false);
-  // uniqueTenants reference only changes when the real Firestore data changes (memoized above)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, uniqueTenants]);
+  }, [loading, uniqueTenants, isCashier, hasActiveTenant]);
 
-  return { tenants: uniqueTenants, loading, error };
+  if (isCashier) {
+    return { tenants: [], loading: false, error: null };
+  }
+
+  return { tenants: uniqueTenants, loading: hasActiveTenant ? false : loading, error };
 }

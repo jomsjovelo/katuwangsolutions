@@ -73,7 +73,7 @@ describe('Production Health Pass 2 Behavioral & Accessibility Suite', () => {
 
       cy.contains('h2', 'Mga Tagubilin sa Pagbabayad').should('be.visible');
       cy.contains('Magbayad ng ₱99.00 gamit ang GCash o Maya. Pagkatapos, ipadala ang payment screenshot sa Messenger. Ia-activate ang napiling module matapos ma-verify ang payment.').should('be.visible');
-      cy.get('[data-testid="payment-journey-banner"]').should('contain', 'Account created → Magbayad → Iva-verify ang payment → Ia-activate ang module');
+      cy.get('[data-testid="payment-journey-banner"]').should('contain.text', 'Account created').and('contain.text', 'Magbayad').and('contain.text', 'Iva-verify ang payment').and('contain.text', 'Ia-activate ang module');
       cy.get('[data-testid="payment-amount"]').should('contain', '₱99.00');
       cy.get('[data-testid="payment-clarification"]').should('contain', 'Ang bayad na ₱99 ay para sa napili mong module.');
       cy.get('[data-testid="payment-verification-disclaimer"]').should(
@@ -81,8 +81,8 @@ describe('Production Health Pass 2 Behavioral & Accessibility Suite', () => {
         'Manual ang verification. Ang pagpapadala ng screenshot o pag-click sa button sa ibaba ay hindi pa kumpirmasyon na verified ang payment o active na ang module.'
       );
 
-      cy.contains('a', 'Buksan ang Messenger at Ipadala ang Screenshot').should('be.visible');
-      cy.contains('button', 'Naipadala ko na sa Messenger').should('be.visible');
+      cy.contains('a', 'Buksan ang Messenger at Ipadala ang Screenshot').scrollIntoView().should('be.visible');
+      cy.contains('button', 'Naipadala ko na sa Messenger').scrollIntoView().should('be.visible');
       cy.contains('Paano Magbayad').should('be.visible');
       cy.contains('Buksan ang GCash o Maya → i-tap ang Send Money → i-paste ang numero sa itaas.').should('be.visible');
       cy.contains('Ipasok ang eksaktong halaga: ₱99.00.').should('be.visible');
@@ -104,7 +104,7 @@ describe('Production Health Pass 2 Behavioral & Accessibility Suite', () => {
       cy.contains('Naitala na ang registration mo at dinala ka namin sa payment-verification status. Hindi pa ito kumpirmasyon na verified ang payment o active na ang module.').should('be.visible');
       cy.contains('Susuriin ng Operations team ang payment screenshot na ipinadala sa Messenger. Kapag na-verify ang payment, saka ia-activate ang napili mong module.').should('be.visible');
       cy.contains('span', 'PAYMENT VERIFICATION · HAKBANG 3 SA 4').should('be.visible');
-      cy.contains('a', 'Buksan ang Messenger at Ipadala ang Screenshot').should('be.visible');
+      cy.contains('a', 'Buksan ang Messenger at Ipadala ang Screenshot').scrollIntoView().should('be.visible');
     });
 
     it('advances from payment step to pending step on secondary action without triggering activation', () => {
@@ -158,7 +158,7 @@ describe('Production Health Pass 2 Behavioral & Accessibility Suite', () => {
 
     it('ensures App Suite category tabs and detail action links are at least 44px high', () => {
       cy.visit('/');
-      cy.contains('button', '✨ Lahat ng Modules (20)').then(($el) => {
+      cy.contains('button', '✨ Lahat ng Modules (18)').then(($el) => {
         const height = $el[0].getBoundingClientRect().height;
         expect(height).to.be.at.least(44);
       });
@@ -198,7 +198,7 @@ describe('Production Health Pass 2 Behavioral & Accessibility Suite', () => {
       });
     });
 
-    it('verifies hero and final registration CTAs are at least 56px high across all 20 module pages', () => {
+    it('verifies hero and final registration CTAs are at least 56px high across all 18 module pages', () => {
       activeModules.forEach((app) => {
         cy.visit(`/${app.id}`);
 
@@ -213,7 +213,9 @@ describe('Production Health Pass 2 Behavioral & Accessibility Suite', () => {
         cy.get(`a[href="/${app.id}/onboarding"]`).eq(0).click();
         cy.url().should('include', `/${app.id}/onboarding`);
         cy.window().then((win) => {
-          expect(win.sessionStorage.getItem('katuwang_cta_source')).to.equal('module_page_hero');
+          const raw = win.sessionStorage.getItem('katuwang_acquisition_v1');
+          const parsed = raw ? JSON.parse(raw) : {};
+          expect(parsed.ctaSource).to.equal('module_page_hero');
         });
 
         // Verify final ctaSource tracking behavior
@@ -221,7 +223,9 @@ describe('Production Health Pass 2 Behavioral & Accessibility Suite', () => {
         cy.get(`a[href="/${app.id}/onboarding"]`).eq(1).click();
         cy.url().should('include', `/${app.id}/onboarding`);
         cy.window().then((win) => {
-          expect(win.sessionStorage.getItem('katuwang_cta_source')).to.equal('module_page_final');
+          const raw = win.sessionStorage.getItem('katuwang_acquisition_v1');
+          const parsed = raw ? JSON.parse(raw) : {};
+          expect(parsed.ctaSource).to.equal('module_page_final');
         });
       });
     });

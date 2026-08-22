@@ -36,10 +36,10 @@ const PROBLEMS = [
   {
     id: 'inventory',
     emoji: '🏗️',
-    challenge: 'Magulo ang inventory ng hardware',
-    solution: 'Build Stack para sa hardware sales, inventory, at customer credit records.',
-    module: 'Build Stack',
-    moduleId: 'build-stack',
+    challenge: 'Magulo ang inventory ng hardware at supplies',
+    solution: 'Benta Snap para sa POS, sales, inventory monitoring, at customer credit records.',
+    module: 'Benta Snap (Hardware)',
+    moduleId: 'benta-snap',
     color: '#475569',
   },
   {
