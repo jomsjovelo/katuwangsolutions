@@ -17,14 +17,14 @@ env:
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
     value: studio-5538116689-bdfb2
 
-  # Secure Cashier cutover controls. Runtime-only and active.
+  # Secure Cashier cutover controls. Runtime-only and deliberately dormant for Gate 1.
   - variable: STAFF_PIN_PEPPER_ACTIVE_VERSION
     value: v1
     availability:
       - RUNTIME
 
   - variable: BENTA_CASHIER_CHECKOUT_ENABLED
-    value: "true"
+    value: "false"
     availability:
       - RUNTIME
 
@@ -47,13 +47,21 @@ env:
   # Email sender (Gmail SMTP) — required by /api/auth/send-verification
   - variable: SMTP_USER
     secret: SMTP_USER
+    availability:
+      - RUNTIME
 
   - variable: SMTP_PASS
     secret: SMTP_PASS
+    availability:
+      - RUNTIME
 
   # Firebase Admin SDK — required for generateEmailVerificationLink()
   - variable: ADMIN_CLIENT_EMAIL
     secret: ADMIN_CLIENT_EMAIL
+    availability:
+      - RUNTIME
 
   - variable: ADMIN_PRIVATE_KEY
     secret: ADMIN_PRIVATE_KEY
+    availability:
+      - RUNTIME
