@@ -24,7 +24,7 @@ env:
       - RUNTIME
 
   - variable: BENTA_CASHIER_CHECKOUT_ENABLED
-    value: "false"
+    value: "true"
     availability:
       - RUNTIME
 
