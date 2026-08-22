@@ -152,6 +152,9 @@ importers:
       tailwindcss-animate:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@3.4.19(tsx@4.22.3)(yaml@2.9.0))
+      typescript:
+        specifier: ^5
+        version: 5.9.3
       zod:
         specifier: ^3.24.2
         version: 3.25.76
@@ -204,9 +207,6 @@ importers:
       tailwindcss:
         specifier: ^3.4.1
         version: 3.4.19(tsx@4.22.3)(yaml@2.9.0)
-      typescript:
-        specifier: ^5
-        version: 5.9.3
 
 packages:
 
