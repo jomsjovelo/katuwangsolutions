@@ -264,7 +264,14 @@ function BentaDashboardContent() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [categories, setCategories] = useState<string[]>(['All']);
+
+  const categories = useMemo(() => {
+    if (!products) return ['All'];
+    const cats = Array.from(
+      new Set(products.map((p: any) => p.category).filter(Boolean))
+    ) as string[];
+    return ['All', ...cats];
+  }, [products]);
 
   const [showMobileCart, setShowMobileCart] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
@@ -588,12 +595,6 @@ function BentaDashboardContent() {
       setIsProcessing(false);
     }
   };
-
-  useEffect(() => {
-    if (!products) return;
-    const cats = Array.from(new Set(products.map((p: any) => p.category).filter(Boolean))) as string[];
-    setCategories(['All', ...cats]);
-  }, [products]);
 
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
   useEffect(() => {
