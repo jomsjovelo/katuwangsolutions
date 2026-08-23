@@ -98,34 +98,35 @@ export async function fetchCashierShiftReport(
     activeShiftId?: string;
   };
 
-  // 2. Fetch all shifts belonging to this authenticated cashier
-  const shiftsQuery = await tenantRef
-    .collection('shifts')
-    .where('staffAccountId', '==', identity.staffAccountId)
-    .orderBy('openedAt', 'desc')
-    .limit(20)
-    .get();
+  // 2. Authoritative Shift Resolution via Direct Document Lookup (Index-Free)
+  let selectedShift: { id: string; [key: string]: any } | null = null;
 
-  if (shiftsQuery.empty && !staffAccount.activeShiftId) {
-    throw new CheckoutError(CheckoutErrorCode.OPERATION_NOT_PERMITTED);
-  }
-
-  const shiftsList: Array<{ id: string; [key: string]: any }> = shiftsQuery.docs.map((d) => ({
-    id: d.id,
-    ...(d.data() as Record<string, any>)
-  }));
-
-  // 3. Determine selected shift
-  let selectedShift = targetShiftId
-    ? shiftsList.find((s) => s.id === targetShiftId)
-    : shiftsList.find((s) => s.id === staffAccount.activeShiftId) || shiftsList[0];
-
-  if (!selectedShift && targetShiftId) {
+  if (targetShiftId) {
+    // Explicit historical shift requested by ID
     const directDoc = await tenantRef.collection('shifts').doc(targetShiftId).get();
-    if (directDoc.exists && directDoc.data()?.staffAccountId !== identity.staffAccountId) {
+    if (!directDoc.exists) {
+      throw new CheckoutError(CheckoutErrorCode.INVALID_REQUEST);
+    }
+    const shiftData = directDoc.data() as Record<string, any>;
+    if (shiftData.staffAccountId !== identity.staffAccountId) {
       throw new CheckoutError(CheckoutErrorCode.OPERATION_NOT_PERMITTED);
     }
-    throw new CheckoutError(CheckoutErrorCode.INVALID_REQUEST);
+    selectedShift = { id: directDoc.id, ...shiftData };
+  } else {
+    // Default to active shift for authenticated Cashier
+    const activeShiftId = staffAccount.activeShiftId;
+    if (!activeShiftId) {
+      throw new CheckoutError(CheckoutErrorCode.OPERATION_NOT_PERMITTED);
+    }
+    const directDoc = await tenantRef.collection('shifts').doc(activeShiftId).get();
+    if (!directDoc.exists) {
+      throw new CheckoutError(CheckoutErrorCode.INVALID_REQUEST);
+    }
+    const shiftData = directDoc.data() as Record<string, any>;
+    if (shiftData.staffAccountId !== identity.staffAccountId) {
+      throw new CheckoutError(CheckoutErrorCode.OPERATION_NOT_PERMITTED);
+    }
+    selectedShift = { id: directDoc.id, ...shiftData };
   }
 
   if (!selectedShift) {
@@ -247,14 +248,16 @@ export async function fetchCashierShiftReport(
     profitComplete
   };
 
-  const historicalShifts: HistoricalShiftSummary[] = shiftsList.map((s) => ({
-    shiftId: s.id,
-    status: s.status === 'closed' ? 'closed' : 'open',
-    openedAt: s.openedAt?.toDate?.()?.toISOString?.() || (typeof s.openedAt === 'string' ? s.openedAt : new Date().toISOString()),
-    closedAt: s.closedAt?.toDate?.()?.toISOString?.() || (typeof s.closedAt === 'string' ? s.closedAt : null),
-    totalGrossSalesCentavos: Number.isSafeInteger(s.totalShiftSales) ? s.totalShiftSales : 0,
-    saleCount: Number.isSafeInteger(s.saleCount) ? s.saleCount : 0
-  }));
+  const historicalShifts: HistoricalShiftSummary[] = [
+    {
+      shiftId: selectedShift.id,
+      status: selectedShift.status === 'closed' ? 'closed' : 'open',
+      openedAt: openedAtStr,
+      closedAt: closedAtStr,
+      totalGrossSalesCentavos,
+      saleCount: validSaleCount
+    }
+  ];
 
   return {
     currentReport,

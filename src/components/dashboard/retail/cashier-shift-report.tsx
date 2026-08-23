@@ -40,6 +40,9 @@ export function CashierShiftReport() {
 
   // Load report data from server
   const loadReport = async (shiftId?: string) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
     try {
       setIsLoading(true);
       setError(null);
@@ -55,7 +58,8 @@ export function CashierShiftReport() {
         : '/api/cashier/benta-shift-report';
 
       const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${idToken}` }
+        headers: { Authorization: `Bearer ${idToken}` },
+        signal: controller.signal
       });
 
       if (!res.ok) {
@@ -70,8 +74,13 @@ export function CashierShiftReport() {
       }
     } catch (err: any) {
       console.error('Failed to load shift report:', err);
-      setError(err?.message || 'Hindi ma-load ang shift report. Paki-check ang koneksyon.');
+      if (err?.name === 'AbortError') {
+        setError('Request timed out. Paki-check ang internet koneksyon at subukan muli.');
+      } else {
+        setError(err?.message || 'Hindi ma-load ang shift report. Paki-check ang koneksyon.');
+      }
     } finally {
+      clearTimeout(timeoutId);
       setIsLoading(false);
     }
   };
@@ -175,15 +184,72 @@ export function CashierShiftReport() {
           </div>
         )}
 
-        {/* Error Alert */}
-        {error && (
-          <div className="bg-red-50 text-red-700 p-4 rounded-2xl border border-red-200 text-xs font-bold flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" />
-            {error}
-          </div>
+        {/* 1. Loading State Card */}
+        {isLoading && !report && (
+          <Card className="rounded-2xl border-slate-200 shadow-sm bg-white p-8 text-center">
+            <Loader2 className="h-8 w-8 text-indigo-600 animate-spin mx-auto mb-3" />
+            <h3 className="text-sm font-black text-slate-800">Kinukuha ang Shift Report...</h3>
+            <p className="text-xs text-slate-500 mt-1">Sinisigurado ang opisyal na talaan ng benta.</p>
+          </Card>
         )}
 
-        {/* Shift Details & Metrics */}
+        {/* 2. Error State Card with Retry */}
+        {error && (
+          <Card className="rounded-2xl border-red-200 shadow-sm bg-red-50/70 p-5">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-red-100 rounded-xl text-red-600 shrink-0">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-xs font-black text-red-900 uppercase tracking-wider">Hindi Ma-load ang Report</h4>
+                <p className="text-xs text-red-700 font-medium mt-0.5">{error}</p>
+                <div className="mt-3">
+                  <Button
+                    onClick={() => loadReport(selectedShiftId || undefined)}
+                    size="sm"
+                    className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl h-8 px-3 gap-1.5"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Subukan Muli (Retry)
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* 3. Empty / No Active Shift State Card */}
+        {!isLoading && !error && !report && (
+          <Card className="rounded-2xl border-slate-200 shadow-sm bg-white p-8 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto mb-3">
+              <Clock className="h-6 w-6" />
+            </div>
+            <h3 className="text-sm font-black text-slate-800">Walang Aktibong Shift</h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+              Kailangan munang mag-open ng shift sa POS bago makita ang opisyal na sales summary.
+            </p>
+          </Card>
+        )}
+
+        {/* 4. Offline Pending Summary Card (Always visible when pending offline sales exist) */}
+        {pendingSummary.count > 0 && !report && (
+          <Card className="rounded-2xl border-amber-200 shadow-sm bg-amber-50/80 p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-amber-900 flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 text-amber-600" />
+                Offline Activity ({pendingSummary.count} nakabinbing benta)
+              </span>
+              <span className="text-sm font-black text-amber-900">
+                ₱{pendingSummary.totalPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+            <p className="text-[10px] text-amber-700 mt-1 font-medium">
+              May mga benta na naka-save sa device na ito. Awtomatikong mag-s-sync at magpapakita sa authoritative report kapag may internet.
+            </p>
+          </Card>
+        )}
+
+        {/* 5. Authoritative Shift Details & Metrics */}
         {report && (
           <div className="space-y-4">
             {/* Shift Status Card (Duplicate Total Sales removed from header) */}

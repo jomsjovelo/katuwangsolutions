@@ -314,4 +314,50 @@ test('Cashier Shift Report Server Authorization & Historical COGS Suite', async 
     assert.strictEqual(current.totalGrossSalesCentavos, 20000);
     assert.strictEqual(current.saleCount, 2);
   });
+
+  await t.test('7. Assertion 7: Active shift is resolved directly by staffAccount.activeShiftId when targetShiftId is omitted', async () => {
+    // Calling without targetShiftId resolves shiftId1 from staffAccount1.activeShiftId
+    const report = await fetchCashierShiftReport(cashierIdToken1, undefined, {
+      adminAuth: auth,
+      adminFirestore: db
+    });
+
+    assert.strictEqual(report.currentReport.shiftId, shiftId1);
+    assert.strictEqual(report.currentReport.totalGrossSalesCentavos, 20000);
+    assert.strictEqual(report.historicalShifts.length, 1);
+    assert.strictEqual(report.historicalShifts[0].shiftId, shiftId1);
+  });
+
+  await t.test('8. Assertion 8: Cross-tenant shift access is strictly rejected', async () => {
+    const otherTenantId = `other_tenant_${Date.now()}`;
+    await db.collection('tenants').doc(otherTenantId).set({
+      id: otherTenantId,
+      name: 'Foreign Store',
+      moduleType: 'benta-snap',
+      subscriptionStatus: 'active'
+    });
+    const foreignShiftId = `foreign_shift_${Date.now()}`;
+    await db.collection('tenants').doc(otherTenantId).collection('shifts').doc(foreignShiftId).set({
+      id: foreignShiftId,
+      tenantId: otherTenantId,
+      staffAccountId: staffAccountId1,
+      status: 'open',
+      startingCash: 50000,
+      openedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    // Cashier 1 authenticated for tenantId tries to access foreignShiftId (not present in tenantId.shifts)
+    await assert.rejects(
+      async () => {
+        await fetchCashierShiftReport(cashierIdToken1, foreignShiftId, {
+          adminAuth: auth,
+          adminFirestore: db
+        });
+      },
+      (err: any) => {
+        assert.strictEqual(err.code, CheckoutErrorCode.INVALID_REQUEST);
+        return true;
+      }
+    );
+  });
 });
