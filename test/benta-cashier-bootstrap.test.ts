@@ -9,9 +9,10 @@ function memory(seed: Record<string, any>) {
   const store = structuredClone(seed);
   const query = (path: string, filters: Array<[string, unknown]> = [], maximum = Infinity): any => ({
     path, filters, maximum,
-    doc: (id: string) => ({ id, path: `${path}/${id}`, collection: (child: string) => collection(`${path}/${id}/${child}`) }),
+    doc: (id: string) => ({ id, path: `${path}/${id}`, collection: (child: string) => collection(`${path}/${id}/${child}`), get: async () => snapshot({ id, path: `${path}/${id}` }) }),
     where: (field: string, _operator: string, value: unknown) => query(path, [...filters, [field, value]], maximum),
-    limit: (value: number) => query(path, filters, value)
+    limit: (value: number) => query(path, filters, value),
+    get: async () => querySnapshot({ path, filters, maximum })
   });
   const collection = (path: string): any => query(path);
   const snapshot = (ref: any) => ({ id: ref.id, exists: store[ref.path] !== undefined, data: () => store[ref.path] });

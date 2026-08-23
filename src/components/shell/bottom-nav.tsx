@@ -91,10 +91,11 @@ export function BottomNav({ activeTab = 'home', onTabChange }: BottomNavProps) {
     return ShoppingCart;
   };
 
-  // Cashier Role: Expose strictly Sale and Profile tabs
+  // Cashier Role: Expose strictly Sale, Report, and Profile tabs
   const tabs = isCashier
     ? [
         { id: 'benta' as const, label: 'Sale', Icon: ShoppingCart },
+        { id: 'ulat' as const, label: 'Report', Icon: BarChart2 },
         { id: 'profile' as const, label: 'Profile', Icon: User }
       ]
     : [

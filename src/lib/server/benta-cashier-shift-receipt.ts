@@ -107,8 +107,15 @@ export function applySaleToShift(
   };
 }
 
+export interface ShiftCloseRequest {
+  shiftId: string;
+  endingCashCentavos: number;
+  notes?: string;
+  closeIdempotencyKey?: string;
+}
+
 export function validateShiftCloseRequest(value: unknown): ShiftCloseRequest {
-  if (!isPlainRecord(value) || !hasOnlyRecordKeys(value, ['shiftId', 'endingCashCentavos', 'notes']) ||
+  if (!isPlainRecord(value) || !hasOnlyRecordKeys(value, ['shiftId', 'endingCashCentavos', 'notes', 'closeIdempotencyKey']) ||
       typeof value.shiftId !== 'string' || !SERVER_IDENTIFIER.test(value.shiftId) || !safeNonNegative(value.endingCashCentavos)) {
     throw new CheckoutError(CheckoutErrorCode.INVALID_REQUEST);
   }
@@ -119,7 +126,19 @@ export function validateShiftCloseRequest(value: unknown): ShiftCloseRequest {
     }
     notes = value.notes.trim();
   }
-  return { shiftId: value.shiftId, endingCashCentavos: value.endingCashCentavos as number, ...(notes ? { notes } : {}) };
+  let closeIdempotencyKey: string | undefined;
+  if (value.closeIdempotencyKey !== undefined) {
+    if (typeof value.closeIdempotencyKey !== 'string' || !SERVER_IDENTIFIER.test(value.closeIdempotencyKey)) {
+      throw new CheckoutError(CheckoutErrorCode.INVALID_REQUEST);
+    }
+    closeIdempotencyKey = value.closeIdempotencyKey.trim();
+  }
+  return {
+    shiftId: value.shiftId,
+    endingCashCentavos: value.endingCashCentavos as number,
+    ...(notes ? { notes } : {}),
+    ...(closeIdempotencyKey ? { closeIdempotencyKey } : {})
+  };
 }
 
 function timestampIso(value: unknown): string | null {
@@ -140,8 +159,24 @@ export async function closeBentaCashierShift(
   const shiftRef = tenantRef.collection('shifts').doc(request.shiftId);
   const auditRef = tenantRef.collection('audit_log').doc();
   const closedAt = (options.now || admin.firestore.Timestamp.now)();
+
+  // If closeIdempotencyKey provided, check for existing committed summary
+  const idempotencyRef = request.closeIdempotencyKey
+    ? tenantRef.collection('shift_close_idempotency').doc(request.closeIdempotencyKey)
+    : null;
+
   try {
     return await db.runTransaction(async (transaction) => {
+      if (idempotencyRef) {
+        const idempSnap = await transaction.get(idempotencyRef);
+        if (idempSnap.exists) {
+          const stored = idempSnap.data();
+          if (stored && stored.reconciliationSummary) {
+            return stored.reconciliationSummary as ShiftReconciliationSummary;
+          }
+        }
+      }
+
       const [tenantSnap, staffSnap, shiftSnap] = await transaction.getAll(tenantRef, staffRef, shiftRef);
       const staff = assertBentaCashierAuthorization(identity, tenantSnap, staffSnap);
       if (staff.activeShiftId !== request.shiftId) throw new CheckoutError(CheckoutErrorCode.SHIFT_RECOVERY_REQUIRED);
@@ -168,6 +203,13 @@ export async function closeBentaCashierShift(
         totalShiftSales: shift.totalShiftSales, expectedPhysicalCash, endingCash: request.endingCashCentavos,
         discrepancy, createdAt: closedAt
       });
+      if (idempotencyRef) {
+        transaction.set(idempotencyRef, {
+          shiftId: request.shiftId,
+          reconciliationSummary: summary,
+          createdAt: closedAt
+        });
+      }
       return summary;
     });
   } catch (error) {

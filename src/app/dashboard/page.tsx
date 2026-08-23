@@ -18,7 +18,7 @@ export default function TenantDashboardPage() {
 
   // If cashier enters dashboard, ensure default tab is benta (POS)
   React.useEffect(() => {
-    if (isCashier && !['benta', 'profile'].includes(activeTab)) {
+    if (isCashier && !['benta', 'ulat', 'profile'].includes(activeTab)) {
       setActiveTab('benta');
     }
   }, [isCashier, activeTab]);

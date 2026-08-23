@@ -11,9 +11,35 @@ declare global {
 
 declare const self: ServiceWorkerGlobalScope;
 
+const isExternalTracking = (url: URL) =>
+  url.hostname.includes('facebook.com') ||
+  url.hostname.includes('facebook.net') ||
+  url.hostname.includes('google-analytics.com') ||
+  url.hostname.includes('googletagmanager.com') ||
+  url.hostname.includes('connect.facebook.net') ||
+  url.hostname.includes('identitytoolkit.googleapis.com') ||
+  url.hostname.includes('securetoken.googleapis.com');
+
+const filteredDefaultCache: RuntimeCaching[] = defaultCache.map((entry) => ({
+  ...entry,
+  matcher: (options: any) => {
+    const { url } = options;
+    if (isExternalTracking(url)) {
+      return false;
+    }
+    if (typeof entry.matcher === 'function') {
+      return entry.matcher(options);
+    }
+    if (entry.matcher instanceof RegExp) {
+      return entry.matcher.test(url.href);
+    }
+    return false;
+  },
+}));
+
 const customCaching: RuntimeCaching[] = [
   {
-    matcher: ({ request, url }) => request.destination === 'image' || url.hostname.includes('placehold') || url.hostname.includes('unsplash'),
+    matcher: ({ request, url }) => !isExternalTracking(url) && (request.destination === 'image' || url.hostname.includes('placehold') || url.hostname.includes('unsplash')),
     handler: new CacheFirst({
       cacheName: 'katuwang-images',
       plugins: [
@@ -25,7 +51,7 @@ const customCaching: RuntimeCaching[] = [
     }),
   },
   {
-    matcher: ({ request, url }) => request.destination === 'font' || url.hostname.includes('fonts.googleapis.com'),
+    matcher: ({ request, url }) => !isExternalTracking(url) && (request.destination === 'font' || url.hostname.includes('fonts.googleapis.com')),
     handler: new CacheFirst({
       cacheName: 'katuwang-fonts',
       plugins: [
@@ -37,7 +63,7 @@ const customCaching: RuntimeCaching[] = [
     }),
   },
   {
-    matcher: ({ url }) => url.pathname.startsWith('/dashboard'),
+    matcher: ({ url }) => !isExternalTracking(url) && url.pathname.startsWith('/dashboard'),
     handler: new NetworkFirst({
       cacheName: 'katuwang-authenticated-dashboard',
       networkTimeoutSeconds: 5,
@@ -50,7 +76,7 @@ const customCaching: RuntimeCaching[] = [
     }),
   },
   {
-    matcher: ({ url }) => url.pathname.startsWith('/admin') || url.pathname.startsWith('/onboarding'),
+    matcher: ({ url }) => !isExternalTracking(url) && (url.pathname.startsWith('/admin') || url.pathname.startsWith('/onboarding')),
     handler: new StaleWhileRevalidate({
       cacheName: 'katuwang-ui',
       plugins: [
@@ -61,7 +87,7 @@ const customCaching: RuntimeCaching[] = [
       ],
     }),
   },
-  ...defaultCache,
+  ...filteredDefaultCache,
 ];
 
 const serwist = new Serwist({
@@ -73,14 +99,3 @@ const serwist = new Serwist({
 });
 
 serwist.addEventListeners();
-
-// Auto-purge old caches on activate to clear stale cached responses
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((cacheNames) =>
-      Promise.all(
-        cacheNames.map((cacheName) => caches.delete(cacheName))
-      )
-    )
-  );
-});

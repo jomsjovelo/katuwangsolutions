@@ -1,5 +1,4 @@
-import { getAuth } from 'firebase/auth';
-import { app } from '@/firebase/config';
+import { initializeFirebase } from '@/firebase';
 
 export interface OwnerCashierItem {
   id: string;
@@ -15,7 +14,7 @@ export interface OwnerCashierItem {
 }
 
 async function getOwnerAuthToken(): Promise<string> {
-  const auth = getAuth(app);
+  const { auth } = initializeFirebase();
   const currentUser = auth.currentUser;
   if (!currentUser) {
     throw new Error('Kailangan munang mag-log in bilang may-ari ng tindahan.');

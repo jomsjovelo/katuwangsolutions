@@ -3,8 +3,7 @@ import { ExternalLink, Copy, Check, AlertTriangle, MailCheck, Loader2 } from 'lu
 import { getModulePricing, formatPesoWithCents, formatPeso } from '@/lib/pricing';
 import { getActiveAppById } from '@/lib/app-data';
 import { trackPaymentMessengerClick, trackPaymentMarkedSent } from '@/lib/conversion-events';
-import { getAuth } from 'firebase/auth';
-import { app } from '@/firebase/config';
+import { initializeFirebase } from '@/firebase';
 
 const FB_MESSENGER_BASE = 'https://m.me/katuwangsolutions';
 const PAYMENT_NUMBER = '09951665423';
@@ -28,7 +27,7 @@ export function PaymentStep({ data, emailDeliveryFailed, onPaymentSent, trackerS
   const [cooldown, setCooldown] = useState(0);
 
   const handleResendVerification = async () => {
-    const auth = getAuth(app);
+    const { auth } = initializeFirebase();
     const user = auth.currentUser;
     if (!user || isSending || cooldown > 0) return;
 

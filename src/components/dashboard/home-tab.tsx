@@ -320,17 +320,17 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
             </CardContent>
           </Card>
 
-          {/* Estimated Today's Net Profit */}
+          {/* Today's Net Cash Flow (Sales - Purchases) */}
           <Card className="rounded-[24px] border-slate-100 shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="p-4 flex flex-col justify-between h-full space-y-3">
               <div className="flex items-center justify-between">
                 <div className="p-2 rounded-xl bg-teal-50 text-teal-600">
                   <Calculator className="h-4.5 w-4.5" />
                 </div>
-                <span className="text-[9px] font-black uppercase text-slate-400">Net Flow</span>
+                <span className="text-[9px] font-black uppercase text-slate-400">Cash Flow</span>
               </div>
               <div>
-                <p className="text-[11px] font-bold text-slate-500 mb-0.5">Est. Today Net</p>
+                <p className="text-[11px] font-bold text-slate-500 mb-0.5">Net Cash Flow</p>
                 <h3 className={`text-xl font-black tracking-tight ${netProfitPesos >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                   ₱{netProfitPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                 </h3>

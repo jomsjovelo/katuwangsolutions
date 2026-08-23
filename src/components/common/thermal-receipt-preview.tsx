@@ -19,6 +19,107 @@ import { EscPosBluetoothDriver } from '@/lib/hardware/print-driver';
 import { toJpeg } from 'html-to-image';
 import { BluetoothPrinterModal } from './bluetooth-printer-modal';
 
+export function sanitizeReceiptFilename(transactionId?: string): string {
+  const cleanId = (transactionId || `${Date.now()}`).replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `Receipt_${cleanId}.jpg`;
+}
+
+export async function convertDataUrlToJpegBlob(dataUrl: string): Promise<Blob> {
+  if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) {
+    throw new Error('Invalid image data URL.');
+  }
+  const res = await fetch(dataUrl);
+  const blob = await res.blob();
+  if (!blob || blob.size === 0) {
+    throw new Error('Generated receipt JPEG blob is empty.');
+  }
+  // Ensure MIME type
+  if (blob.type !== 'image/jpeg') {
+    return new Blob([blob], { type: 'image/jpeg' });
+  }
+  return blob;
+}
+
+/**
+ * Validates that a Blob is non-empty, has MIME type image/jpeg, and that
+ * its first two bytes are the JPEG SOI marker (0xFF 0xD8).
+ * Throws a descriptive error if any check fails.
+ */
+export async function validateJpegBlob(blob: Blob): Promise<void> {
+  if (!blob || blob.size === 0) {
+    throw new Error('Generated receipt JPEG blob is empty.');
+  }
+  if (blob.type !== 'image/jpeg') {
+    throw new Error(`Expected image/jpeg MIME type but got "${blob.type}".`);
+  }
+  // Read first 2 bytes and verify JPEG SOI marker
+  const header = await blob.slice(0, 2).arrayBuffer();
+  const view = new Uint8Array(header);
+  if (view[0] !== 0xFF || view[1] !== 0xD8) {
+    throw new Error('Blob does not contain valid JPEG data (missing SOI marker).');
+  }
+}
+
+/**
+ * Fallback: conventional <a download> blob URL approach.
+ * Defers revocation to the next event-loop tick via requestAnimationFrame so
+ * the browser can fully consume the URL before it is torn down.
+ */
+export function downloadReceiptBlob(blob: Blob, filename: string): void {
+  if (!blob || blob.size === 0) {
+    throw new Error('Cannot download empty blob.');
+  }
+  if (!filename.endsWith('.jpg')) {
+    throw new Error(`Filename must end with .jpg — got "${filename}".`);
+  }
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = url;
+  // Append, click, then remove before revoking
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  // Defer revocation: requestAnimationFrame fires after the browser handles the
+  // click navigation, ensuring the URL is not revoked prematurely.
+  requestAnimationFrame(() => {
+    URL.revokeObjectURL(url);
+  });
+}
+
+/**
+ * File System Access API write helper.
+ * The caller (component) must:
+ *   1. Call showSaveFilePicker() synchronously in the user gesture handler.
+ *   2. Generate the JPEG blob (async).
+ *   3. Pass the handle + blob here to write and close.
+ *
+ * Separated from the picker call so this function is unit-testable with an
+ * injected writable stream.
+ *
+ * Returns:
+ *  - 'saved'     — file written and stream closed successfully
+ *
+ * Throws on write errors. Callers must catch `AbortError` from the picker
+ * separately and treat it as a user cancellation (not an error).
+ */
+export async function writeJpegToFileHandle(
+  handle: FileSystemFileHandle,
+  blob: Blob
+): Promise<'saved'> {
+  await validateJpegBlob(blob);
+  const writable = await handle.createWritable();
+  try {
+    await writable.write(blob);
+    await writable.close();
+  } catch (err) {
+    // Attempt to abort the stream on failure so the file is not left open
+    try { await writable.abort(); } catch { /* ignore */ }
+    throw err;
+  }
+  return 'saved';
+}
+
 interface ReceiptItem {
   productId?: string;
   name: string;
@@ -75,6 +176,9 @@ export function ThermalReceiptPreview({
   const [btError, setBtError] = useState<string | null>(null);
   const [btSuccess, setBtSuccess] = useState(false);
   const [showPrinterModal, setShowPrinterModal] = useState(false);
+  // isSavingJpg and jpgError must be declared before any conditional return (Rules of Hooks)
+  const [isSavingJpg, setIsSavingJpg] = useState(false);
+  const [jpgError, setJpgError] = useState<string | null>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
 
   if (!open) return null;
@@ -117,26 +221,89 @@ export function ThermalReceiptPreview({
     window.print();
   };
 
-  // Uses browser native print dialog — user can Save as PDF/Image from there
+  // NOTE: isSavingJpg and jpgError are declared above the conditional return (see line ~175)
+
+  // JPEG receipt save handler.
+  // Strategy: File System Access API first (Chromium), blob-URL fallback otherwise.
+  //
+  // CRITICAL: showSaveFilePicker() must be called synchronously in the user
+  // gesture handler before any await, or the browser will refuse it as lacking
+  // user activation. We call it immediately, then generate the JPEG.
   const handleDownloadImage = async () => {
     const receiptElement = document.getElementById('katuwang-print-area');
     if (!receiptElement) return;
-    
+
+    const filename = sanitizeReceiptFilename(transactionId);
+    const hasFSA = typeof (window as any).showSaveFilePicker === 'function';
+
+    // --- File System Access API path (Chromium) ---
+    if (hasFSA) {
+      let fileHandle: FileSystemFileHandle | null = null;
+
+      // Step 1 — Open picker synchronously (within user activation window)
+      try {
+        fileHandle = await (window as any).showSaveFilePicker({
+          suggestedName: filename,
+          types: [{
+            description: 'JPEG Image',
+            accept: { 'image/jpeg': ['.jpg'] }
+          }]
+        }) as FileSystemFileHandle;
+      } catch (err: any) {
+        if (err?.name === 'AbortError') {
+          // User cancelled the picker — not an error
+          return;
+        }
+        // FSA unavailable or denied — fall through to blob fallback
+        console.warn('[RECEIPT_JPG] showSaveFilePicker failed, using fallback:', err?.message);
+        fileHandle = null;
+      }
+
+      if (fileHandle) {
+        // Step 2 — Generate JPEG and write to the chosen file
+        try {
+          setIsSavingJpg(true);
+          setJpgError(null);
+
+          const dataUrl = await toJpeg(receiptElement, {
+            quality: 0.95,
+            backgroundColor: '#ffffff',
+            skipFonts: true
+          });
+          const blob = await convertDataUrlToJpegBlob(dataUrl);
+          await writeJpegToFileHandle(fileHandle, blob);
+          // Success — no error shown, file is in place
+        } catch (err: any) {
+          console.error('[RECEIPT_JPG] FSA write failed:', err);
+          setJpgError(err?.message || 'Failed to save receipt as JPG.');
+        } finally {
+          setIsSavingJpg(false);
+        }
+        return;
+      }
+      // Fall through: fileHandle is null after a non-abort FSA error
+    }
+
+    // --- Blob-URL fallback (all other browsers) ---
     try {
-      const dataUrl = await toJpeg(receiptElement, { 
-        quality: 0.95, 
+      setIsSavingJpg(true);
+      setJpgError(null);
+
+      const dataUrl = await toJpeg(receiptElement, {
+        quality: 0.95,
         backgroundColor: '#ffffff',
-        skipFonts: true 
+        skipFonts: true
       });
-      const link = document.createElement('a');
-      link.download = `Receipt_${transactionId || Date.now()}.jpg`;
-      link.href = dataUrl;
-      link.click();
-    } catch (err) {
-      console.error('Failed to generate JPG', err);
-      alert('Failed to save receipt as JPG.');
+      const blob = await convertDataUrlToJpegBlob(dataUrl);
+      downloadReceiptBlob(blob, filename);
+    } catch (err: any) {
+      console.error('[RECEIPT_JPG] Fallback download failed:', err);
+      setJpgError(err?.message || 'Failed to save receipt as JPG.');
+    } finally {
+      setIsSavingJpg(false);
     }
   };
+
 
   const itemsSubtotalPesos = items.reduce((sum, item) => sum + ((item.price * item.quantity) / 100), 0);
   const displaySubtotalPesos = subtotalAmountPesos || itemsSubtotalPesos;
@@ -312,12 +479,18 @@ export function ThermalReceiptPreview({
 
         </div>
 
-        {/* BT Status Notifications (No-Print) */}
+        {/* BT / JPG Status Notifications (No-Print) */}
         <div className="no-print">
           {btError && (
             <div className="bg-red-950/80 text-red-300 border-y border-red-900/60 p-3 text-[10px] font-bold flex items-center gap-2 animate-in fade-in">
               <AlertCircle className="h-4 w-4 flex-shrink-0 text-red-400" />
               <span className="truncate">{btError}</span>
+            </div>
+          )}
+          {jpgError && (
+            <div className="bg-red-950/80 text-red-300 border-y border-red-900/60 p-3 text-[10px] font-bold flex items-center gap-2 animate-in fade-in">
+              <AlertCircle className="h-4 w-4 flex-shrink-0 text-red-400" />
+              <span className="truncate">{jpgError}</span>
             </div>
           )}
           {btSuccess && (
@@ -373,9 +546,14 @@ export function ThermalReceiptPreview({
             {/* Image Download - Uses html-to-image to generate JPG */}
             <Button 
               onClick={handleDownloadImage}
+              disabled={isSavingJpg}
               className="h-11 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 font-black rounded-xl flex items-center justify-center gap-1.5 text-xs cursor-pointer"
             >
-              <Image className="h-4 w-4" />
+              {isSavingJpg ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Image className="h-4 w-4" />
+              )}
               Save as JPG
             </Button>
 

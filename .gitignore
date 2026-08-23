@@ -47,6 +47,7 @@ next-env.d.ts
 firebase-debug.log
 firestore-debug.log
 .firebase/
+.tools/
 
 # cypress
 cypress/screenshots/

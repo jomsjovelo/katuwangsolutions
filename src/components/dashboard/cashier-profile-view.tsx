@@ -2,8 +2,6 @@
 
 import React, { useState } from 'react';
 import { useUser } from '@/firebase/auth/use-user';
-import { getAuth, signOut } from 'firebase/auth';
-import { app } from '@/firebase/config';
 import { useSecureCashierStore } from '@/store/use-secure-cashier-store';
 import { useTenantStore } from '@/store/use-tenant-store';
 import { executeCashierLogoutCoordinator } from '@/lib/client/secure-benta-cashier-client';

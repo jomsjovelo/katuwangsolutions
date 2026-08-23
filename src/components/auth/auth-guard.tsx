@@ -5,8 +5,8 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useUser } from '@/firebase/auth/use-user';
 import { useTenantStore, Tenant } from '@/store/use-tenant-store';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { getAuth, signOut } from 'firebase/auth';
-import { app } from '@/firebase/config';
+import { signOut } from 'firebase/auth';
+import { initializeFirebase } from '@/firebase';
 import { ShieldAlert, Loader2, AlertCircle, Copy, Check, ExternalLink } from 'lucide-react';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { useFirestore } from '@/firebase/provider';
@@ -14,6 +14,7 @@ import { isValidActiveModuleId } from '@/lib/app-data';
 import { useSecureCashierStore } from '@/store/use-secure-cashier-store';
 import { fetchBentaBootstrap } from '@/lib/client/secure-benta-cashier-client';
 import { selectAuthoritativeTenantId, validateAuthoritativeTenant, UserProfileAuthData } from '@/lib/auth/owner-tenant-authorization';
+import { isMasterAdminClaim } from '@/lib/auth/admin-claim-resolver';
 
 function isPublicPathname(pathname: string): boolean {
   if (!pathname || pathname === '/' || pathname === '/admin' || pathname === '/login' || pathname === '/auth' || pathname === '/auth/action' || pathname === '/__/auth/action') return true;
@@ -132,7 +133,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         } catch (err: any) {
           console.warn('AuthGuard: Cashier bootstrap validation failed, signing out:', err?.message);
           useSecureCashierStore.getState().clearCashierSession();
-          const auth = getAuth(app);
+          const { auth } = initializeFirebase();
           await signOut(auth);
           router.push('/');
         }
@@ -141,7 +142,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
       // B. Normal Account (Owner / Staff / Member / Admin)
       setIsCashierUser(false);
-      const isClaimAdmin = Boolean(claims.admin === true || claims.role === 'admin');
+      useSecureCashierStore.getState().clearCashierSession();
+      const isClaimAdmin = isMasterAdminClaim(claims);
       setIsAdmin(isClaimAdmin);
       if (isClaimAdmin) {
         setChecking(false);
@@ -277,7 +279,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         setChecking(false);
         setLoadingRef.current(false);
       }, (err) => {
-        const auth = getAuth(app);
+        const { auth } = initializeFirebase();
         if (!auth.currentUser) return;
 
         console.error(`AuthGuard: Tenant Fetch Security/Network Error (Attempt ${retryCount + 1}/${MAX_RETRIES})`, err);
@@ -345,7 +347,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           <div className="w-full">
             <button
               onClick={() => {
-                const auth = getAuth(app);
+                const { auth } = initializeFirebase();
                 signOut(auth).then(() => {
                   router.push('/');
                 });
@@ -442,7 +444,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
             </a>
             <button
               onClick={() => {
-                const auth = getAuth(app);
+                const { auth } = initializeFirebase();
                 signOut(auth).then(() => {
                   router.push('/');
                 });
@@ -478,7 +480,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
             </button>
             <button
               onClick={() => {
-                const auth = getAuth(app);
+                const { auth } = initializeFirebase();
                 signOut(auth).then(() => {
                   router.push('/');
                 });

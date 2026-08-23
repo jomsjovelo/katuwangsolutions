@@ -28,6 +28,22 @@ env:
     availability:
       - RUNTIME
 
+  - variable: BENTA_CASHIER_HYBRID_ENABLED
+    value: "true"
+    availability:
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_BENTA_CASHIER_HYBRID_ENABLED
+    value: "true"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: BENTA_CASHIER_OFFLINE_ENABLED
+    value: "false"
+    availability:
+      - RUNTIME
+
   - variable: BENTA_CASHIER_IP_THROTTLE_ENABLED
     value: "false"
     availability:

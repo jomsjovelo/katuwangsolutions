@@ -61,7 +61,7 @@ export function InventoryMovementSheet({ isOpen, onClose, product }: InventoryMo
       <SheetContent side="bottom" className="rounded-t-[32px] p-6 max-h-[85vh] overflow-y-auto">
         <SheetHeader className="text-left pb-4 border-b border-slate-100 space-y-1">
           <div className="flex items-center gap-2">
-            <div className="h-9 w-9 rounded-xl bg-cyan-100 text-cyan-700 flex items-center justify-center font-black">
+            <div className="h-9 w-9 rounded-xl bg-lime-100 text-lime-800 flex items-center justify-center font-black">
               <History className="h-5 w-5" />
             </div>
             <div>
@@ -79,7 +79,7 @@ export function InventoryMovementSheet({ isOpen, onClose, product }: InventoryMo
           {/* Current Stock Banner */}
           <div className="bg-slate-900 text-white rounded-2xl p-4 flex items-center justify-between shadow-sm">
             <div>
-              <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400 block">
+              <span className="text-[10px] font-black uppercase tracking-wider text-lime-400 block">
                 Kasalukuyang Stock
               </span>
               <span className="text-2xl font-black">
@@ -100,7 +100,7 @@ export function InventoryMovementSheet({ isOpen, onClose, product }: InventoryMo
             <div className="divide-y divide-slate-100 border border-slate-100 rounded-2xl overflow-hidden bg-slate-50/50">
               {loading ? (
                 <div className="p-8 text-center text-xs text-slate-400 font-bold flex items-center justify-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-cyan-500" />
+                  <Loader2 className="h-4 w-4 animate-spin text-lime-600" />
                   Kino-kolekta ang kasaysayan ng stock...
                 </div>
               ) : logs.length === 0 ? (

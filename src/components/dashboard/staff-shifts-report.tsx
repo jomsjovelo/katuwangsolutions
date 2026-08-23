@@ -78,17 +78,24 @@ export function StaffShiftsReport() {
                   <div key={shift.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
                     <div className="flex justify-between items-start">
                       <div>
-                        <h4 className="text-sm font-bold text-slate-800">{shift.staffName}</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-bold text-slate-800">
+                            {shift.staffName || (shift as any).username || (shift as any).staffAccountId || 'Cashier'}
+                          </h4>
+                          <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                            {shift.id}
+                          </span>
+                        </div>
                         <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium mt-0.5">
                           <Clock className="h-3 w-3" />
                           <span>
-                            {shift.openedAt?.toDate?.().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                            {shift.openedAt?.toDate?.().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) || (shift.openedAt ? new Date(shift.openedAt as any).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Recently')}
                           </span>
                           {isClosed && (
                             <>
                               <span>→</span>
                               <span>
-                                {shift.closedAt?.toDate?.().toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                {shift.closedAt?.toDate?.().toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' }) || (shift.closedAt ? new Date(shift.closedAt as any).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' }) : '')}
                               </span>
                             </>
                           )}

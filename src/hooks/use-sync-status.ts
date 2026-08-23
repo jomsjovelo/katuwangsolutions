@@ -85,16 +85,16 @@ export function useSyncStatus(tenantId?: string): SyncStatus {
       isOnline,
       isSyncing: false,
       pendingCount: 0,
-      syncMessage: isOnline ? "Live Server Connected" : "Walang Internet: Hindi maaring mag-checkout"
+      syncMessage: isOnline ? "Live Server Connected" : "Offline mode: Cash sales are available and will auto-sync."
     };
   }
 
-  // Resolve status notifications in Tagalog for Owners
-  let syncMessage = "Lahat ng benta ay naka-sync!";
-  if (isSyncing) {
-    syncMessage = `Isinasabay ang ${pendingCount > 0 ? pendingCount : 'iyong'} benta...`;
+  // Resolve status notifications for Owners
+  let syncMessage = "All sales are synced.";
+  if (isSyncing || pendingCount > 0) {
+    syncMessage = `Syncing ${pendingCount > 0 ? pendingCount : ''} transaction${pendingCount > 1 ? 's' : ''}...`;
   } else if (!isOnline) {
-    syncMessage = "Naka-save offline ang bagong benta.";
+    syncMessage = "Offline mode: Some live data may be unavailable.";
   }
 
   return {

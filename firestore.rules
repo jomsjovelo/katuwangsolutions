@@ -22,7 +22,7 @@ service cloud.firestore {
     }
 
     function isTenantOwner(tenantId) {
-      return isAuthenticated() && request.auth.uid == getTenantData(tenantId).ownerUid;
+      return isAuthenticated() && request.auth.token.get('role', '') != 'cashier' && request.auth.uid == getTenantData(tenantId).ownerUid;
     }
 
     /**
@@ -75,7 +75,11 @@ service cloud.firestore {
     // 1. Tenants Collection (The Isolation Shield)
     match /tenants/{tenantId} {
       allow get: if isAuthenticated() && request.auth.token.get('role', '') != 'cashier';
-      allow list: if isMasterAdmin();
+      allow list: if isAuthenticated() && request.auth.token.get('role', '') != 'cashier' && (
+        resource.data.ownerUid == request.auth.uid ||
+        request.auth.uid in resource.data.get('staffUids', []) ||
+        isMasterAdmin()
+      );
       
       allow create: if isAuthenticated() && request.auth.token.get('role', '') != 'cashier' && request.auth.uid == request.resource.data.ownerUid;
       
@@ -148,16 +152,72 @@ service cloud.firestore {
         allow update, delete: if false; // Immutable audit trail
       }
 
-      // 11. Public RSVP Creation
+      // 11. Offline Authorization Grants (Strictly Server-Only; Browser direct access denied)
+      match /offline_grants/{grantId} {
+        allow read, write: if false;
+      }
+
+      // 12. Offline Claims & Owner Resolutions (Strictly Server-Only; Browser direct access denied)
+      match /offline_claims/{claimId} {
+        allow read, write: if false;
+      }
+      match /claim_resolutions/{resolutionId} {
+        allow read, write: if false;
+      }
+
+      // 13. Shift Close Idempotency (Strictly Server-Only; Browser direct access denied)
+      match /shift_close_idempotency/{key} {
+        allow read, write: if false;
+      }
+
+      // 14. Catalog Snapshots (Strictly Server-Only; Browser direct access denied)
+      match /catalog_snapshots/{snapshotId} {
+        allow read, write: if false;
+      }
+
+      // 15. Cashier Sale Intents (B-Hybrid Firestore-Native Queue)
+      match /cashier_sale_intents/{intentId} {
+        // Read: Owner/admin, or the Cashier who created it
+        allow get, list: if isMasterAdmin() || isTenantOwner(tenantId) || (
+          isTenantCashier(tenantId) &&
+          resource.data.authUid == request.auth.uid &&
+          resource.data.staffAccountId == request.auth.token.get('staffAccountId', '')
+        );
+
+        // Create: Strictly Cashier creating their own valid pending cash intent
+        allow create: if isTenantCashier(tenantId) &&
+          request.resource.data.intentId == intentId &&
+          request.resource.data.tenantId == tenantId &&
+          request.resource.data.authUid == request.auth.uid &&
+          request.resource.data.staffAccountId == request.auth.token.get('staffAccountId', '') &&
+          request.resource.data.status == 'pending' &&
+          request.resource.data.tender == 'cash' &&
+          request.resource.data.schemaVersion == 1 &&
+          request.resource.data.items.size() > 0 &&
+          request.resource.data.items.size() <= 100 &&
+          request.resource.data.cashTenderedCentavos >= 0 &&
+          !('finalization' in request.resource.data) &&
+          !('authoritativeSaleId' in request.resource.data);
+
+        // Updates & Deletions: Strictly denied for clients; server Admin SDK only
+        allow update, delete: if false;
+      }
+
+      // 16. Public RSVP Creation
       match /events/{eventId}/guests/{guestId} {
         allow create: if request.resource.data.keys().size() <= 15;
       }
 
-      // 12. Catch-all Tenant Subcollections (Strict isolation: Owner/Staff only, Cashier Denied)
+      // 17. Catch-all Tenant Subcollections (Strict isolation: Owner/Staff only, Cashier Denied)
       match /{subcollection}/{document=**} {
         allow read, create, update: if hasTenantAccess(tenantId);
         allow delete: if isSuperAdmin() || (isAuthenticated() && request.auth.uid == getTenantData(tenantId).ownerUid);
       }
+    }
+
+    // WebAuthn Credentials (Strictly Server-Only; Browser direct read/write/list/delete denied)
+    match /webauthn_credentials/{credentialIdHash} {
+      allow read, write: if false;
     }
 
     // 13. System Collection (Publicly readable for maintenance mode & pricing configs)

@@ -20,6 +20,7 @@ const FreshTallyDashboard = dynamic(() => import('@/components/dashboard/retail/
 const BuildStackDashboard = dynamic(() => import('@/components/dashboard/retail/build-stack-dashboard').then(m => m.BuildStackDashboard));
 const FiveSixDashboard = dynamic(() => import('@/components/dashboard/five-six-dashboard').then(m => m.FiveSixDashboard));
 const ReportsTab = dynamic(() => import('@/components/dashboard/reports-tab').then(m => m.ReportsTab));
+const CashierShiftReport = dynamic(() => import('@/components/dashboard/retail/cashier-shift-report').then(m => m.CashierShiftReport));
 const ServiceDashboard = dynamic(() => import('@/components/dashboard/service/service-dashboard').then(m => m.ServiceDashboard));
 const LedgerDashboard = dynamic(() => import('@/components/dashboard/finance/ledger-dashboard').then(m => m.LedgerDashboard));
 const PayrollDashboard = dynamic(() => import('@/components/dashboard/finance/payroll-dashboard').then(m => m.PayrollDashboard));
@@ -332,20 +333,22 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
   }
 
   // ISOLATED SECURE CASHIER VIEW
-  // Only mounts BentaDashboard (POS) or CashierProfileView (Shift/Logout)
+  // Only mounts BentaDashboard (POS), CashierShiftReport (Restricted Shift Report), or CashierProfileView (Shift/Logout)
   // Strictly avoids mounting Owner Home, Stock, Reports, Referrals, and Owner Profile
   if (isCashier) {
     return (
       <ShiftGate activeTab={activeTab} onGoToProfile={() => onTabChange?.('profile')}>
         <KatuwangErrorBoundary>
           {!isOnline && (
-            <div className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 sticky top-0 z-50 bg-destructive text-destructive-foreground">
+            <div className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 sticky top-0 z-50 bg-lime-700 text-lime-50 shadow-sm border-b border-lime-800">
               <WifiOff className="h-4 w-4 shrink-0" />
               <span>{syncMessage}</span>
             </div>
           )}
           {activeTab === 'profile' ? (
             <CashierProfileView />
+          ) : activeTab === 'ulat' ? (
+            <CashierShiftReport />
           ) : (
             <BentaDashboard />
           )}
@@ -360,7 +363,7 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
         {(!isOnline || pendingCount > 0) && (
           <div className={cn(
             "px-4 py-2.5 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 sticky top-0 z-50 animate-in slide-in-from-top",
-            isOnline && pendingCount > 0 ? "bg-amber-500 text-white shadow-md" : "bg-destructive text-destructive-foreground"
+            isOnline && pendingCount > 0 ? "bg-amber-500 text-white shadow-md" : "bg-amber-600 text-amber-50 shadow-sm border-b border-amber-700"
           )}>
             {isOnline ? <TrendingUp className="h-4 w-4 shrink-0 animate-bounce" /> : <WifiOff className="h-4 w-4 shrink-0" />}
             <span>{syncMessage}</span>
@@ -426,7 +429,9 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
             </div>
 
             <div className={activeTab === 'ulat' ? 'block' : 'hidden'}>
-              {profile?.role === 'staff' || isCashier ? (
+              {isCashier ? (
+                <CashierShiftReport />
+              ) : profile?.role === 'staff' ? (
                 <div className="flex-1 flex items-center justify-center p-6 bg-slate-50 min-h-screen">
                   <div className="text-center space-y-4 max-w-xs bg-white rounded-3xl p-6 border border-slate-200 shadow-sm animate-in fade-in">
                     <div className="h-12 w-12 rounded-full bg-amber-50 mx-auto flex items-center justify-center">

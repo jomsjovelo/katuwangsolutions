@@ -20,6 +20,8 @@ export interface SecureCashierState {
   activeShift: SanitizedBootstrapShift | null;
   products: SanitizedBootstrapProduct[];
   isCashierAuthenticated: boolean;
+  isLocalLocked: boolean;
+  lastBackgroundedAt: number | null;
   shiftRecoveryRequired: boolean;
   lastReceipt: CheckoutReceipt | null;
   reconciliationSummary: ShiftReconciliationSummary | null;
@@ -32,8 +34,15 @@ export interface SecureCashierState {
   checkoutKey: string | null;
   
   // Actions
+  setOnlineBootstrap: (bootstrap: BentaCashierBootstrapResponse) => void;
+  setRestoredOfflineBootstrap: (bootstrap: BentaCashierBootstrapResponse) => void;
   setBootstrap: (bootstrap: BentaCashierBootstrapResponse) => void;
   setActiveShift: (shift: SanitizedBootstrapShift | null) => void;
+  unlockViaOnlineAuth: () => void;
+  unlockViaWebAuthn: (assertionResponse: any, challengeBytes: Uint8Array, installationId: string) => Promise<{ success: boolean; error?: string }>;
+  lockCashierSession: () => void;
+  setBackgroundedAt: (timestamp: number | null) => void;
+  checkInactivityLock: () => boolean;
   setShiftRecoveryRequired: (required: boolean) => void;
   setLastReceipt: (receipt: CheckoutReceipt | null) => void;
   setReconciliationSummary: (summary: ShiftReconciliationSummary | null) => void;
@@ -62,6 +71,8 @@ export const useSecureCashierStore = create<SecureCashierState>((set, get) => ({
   activeShift: null,
   products: [],
   isCashierAuthenticated: false,
+  isLocalLocked: true,
+  lastBackgroundedAt: null,
   shiftRecoveryRequired: false,
   lastReceipt: null,
   reconciliationSummary: null,
@@ -69,14 +80,73 @@ export const useSecureCashierStore = create<SecureCashierState>((set, get) => ({
   shiftOpenKey: null,
   checkoutKey: null,
 
-  setBootstrap: (bootstrap) => {
+  setOnlineBootstrap: (bootstrap) => {
     set({
       bootstrap,
       activeShift: bootstrap.currentShift || null,
       products: bootstrap.products || [],
       isCashierAuthenticated: true,
+      isLocalLocked: false, // Live online authentication enters unlocked state
       shiftRecoveryRequired: false
     });
+  },
+
+  setRestoredOfflineBootstrap: (bootstrap) => {
+    set({
+      bootstrap,
+      activeShift: bootstrap.currentShift || null,
+      products: bootstrap.products || [],
+      isCashierAuthenticated: true,
+      isLocalLocked: true, // Restored offline session starts locked
+      shiftRecoveryRequired: false
+    });
+  },
+
+  setBootstrap: (bootstrap) => {
+    // Default setBootstrap treats live fetched bootstrap as online (unlocked)
+    get().setOnlineBootstrap(bootstrap);
+  },
+
+  unlockViaOnlineAuth: () => {
+    set({ isCashierAuthenticated: true, isLocalLocked: false });
+  },
+
+  lockCashierSession: () => {
+    set({ isLocalLocked: true });
+  },
+
+  setBackgroundedAt: (timestamp) => {
+    set({ lastBackgroundedAt: timestamp });
+  },
+
+  checkInactivityLock: () => {
+    const lastBg = get().lastBackgroundedAt;
+    if (lastBg && Date.now() - lastBg >= 15 * 60 * 1000) {
+      set({ isLocalLocked: true });
+      return true;
+    }
+    return false;
+  },
+
+  unlockViaWebAuthn: async (assertionResponse, challengeBytes, installationId) => {
+    const bootstrap = get().bootstrap;
+    if (!bootstrap) {
+      return { success: false, error: 'No bootstrap session found.' };
+    }
+
+    const { getCashierOfflineManager } = await import('@/lib/client/cashier-offline-manager');
+    const result = await getCashierOfflineManager().unlockViaWebAuthn({
+      assertionResponse,
+      challengeBytes,
+      tenantId: bootstrap.tenantId,
+      staffAccountId: bootstrap.staffAccountId,
+      installationId
+    });
+
+    if (result.success) {
+      set({ isLocalLocked: false, lastBackgroundedAt: null });
+    }
+    return result;
   },
 
   setActiveShift: (shift) => {

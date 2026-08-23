@@ -39,6 +39,11 @@
     "@radix-ui/react-toast": "^1.2.6",
     "@radix-ui/react-tooltip": "^1.1.8",
     "@serwist/next": "^9.5.11",
+    "@simplewebauthn/server": "^13.0.0",
+    "@types/node": "^20",
+    "@types/nodemailer": "^8.0.1",
+    "@types/react": "^19.2.1",
+    "@types/react-dom": "^19.2.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
@@ -54,6 +59,7 @@
     "next": "^15.2.6",
     "nodemailer": "^9.0.3",
     "patch-package": "^8.0.0",
+    "postcss": "^8",
     "react": "^19.2.1",
     "react-day-picker": "^9.11.3",
     "react-dom": "^19.2.1",
@@ -62,16 +68,11 @@
     "recharts": "^2.15.1",
     "serwist": "^9.5.11",
     "tailwind-merge": "^3.0.1",
+    "tailwindcss": "^3.4.1",
     "tailwindcss-animate": "^1.0.7",
-    "zod": "^3.24.2",
-    "zustand": "^5.0.13",
     "typescript": "^5",
-    "@types/node": "^20",
-    "@types/nodemailer": "^8.0.1",
-    "@types/react": "^19.2.1",
-    "@types/react-dom": "^19.2.1",
-    "postcss": "^8",
-    "tailwindcss": "^3.4.1"
+    "zod": "^3.24.2",
+    "zustand": "^5.0.13"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^3.0.4",
@@ -81,7 +82,7 @@
     "esbuild": "^0.28.0",
     "eslint": "^8.57.0",
     "eslint-config-next": "^15.2.6",
-    "firebase-tools": "^13.31.0",
+    "firebase-tools": "^13.35.1",
     "genkit-cli": "^1.28.0"
   },
   "overrides": {

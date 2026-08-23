@@ -24,13 +24,20 @@ function RoutePageViewTracker() {
 }
 
 export function MetaPixel() {
+  const isLocalOrEmulator =
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.hostname.startsWith('192.168.') ||
+      process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true');
+
   useEffect(() => {
-    if (PIXEL_ID) {
+    if (PIXEL_ID && !isLocalOrEmulator) {
       flushMetaEventQueue();
     }
-  }, []);
+  }, [isLocalOrEmulator]);
 
-  if (!PIXEL_ID) {
+  if (!PIXEL_ID || isLocalOrEmulator) {
     return null;
   }
 

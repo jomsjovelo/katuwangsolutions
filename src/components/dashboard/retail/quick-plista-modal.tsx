@@ -110,9 +110,9 @@ export function QuickPlistaModal({
             </div>
           </div>
 
-          <div className="bg-cyan-50 border border-cyan-200 rounded-2xl p-3 flex items-center justify-between">
-            <span className="text-xs font-bold text-cyan-900">Total na Ipapalista:</span>
-            <span className="text-lg font-black text-cyan-800">₱{totalAmountPesos.toFixed(2)}</span>
+          <div className="bg-lime-50 border border-lime-200 rounded-2xl p-3 flex items-center justify-between">
+            <span className="text-xs font-bold text-lime-900">Total na Ipapalista:</span>
+            <span className="text-lg font-black text-lime-800">₱{totalAmountPesos.toFixed(2)}</span>
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

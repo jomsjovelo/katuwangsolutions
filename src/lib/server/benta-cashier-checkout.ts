@@ -87,12 +87,25 @@ export function checkoutIdempotencyDocumentId(staffAccountId: string, idempotenc
   return createHash('sha256').update(`${staffAccountId}:${idempotencyKey}`, 'utf8').digest('hex');
 }
 
-export function checkoutFingerprint(staffAccountId: string, request: CheckoutRequest): string {
+export function checkoutFingerprint(
+  staffAccountId: string,
+  request: {
+    moduleId: string;
+    shiftId: string;
+    items: Array<{ productId: string; quantity: number }>;
+    paymentMethod: string;
+    paymentReference?: string;
+  }
+): string {
+  const normalizedItems = [...request.items]
+    .map((item) => ({ productId: item.productId, quantity: item.quantity }))
+    .sort((a, b) => a.productId.localeCompare(b.productId));
+
   const canonical = {
     actor: staffAccountId,
     module: request.moduleId,
     shift: request.shiftId,
-    items: [...request.items].sort((a, b) => a.productId.localeCompare(b.productId)),
+    items: normalizedItems,
     paymentMethod: request.paymentMethod,
     paymentReference: request.paymentReference || ''
   };
@@ -130,7 +143,18 @@ export async function completeBentaCashierCheckout(
   const staffRef = tenantRef.collection('staff_accounts').doc(staffAccountId);
   const shiftRef = tenantRef.collection('shifts').doc(request.shiftId);
   const idempotencyRef = tenantRef.collection('cashier_checkout_idempotency').doc(checkoutIdempotencyDocumentId(staffAccountId, request.idempotencyKey));
-  const accountRef = tenantRef.collection('accounts').doc('master-cash');
+  const targetAccountId = request.paymentMethod === 'gcash'
+    ? 'gcash-settlement'
+    : request.paymentMethod === 'maya'
+    ? 'maya-settlement'
+    : 'master-cash';
+  const targetAccountName = request.paymentMethod === 'gcash'
+    ? 'GCash Settlement'
+    : request.paymentMethod === 'maya'
+    ? 'Maya Settlement'
+    : 'Main Cash Register';
+
+  const accountRef = tenantRef.collection('accounts').doc(targetAccountId);
   const productRefs = [...request.items].sort((a, b) => a.productId.localeCompare(b.productId)).map((item) => tenantRef.collection('products').doc(item.productId));
   const saleRef = tenantRef.collection('sales').doc();
   const ledgerRef = tenantRef.collection('transactions').doc();
@@ -205,11 +229,11 @@ export async function completeBentaCashierCheckout(
       transaction.update(shiftRef, { ...nextShiftAggregates, updatedAt: committedAt });
       transaction.set(accountRef, accountSnap.exists
         ? { balance: newBalance, updatedAt: committedAt }
-        : { id: 'master-cash', tenantId, name: 'Main Cash Register', type: 'asset', balance: newBalance, isActive: true, createdAt: committedAt, updatedAt: committedAt },
+        : { id: targetAccountId, tenantId, name: targetAccountName, type: 'asset', balance: newBalance, isActive: true, createdAt: committedAt, updatedAt: committedAt },
         { merge: true });
       transaction.create(ledgerRef, {
-        id: ledgerRef.id, tenantId, accountId: 'master-cash', amount: subtotal, type: 'income', category: 'Sales',
-        description: 'Benta Snap cashier sale', saleId: saleRef.id, shiftId: request.shiftId, actorId: `staff_${staffAccountId}`,
+        id: ledgerRef.id, tenantId, accountId: targetAccountId, amount: subtotal, type: 'income', category: 'Sales',
+        description: 'Benta Snap Cashier Sale', saleId: saleRef.id, shiftId: request.shiftId, actorId: `staff_${staffAccountId}`,
         paymentMethod: request.paymentMethod, ...paymentFields, date: committedAt, createdAt: committedAt
       });
       transaction.create(auditRef, {

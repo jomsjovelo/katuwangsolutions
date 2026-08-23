@@ -16,14 +16,14 @@ export interface ModuleTheme {
 export const MODULE_THEMES: Record<string, ModuleTheme> = {
   // 1. Retail
   'benta-snap': {
-    primary: '#06B6D4',
-    primaryBg: 'from-cyan-500 to-cyan-600',
-    primaryText: 'text-cyan-600',
-    primaryBorder: 'border-cyan-200',
-    secondary: '#FACC15',
-    secondaryBg: 'bg-yellow-400 hover:bg-yellow-500',
+    primary: '#65A30D',
+    primaryBg: 'from-lime-600 to-lime-700',
+    primaryText: 'text-lime-700',
+    primaryBorder: 'border-lime-300',
+    secondary: '#BEF264',
+    secondaryBg: 'bg-lime-400 hover:bg-lime-500 text-slate-900',
     secondaryText: 'text-slate-900',
-    glowClass: 'joy-glow',
+    glowClass: 'joy-glow-lime',
     name: 'Benta Snap',
     tagline: 'Mabilis na retail at benta terminal'
   },

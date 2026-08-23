@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@/firebase/auth/use-user';
-import { getAuth, signOut } from 'firebase/auth';
+import { signOut } from 'firebase/auth';
+import { initializeFirebase } from '@/firebase';
 import { useFirestore } from '@/firebase/provider';
 import { useTenant } from '@/app/lib/tenant-context';
 import { usePWAInstall } from '@/hooks/use-pwa-install';
@@ -18,7 +19,6 @@ import {
   getDoc,
   getDocs
 } from 'firebase/firestore';
-import { app } from '@/firebase/config';
 import { sendStaffInvite, removeStaffMember, regenerateBusinessCode } from '@/firebase/firestore/staff-actions';
 import {
   listOwnerCashiers,
@@ -556,7 +556,7 @@ export function ProfileTab() {
       }
 
       try {
-        const auth = getAuth(app);
+        const { auth } = initializeFirebase();
         await signOut(auth);
       } catch (authErr) {
         console.warn('Auth signOut error after server revocation:', authErr);

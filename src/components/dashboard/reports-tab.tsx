@@ -36,18 +36,38 @@ function RetailMetrics({ selectedDate }: { selectedDate: Date | { start: Date, e
   const { sales, loading } = useSales(selectedDate);
   const totalVolume = sales.length;
   
-  const actualCostPesos = sales.reduce((acc, tx: any) => {
-    if (!tx.items || !Array.isArray(tx.items)) return acc;
-    const txCost = tx.items.reduce((itemAcc: number, item: any) => {
-      const itemCost = item.costPrice ? (item.costPrice / 100) * item.quantity : 0;
-      return itemAcc + itemCost;
-    }, 0);
-    return acc + txCost;
-  }, 0);
+  let totalCogsCentavos = 0;
+  let missingCostSalesCount = 0;
 
+  sales.forEach((tx: any) => {
+    let saleMissing = false;
+    if (!tx.items || !Array.isArray(tx.items) || tx.items.length === 0) {
+      saleMissing = true;
+    } else {
+      tx.items.forEach((item: any) => {
+        const qty = item.quantity;
+        const costPrice = item.costPrice;
+        if (
+          Number.isSafeInteger(qty) &&
+          qty > 0 &&
+          costPrice !== undefined &&
+          costPrice !== null &&
+          Number.isSafeInteger(costPrice) &&
+          costPrice >= 0
+        ) {
+          totalCogsCentavos += costPrice * qty;
+        } else {
+          saleMissing = true;
+        }
+      });
+    }
+    if (saleMissing) missingCostSalesCount++;
+  });
+
+  const actualCostPesos = totalCogsCentavos / 100;
   const grossSalesPesos = sales.reduce((acc, tx) => acc + ((tx.totalAmount || 0) / 100), 0);
-  const hasCostData = actualCostPesos > 0;
-  const grossMarginPesos = hasCostData ? grossSalesPesos - actualCostPesos : null;
+  const isComplete = missingCostSalesCount === 0;
+  const grossMarginPesos = grossSalesPesos - actualCostPesos;
 
   return (
     <>
@@ -65,13 +85,26 @@ function RetailMetrics({ selectedDate }: { selectedDate: Date | { start: Date, e
 
       <Card className="shadow-none border border-slate-200/60 rounded-[28px] overflow-hidden bg-white">
         <CardHeader className="p-4 pb-0">
-          <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Kita (Gross Margin)</span>
-          <h4 className="text-xl font-headline font-black text-slate-800 mt-1">
-            {loading ? "..." : grossMarginPesos !== null ? `₱${grossMarginPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}` : "N/A"}
+          <div className="flex justify-between items-center">
+            <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Kita (Gross Profit)</span>
+            {!isComplete && sales.length > 0 && (
+              <Badge variant="outline" className="text-[7px] font-black uppercase bg-amber-50 text-amber-700 border-amber-200 px-1.5 py-0.5 rounded-full">
+                Estimated
+              </Badge>
+            )}
+          </div>
+          <h4 className="text-xl font-headline font-black text-emerald-600 mt-1">
+            {loading ? "..." : `₱${grossMarginPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`}
           </h4>
         </CardHeader>
         <CardContent className="p-4 pt-1.5 text-[8px] font-bold text-slate-400 uppercase border-t border-slate-50 bg-slate-50/40 mt-3 flex justify-between items-center">
-          <span>{hasCostData ? "Based on actual item costs" : "Cost data unavailable"}</span>
+          <span>
+            {sales.length === 0
+              ? "No sales in selected period"
+              : isComplete
+              ? `COGS: ₱${actualCostPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
+              : `${missingCostSalesCount} sale${missingCostSalesCount > 1 ? 's' : ''} missing cost data`}
+          </span>
         </CardContent>
       </Card>
     </>
@@ -465,6 +498,44 @@ export function ReportsTab() {
   const grossIncomePesos = salesIncomePesos;
   const totalExpensesPesos = expenseTxs.reduce((acc, curr) => acc + (curr.totalPesos || 0), 0);
 
+  // Canonical historical COGS and Gross Profit calculation
+  let totalCogsCentavos = 0;
+  let missingCostItemsCount = 0;
+  let missingCostSalesCount = 0;
+
+  sales.forEach((sale: any) => {
+    let saleHasMissingCost = false;
+    if (sale.items && Array.isArray(sale.items) && sale.items.length > 0) {
+      sale.items.forEach((item: any) => {
+        const qty = item.quantity;
+        const costPrice = item.costPrice;
+        if (
+          !Number.isSafeInteger(qty) ||
+          qty <= 0 ||
+          costPrice === undefined ||
+          costPrice === null ||
+          !Number.isSafeInteger(costPrice) ||
+          costPrice < 0
+        ) {
+          missingCostItemsCount++;
+          saleHasMissingCost = true;
+        } else {
+          totalCogsCentavos += costPrice * qty;
+        }
+      });
+    } else {
+      saleHasMissingCost = true;
+    }
+    if (saleHasMissingCost) {
+      missingCostSalesCount++;
+    }
+  });
+
+  const totalCogsPesos = totalCogsCentavos / 100;
+  const isProfitComplete = sales.length === 0 || missingCostSalesCount === 0;
+  const grossProfitPesos = grossIncomePesos - totalCogsPesos;
+  const netProfitPesos = grossProfitPesos - totalExpensesPesos;
+
   // Group revenue by category
   const revenueByCategory = incomeTxs.reduce((acc, tx) => {
     const cat = tx.category || 'General';
@@ -799,19 +870,36 @@ export function ReportsTab() {
              )}
 
              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <span className="text-xs font-bold text-slate-500">Gross Revenue</span>
-               <span className="text-sm font-black text-slate-800">₱{grossIncomePesos.toLocaleString('en-PH', {minimumFractionDigits: 2})}</span>
-             </div>
-             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-               <span className="text-xs font-bold text-slate-500">Total Expenses</span>
-               <span className="text-sm font-black text-rose-600">- ₱{totalExpensesPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
-             </div>
-             <div className="flex justify-between items-center pt-1">
-               <span className="text-xs font-black uppercase tracking-widest text-slate-800">Net Profit</span>
-               <span className={cn("text-lg font-headline font-black", (grossIncomePesos - totalExpensesPesos) >= 0 ? "text-emerald-600" : "text-rose-600")}>
-                 {((grossIncomePesos - totalExpensesPesos) >= 0 ? "+" : "")} ₱{(grossIncomePesos - totalExpensesPesos).toLocaleString('en-PH', {minimumFractionDigits: 2})}
-               </span>
-             </div>
+                <span className="text-xs font-bold text-slate-500">Gross Revenue</span>
+                <span className="text-sm font-black text-slate-800">₱{grossIncomePesos.toLocaleString('en-PH', {minimumFractionDigits: 2})}</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <span className="text-xs font-bold text-slate-500">Cost of Goods Sold (COGS)</span>
+                <span className="text-sm font-black text-slate-700">- ₱{totalCogsPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <span className="text-xs font-bold text-slate-500">Gross Profit (Revenue - COGS)</span>
+                <span className={cn("text-sm font-black", grossProfitPesos >= 0 ? "text-emerald-600" : "text-rose-600")}>
+                  ₱{grossProfitPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <span className="text-xs font-bold text-slate-500">Operating Expenses</span>
+                <span className="text-sm font-black text-rose-600">- ₱{totalExpensesPesos.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex justify-between items-center pt-1">
+                <div>
+                  <span className="text-xs font-black uppercase tracking-widest text-slate-800">Net Profit</span>
+                  {!isProfitComplete && (
+                    <span className="block text-[9px] font-semibold text-amber-600">
+                      Estimated ({missingCostSalesCount} sale{missingCostSalesCount > 1 ? 's' : ''} / {missingCostItemsCount} item{missingCostItemsCount > 1 ? 's' : ''} missing cost snapshot)
+                    </span>
+                  )}
+                </div>
+                <span className={cn("text-lg font-headline font-black", netProfitPesos >= 0 ? "text-emerald-600" : "text-rose-600")}>
+                  {netProfitPesos >= 0 ? "+" : ""} ₱{netProfitPesos.toLocaleString('en-PH', {minimumFractionDigits: 2})}
+                </span>
+              </div>
           </CardContent>
         </Card>
 

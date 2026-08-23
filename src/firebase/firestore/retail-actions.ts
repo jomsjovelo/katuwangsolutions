@@ -119,11 +119,22 @@ export async function processCheckout(
       };
     }
 
-    // 1.5 Read Phase: Master Cash Ledger (All reads MUST happen before any write)
-    let masterAccountSnap = null;
-    const masterAccountRef = doc(db, 'tenants', tenantId, 'accounts', 'master-cash');
+    // 1.5 Read Phase: Payment Account Ledger (All reads MUST happen before any write)
+    const targetAccountId = paymentMethod === 'gcash'
+      ? 'gcash-settlement'
+      : paymentMethod === 'maya'
+      ? 'maya-settlement'
+      : 'master-cash';
+    const targetAccountName = paymentMethod === 'gcash'
+      ? 'GCash Settlement'
+      : paymentMethod === 'maya'
+      ? 'Maya Settlement'
+      : 'Main Cash Register';
+
+    let targetAccountSnap = null;
+    const targetAccountRef = doc(db, 'tenants', tenantId, 'accounts', targetAccountId);
     if (secureTotalAmount > 0 && paymentMethod !== 'utang') {
-      masterAccountSnap = await transaction.get(masterAccountRef);
+      targetAccountSnap = await transaction.get(targetAccountRef);
     }
 
     // 2. Write Phase: Execute all pending updates (parent wholesale boxes + tingi products)
@@ -183,13 +194,13 @@ export async function processCheckout(
 
     transaction.set(newSaleRef, saleRecord);
 
-    // ERP INTEGRATION: Deposit the income into the Master Cash Ledger
-    if (finalAmount > 0 && paymentMethod !== 'utang' && masterAccountSnap) {
-      if (!masterAccountSnap.exists()) {
-        transaction.set(masterAccountRef, {
-          id: 'master-cash',
+    // ERP INTEGRATION: Deposit the income into the appropriate Payment Account Ledger
+    if (finalAmount > 0 && paymentMethod !== 'utang' && targetAccountSnap) {
+      if (!targetAccountSnap.exists()) {
+        transaction.set(targetAccountRef, {
+          id: targetAccountId,
           tenantId,
-          name: 'Main Cash Register',
+          name: targetAccountName,
           type: 'asset',
           balance: finalAmount,
           isActive: true,
@@ -197,7 +208,7 @@ export async function processCheckout(
           updatedAt: serverTimestamp()
         });
       } else {
-        transaction.set(masterAccountRef, {
+        transaction.set(targetAccountRef, {
           balance: increment(finalAmount),
           updatedAt: serverTimestamp()
         }, { merge: true });
@@ -208,7 +219,7 @@ export async function processCheckout(
       transaction.set(newTxRef, {
         id: newTxRef.id,
         tenantId,
-        accountId: 'master-cash',
+        accountId: targetAccountId,
         amount: finalAmount,
         type: 'income',
         category: 'Sales',

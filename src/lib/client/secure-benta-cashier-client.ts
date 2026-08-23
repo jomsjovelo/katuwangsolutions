@@ -47,6 +47,22 @@ export interface SanitizedBootstrapShift {
   openedAt: string;
 }
 
+export interface ClientSafeCatalogSnapshot {
+  snapshotId: string;
+  catalogDigest: string;
+  productCount: number;
+  products: Record<string, {
+    id: string;
+    name: string;
+    salePriceCentavos: number;
+    unit: string;
+    category?: string;
+    sku?: string;
+    barcode?: string;
+    isActive: true;
+  }>;
+}
+
 export interface BentaCashierBootstrapResponse {
   tenantId: string;
   tenantDisplayName: string;
@@ -55,6 +71,12 @@ export interface BentaCashierBootstrapResponse {
   cashierDisplayName: string;
   currentShift: SanitizedBootstrapShift | null;
   products: SanitizedBootstrapProduct[];
+  offlineAuthority?: {
+    grant: any;
+    snapshot: ClientSafeCatalogSnapshot;
+    stockBaseline: Record<string, number>;
+    stockCapturedAtIso: string;
+  };
 }
 
 export interface SanitizedShiftOpenResult {
@@ -150,11 +172,24 @@ export async function fetchBentaBootstrap(
   idToken: string,
   fetchFn: typeof fetch = fetch
 ): Promise<BentaCashierBootstrapResponse> {
+  let installationId: string | null = null;
+  try {
+    const { getJournalDB } = await import('../offline/journal-db');
+    installationId = await getJournalDB().getOrCreateInstallationId();
+  } catch {
+    installationId = null;
+  }
+
+  const headers: Record<string, string> = {
+    'Authorization': `Bearer ${idToken}`
+  };
+  if (installationId && typeof installationId === 'string' && installationId.trim().length > 0) {
+    headers['x-installation-id'] = installationId.trim();
+  }
+
   const response = await fetchFn('/api/cashier/benta-bootstrap', {
     method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${idToken}`
-    }
+    headers
   });
 
   const data = await response.json();
@@ -163,6 +198,24 @@ export async function fetchBentaBootstrap(
     error.status = response.status;
     error.category = data?.category;
     throw error;
+  }
+
+  // Cache offline grant and catalog snapshot in IndexedDB with exact bootstrap metadata
+  if (data.offlineAuthority?.grant && data.offlineAuthority?.snapshot) {
+    try {
+      const { getJournalDB } = await import('../offline/journal-db');
+      await getJournalDB().saveAuthorityContext(
+        data.offlineAuthority.grant,
+        data.offlineAuthority.snapshot,
+        {
+          tenantDisplayName: data.tenantDisplayName,
+          cashierDisplayName: data.cashierDisplayName,
+          currentShift: data.currentShift
+        }
+      );
+    } catch (cacheErr) {
+      console.warn('[OFFLINE_BOOTSTRAP] Failed caching authority context in IndexedDB:', cacheErr);
+    }
   }
 
   return data;
@@ -352,9 +405,9 @@ export async function executeCashierLogoutCoordinator(
 
   // 2. Complete Firebase client sign-out using genuine default or injected handler
   const signOutClient = params.firebaseSignOutFn || (async () => {
-    const { getAuth, signOut } = await import('firebase/auth');
-    const { app } = await import('@/firebase/config');
-    await signOut(getAuth(app));
+    const { signOut } = await import('firebase/auth');
+    const { initializeFirebase } = await import('@/firebase');
+    await signOut(initializeFirebase().auth);
   });
 
   try {
@@ -368,5 +421,59 @@ export async function executeCashierLogoutCoordinator(
 
   // 4. Safe navigation to login
   params.onRedirect();
+}
+
+/**
+ * 9. Fetch WebAuthn Registration Options
+ */
+export async function fetchWebAuthnRegistrationOptions(
+  idToken: string,
+  installationId: string
+): Promise<{ options: any; deviceNameSuggested: string }> {
+  const response = await fetch('/api/cashier/webauthn/register-options', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${idToken}`,
+      'x-installation-id': installationId
+    }
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch WebAuthn registration options.');
+  }
+
+  return data;
+}
+
+/**
+ * 10. Submit WebAuthn Registration Verification
+ */
+export async function submitWebAuthnRegistrationVerify(
+  idToken: string,
+  installationId: string,
+  registrationResponse: any,
+  deviceName: string
+): Promise<{ success: boolean; trustedDevice: any }> {
+  const response = await fetch('/api/cashier/webauthn/register-verify', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${idToken}`,
+      'x-installation-id': installationId
+    },
+    body: JSON.stringify({
+      response: registrationResponse,
+      deviceName
+    })
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to verify WebAuthn registration.');
+  }
+
+  return data;
 }
 

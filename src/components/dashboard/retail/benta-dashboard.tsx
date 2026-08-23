@@ -26,6 +26,11 @@ import { DiscountInput } from '@/components/ui/discount-input';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
 import { useSecureCashierStore } from '@/store/use-secure-cashier-store';
 import { fetchBentaBootstrap, checkoutBenta, CheckoutPaymentMethod } from '@/lib/client/secure-benta-cashier-client';
+import { getJournalDB } from '@/lib/offline/journal-db';
+import { CashierOfflineSyncCoordinator } from '@/lib/client/cashier-offline-sync-coordinator';
+import { getCashierOfflineManager } from '@/lib/client/cashier-offline-manager';
+import { CashierLockedOverlay } from './cashier-locked-overlay';
+import { CashierWebAuthnDialog } from './cashier-webauthn-dialog';
 import {
   Sheet,
   SheetContent,
@@ -463,12 +468,124 @@ function BentaDashboardContent() {
     }
   };
 
+  const syncCoordinatorRef = React.useRef<CashierOfflineSyncCoordinator | null>(null);
+  // Synchronous checkout submission lock: prevents duplicate financial commits
+  // even if React state updates race. Set before any async work, released on
+  // defined result (success or terminal error).
+  const checkoutLockRef = React.useRef(false);
+
+  useEffect(() => {
+    const isHybridEnabled = process.env.NEXT_PUBLIC_BENTA_CASHIER_HYBRID_ENABLED === 'true';
+    if (!isCashier || !user || isHybridEnabled) return;
+
+    const coordinator = new CashierOfflineSyncCoordinator({
+      getIdToken: async () => {
+        try { return (await user.getIdToken()) || null; } catch { return null; }
+      },
+      onSyncComplete: (res) => {
+        if (res.syncedCount > 0) {
+          console.info(`[SYNC_COORDINATOR] Synced ${res.syncedCount} claims; remaining: ${res.remainingPending}`);
+        }
+      },
+      onReceiptReconciled: (provNum, authNum) => {
+        setCompletedSale(prev => {
+          if (prev && prev.saleId === provNum) {
+            return { ...prev, saleId: authNum };
+          }
+          return prev;
+        });
+      }
+    });
+    syncCoordinatorRef.current = coordinator;
+
+    return () => {
+      coordinator.destroy();
+      syncCoordinatorRef.current = null;
+    };
+  }, [isCashier, user]);
+
+  // Restore cached offline context on mount / offline reload (only for legacy offline mode)
+  useEffect(() => {
+    const isHybridEnabled = process.env.NEXT_PUBLIC_BENTA_CASHIER_HYBRID_ENABLED === 'true';
+    if (isHybridEnabled) return;
+
+    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+    if (!useSecureCashierStore.getState().bootstrap || !isOnline) {
+      getCashierOfflineManager().restoreOfflineContext(currentTenant?.id).then(res => {
+        if (res.restored && res.bootstrap) {
+          useSecureCashierStore.getState().setRestoredOfflineBootstrap(res.bootstrap);
+          useSecureCashierStore.getState().setActiveShift(res.bootstrap.currentShift);
+        }
+      });
+    }
+  }, [currentTenant?.id]);
+
+  // Lifecycle subscription to hybrid cashier shift intents (durable reload/reconnect recovery)
+  useEffect(() => {
+    const isHybridEnabled = process.env.NEXT_PUBLIC_BENTA_CASHIER_HYBRID_ENABLED === 'true';
+    const activeShift = useSecureCashierStore.getState().activeShift;
+    if (!isCashier || !isHybridEnabled || !currentTenant?.id || !user || !activeShift?.id) return;
+
+    const staffAccountId = cashierBootstrap?.staffAccountId || user.uid;
+
+    let unsubscribe: (() => void) | null = null;
+    import('@/lib/client/hybrid-cash-checkout-manager').then(({ subscribeToCashierShiftIntents }) => {
+      unsubscribe = subscribeToCashierShiftIntents({
+        tenantId: currentTenant.id,
+        staffAccountId,
+        authUid: user.uid,
+        shiftId: activeShift.id,
+        getIdToken: () => user.getIdToken(),
+        onReceiptUpdated: (finalReceipt) => {
+          useSecureCashierStore.getState().setLastReceipt(finalReceipt);
+          setCompletedSale((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  saleId: finalReceipt.receiptNumber || finalReceipt.saleId
+                }
+              : null
+          );
+        },
+        onStatusChanged: (intentId, status, reason) => {
+          if (status === 'needs_review' || status === 'rejected_tampered') {
+            console.warn(`[HYBRID_INTENT_STATUS] Intent ${intentId} flagged as ${status}: ${reason || ''}`);
+          }
+        }
+      });
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [isCashier, currentTenant?.id, user, cashierBootstrap?.staffAccountId, useSecureCashierStore.getState().activeShift?.id]);
+
   const handleCheckout = async (paymentMethod: string, gcashRef?: string) => {
     if (!currentTenant?.id || cart.length === 0) return;
 
-    if (!navigator.onLine) {
-      setError("Offline ang device. Hindi ma-proseso ang bayad nang walang internet.");
+    // Synchronous guard: prevents duplicate financial commits via double-click
+    // or rapid re-invocation regardless of React async state timing.
+    if (checkoutLockRef.current) {
       return;
+    }
+
+    // Validation guards (synchronous, before lock is set — early returns do not need to release)
+    if (useSecureCashierStore.getState().isLocalLocked) {
+      setError("Naka-lock ang Cashier POS. Paki-unlock muna ang device bago mag-benta.");
+      return;
+    }
+
+    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+
+    if (!isOnline) {
+      if (!isCashier) {
+        setError("Offline ang device. Ang Owner mode ay nangangailangan ng internet.");
+        return;
+      }
+      if (paymentMethod !== 'cash') {
+        setError("Offline ang device. Ang GCash at Maya ay nangangailangan ng online connection.");
+        return;
+      }
     }
 
     if (isCashier) {
@@ -477,10 +594,13 @@ function BentaDashboardContent() {
         setError("Kailangan munang magbukas ng shift bago mag-checkout.");
         return;
       }
-      if (!user) {
+      if (isOnline && !user) {
         setError("Authentication required.");
         return;
       }
+
+    // All guards passed — set the synchronous submission lock
+    checkoutLockRef.current = true;
 
       const pendingIntent = useSecureCashierStore.getState().pendingCheckoutIntent;
       const idempotencyKey = pendingIntent ? pendingIntent.idempotencyKey : useSecureCashierStore.getState().getOrCreateCheckoutKey();
@@ -502,56 +622,198 @@ function BentaDashboardContent() {
         paymentReference: effectivePaymentReference
       });
 
-      try {
-        setIsProcessing(true);
-        setError(null);
+      // 1. Hybrid / Local Cash Execution Path
+      const isHybridEnabled = process.env.NEXT_PUBLIC_BENTA_CASHIER_HYBRID_ENABLED === 'true';
+      const { isFirestorePersistenceActive } = await import('@/firebase');
+      const isPersistenceActive = isFirestorePersistenceActive();
 
-        const idToken = await user.getIdToken();
-        const receipt = await checkoutBenta(idToken, {
-          idempotencyKey,
-          shiftId,
-          items,
-          paymentMethod: effectivePaymentMethod,
-          paymentReference: effectivePaymentReference
-        });
+      if (isHybridEnabled && effectivePaymentMethod === 'cash' && currentTenant?.id && user) {
+        // If persistence is active, execute durable local checkout
+        if (isPersistenceActive) {
+          try {
+            setIsProcessing(true);
+            setError(null);
 
-        useSecureCashierStore.getState().clearPendingCheckoutIntent();
-        useSecureCashierStore.getState().setLastReceipt(receipt);
+            const { submitHybridCashSale } = await import('@/lib/client/hybrid-cash-checkout-manager');
+            const staffAccountId = cashierBootstrap?.staffAccountId || user.uid;
+
+            const { provisionalReceipt } = await submitHybridCashSale({
+              tenantId: currentTenant.id,
+              staffAccountId,
+              authUid: user.uid,
+              shiftId,
+              cashierDisplayName: effectiveName,
+              catalogDigest: cashierBootstrap?.offlineAuthority?.snapshot?.catalogDigest || '',
+              idempotencyKey,
+              items: cart.map(item => ({
+                productId: item.productId,
+                name: item.name,
+                unit: item.unit || 'pcs',
+                quantity: item.quantity,
+                salePriceCentavos: item.price
+              })),
+              cashTenderedCentavos: totalCentavos
+            });
+
+            useSecureCashierStore.getState().clearPendingCheckoutIntent();
+            useSecureCashierStore.getState().setLastReceipt(provisionalReceipt);
+
+            setCompletedSale({
+              items: provisionalReceipt.items.map((it: any) => ({
+                productId: it.productId,
+                name: it.name,
+                price: it.unitPriceCentavos,
+                quantity: it.quantity,
+                unit: it.unit
+              })),
+              total: provisionalReceipt.totalCentavos,
+              paymentMethod: 'cash',
+              saleId: `${provisionalReceipt.receiptNumber} (PROVISIONAL)`,
+              pointsEarned: 0
+            });
+
+            // Cart is cleared immediately after durable local Firestore submission succeeds
+            setCart([]);
+            setShowMobileCart(false);
+            setShowReceipt(true);
+            setSuccessMsg(`Benta Kumpleto! ${provisionalReceipt.receiptNumber}`);
+            setTimeout(() => setSuccessMsg(null), 4000);
+            return;
+          } catch (e: any) {
+            console.error('[HYBRID_CHECKOUT_ERROR]', e);
+            // Fail closed: retain cart and display error. DO NOT fall back to legacy queue.
+            setError(e.message || "Hindi maitala ang benta sa database ng device. Paki-check ang storage permission.");
+            return;
+          } finally {
+            setIsProcessing(false);
+            checkoutLockRef.current = false;
+          }
+        } else if (!isOnline) {
+          // Persistence unavailable and device offline -> fail closed, explain clearly
+          setError("Hindi available ang durable storage (Private Browsing / Disabled Storage). Naka-disable ang offline benta sa device na ito.");
+          return;
+        }
+        // If persistence unavailable BUT device is online -> proceed to online server authoritative path below
+      }
+
+      // 2. Online Standard Execution Path
+      if (isOnline) {
+        if (!user) {
+          setError("Authentication required.");
+          return;
+        }
 
         try {
-          const freshBootstrap = await fetchBentaBootstrap(idToken);
-          useSecureCashierStore.getState().setBootstrap(freshBootstrap);
-        } catch (refreshErr: any) {
-          console.warn('Post-checkout bootstrap refresh notice:', refreshErr?.message);
-        }
+          setIsProcessing(true);
+          setError(null);
 
-        setCompletedSale({
-          items: receipt.items.map((it: any) => ({
-            productId: it.productId,
-            name: it.name,
-            price: it.unitPriceCentavos,
-            quantity: it.quantity,
-            unit: it.unit
-          })),
-          total: receipt.totalCentavos,
-          paymentMethod: receipt.paymentMethod,
-          saleId: receipt.receiptNumber || receipt.saleId,
-          pointsEarned: 0
-        });
+          const idToken = await user.getIdToken();
+          const receipt = await checkoutBenta(idToken, {
+            idempotencyKey,
+            shiftId,
+            items,
+            paymentMethod: effectivePaymentMethod,
+            paymentReference: effectivePaymentReference
+          });
 
-        setCart([]);
-        setShowMobileCart(false);
-        setShowReceipt(true);
-        setSuccessMsg("Benta Kumpleto! Naitala sa server.");
-        setTimeout(() => setSuccessMsg(null), 4000);
-      } catch (e: any) {
-        if (e?.status === 400 || e?.status === 422 || e?.category === 'invalid_payload') {
           useSecureCashierStore.getState().clearPendingCheckoutIntent();
+          useSecureCashierStore.getState().setLastReceipt(receipt);
+
+          // Non-blocking background bootstrap refresh
+          fetchBentaBootstrap(idToken)
+            .then(freshBootstrap => useSecureCashierStore.getState().setBootstrap(freshBootstrap))
+            .catch(refreshErr => console.warn('Post-checkout bootstrap refresh notice:', refreshErr?.message));
+
+          setCompletedSale({
+            items: receipt.items.map((it: any) => ({
+              productId: it.productId,
+              name: it.name,
+              price: it.unitPriceCentavos,
+              quantity: it.quantity,
+              unit: it.unit
+            })),
+            total: receipt.totalCentavos,
+            paymentMethod: receipt.paymentMethod,
+            saleId: receipt.receiptNumber || receipt.saleId,
+            pointsEarned: 0
+          });
+
+          setCart([]);
+          setShowMobileCart(false);
+          setShowReceipt(true);
+          setSuccessMsg("Benta Kumpleto! Naitala sa server.");
+          setTimeout(() => setSuccessMsg(null), 4000);
+          return;
+        } catch (e: any) {
+          if (e?.status === 400 || e?.status === 422 || e?.category === 'invalid_payload') {
+            useSecureCashierStore.getState().clearPendingCheckoutIntent();
+            setError(e.message || "Hindi ma-proseso ang bayad. Paki-check ang mga detalye.");
+            return;
+          }
+          // On network/service unavailability and Cash payment, fall through to offline manager!
+          if (effectivePaymentMethod !== 'cash') {
+            setError(e.message || "Hindi ma-proseso ang bayad. May nakabinbing transaksyon; pindutin ang Subukan Muli.");
+            return;
+          }
+        } finally {
+          setIsProcessing(false);
+          checkoutLockRef.current = false;
         }
-        setError(e.message || "Hindi ma-proseso ang bayad. May nakabinbing transaksyon; pindutin ang Subukan Muli.");
-      } finally {
-        setIsProcessing(false);
       }
+
+      // 2. Strict Offline Cash Checkout Path via CashierOfflineManager
+      if (effectivePaymentMethod === 'cash') {
+        try {
+          setIsProcessing(true);
+          setError(null);
+
+          const staffAccountId = useSecureCashierStore.getState().bootstrap?.staffAccountId || user?.uid || '';
+          const offlineManager = getCashierOfflineManager();
+
+          const provisionalReceipt = await offlineManager.executeOfflineCashCheckout({
+            tenantId: currentTenant.id,
+            staffAccountId,
+            shiftId,
+            cartItems: items,
+            idempotencyKey
+          });
+
+          useSecureCashierStore.getState().clearPendingCheckoutIntent();
+
+          // Show provisional receipt immediately
+          setCompletedSale({
+            items: provisionalReceipt.items.map((it) => ({
+              productId: it.productId,
+              name: it.name,
+              price: it.unitPriceCentavos,
+              quantity: it.quantity,
+              unit: it.unit
+            })),
+            total: provisionalReceipt.totalCentavos,
+            paymentMethod: 'cash',
+            saleId: 'PENDING SYNC — PROVISIONAL RECEIPT',
+            pointsEarned: 0
+          });
+
+          setCart([]);
+          setShowMobileCart(false);
+          setShowReceipt(true);
+          setSuccessMsg(`Benta Kumpleto! Naitala nang offline (${provisionalReceipt.receiptNumber} — PENDING SYNC).`);
+          setTimeout(() => setSuccessMsg(null), 4000);
+
+          // Trigger background sync
+          syncCoordinatorRef.current?.triggerSync();
+        } catch (offlineErr: any) {
+          setError(offlineErr.message || "Storage failed. Do not clear app data. Hindi maitala ang offline na benta sa database ng device.");
+        } finally {
+          setIsProcessing(false);
+          checkoutLockRef.current = false;
+        }
+        return;
+      }
+
+      setError("Offline ang device. Ang non-cash payments ay nangangailangan ng online connection.");
+      checkoutLockRef.current = false;
       return;
     }
 
@@ -593,6 +855,7 @@ function BentaDashboardContent() {
       setError(e.message || "Pumalya ang transaksyon. Pakisubukan muli.");
     } finally {
       setIsProcessing(false);
+      checkoutLockRef.current = false;
     }
   };
 
@@ -1122,7 +1385,7 @@ function BentaDashboardContent() {
 
             <div className={`grid ${isCashier ? 'grid-cols-3' : 'grid-cols-2'} gap-2 pb-safe`}>
               <Button
-                onClick={() => setShowCashModal(true)}
+                onClick={() => { setShowMobileCart(false); setShowCashModal(true); }}
                 disabled={cart.length === 0 || isProcessing || hasPendingIntent}
                 className="h-12 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl gap-1.5 flex items-center justify-center text-xs"
               >
@@ -1301,6 +1564,7 @@ function BentaDashboardContent() {
               </Button>
               <Button
                 onClick={() => {
+                  if (isProcessing) return;
                   setShowCashModal(false);
                   setCashTendered('');
                   handleCheckout('cash');
@@ -1418,6 +1682,9 @@ function BentaDashboardContent() {
           themeColor={theme.primary}
         />
       )}
+
+      {/* Cashier Locked Overlay (WebAuthn Offline Unlock Gate) */}
+      {isCashier && <CashierLockedOverlay />}
 
     </div>
   );

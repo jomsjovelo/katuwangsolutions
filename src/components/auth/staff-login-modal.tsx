@@ -11,8 +11,8 @@ import { useSecureCashierStore } from '@/store/use-secure-cashier-store';
 import { useTenantStore } from '@/store/use-tenant-store';
 import { useRouter } from 'next/navigation';
 import { UserCheck, KeyRound, Building2, Loader2, Store } from 'lucide-react';
-import { getAuth, signInWithCustomToken, signOut } from 'firebase/auth';
-import { app } from '@/firebase/config';
+import { signInWithCustomToken, signOut } from 'firebase/auth';
+import { initializeFirebase } from '@/firebase';
 
 interface StaffLoginModalProps {
   isOpen: boolean;
@@ -40,8 +40,8 @@ export function StaffLoginModal({ isOpen, onClose, initialBusinessCode = '', onL
       // 1. Submit Business Code + Username + 4-digit PIN to trusted server PIN endpoint
       const result = await staffPinLogin(businessCode, username, pin);
 
-      // 2. Authenticate Firebase client using the minted custom token
-      const auth = getAuth(app);
+      // 2. Authenticate Firebase client using the minted custom token against properly connected Auth
+      const { auth } = initializeFirebase();
       const userCredential = await signInWithCustomToken(auth, result.customToken);
 
       // 3. Obtain the authenticated Firebase ID token
@@ -78,7 +78,7 @@ export function StaffLoginModal({ isOpen, onClose, initialBusinessCode = '', onL
       }
     } catch (err: any) {
       try {
-        const auth = getAuth(app);
+        const { auth } = initializeFirebase();
         if (auth.currentUser) {
           await signOut(auth);
         }

@@ -54,8 +54,33 @@ export function StaffShiftCard() {
     setSubmitting(true);
     try {
       if (isCashier) {
-        // Secure Cashier shift reconciliation via trusted server endpoint
+        const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
         const endingCashCentavos = Math.round(amount * 100);
+
+        if (!isOnline) {
+          const staffAccountId = useSecureCashierStore.getState().bootstrap?.staffAccountId || user.uid;
+          const { getCashierOfflineManager } = await import('@/lib/client/cashier-offline-manager');
+          await getCashierOfflineManager().provisionalCloseShift({
+            tenantId: currentTenant.id,
+            staffAccountId,
+            shiftId: effectiveShift.id,
+            endingCashCentavos,
+            notes
+          });
+
+          useSecureCashierStore.getState().setActiveShift(null);
+          setCloseModalOpen(false);
+          setEndingCash('');
+          setNotes('');
+
+          toast({
+            title: 'Provisional Shift Close Naitakda',
+            description: 'Naka-freeze na ang shift. Isa-sync ang mga offline sales at shift close kapag nag-online muli ang device.'
+          });
+          return;
+        }
+
+        // Secure Cashier shift reconciliation via trusted server endpoint
         const idToken = await user.getIdToken();
         const summary = await reconcileAndCloseShift(idToken, effectiveShift.id, endingCashCentavos, notes);
 

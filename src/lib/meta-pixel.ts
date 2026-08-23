@@ -52,6 +52,16 @@ export function trackMetaEvent(
     return;
   }
 
+  const isLocalOrEmulator =
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname.startsWith('192.168.') ||
+    process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true';
+
+  if (isLocalOrEmulator) {
+    return;
+  }
+
   if (typeof window.fbq === 'function') {
     flushMetaEventQueue();
     window.fbq('track', eventName, parameters);
