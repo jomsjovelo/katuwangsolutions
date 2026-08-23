@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useUser } from '@/firebase/auth/use-user';
 import { useTenantStore, Tenant } from '@/store/use-tenant-store';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { initializeFirebase } from '@/firebase';
 import { ShieldAlert, Loader2, AlertCircle, Copy, Check, ExternalLink } from 'lucide-react';
@@ -14,7 +14,7 @@ import { isValidActiveModuleId } from '@/lib/app-data';
 import { useSecureCashierStore } from '@/store/use-secure-cashier-store';
 import { fetchBentaBootstrap } from '@/lib/client/secure-benta-cashier-client';
 import { selectAuthoritativeTenantId, validateAuthoritativeTenant, UserProfileAuthData } from '@/lib/auth/owner-tenant-authorization';
-import { isMasterAdminClaim } from '@/lib/auth/admin-claim-resolver';
+import { isMasterAdminClaim, isMasterAdminDocData } from '@/lib/auth/admin-claim-resolver';
 
 function isPublicPathname(pathname: string): boolean {
   if (!pathname || pathname === '/' || pathname === '/admin' || pathname === '/login' || pathname === '/auth' || pathname === '/auth/action' || pathname === '/__/auth/action') return true;
@@ -143,9 +143,26 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       // B. Normal Account (Owner / Staff / Member / Admin)
       setIsCashierUser(false);
       useSecureCashierStore.getState().clearCashierSession();
-      const isClaimAdmin = isMasterAdminClaim(claims);
-      setIsAdmin(isClaimAdmin);
-      if (isClaimAdmin) {
+
+      // Fast path: Token claims
+      let isVerifiedAdmin = isMasterAdminClaim(claims);
+
+      // Cost-efficient fallback: when user is on /admin without token claim,
+      // read authoritative own document /admins/{user.uid}
+      if (!isVerifiedAdmin && pathname === '/admin' && db && user.uid) {
+        try {
+          const adminDoc = await getDoc(doc(db, 'admins', user.uid));
+          if (adminDoc.exists() && isMasterAdminDocData(adminDoc.data())) {
+            isVerifiedAdmin = true;
+          }
+        } catch (adminErr) {
+          console.debug('AuthGuard: Fallback admin document lookup denied/failed:', adminErr);
+        }
+      }
+
+      setIsAdmin(isVerifiedAdmin);
+      if (isVerifiedAdmin) {
+        useTenantStore.getState().reset();
         setChecking(false);
         setLoadingRef.current(false);
         return;
@@ -172,7 +189,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       setIsAdmin(false);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userUid, db, authLoading]);
+  }, [userUid, db, authLoading, pathname]);
 
   // 1b. Routing effect — runs on pathname changes
   useEffect(() => {
@@ -197,13 +214,30 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         router.push('/admin');
       }
     } else if (isAdmin === false) {
-      if (pathname === '/admin') router.push('/dashboard');
+      if (pathname === '/admin') {
+        if (db && user.uid) {
+          getDoc(doc(db, 'admins', user.uid))
+            .then((adminDoc) => {
+              if (adminDoc.exists() && isMasterAdminDocData(adminDoc.data())) {
+                setIsAdmin(true);
+                useTenantStore.getState().reset();
+                return;
+              }
+              router.push('/dashboard');
+            })
+            .catch(() => {
+              router.push('/dashboard');
+            });
+        } else {
+          router.push('/dashboard');
+        }
+      }
     }
-  }, [user, isAdmin, isCashierUser, pathname, router, authLoading, checking]);
+  }, [user, isAdmin, isCashierUser, pathname, router, authLoading, checking, db]);
 
   // 2. Fetch User Profile to get Authoritative Tenant ID — for non-Cashier, non-Admin users
   useEffect(() => {
-    if (!userUid || isAdmin === true || isAdmin === null || isCashierUser || !user) return;
+    if (!userUid || isAdmin === true || isAdmin === null || isCashierUser || !user || pathname === '/admin') return;
 
     const userRef = doc(db, 'users', user.uid);
 
