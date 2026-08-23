@@ -1,13 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { computeLineFinancials } from '../src/lib/shared/quantity-math';
 
 export interface SaleItemSnapshot {
   productId: string;
   name: string;
-  quantity: number;
-  price: number; // centavos
+  quantity?: number;
+  quantityMode?: 'discrete' | 'measured';
+  quantityMinor?: number;
+  quantityScale?: number;
+  sellingUnit?: string;
+  unitPriceCentavos?: number;
+  unitCostCentavos?: number;
+  lineSubtotalCentavos?: number;
+  lineCostCentavos?: number;
+  price?: number; // centavos
   costPrice?: number; // centavos
-  lineTotal: number;
+  lineTotal?: number;
+  lineCost?: number;
 }
 
 export interface SaleRecord {
@@ -27,20 +37,43 @@ export function computeOwnerPnL(sales: SaleRecord[], operatingExpensesPesos: num
     let saleHasMissingCost = false;
     if (sale.items && Array.isArray(sale.items) && sale.items.length > 0) {
       sale.items.forEach((item) => {
-        const qty = item.quantity;
-        const costPrice = item.costPrice;
-        if (
-          !Number.isSafeInteger(qty) ||
-          qty <= 0 ||
-          costPrice === undefined ||
-          costPrice === null ||
-          !Number.isSafeInteger(costPrice) ||
-          costPrice < 0
-        ) {
-          missingCostItemsCount++;
-          saleHasMissingCost = true;
+        if (typeof item.lineCostCentavos === 'number' && Number.isSafeInteger(item.lineCostCentavos) && item.lineCostCentavos >= 0) {
+          totalCogsCentavos += item.lineCostCentavos;
+        } else if (typeof item.lineCost === 'number' && Number.isSafeInteger(item.lineCost) && item.lineCost >= 0) {
+          totalCogsCentavos += item.lineCost;
+        } else if (item.quantityMode === 'measured' || item.quantityMinor !== undefined) {
+          const qtyMinor = item.quantityMinor;
+          const costPrice = item.unitCostCentavos ?? item.costPrice;
+          const scale = item.quantityScale || 3;
+          if (
+            Number.isSafeInteger(qtyMinor) &&
+            qtyMinor > 0 &&
+            costPrice !== undefined &&
+            costPrice !== null &&
+            Number.isSafeInteger(costPrice) &&
+            costPrice >= 0
+          ) {
+            totalCogsCentavos += computeLineFinancials(costPrice, qtyMinor, scale);
+          } else {
+            missingCostItemsCount++;
+            saleHasMissingCost = true;
+          }
         } else {
-          totalCogsCentavos += costPrice * qty;
+          const qty = item.quantity;
+          const costPrice = item.unitCostCentavos ?? item.costPrice;
+          if (
+            !Number.isSafeInteger(qty) ||
+            qty <= 0 ||
+            costPrice === undefined ||
+            costPrice === null ||
+            !Number.isSafeInteger(costPrice) ||
+            costPrice < 0
+          ) {
+            missingCostItemsCount++;
+            saleHasMissingCost = true;
+          } else {
+            totalCogsCentavos += costPrice * qty;
+          }
         }
       });
     } else {
@@ -164,5 +197,39 @@ test('Owner Retail P&L and Shift Display Verification Suite', async (t) => {
       assert.ok(shift.staffName);
       assert.ok(shift.id);
     });
+  });
+
+  await t.test('accurately computes P&L for measured sales without treating quantity as 1', () => {
+    const sales: SaleRecord[] = [
+      {
+        id: 'sale_measured_1',
+        totalAmount: 35000, // ₱350.00 (1.250 kg Pork @ ₱280.00/kg)
+        items: [
+          {
+            productId: 'prod_pork',
+            name: 'Pork Liempo',
+            quantityMode: 'measured',
+            quantity: 1, // legacy field must be ignored
+            quantityMinor: 1250,
+            quantityScale: 3,
+            sellingUnit: 'kg',
+            unitPriceCentavos: 28000,
+            unitCostCentavos: 22000,
+            lineSubtotalCentavos: 35000,
+            lineCostCentavos: 27500, // 22000 * 1250 / 1000 = 27500 centavos (₱275.00)
+            price: 28000,
+            costPrice: 22000,
+            lineTotal: 35000,
+            lineCost: 27500
+          }
+        ]
+      }
+    ];
+
+    const pnl = computeOwnerPnL(sales, 0);
+    assert.equal(pnl.grossIncomePesos, 350);
+    assert.equal(pnl.totalCogsPesos, 275);
+    assert.equal(pnl.grossProfitPesos, 75); // ₱350 - ₱275 = ₱75
+    assert.equal(pnl.isProfitComplete, true);
   });
 });

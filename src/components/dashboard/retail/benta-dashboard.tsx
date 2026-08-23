@@ -75,13 +75,33 @@ export function BentaDashboard() {
   );
 }
 
-const ProductCard = React.memo(({ product, theme, cartQty, addToCart, disabled }: any) => {
-  const outOfStock = product.currentStock <= 0;
-  const isLowStock = product.currentStock > 0 && product.currentStock <= 5;
+import { computeLineFinancials, formatMinorToDecimal, parseDecimalToMinor } from '@/lib/shared/quantity-math';
+
+const ProductCard = React.memo(({ product, theme, cartQty, addToCart, onSelectMeasured, disabled }: any) => {
+  const isMeasured = product.quantityMode === 'measured';
+  const outOfStock = isMeasured
+    ? (product.stockQuantityMinor !== undefined ? product.stockQuantityMinor <= 0 : (product.currentStock <= 0))
+    : product.currentStock <= 0;
+  const isLowStock = isMeasured
+    ? (product.stockQuantityMinor !== undefined ? product.stockQuantityMinor > 0 && product.stockQuantityMinor <= 5000 : false)
+    : (product.currentStock > 0 && product.currentStock <= 5);
+
+  const stockLabel = isMeasured
+    ? `${formatMinorToDecimal(product.stockQuantityMinor ?? (product.currentStock * 1000), product.quantityScale || 3)} ${product.sellingUnit || product.unit || 'kg'}`
+    : `${product.currentStock} ${product.unit || 'pcs'}`;
+
+  const handleClick = () => {
+    if (disabled || outOfStock) return;
+    if (isMeasured) {
+      if (onSelectMeasured) onSelectMeasured(product);
+    } else {
+      addToCart(product);
+    }
+  };
 
   return (
     <div
-      onClick={() => !disabled && !outOfStock && addToCart(product)}
+      onClick={handleClick}
       className={cn(
         "bg-white border-2 rounded-2xl p-4 flex flex-col items-center text-center transition-all cursor-pointer relative select-none tap-target",
         outOfStock
@@ -129,6 +149,7 @@ const ProductCard = React.memo(({ product, theme, cartQty, addToCart, disabled }
           <p className="text-[9px] font-bold text-slate-400 leading-none">Presyo</p>
           <span className="text-xs font-black text-slate-800">
             ₱{(product.salePrice / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+            {isMeasured && <span className="text-[9px] font-medium text-slate-400">/{product.sellingUnit || product.unit || 'kg'}</span>}
           </span>
         </div>
         <Badge
@@ -142,7 +163,7 @@ const ProductCard = React.memo(({ product, theme, cartQty, addToCart, disabled }
             color: theme.primary
           }}
         >
-          {outOfStock ? 'Ubos' : isLowStock ? `Paubos: ${product.currentStock}` : `${product.currentStock} ${product.unit}`}
+          {outOfStock ? 'Ubos' : isLowStock ? `Paubos: ${stockLabel}` : stockLabel}
         </Badge>
       </div>
     </div>
@@ -151,43 +172,97 @@ const ProductCard = React.memo(({ product, theme, cartQty, addToCart, disabled }
 
 ProductCard.displayName = 'ProductCard';
 
-const CartItemCard = React.memo(({ item, theme, products, removeFromCart, addToCart, isMobile = false, disabled = false }: any) => {
-  const btnSize = isMobile ? "h-7 w-7" : "h-6 w-6";
-  const iconSize = isMobile ? "h-3.5 w-3.5" : "h-3 w-3";
+const CartItemCard = React.memo(({ item, theme, products, removeFromCart, addToCart, onEditMeasured, isMobile = false, disabled = false }: any) => {
   const padClass = isMobile ? "p-3" : "p-2.5";
+  const isMeasured = item.quantityMode === 'measured' || item.quantityMinor !== undefined;
+
+  const lineSubtotalCentavos = isMeasured && typeof item.quantityMinor === 'number'
+    ? computeLineFinancials(item.price, item.quantityMinor, item.quantityScale || 3)
+    : item.price * item.quantity;
+
+  const measuredLabel = isMeasured && typeof item.quantityMinor === 'number'
+    ? `${formatMinorToDecimal(item.quantityMinor, item.quantityScale || 3)} ${item.sellingUnit || item.unit || 'kg'}`
+    : `${item.quantity}`;
 
   return (
     <div className={`flex justify-between items-center bg-slate-50 ${padClass} rounded-xl border border-slate-100`}>
       <div className="flex-1 pr-2">
         <h4 className="font-extrabold text-xs text-slate-800 line-clamp-1">{item.name}</h4>
-        <p className="text-[10px] text-slate-400 font-bold">₱{(item.price / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })} each</p>
+        <div className="flex items-center gap-2 mt-0.5">
+          <p className="text-[10px] text-slate-400 font-bold">
+            ₱{(item.price / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+            {isMeasured ? `/${item.sellingUnit || item.unit || 'kg'}` : ' each'}
+          </p>
+          <span className="text-[10px] font-black text-slate-700">
+            = ₱{(lineSubtotalCentavos / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+          </span>
+        </div>
       </div>
 
       <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={disabled}
-          className={`${btnSize} p-0 rounded-lg hover:bg-slate-100 border-slate-200`}
-          onClick={() => !disabled && removeFromCart(item.productId)}
-        >
-          <Minus className={iconSize} />
-        </Button>
-        <span className="font-extrabold text-xs w-5 text-center text-slate-800">{item.quantity}</span>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={disabled}
-          className={`${btnSize} p-0 rounded-lg text-white border-transparent`}
-          style={{ backgroundColor: theme.primary }}
-          onClick={() => {
-            if (disabled) return;
-            const realProduct = products.find((p: any) => p.id === item.productId);
-            if (realProduct) addToCart(realProduct);
-          }}
-        >
-          <Plus className={iconSize} />
-        </Button>
+        {isMeasured ? (
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={disabled}
+              className="min-h-[44px] min-w-[44px] px-3 text-xs font-black rounded-xl border-slate-200 bg-white hover:bg-slate-100 text-slate-700 flex items-center justify-center tap-target shadow-sm active:scale-95 transition-transform"
+              onClick={() => {
+                if (disabled || !onEditMeasured) return;
+                const realProduct = products.find((p: any) => p.id === item.productId) || {
+                  id: item.productId,
+                  name: item.name,
+                  salePrice: item.price,
+                  sellingUnit: item.sellingUnit || item.unit || 'kg',
+                  unit: item.unit || 'kg',
+                  quantityScale: item.quantityScale || 3,
+                  stockQuantityMinor: item.stockQuantityMinor
+                };
+                onEditMeasured(realProduct, item.quantityMinor);
+              }}
+              title="Baguhin ang timbang/dami"
+            >
+              {measuredLabel}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={disabled}
+              className="h-11 w-11 min-h-[44px] min-w-[44px] p-0 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center tap-target"
+              onClick={() => !disabled && removeFromCart(item.productId)}
+              title="Alisin sa cart"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={disabled}
+              className="h-11 w-11 min-h-[44px] min-w-[44px] p-0 rounded-xl hover:bg-slate-100 border-slate-200 flex items-center justify-center tap-target"
+              onClick={() => !disabled && removeFromCart(item.productId)}
+            >
+              <Minus className="h-3.5 w-3.5" />
+            </Button>
+            <span className="font-extrabold text-xs w-6 text-center text-slate-800">{item.quantity}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={disabled}
+              className="h-11 w-11 min-h-[44px] min-w-[44px] p-0 rounded-xl text-white border-transparent flex items-center justify-center tap-target"
+              style={{ backgroundColor: theme.primary }}
+              onClick={() => {
+                if (disabled) return;
+                const realProduct = products.find((p: any) => p.id === item.productId);
+                if (realProduct) addToCart(realProduct);
+              }}
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -209,7 +284,12 @@ function BentaDashboardContent() {
   const { currentTenant } = useTenant();
   const { isOnline, isSyncing, syncMessage } = useSyncStatus(currentTenant?.id);
   const { products: rawProducts, loading: inventoryLoading } = useInventory();
-  const { cart, setCart, addToCart: baseAddToCart, removeFromCart: baseRemoveFromCart, clearCart: baseClearCart, totalCentavos, cartItemCount } = useCart();
+  const { cart, setCart, addToCart: baseAddToCart, updateCartItemQuantity, removeFromCart: baseRemoveFromCart, clearCart: baseClearCart, totalCentavos, cartItemCount } = useCart();
+
+  const [measuredProductToEdit, setMeasuredProductToEdit] = useState<any | null>(null);
+  const [measuredQuantityInput, setMeasuredQuantityInput] = useState<string>('1.000');
+  const [showMeasuredModal, setShowMeasuredModal] = useState<boolean>(false);
+  const [isEditingCartItem, setIsEditingCartItem] = useState<boolean>(false);
 
   const products = useMemo(() => {
     if (isCashier && cashierBootstrap?.products) {
@@ -221,19 +301,82 @@ function BentaDashboardContent() {
         salePrice: p.salePrice,
         costPrice: p.salePrice,
         currentStock: p.currentStock,
+        stockQuantityMinor: p.stockQuantityMinor,
+        quantityMode: p.quantityMode || 'discrete',
+        sellingUnit: p.sellingUnit || p.unit,
+        quantityScale: p.quantityScale || 3,
         unit: p.unit,
-        minStock: 5,
+        minStock: p.minStock || 5,
         module: 'benta-snap'
       }));
     }
     return rawProducts;
   }, [isCashier, cashierBootstrap, rawProducts]);
 
+  const openMeasuredModal = useCallback((product: any, existingMinor?: number) => {
+    setMeasuredProductToEdit(product);
+    if (existingMinor !== undefined) {
+      setIsEditingCartItem(true);
+      setMeasuredQuantityInput(formatMinorToDecimal(existingMinor, product.quantityScale || 3));
+    } else {
+      setIsEditingCartItem(false);
+      setMeasuredQuantityInput('1.000');
+    }
+    setShowMeasuredModal(true);
+  }, []);
+
+  const handleConfirmMeasuredQuantity = () => {
+    if (!measuredProductToEdit) return;
+    const scale = measuredProductToEdit.quantityScale || 3;
+    const unit = measuredProductToEdit.sellingUnit || measuredProductToEdit.unit || 'kg';
+    const parsed = parseDecimalToMinor(measuredQuantityInput || '1', scale);
+    if (!parsed.valid || parsed.minor <= 0) {
+      setError('Ilagay ang tamang dami, halimbawa 10.500.');
+      return;
+    }
+
+    const availableMinor = measuredProductToEdit.stockQuantityMinor;
+    if (availableMinor !== undefined && Number.isSafeInteger(availableMinor) && parsed.minor > availableMinor) {
+      setError(`Hindi sapat ang stock para sa "${measuredProductToEdit.name}". (Available lang: ${formatMinorToDecimal(availableMinor, scale)} ${unit})`);
+      return;
+    }
+
+    setError(null);
+    if (isCashier) useSecureCashierStore.getState().resetCheckoutKey();
+
+    if (isEditingCartItem) {
+      const existing = cart.find(c => c.productId === measuredProductToEdit.id);
+      if (existing) {
+        updateCartItemQuantity(measuredProductToEdit.id, parsed.minor, 'measured');
+      } else {
+        baseAddToCart(measuredProductToEdit, {
+          quantityMinor: parsed.minor,
+          sellingUnit: unit,
+          quantityScale: scale
+        });
+      }
+    } else {
+      baseAddToCart(measuredProductToEdit, {
+        quantityMinor: parsed.minor,
+        sellingUnit: unit,
+        quantityScale: scale
+      });
+    }
+
+    setShowMeasuredModal(false);
+    setMeasuredProductToEdit(null);
+    setIsEditingCartItem(false);
+  };
+
   const addToCart = useCallback((product: any) => {
     if (hasPendingIntent) return;
+    if (product.quantityMode === 'measured') {
+      openMeasuredModal(product);
+      return;
+    }
     if (isCashier) useSecureCashierStore.getState().resetCheckoutKey();
     baseAddToCart(product);
-  }, [hasPendingIntent, isCashier, baseAddToCart]);
+  }, [hasPendingIntent, isCashier, baseAddToCart, openMeasuredModal]);
 
   const removeFromCart = useCallback((productId: string) => {
     if (hasPendingIntent) return;
@@ -645,13 +788,28 @@ function BentaDashboardContent() {
               cashierDisplayName: effectiveName,
               catalogDigest: cashierBootstrap?.offlineAuthority?.snapshot?.catalogDigest || '',
               idempotencyKey,
-              items: cart.map(item => ({
-                productId: item.productId,
-                name: item.name,
-                unit: item.unit || 'pcs',
-                quantity: item.quantity,
-                salePriceCentavos: item.price
-              })),
+              items: cart.map(item => {
+                if (item.quantityMode === 'measured') {
+                  return {
+                    productId: item.productId,
+                    name: item.name,
+                    unit: item.unit || 'kg',
+                    quantityMode: 'measured' as const,
+                    quantityMinor: item.quantityMinor ?? 1000,
+                    quantityScale: item.quantityScale ?? 3,
+                    sellingUnit: item.sellingUnit || item.unit || 'kg',
+                    salePriceCentavos: item.price
+                  };
+                }
+                return {
+                  productId: item.productId,
+                  name: item.name,
+                  unit: item.unit || 'pcs',
+                  quantityMode: 'discrete' as const,
+                  quantity: item.quantity,
+                  salePriceCentavos: item.price
+                };
+              }),
               cashTenderedCentavos: totalCentavos
             });
 
@@ -664,6 +822,10 @@ function BentaDashboardContent() {
                 name: it.name,
                 price: it.unitPriceCentavos,
                 quantity: it.quantity,
+                quantityMode: it.quantityMode,
+                quantityMinor: it.quantityMinor,
+                quantityScale: it.quantityScale,
+                sellingUnit: it.sellingUnit,
                 unit: it.unit
               })),
               total: provisionalReceipt.totalCentavos,
@@ -1104,6 +1266,7 @@ function BentaDashboardContent() {
                       cartQty={cartQty}
                       theme={theme}
                       addToCart={addToCart}
+                      onSelectMeasured={openMeasuredModal}
                       disabled={hasPendingIntent}
                     />
                   );
@@ -1150,6 +1313,7 @@ function BentaDashboardContent() {
                         products={products}
                         removeFromCart={removeFromCart}
                         addToCart={addToCart}
+                        onEditMeasured={openMeasuredModal}
                         disabled={hasPendingIntent || isProcessing}
                       />
                     ))
@@ -1306,7 +1470,7 @@ function BentaDashboardContent() {
                 <ShoppingCart className="h-5 w-5" style={{ color: theme.primary }} /> Suriin ang Cart
               </SheetTitle>
               <SheetDescription className="text-[10px] text-slate-400 mt-0.5">
-                Pindutin ang check-out para makumpleto ang atomic sale.
+                Pindutin ang check-out para makumpleto ang benta.
               </SheetDescription>
             </div>
 
@@ -1332,6 +1496,7 @@ function BentaDashboardContent() {
                 products={products}
                 removeFromCart={removeFromCart}
                 addToCart={addToCart}
+                onEditMeasured={openMeasuredModal}
                 isMobile={true}
                 disabled={hasPendingIntent || isProcessing}
               />
@@ -1636,6 +1801,139 @@ function BentaDashboardContent() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Measured Quantity Dialog / Sheet */}
+      <Dialog open={showMeasuredModal} onOpenChange={(open) => {
+        setShowMeasuredModal(open);
+        if (!open) {
+          setMeasuredProductToEdit(null);
+          setIsEditingCartItem(false);
+        }
+      }}>
+        <DialogContent className="sm:max-w-md rounded-2xl p-0 overflow-hidden border-0">
+          <div className="p-6 bg-slate-900 text-white relative">
+            <DialogTitle className="text-xl font-black font-headline text-white flex items-center gap-2">
+              <Calculator className="h-5 w-5 text-cyan-400" />
+              {isEditingCartItem ? 'Baguhin ang Timbang / Dami' : 'Timbang / Dami'}
+            </DialogTitle>
+            <DialogDescription className="text-slate-300 mt-1 text-xs">
+              {measuredProductToEdit?.name || 'Measured Product'} (₱{((measuredProductToEdit?.salePrice || 0) / 100).toFixed(2)} bawat {measuredProductToEdit?.sellingUnit || measuredProductToEdit?.unit || 'kg'})
+            </DialogDescription>
+          </div>
+
+          <div className="p-6 space-y-5 bg-white">
+            {/* Authoritative Available Stock display */}
+            {(() => {
+              const availableMinor = measuredProductToEdit?.stockQuantityMinor;
+              const scale = measuredProductToEdit?.quantityScale || 3;
+              const unit = measuredProductToEdit?.sellingUnit || measuredProductToEdit?.unit || 'kg';
+              const isAvailableKnown = availableMinor !== undefined && Number.isSafeInteger(availableMinor);
+              const availableStockDisplay = isAvailableKnown
+                ? `${formatMinorToDecimal(availableMinor, scale)} ${unit}`
+                : 'Hindi limitado';
+
+              return (
+                <div className="flex justify-between items-center bg-slate-50 px-3.5 py-2.5 rounded-xl border border-slate-100 text-xs">
+                  <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Available Stock:</span>
+                  <span className="font-black text-slate-800">{availableStockDisplay}</span>
+                </div>
+              );
+            })()}
+
+            <div className="space-y-2">
+              <Label htmlFor="measured-quantity-input" className="text-xs font-bold uppercase text-slate-500 tracking-wider">
+                Dami / Timbang ({measuredProductToEdit?.sellingUnit || measuredProductToEdit?.unit || 'kg'})
+              </Label>
+              <Input
+                id="measured-quantity-input"
+                type="text"
+                inputMode="decimal"
+                value={measuredQuantityInput}
+                onChange={(e) => setMeasuredQuantityInput(e.target.value)}
+                placeholder="Hal. 1.250"
+                className="h-14 text-2xl font-black text-slate-900 border-slate-200 focus:ring-2 focus:ring-cyan-500 focus:outline-none focus:border-cyan-500"
+                autoFocus
+              />
+            </div>
+
+            {/* Quick chips (minimum 44px touch targets) */}
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Mabilisang Pindot:</span>
+              <div className="grid grid-cols-4 gap-2">
+                {['0.250', '0.500', '1.000', '2.000'].map((preset) => (
+                  <Button
+                    key={preset}
+                    type="button"
+                    variant="outline"
+                    onClick={() => setMeasuredQuantityInput(preset)}
+                    className="min-h-[44px] text-xs font-bold rounded-xl border-slate-200 hover:bg-cyan-50 hover:border-cyan-200 tap-target active:scale-95 transition-transform"
+                  >
+                    {preset} {measuredProductToEdit?.sellingUnit || measuredProductToEdit?.unit || 'kg'}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Calculated live formula & over-stock warning */}
+            {(() => {
+              const scale = measuredProductToEdit?.quantityScale || 3;
+              const unit = measuredProductToEdit?.sellingUnit || measuredProductToEdit?.unit || 'kg';
+              const parsed = parseDecimalToMinor(measuredQuantityInput || '0', scale);
+              const availableMinor = measuredProductToEdit?.stockQuantityMinor;
+              const isOverStock = parsed.valid && availableMinor !== undefined && Number.isSafeInteger(availableMinor) && parsed.minor > availableMinor;
+              const calculatedCentavos = parsed.valid && parsed.minor > 0
+                ? computeLineFinancials(measuredProductToEdit?.salePrice || 0, parsed.minor, scale)
+                : 0;
+
+              return (
+                <div className="space-y-2">
+                  <div className="bg-cyan-50/70 p-4 rounded-xl border border-cyan-100 flex justify-between items-center">
+                    <div className="text-left">
+                      <span className="text-[10px] font-bold text-cyan-800 uppercase tracking-wider block">Kabuuan para sa item na ito</span>
+                      <span className="text-xs text-cyan-600 font-semibold">
+                        {measuredQuantityInput || '0'} {unit} × ₱{((measuredProductToEdit?.salePrice || 0) / 100).toFixed(2)}
+                      </span>
+                    </div>
+                    <span className="text-xl font-black text-cyan-950">
+                      ₱{(calculatedCentavos / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+
+                  {isOverStock && (
+                    <div className="p-3 bg-red-50 text-red-700 rounded-xl text-xs font-bold border border-red-200 flex items-center gap-1.5 animate-in fade-in">
+                      <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
+                      <span>Hindi sapat ang stock (Available lang: {formatMinorToDecimal(availableMinor, scale)} {unit}).</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            <DialogFooter className="flex gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowMeasuredModal(false);
+                  setMeasuredProductToEdit(null);
+                  setIsEditingCartItem(false);
+                }}
+                className="h-12 min-h-[44px] rounded-xl font-bold flex-1"
+              >
+                Kanselahin
+              </Button>
+              <Button
+                type="button"
+                onClick={handleConfirmMeasuredQuantity}
+                disabled={!measuredQuantityInput || parseFloat(measuredQuantityInput) <= 0}
+                className="h-12 min-h-[44px] rounded-xl font-bold bg-cyan-600 hover:bg-cyan-700 text-white flex-1 shadow-md"
+              >
+                {isEditingCartItem ? 'I-save sa Cart' : 'Idagdag sa Cart'}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <ThermalReceiptPreview
         open={showReceipt}

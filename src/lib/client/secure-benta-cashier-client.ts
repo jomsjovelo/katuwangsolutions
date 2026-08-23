@@ -37,6 +37,11 @@ export interface SanitizedBootstrapProduct {
   barcode?: string;
   category?: string;
   minStock?: number;
+  quantityMode?: 'discrete' | 'measured';
+  sellingUnit?: string;
+  quantityScale?: number;
+  stockQuantityMinor?: number;
+  minStockMinor?: number;
 }
 
 export interface SanitizedBootstrapShift {

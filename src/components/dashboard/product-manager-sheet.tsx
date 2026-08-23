@@ -11,6 +11,9 @@ import { Loader2, Trash2, Save, PackagePlus, Camera, Barcode } from 'lucide-reac
 import { getModuleTheme } from '@/lib/theme-utils';
 import { BarcodeScannerModal } from '@/components/common/barcode-scanner-modal';
 
+import { parseDecimalToMinor, formatMinorToDecimal, isMeasuredUnit } from '@/lib/shared/quantity-math';
+import { normalizeBentaProfile } from '@/lib/app-data';
+
 interface ProductManagerSheetProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -41,40 +44,63 @@ export function ProductManagerSheet({
     minStock: '5',
     costPrice: '',
     salePrice: '',
-    unit: 'pcs'
+    unit: 'pcs',
+    quantityMode: 'discrete' as 'discrete' | 'measured'
   });
 
   useEffect(() => {
     if (isOpen) {
       if (productToEdit) {
+        const isMeasured = productToEdit.quantityMode === 'measured';
+        const stockDisplay = isMeasured
+          ? (productToEdit.stockQuantityMinor !== undefined ? formatMinorToDecimal(productToEdit.stockQuantityMinor, productToEdit.quantityScale || 3) : (productToEdit.currentStock || 0).toString())
+          : (productToEdit.currentStock || 0).toString();
+        const minStockDisplay = isMeasured
+          ? (productToEdit.minStockMinor !== undefined ? formatMinorToDecimal(productToEdit.minStockMinor, productToEdit.quantityScale || 3) : (productToEdit.minStock || 0).toString())
+          : (productToEdit.minStock || 0).toString();
+
         setFormData({
           name: productToEdit.name || '',
           barcode: productToEdit.barcode || productToEdit.sku || '',
           sku: productToEdit.sku || '',
           category: productToEdit.category || '',
-          currentStock: (productToEdit.currentStock || 0).toString(),
-          minStock: (productToEdit.minStock || 0).toString(),
+          currentStock: stockDisplay,
+          minStock: minStockDisplay,
           costPrice: productToEdit.costPrice ? (productToEdit.costPrice / 100).toString() : '',
           salePrice: productToEdit.salePrice ? (productToEdit.salePrice / 100).toString() : '',
-          unit: productToEdit.unit || 'pcs'
+          unit: productToEdit.sellingUnit || productToEdit.unit || 'pcs',
+          quantityMode: isMeasured ? 'measured' : 'discrete'
         });
       } else {
+        const normalizedProfile = normalizeBentaProfile(currentTenant?.businessProfile);
+        const defaultUnit = normalizedProfile === 'fresh_goods' ? 'kg' : 'pcs';
+        const defaultMode = isMeasuredUnit(defaultUnit) ? 'measured' : 'discrete';
         setFormData({
           name: '',
           barcode: initialBarcode || '',
           sku: initialBarcode || '',
           category: 'General',
           currentStock: '0',
-          minStock: '5',
+          minStock: defaultMode === 'measured' ? '1' : '5',
           costPrice: '',
           salePrice: '',
-          unit: 'pcs'
+          unit: defaultUnit,
+          quantityMode: defaultMode
         });
       }
       setDeleteConfirm(false);
       setError(null);
     }
-  }, [isOpen, productToEdit, initialBarcode]);
+  }, [isOpen, productToEdit, initialBarcode, currentTenant?.businessProfile]);
+
+  const handleUnitChange = (newUnit: string) => {
+    const isMeasured = isMeasuredUnit(newUnit);
+    setFormData(prev => ({
+      ...prev,
+      unit: newUnit,
+      quantityMode: isMeasured ? 'measured' : 'discrete'
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,17 +110,43 @@ export function ProductManagerSheet({
       setLoading(true);
       setError(null);
 
-      const payload = {
+      const isMeasured = formData.quantityMode === 'measured' || isMeasuredUnit(formData.unit);
+
+      let payload: any = {
         name: formData.name,
         barcode: formData.barcode.trim() || formData.sku.trim(),
         sku: formData.sku.trim() || formData.barcode.trim(),
         category: formData.category,
-        currentStock: parseInt(formData.currentStock) || 0,
-        minStock: parseInt(formData.minStock) || 0,
         costPrice: Math.round(parseFloat(formData.costPrice || '0') * 100),
         salePrice: Math.round(parseFloat(formData.salePrice || '0') * 100),
-        unit: formData.unit
+        unit: formData.unit,
+        isActive: true
       };
+
+      if (isMeasured) {
+        const stockParsed = parseDecimalToMinor(formData.currentStock || '0', 3);
+        const minStockParsed = parseDecimalToMinor(formData.minStock || '0', 3);
+        if (!stockParsed.valid || !minStockParsed.valid) {
+          throw new Error('Ilagay ang tamang dami, halimbawa 10.500.');
+        }
+        payload = {
+          ...payload,
+          quantityMode: 'measured',
+          sellingUnit: formData.unit,
+          quantityScale: 3,
+          stockQuantityMinor: stockParsed.minor,
+          minStockMinor: minStockParsed.minor,
+          currentStock: Math.floor(stockParsed.minor / 1000),
+          minStock: Math.floor(minStockParsed.minor / 1000)
+        };
+      } else {
+        payload = {
+          ...payload,
+          quantityMode: 'discrete',
+          currentStock: parseInt(formData.currentStock) || 0,
+          minStock: parseInt(formData.minStock) || 0
+        };
+      }
 
       if (productToEdit) {
         await updateProduct(currentTenant.id, productToEdit.id, payload);
@@ -201,20 +253,35 @@ export function ProductManagerSheet({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Unit</Label>
-                <Input 
-                  required
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Selling Unit</Label>
+                <select
                   value={formData.unit}
-                  onChange={e => setFormData({...formData, unit: e.target.value})}
-                  placeholder="Hal. pcs"
-                  className="h-12 rounded-xl border-slate-200 focus:ring-slate-300"
-                />
+                  onChange={e => handleUnitChange(e.target.value)}
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 font-semibold text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                >
+                  <optgroup label="Discrete (Per Piece / Pack)">
+                    <option value="pcs">Piece (pcs)</option>
+                    <option value="pack">Pack</option>
+                    <option value="can">Can</option>
+                    <option value="btl">Bottle (btl)</option>
+                    <option value="box">Box</option>
+                    <option value="sack">Sack</option>
+                  </optgroup>
+                  <optgroup label="Measured (By Weight / Length)">
+                    <option value="kg">Kilogram (kg)</option>
+                    <option value="g">Gram (g)</option>
+                    <option value="m">Meter (m)</option>
+                    <option value="ft">Foot (ft)</option>
+                  </optgroup>
+                </select>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cost Price (₱)</Label>
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Cost Price (₱ / {formData.unit})
+                </Label>
                 <Input 
                   required
                   type="number"
@@ -227,7 +294,9 @@ export function ProductManagerSheet({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sale Price (₱)</Label>
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Sale Price (₱ / {formData.unit})
+                </Label>
                 <Input 
                   required
                   type="number"
@@ -243,24 +312,32 @@ export function ProductManagerSheet({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Current Stock</Label>
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Current Stock ({formData.unit})
+                </Label>
                 <Input 
                   required
                   type="number"
+                  step={formData.quantityMode === 'measured' ? "0.001" : "1"}
                   min="0"
                   value={formData.currentStock}
                   onChange={e => setFormData({...formData, currentStock: e.target.value})}
+                  placeholder={formData.quantityMode === 'measured' ? "Hal. 10.500" : "0"}
                   className="h-12 rounded-xl border-slate-200 focus:ring-slate-300"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Min. Stock Alert</Label>
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Min. Stock Alert ({formData.unit})
+                </Label>
                 <Input 
                   required
                   type="number"
+                  step={formData.quantityMode === 'measured' ? "0.001" : "1"}
                   min="0"
                   value={formData.minStock}
                   onChange={e => setFormData({...formData, minStock: e.target.value})}
+                  placeholder={formData.quantityMode === 'measured' ? "Hal. 1.000" : "5"}
                   className="h-12 rounded-xl border-slate-200 focus:ring-slate-300"
                 />
               </div>

@@ -57,6 +57,9 @@ export interface ClientCatalogSnapshotItem {
   sku: string;
   barcode: string;
   isActive: boolean;
+  quantityMode?: 'discrete' | 'measured';
+  sellingUnit?: string;
+  quantityScale?: number;
 }
 
 /**

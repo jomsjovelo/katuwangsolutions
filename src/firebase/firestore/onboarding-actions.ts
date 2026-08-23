@@ -11,7 +11,7 @@ import { BusinessInfoSchema, AccountSchema } from '@/lib/schemas/onboarding';
 import { generateUniqueReferralCode } from './referral-utils';
 import { getModulePricing } from '@/lib/pricing';
 import { isValidCtaSource } from '@/lib/conversion-events';
-import { normalizeModuleId, isValidActiveModuleId, type BentaBusinessProfile } from '@/lib/app-data';
+import { normalizeModuleId, isValidActiveModuleId, normalizeBentaBusinessProfile, type BentaBusinessProfile } from '@/lib/app-data';
 
 export interface RegistrationDependencies {
   initializeFirebase: typeof initializeFirebase;
@@ -130,15 +130,14 @@ export async function registerNewTenant(
 
   let resolvedBusinessProfile: BentaBusinessProfile | undefined = undefined;
   if (canonicalModuleId === 'benta-snap') {
-    const validProfiles: BentaBusinessProfile[] = ['standard-retail', 'fresh-goods', 'hardware-supplies', 'wholesale'];
-    if (businessInfo.businessProfile && validProfiles.includes(businessInfo.businessProfile as BentaBusinessProfile)) {
-      resolvedBusinessProfile = businessInfo.businessProfile as BentaBusinessProfile;
+    if (businessInfo.businessProfile) {
+      resolvedBusinessProfile = normalizeBentaBusinessProfile(businessInfo.businessProfile);
     } else if (rawAppId === 'fresh-tally') {
-      resolvedBusinessProfile = 'fresh-goods';
+      resolvedBusinessProfile = 'fresh_goods';
     } else if (rawAppId === 'build-stack') {
-      resolvedBusinessProfile = 'hardware-supplies';
+      resolvedBusinessProfile = 'hardware_supply';
     } else {
-      resolvedBusinessProfile = 'standard-retail';
+      resolvedBusinessProfile = 'general_retail';
     }
   }
 

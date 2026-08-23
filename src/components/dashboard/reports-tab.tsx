@@ -19,6 +19,7 @@ import { useUser } from '@/firebase/auth/use-user';
 import { usePinApproval } from '@/hooks/use-pin-approval';
 import { useToast } from '@/hooks/use-toast';
 import { deleteSale } from '@/firebase/firestore/retail-actions';
+import { computeLineFinancials } from '@/lib/shared/quantity-math';
 import { EditTransactionModal } from './retail/edit-transaction-modal';
 import {
   AlertDialog,
@@ -45,19 +46,41 @@ function RetailMetrics({ selectedDate }: { selectedDate: Date | { start: Date, e
       saleMissing = true;
     } else {
       tx.items.forEach((item: any) => {
-        const qty = item.quantity;
-        const costPrice = item.costPrice;
-        if (
-          Number.isSafeInteger(qty) &&
-          qty > 0 &&
-          costPrice !== undefined &&
-          costPrice !== null &&
-          Number.isSafeInteger(costPrice) &&
-          costPrice >= 0
-        ) {
-          totalCogsCentavos += costPrice * qty;
+        if (typeof item.lineCostCentavos === 'number' && Number.isSafeInteger(item.lineCostCentavos) && item.lineCostCentavos >= 0) {
+          totalCogsCentavos += item.lineCostCentavos;
+        } else if (typeof item.lineCost === 'number' && Number.isSafeInteger(item.lineCost) && item.lineCost >= 0) {
+          totalCogsCentavos += item.lineCost;
+        } else if (item.quantityMode === 'measured' || item.quantityMinor !== undefined) {
+          const qtyMinor = item.quantityMinor;
+          const costPrice = item.unitCostCentavos ?? item.costPrice;
+          const scale = item.quantityScale || 3;
+          if (
+            Number.isSafeInteger(qtyMinor) &&
+            qtyMinor > 0 &&
+            costPrice !== undefined &&
+            costPrice !== null &&
+            Number.isSafeInteger(costPrice) &&
+            costPrice >= 0
+          ) {
+            totalCogsCentavos += computeLineFinancials(costPrice, qtyMinor, scale);
+          } else {
+            saleMissing = true;
+          }
         } else {
-          saleMissing = true;
+          const qty = item.quantity;
+          const costPrice = item.unitCostCentavos ?? item.costPrice;
+          if (
+            Number.isSafeInteger(qty) &&
+            qty > 0 &&
+            costPrice !== undefined &&
+            costPrice !== null &&
+            Number.isSafeInteger(costPrice) &&
+            costPrice >= 0
+          ) {
+            totalCogsCentavos += costPrice * qty;
+          } else {
+            saleMissing = true;
+          }
         }
       });
     }
@@ -507,20 +530,43 @@ export function ReportsTab() {
     let saleHasMissingCost = false;
     if (sale.items && Array.isArray(sale.items) && sale.items.length > 0) {
       sale.items.forEach((item: any) => {
-        const qty = item.quantity;
-        const costPrice = item.costPrice;
-        if (
-          !Number.isSafeInteger(qty) ||
-          qty <= 0 ||
-          costPrice === undefined ||
-          costPrice === null ||
-          !Number.isSafeInteger(costPrice) ||
-          costPrice < 0
-        ) {
-          missingCostItemsCount++;
-          saleHasMissingCost = true;
+        if (typeof item.lineCostCentavos === 'number' && Number.isSafeInteger(item.lineCostCentavos) && item.lineCostCentavos >= 0) {
+          totalCogsCentavos += item.lineCostCentavos;
+        } else if (typeof item.lineCost === 'number' && Number.isSafeInteger(item.lineCost) && item.lineCost >= 0) {
+          totalCogsCentavos += item.lineCost;
+        } else if (item.quantityMode === 'measured' || item.quantityMinor !== undefined) {
+          const qtyMinor = item.quantityMinor;
+          const costPrice = item.unitCostCentavos ?? item.costPrice;
+          const scale = item.quantityScale || 3;
+          if (
+            Number.isSafeInteger(qtyMinor) &&
+            qtyMinor > 0 &&
+            costPrice !== undefined &&
+            costPrice !== null &&
+            Number.isSafeInteger(costPrice) &&
+            costPrice >= 0
+          ) {
+            totalCogsCentavos += computeLineFinancials(costPrice, qtyMinor, scale);
+          } else {
+            missingCostItemsCount++;
+            saleHasMissingCost = true;
+          }
         } else {
-          totalCogsCentavos += costPrice * qty;
+          const qty = item.quantity;
+          const costPrice = item.unitCostCentavos ?? item.costPrice;
+          if (
+            !Number.isSafeInteger(qty) ||
+            qty <= 0 ||
+            costPrice === undefined ||
+            costPrice === null ||
+            !Number.isSafeInteger(costPrice) ||
+            costPrice < 0
+          ) {
+            missingCostItemsCount++;
+            saleHasMissingCost = true;
+          } else {
+            totalCogsCentavos += costPrice * qty;
+          }
         }
       });
     } else {

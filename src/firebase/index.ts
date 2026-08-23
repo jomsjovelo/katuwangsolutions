@@ -26,13 +26,14 @@ export function isFirestorePersistenceActive(): boolean {
 function connectClientEmulators(authInstance: Auth, dbInstance: Firestore) {
   if (emulatorsConnected) return;
   const useEmulator = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true';
-  if (useEmulator && typeof window !== 'undefined') {
-    const isLoopback = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  if (useEmulator) {
+    const isNode = typeof window === 'undefined';
+    const isLoopback = isNode || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     const isDemoProject = typeof firebaseConfig.projectId === 'string' && firebaseConfig.projectId.startsWith('demo-');
 
     if (!isLoopback || !isDemoProject) {
       throw new Error(
-        `[SECURITY_FAIL_CLOSED] Emulator mode refused: Hostname '${window.location.hostname}' or Project ID '${firebaseConfig.projectId}' violates emulator isolation requirements. Project ID must start with 'demo-'.`
+        `[SECURITY_FAIL_CLOSED] Emulator mode refused: Hostname '${isNode ? 'node' : window.location.hostname}' or Project ID '${firebaseConfig.projectId}' violates emulator isolation requirements. Project ID must start with 'demo-'.`
       );
     }
 

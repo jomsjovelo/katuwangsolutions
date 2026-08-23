@@ -35,6 +35,10 @@ export interface CheckoutReceipt {
     quantity: number;
     unitPriceCentavos: number;
     lineTotalCentavos: number;
+    quantityMode?: 'discrete' | 'measured';
+    quantityMinor?: number;
+    quantityScale?: number;
+    sellingUnit?: string;
   }>;
   subtotalCentavos: number;
   totalCentavos: number;

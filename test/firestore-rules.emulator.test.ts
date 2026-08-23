@@ -205,6 +205,57 @@ test('Firestore Security Rules Client Authorization Suite', async (t) => {
     }));
   });
 
+  await t.test('4b. Cashier can create valid schema v2 intent with measured items', async () => {
+    const intentId = `intent_v2_valid_${Date.now()}`;
+    const intentRef = doc(cashier1Db, 'tenants', tenantId, 'cashier_sale_intents', intentId);
+    await assertSucceeds(setDoc(intentRef, {
+      schemaVersion: 2,
+      intentId,
+      tenantId,
+      authUid: cashier1Uid,
+      staffAccountId: staffAccount1Id,
+      shiftId: 'shift_1',
+      tender: 'cash',
+      items: [
+        {
+          productId: 'prod_pork',
+          quantityMode: 'measured',
+          quantityMinor: 1250,
+          quantityScale: 3,
+          sellingUnit: 'kg',
+          observedUnitPriceCentavos: 28000,
+          observedSubtotalCentavos: 35000
+        }
+      ],
+      itemCount: 1,
+      observedTotalCentavos: 35000,
+      cashTenderedCentavos: 40000,
+      changeRequiredCentavos: 5000,
+      clientCreatedAt: new Date().toISOString(),
+      status: 'pending'
+    }));
+  });
+
+  await t.test('4c. Cashier cannot create intent with unsupported schemaVersion 3', async () => {
+    const intentId = `intent_v3_invalid_${Date.now()}`;
+    const intentRef = doc(cashier1Db, 'tenants', tenantId, 'cashier_sale_intents', intentId);
+    await assertFails(setDoc(intentRef, {
+      ...validIntentData,
+      intentId,
+      schemaVersion: 3
+    }));
+  });
+
+  await t.test('4d. Cashier cannot create intent with unauthorized extra top-level field', async () => {
+    const intentId = `intent_extra_field_${Date.now()}`;
+    const intentRef = doc(cashier1Db, 'tenants', tenantId, 'cashier_sale_intents', intentId);
+    await assertFails(setDoc(intentRef, {
+      ...validIntentData,
+      intentId,
+      authoritativeSaleId: 'sale_hacked'
+    }));
+  });
+
   await t.test('5. Cashier cannot create intent for another tenant or another staff account', async () => {
     const intentId = `intent_spoofed_${Date.now()}`;
     const intentRef = doc(cashier1Db, 'tenants', tenantId, 'cashier_sale_intents', intentId);

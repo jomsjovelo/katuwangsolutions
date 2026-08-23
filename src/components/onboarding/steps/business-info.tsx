@@ -218,22 +218,36 @@ export function BusinessInfoStep({ data, onUpdate, onNext, isLoading }: Business
                 {data.appId === 'benta-snap' && (
                   <div className="space-y-2">
                     <div className="flex flex-col gap-0.5">
-                      <Label htmlFor="businessProfile" className="text-xs font-bold uppercase tracking-widest text-slate-500">Uri ng Tindahan / Negosyo</Label>
-                      <span className="text-[10px] text-slate-400 font-medium">Piliin ang uri ng iyong negosyo para sa setup ng iyong account</span>
+                      <Label htmlFor="businessProfile" className="text-xs font-bold uppercase tracking-widest text-slate-500">What type of business do you run?</Label>
+                      <span className="text-[10px] text-slate-400 font-medium">Piliin ang uri ng negosyo para sa setup ng iyong account</span>
                     </div>
                     <Select
                       name="businessProfile"
-                      value={data.businessProfile || 'standard-retail'}
+                      value={data.businessProfile || 'general_retail'}
                       onValueChange={(val) => onUpdate({ businessProfile: val })}
                     >
                       <SelectTrigger id="businessProfile" className="h-14">
                         <SelectValue placeholder="Pumili ng uri..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="standard-retail">General Retail / Sari-Sari / Grocery</SelectItem>
-                        <SelectItem value="fresh-goods">Palengke / Fresh Goods / Karne / Isda</SelectItem>
-                        <SelectItem value="hardware-supplies">Hardware / Construction Supplies</SelectItem>
-                        <SelectItem value="wholesale">Wholesale / Bagsakan</SelectItem>
+                        <SelectItem value="general_retail">
+                          <div className="flex flex-col text-left py-0.5">
+                            <span className="font-black text-xs uppercase tracking-tight">GENERAL RETAIL</span>
+                            <span className="text-[10px] text-slate-500 font-normal">Sari-sari stores, minimarts, groceries, clothing, convenience stores, and general merchandise.</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="fresh_goods">
+                          <div className="flex flex-col text-left py-0.5">
+                            <span className="font-black text-xs uppercase tracking-tight">FRESH GOODS</span>
+                            <span className="text-[10px] text-slate-500 font-normal">Vegetables, fruit, meat, seafood, rice, grains, and other products commonly sold by weight or variable quantity.</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="hardware_supply">
+                          <div className="flex flex-col text-left py-0.5">
+                            <span className="font-black text-xs uppercase tracking-tight">HARDWARE &amp; SUPPLIES</span>
+                            <span className="text-[10px] text-slate-500 font-normal">Hardware, construction materials, electrical and plumbing supplies, and products sold by piece, box, sack, meter, foot, or kilogram.</span>
+                          </div>
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

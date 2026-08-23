@@ -35,6 +35,11 @@ export interface SanitizedBootstrapProduct {
   barcode?: string;
   category?: string;
   minStock?: number;
+  quantityMode?: 'discrete' | 'measured';
+  sellingUnit?: string;
+  quantityScale?: number;
+  stockQuantityMinor?: number;
+  minStockMinor?: number;
 }
 
 export interface SanitizedBootstrapShift {
@@ -58,6 +63,7 @@ export interface BentaCashierBootstrapResponse {
   moduleId: typeof BENTA_SNAP_MODULE_ID;
   staffAccountId: string;
   cashierDisplayName: string;
+  businessProfile?: string;
   currentShift: SanitizedBootstrapShift | null;
   products: SanitizedBootstrapProduct[];
   offlineAuthority?: {
@@ -106,11 +112,14 @@ function sanitizeProduct(snapshot: admin.firestore.QueryDocumentSnapshot, tenant
       typeof product.name !== 'string' || !product.name.trim() || product.name.trim().length > 200 ||
       /[\u0000-\u001F\u007F]/.test(product.name) || typeof product.unit !== 'string' || !product.unit.trim() ||
       product.unit.trim().length > 64 || /[\u0000-\u001F\u007F]/.test(product.unit) ||
-      !Number.isSafeInteger(product.salePrice) || product.salePrice < 0 ||
-      !Number.isSafeInteger(product.currentStock) || product.currentStock < 0 ||
-      (product.minStock !== undefined && (!Number.isSafeInteger(product.minStock) || product.minStock < 0))) {
+      !Number.isSafeInteger(product.salePrice) || product.salePrice < 0) {
     return null;
   }
+
+  const isMeasured = product.quantityMode === 'measured';
+  const currentStock = Number.isSafeInteger(product.currentStock) && product.currentStock >= 0 ? product.currentStock : 0;
+  const stockQuantityMinor = Number.isSafeInteger(product.stockQuantityMinor) && product.stockQuantityMinor >= 0 ? product.stockQuantityMinor : 0;
+
   const sku = safeOptionalDisplay(product.sku);
   const barcode = safeOptionalDisplay(product.barcode);
   const category = safeOptionalDisplay(product.category);
@@ -121,10 +130,19 @@ function sanitizeProduct(snapshot: admin.firestore.QueryDocumentSnapshot, tenant
     ...(barcode ? { barcode } : {}),
     ...(category ? { category } : {}),
     salePrice: product.salePrice,
-    currentStock: product.currentStock,
+    currentStock,
     ...(product.minStock !== undefined ? { minStock: product.minStock } : {}),
     unit: product.unit.trim(),
-    isActive: true
+    isActive: true,
+    ...(isMeasured ? {
+      quantityMode: 'measured' as const,
+      sellingUnit: typeof product.sellingUnit === 'string' ? product.sellingUnit.trim() : product.unit.trim(),
+      quantityScale: Number.isSafeInteger(product.quantityScale) ? product.quantityScale : 3,
+      stockQuantityMinor,
+      ...(product.minStockMinor !== undefined ? { minStockMinor: product.minStockMinor } : {})
+    } : {
+      quantityMode: 'discrete' as const
+    })
   };
 }
 

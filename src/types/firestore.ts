@@ -12,6 +12,11 @@ export interface Product {
   salePrice: number; // in centavos
   unit: string;
   isActive: boolean;
+  quantityMode?: 'discrete' | 'measured';
+  sellingUnit?: string;
+  quantityScale?: number;
+  stockQuantityMinor?: number;
+  minStockMinor?: number;
   createdAt?: Timestamp | Date | any;
   updatedAt?: Timestamp | Date | any;
 }
@@ -23,6 +28,10 @@ export interface CartItem {
   price: number; // centavos
   costPrice?: number; // centavos
   unit?: string;
+  quantityMode?: 'discrete' | 'measured';
+  quantityMinor?: number;
+  quantityScale?: number;
+  sellingUnit?: string;
 }
 
 export interface SaleRecord {

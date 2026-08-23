@@ -120,11 +120,18 @@ export async function writeJpegToFileHandle(
   return 'saved';
 }
 
+import { computeLineFinancials, formatMinorToDecimal } from '@/lib/shared/quantity-math';
+
 interface ReceiptItem {
   productId?: string;
   name: string;
   quantity: number;
   price: number;
+  quantityMode?: 'discrete' | 'measured';
+  quantityMinor?: number;
+  quantityScale?: number;
+  sellingUnit?: string;
+  unit?: string;
 }
 
 interface ModuleTheme {
@@ -408,15 +415,25 @@ export function ThermalReceiptPreview({
               </div>
               
               <div className="space-y-2">
-                {items.map((item, idx) => (
-                  <div key={item.productId || idx} className="space-y-0.5">
-                    <div className="text-slate-800 font-bold truncate">{item.name}</div>
-                    <div className="flex justify-between text-slate-500 text-[9px] pl-2">
-                      <span>{item.quantity} x ₱{(item.price / 100).toFixed(0)}</span>
-                      <span className="font-bold text-slate-700">₱{((item.price * item.quantity) / 100).toFixed(2)}</span>
+                {items.map((item, idx) => {
+                  const isMeasured = item.quantityMode === 'measured' || item.quantityMinor !== undefined;
+                  const lineTotalCentavos = isMeasured && typeof item.quantityMinor === 'number'
+                    ? computeLineFinancials(item.price, item.quantityMinor, item.quantityScale || 3)
+                    : item.price * item.quantity;
+                  const quantityLabel = isMeasured && typeof item.quantityMinor === 'number'
+                    ? `${formatMinorToDecimal(item.quantityMinor, item.quantityScale || 3)} ${item.sellingUnit || item.unit || 'kg'}`
+                    : `${item.quantity}`;
+
+                  return (
+                    <div key={item.productId || idx} className="space-y-0.5">
+                      <div className="text-slate-800 font-bold truncate">{item.name}</div>
+                      <div className="flex justify-between text-slate-500 text-[9px] pl-2">
+                        <span>{quantityLabel} x ₱{(item.price / 100).toFixed(2)}</span>
+                        <span className="font-bold text-slate-700">₱{(lineTotalCentavos / 100).toFixed(2)}</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <div className="text-slate-300 tracking-tighter text-[9px] text-center">--------------------------------</div>
             </div>

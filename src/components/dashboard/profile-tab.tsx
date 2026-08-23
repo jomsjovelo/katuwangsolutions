@@ -48,6 +48,8 @@ import { ActivityOrganizer } from './activity-organizer';
 import { EmailVerificationBanner } from '@/components/auth/email-verification-banner';
 import { BluetoothPrinterModal } from '@/components/common/bluetooth-printer-modal';
 import { EscPosBluetoothDriver } from '@/lib/hardware/print-driver';
+import { cn } from '@/lib/utils';
+import { normalizeBentaBusinessProfile } from '@/lib/app-data';
 import {
   User,
   Users,
@@ -68,7 +70,11 @@ import {
   Download,
   Share,
   PlusSquare,
-  Wallet,
+  Sparkles,
+  Award,
+  Layers,
+  KeyRound,
+  FileSpreadsheet,
   Upload,
   QrCode,
   X,
@@ -640,6 +646,26 @@ export function ProfileTab() {
       }
     }
   };
+  const handleUpdateBusinessProfile = async (newProfile: 'general_retail' | 'fresh_goods' | 'hardware_supply') => {
+    if (!currentTenant || profile?.role !== 'owner') return;
+    try {
+      await updateDoc(doc(db, 'tenants', currentTenant.id), {
+        businessProfile: newProfile,
+        updatedAt: new Date()
+      });
+      toast({
+        title: 'Na-update ang Uri ng Negosyo',
+        description: `Naka-set na ngayon sa ${newProfile === 'general_retail' ? 'GENERAL RETAIL' : newProfile === 'fresh_goods' ? 'FRESH GOODS' : 'HARDWARE & SUPPLIES'}.`
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Error sa Pag-update',
+        description: err.message || 'Hindi ma-update ang profile.',
+        variant: 'destructive'
+      });
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-full relative">
       {showOrganizer && <ActivityOrganizer onClose={() => setShowOrganizer(false)} />}
@@ -675,6 +701,62 @@ export function ProfileTab() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Business Profile Selection (Benta Snap Store Owners) */}
+        {currentTenant?.moduleType === 'benta-snap' && profile?.role === 'owner' && (
+          <Card className="bg-white border-slate-200 shadow-sm overflow-hidden rounded-[24px]">
+            <CardHeader className="p-5 pb-2 flex flex-row items-center gap-2">
+              <Layers className="h-4 w-4" style={{ color: theme.primary }} />
+              <div>
+                <CardTitle className="text-sm font-black text-slate-800">Business Profile / Uri ng Negosyo</CardTitle>
+                <CardDescription className="text-xs text-slate-500 mt-0.5">
+                  Baguhin ang uri ng negosyo nang walang pagbabago sa produkto o sales records.
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="p-5 pt-3 space-y-3">
+              <div className="grid grid-cols-1 gap-2.5">
+                {[
+                  {
+                    id: 'general_retail' as const,
+                    label: 'GENERAL RETAIL',
+                    desc: 'Sari-sari stores, minimarts, groceries, clothing, convenience stores, and general merchandise.'
+                  },
+                  {
+                    id: 'fresh_goods' as const,
+                    label: 'FRESH GOODS',
+                    desc: 'Vegetables, fruit, meat, seafood, rice, grains, and other products commonly sold by weight or variable quantity.'
+                  },
+                  {
+                    id: 'hardware_supply' as const,
+                    label: 'HARDWARE & SUPPLIES',
+                    desc: 'Hardware, construction materials, electrical and plumbing supplies, and products sold by piece, box, sack, meter, foot, or kilogram.'
+                  }
+                ].map((item) => {
+                  const isSelected = normalizeBentaBusinessProfile(currentTenant.businessProfile) === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleUpdateBusinessProfile(item.id)}
+                      className={cn(
+                        "p-3.5 rounded-2xl border text-left transition-all",
+                        isSelected
+                          ? "border-cyan-500 bg-cyan-50/50 shadow-sm ring-1 ring-cyan-500"
+                          : "border-slate-200 bg-white hover:bg-slate-50"
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-slate-800 uppercase tracking-tight">{item.label}</span>
+                        {isSelected && <Badge className="bg-cyan-600 text-white text-[10px] h-5 px-2 font-bold">Aktibo</Badge>}
+                      </div>
+                      <p className="text-[11px] text-slate-500 font-medium mt-1 leading-relaxed">{item.desc}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* My Apps & Stores */}
         {allTenants.length > 0 && (

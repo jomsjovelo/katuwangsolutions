@@ -17,6 +17,10 @@ export interface ProductCatalogInput {
   salePrice: number;
   costPrice: number;                   // Required fail-closed historical cost
   currentStock?: number;
+  stockQuantityMinor?: number;
+  quantityMode?: 'discrete' | 'measured';
+  sellingUnit?: string;
+  quantityScale?: number;
   unit?: string;
   category?: string;
   sku?: string;
@@ -61,7 +65,14 @@ export function canonicalizeCatalogProducts(products: ProductCatalogInput[]): Se
         category: p.category && typeof p.category === 'string' ? p.category.trim() : 'General',
         sku: p.sku && typeof p.sku === 'string' ? p.sku.trim() : '',
         barcode: p.barcode && typeof p.barcode === 'string' ? p.barcode.trim() : '',
-        isActive: true
+        isActive: true,
+        ...(p.quantityMode === 'measured' ? {
+          quantityMode: 'measured' as const,
+          sellingUnit: p.sellingUnit || unit,
+          quantityScale: p.quantityScale || 3
+        } : {
+          quantityMode: 'discrete' as const
+        })
       };
 
       const itemBytes = Buffer.byteLength(JSON.stringify(item), 'utf8');
@@ -88,7 +99,12 @@ export function generateCatalogDigest(canonicalProducts: ServerCatalogSnapshotIt
     category: p.category,
     sku: p.sku,
     barcode: p.barcode,
-    isActive: p.isActive
+    isActive: p.isActive,
+    quantityMode: p.quantityMode || 'discrete',
+    ...(p.quantityMode === 'measured' ? {
+      sellingUnit: p.sellingUnit,
+      quantityScale: p.quantityScale
+    } : {})
   }));
 
   const canonical = canonicalizeJson(clientCatalogDefinition);
@@ -108,7 +124,12 @@ export function generateServerCatalogDigest(canonicalProducts: ServerCatalogSnap
     category: p.category,
     sku: p.sku,
     barcode: p.barcode,
-    isActive: p.isActive
+    isActive: p.isActive,
+    quantityMode: p.quantityMode || 'discrete',
+    ...(p.quantityMode === 'measured' ? {
+      sellingUnit: p.sellingUnit,
+      quantityScale: p.quantityScale
+    } : {})
   }));
 
   const canonical = canonicalizeJson(serverCatalogDefinition);

@@ -10,6 +10,12 @@ import {
 } from './cashier-server-authorization';
 import { applySaleToShift, assertReconciliationShift } from './benta-cashier-shift-receipt';
 import { CheckoutReceipt } from './benta-cashier-checkout';
+import {
+  computeLineFinancials,
+  isMeasuredUnit,
+  isValidQuantityScale,
+  STANDARD_MEASURED_SCALE
+} from '../shared/quantity-math';
 
 export interface FinalizeIntentRequest {
   tenantId: string;
@@ -46,14 +52,26 @@ function nonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
-export interface AggregatedIntentItem {
+export interface AggregatedDiscreteIntentItem {
   productId: string;
+  quantityMode: 'discrete';
   quantity: number;
   observedUnitPriceCentavos?: number;
 }
 
+export interface AggregatedMeasuredIntentItem {
+  productId: string;
+  quantityMode: 'measured';
+  quantityMinor: number;
+  quantityScale: number;
+  sellingUnit: string;
+  observedUnitPriceCentavos?: number;
+}
+
+export type AggregatedIntentItem = AggregatedDiscreteIntentItem | AggregatedMeasuredIntentItem;
+
 /**
- * Validates and deterministically aggregates intent items.
+ * Validates and deterministically aggregates intent items for schema v1 (discrete) and v2 (discrete/measured).
  * Fails closed if any product ID is invalid or any quantity is non-integer, non-positive, or exceeds bounds.
  */
 export function validateAndAggregateIntentItems(rawItems: unknown): AggregatedIntentItem[] {
@@ -61,41 +79,85 @@ export function validateAndAggregateIntentItems(rawItems: unknown): AggregatedIn
     throw new CheckoutError(CheckoutErrorCode.INVALID_REQUEST);
   }
 
-  const map = new Map<string, { quantity: number; observedUnitPriceCentavos?: number }>();
+  const map = new Map<string, AggregatedIntentItem>();
 
   for (const item of rawItems) {
     if (!item || typeof item !== 'object') {
       throw new CheckoutError(CheckoutErrorCode.INVALID_REQUEST);
     }
-    const productId = typeof item.productId === 'string' ? item.productId.trim() : '';
+    const raw = item as Record<string, any>;
+    const productId = typeof raw.productId === 'string' ? raw.productId.trim() : '';
     if (!productId || !SERVER_IDENTIFIER.test(productId)) {
       throw new CheckoutError(CheckoutErrorCode.INVALID_REQUEST);
     }
 
-    const qty = item.quantity;
-    if (typeof qty !== 'number' || !Number.isSafeInteger(qty) || qty < 1 || qty > 10_000) {
-      throw new CheckoutError(CheckoutErrorCode.INVALID_REQUEST);
-    }
-
-    const observedUnit = typeof item.observedUnitPriceCentavos === 'number' && Number.isSafeInteger(item.observedUnitPriceCentavos) && item.observedUnitPriceCentavos >= 0
-      ? item.observedUnitPriceCentavos
+    const observedUnit = typeof raw.observedUnitPriceCentavos === 'number' &&
+      Number.isSafeInteger(raw.observedUnitPriceCentavos) && raw.observedUnitPriceCentavos >= 0
+      ? raw.observedUnitPriceCentavos
       : undefined;
 
-    const existing = map.get(productId);
-    if (existing) {
-      existing.quantity = safeAdd(existing.quantity, qty);
+    const isMeasured = raw.quantityMode === 'measured' || ('quantityMinor' in raw);
+
+    if (isMeasured) {
+      const qtyMinor = raw.quantityMinor;
+      if (typeof qtyMinor !== 'number' || !Number.isSafeInteger(qtyMinor) || qtyMinor < 1 || qtyMinor > 10_000_000) {
+        throw new CheckoutError(CheckoutErrorCode.INVALID_REQUEST);
+      }
+
+      const scale = typeof raw.quantityScale === 'number' ? raw.quantityScale : STANDARD_MEASURED_SCALE;
+      if (!isValidQuantityScale(scale)) {
+        throw new CheckoutError(CheckoutErrorCode.INVALID_REQUEST);
+      }
+
+      const sellingUnit = typeof raw.sellingUnit === 'string' && raw.sellingUnit.trim().length > 0
+        ? raw.sellingUnit.trim().toLowerCase()
+        : 'kg';
+
+      if (!isMeasuredUnit(sellingUnit)) {
+        throw new CheckoutError(CheckoutErrorCode.INVALID_REQUEST);
+      }
+
+      const existing = map.get(productId);
+      if (existing) {
+        if (existing.quantityMode !== 'measured' || existing.sellingUnit !== sellingUnit || existing.quantityScale !== scale) {
+          throw new CheckoutError(CheckoutErrorCode.INVALID_REQUEST);
+        }
+        existing.quantityMinor = safeAdd(existing.quantityMinor, qtyMinor);
+      } else {
+        map.set(productId, {
+          productId,
+          quantityMode: 'measured',
+          quantityMinor: qtyMinor,
+          quantityScale: scale,
+          sellingUnit,
+          observedUnitPriceCentavos: observedUnit
+        });
+      }
     } else {
-      map.set(productId, { quantity: qty, observedUnitPriceCentavos: observedUnit });
+      // Discrete mode (v1 legacy or v2 discrete)
+      const qty = raw.quantity;
+      if (typeof qty !== 'number' || !Number.isSafeInteger(qty) || qty < 1 || qty > 10_000) {
+        throw new CheckoutError(CheckoutErrorCode.INVALID_REQUEST);
+      }
+
+      const existing = map.get(productId);
+      if (existing) {
+        if (existing.quantityMode !== 'discrete') {
+          throw new CheckoutError(CheckoutErrorCode.INVALID_REQUEST);
+        }
+        existing.quantity = safeAdd(existing.quantity, qty);
+      } else {
+        map.set(productId, {
+          productId,
+          quantityMode: 'discrete',
+          quantity: qty,
+          observedUnitPriceCentavos: observedUnit
+        });
+      }
     }
   }
 
-  return Array.from(map.entries())
-    .map(([productId, data]) => ({
-      productId,
-      quantity: data.quantity,
-      observedUnitPriceCentavos: data.observedUnitPriceCentavos
-    }))
-    .sort((a, b) => a.productId.localeCompare(b.productId));
+  return Array.from(map.values()).sort((a, b) => a.productId.localeCompare(b.productId));
 }
 
 export async function finalizeCashierSaleIntent(
@@ -158,106 +220,105 @@ export async function finalizeCashierSaleIntent(
   let aggregatedItems: AggregatedIntentItem[];
   try {
     aggregatedItems = validateAndAggregateIntentItems(initialIntent.items);
-  } catch {
-    // Malformed intent -> mark rejected_tampered
+  } catch (err: any) {
+    const reason = 'Invalid intent items structure or non-positive quantity.';
     await intentRef.update({
       status: 'rejected_tampered',
-      'resolution.reason': 'Malformed or invalid item specifications.',
+      'resolution.reason': reason,
       'resolution.flaggedAt': admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
     return {
       success: false,
       status: 'rejected_tampered',
-      error: 'Malformed or invalid item specifications.'
+      error: reason
     };
   }
 
-  const cashTendered = initialIntent.cashTenderedCentavos;
-  if (typeof cashTendered !== 'number' || !Number.isSafeInteger(cashTendered) || cashTendered < 0) {
-    await intentRef.update({
-      status: 'rejected_tampered',
-      'resolution.reason': 'Invalid cash tendered amount.',
-      'resolution.flaggedAt': admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-    return {
-      success: false,
-      status: 'rejected_tampered',
-      error: 'Invalid cash tendered amount.'
-    };
-  }
-
+  const productRefs = aggregatedItems.map((it) => tenantRef.collection('products').doc(it.productId));
   const shiftRef = tenantRef.collection('shifts').doc(shiftId);
   const accountRef = tenantRef.collection('accounts').doc('master-cash');
-  const productRefs = aggregatedItems.map((item) => tenantRef.collection('products').doc(item.productId));
-
   const saleRef = tenantRef.collection('sales').doc();
   const ledgerRef = tenantRef.collection('transactions').doc();
   const auditRef = tenantRef.collection('audit_log').doc();
-  const movementRefs = productRefs.map(() => tenantRef.collection('inventory_transactions').doc());
-  const committedAt = (options.now || admin.firestore.Timestamp.now)();
+  const movementRefs = aggregatedItems.map(() => tenantRef.collection('inventory_movements').doc());
+
+  const cashTendered = Number.isSafeInteger(initialIntent.cashTenderedCentavos) ? initialIntent.cashTenderedCentavos : 0;
+  if (typeof cashTendered !== 'number' || !Number.isSafeInteger(cashTendered) || cashTendered < 0) {
+    const reason = 'Invalid cash tendered amount.';
+    await intentRef.update({
+      status: 'rejected_tampered',
+      'resolution.reason': reason,
+      'resolution.flaggedAt': admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    return {
+      success: false,
+      status: 'rejected_tampered',
+      error: reason
+    };
+  }
 
   return await db.runTransaction(async (transaction) => {
-    const snapshots = await transaction.getAll(
-      intentRef,
-      tenantRef,
-      staffRef,
-      shiftRef,
-      ...productRefs,
-      accountRef
-    );
-
-    const [freshIntentSnap, tenantSnap, staffSnap, shiftSnap, ...remaining] = snapshots;
-    const accountSnap = remaining.pop()!;
-    const productSnaps = remaining;
-
-    if (!freshIntentSnap.exists) {
+    // 1. Concurrently read all needed docs inside transaction
+    const intentSnap = await transaction.get(intentRef);
+    if (!intentSnap.exists) {
       throw new CheckoutError(CheckoutErrorCode.INVALID_REQUEST);
     }
+    const currentIntent = intentSnap.data()!;
 
-    const intent = freshIntentSnap.data()!;
-    // Idempotent recovery inside transaction
-    if (intent.status === 'accepted' || intent.status === 'accepted_variance') {
+    // Idempotency re-check inside transaction
+    if (currentIntent.status === 'accepted' || currentIntent.status === 'accepted_variance') {
       return {
         success: true,
-        status: intent.status,
-        saleId: intent.authoritativeSaleId || intent.finalization?.saleId,
-        receipt: intent.finalization?.receipt
+        status: currentIntent.status,
+        saleId: currentIntent.authoritativeSaleId || currentIntent.finalization?.saleId,
+        receipt: currentIntent.finalization?.receipt
       };
     }
-
-    if (intent.status !== 'pending') {
+    if (currentIntent.status === 'needs_review' || currentIntent.status === 'rejected_tampered') {
       return {
         success: false,
-        status: intent.status,
-        error: 'Intent is not pending.'
+        status: currentIntent.status,
+        error: currentIntent.resolution?.reason || 'Intent in terminal non-sale state.'
       };
     }
 
-    const staff = assertBentaCashierAuthorization(identity, tenantSnap, staffSnap);
-    if (staff.activeShiftId !== shiftId) {
-      throw new CheckoutError(CheckoutErrorCode.SHIFT_RECOVERY_REQUIRED);
+    const staffSnap = await transaction.get(staffRef);
+    if (!staffSnap.exists) {
+      throw new CheckoutError(CheckoutErrorCode.SESSION_INVALID);
+    }
+    const staff = staffSnap.data()!;
+    if (staff.status !== 'active' || staff.sessionVersion !== identity.sessionVersion) {
+      throw new CheckoutError(CheckoutErrorCode.SESSION_INVALID);
     }
 
+    const shiftSnap = await transaction.get(shiftRef);
     if (!shiftSnap.exists) {
       throw new CheckoutError(CheckoutErrorCode.ACTIVE_SHIFT_REQUIRED);
     }
     const shift = assertReconciliationShift(shiftSnap.id, shiftSnap.data()!, identity);
 
-    let authoritativeSubtotal = 0;
+    const productSnaps = await Promise.all(productRefs.map((ref) => transaction.get(ref)));
+    const accountSnap = await transaction.get(accountRef);
+
+    // Evaluate products, stock availability, and prices
     let priceVarianceDetected = false;
+    let authoritativeSubtotal = 0;
     let stockUnavailable = false;
     let stockUnavailableReason = '';
+    let tamperingDetected = false;
+    let tamperingReason = '';
 
     const receiptItems: CheckoutReceipt['items'] = [];
     const saleItems: Array<Record<string, unknown>> = [];
-    const updates: Array<{ ref: admin.firestore.DocumentReference; stock: number; movementRef: admin.firestore.DocumentReference }> = [];
+    const updates: Array<{ ref: admin.firestore.DocumentReference; updateData: Record<string, unknown>; movementRef: admin.firestore.DocumentReference; movementData: Record<string, unknown> }> = [];
+
+    const committedAt = options.now ? options.now() : admin.firestore.Timestamp.now();
 
     for (let i = 0; i < productSnaps.length; i++) {
       const productSnap = productSnaps[i];
       const submitted = aggregatedItems[i];
-      const qty = submitted.quantity;
 
       if (!productSnap.exists) {
         stockUnavailable = true;
@@ -272,47 +333,188 @@ export async function finalizeCashierSaleIntent(
         break;
       }
 
-      if (product.currentStock < qty) {
-        stockUnavailable = true;
-        stockUnavailableReason = `Insufficient stock for ${product.name}: requested ${qty}, available ${product.currentStock}.`;
+      // Authoritative product binding checks:
+      const productMode: 'discrete' | 'measured' = product.quantityMode === 'measured' ? 'measured' : 'discrete';
+      if (submitted.quantityMode !== productMode) {
+        tamperingDetected = true;
+        tamperingReason = `Quantity mode mismatch: product is ${productMode} but submitted as ${submitted.quantityMode}.`;
         break;
       }
 
-      const authorPrice = Number.isSafeInteger(product.salePrice) && product.salePrice >= 0 ? product.salePrice : 0;
-      const costPrice = Number.isSafeInteger(product.costPrice) && product.costPrice >= 0 ? product.costPrice : 0;
+      if (!Number.isSafeInteger(product.salePrice) || product.salePrice < 0 ||
+          !Number.isSafeInteger(product.costPrice) || product.costPrice < 0) {
+        tamperingDetected = true;
+        tamperingReason = `Authoritative product financial figures invalid for ${submitted.productId}.`;
+        break;
+      }
+
+      const authorPrice = product.salePrice;
+      const costPrice = product.costPrice;
 
       if (submitted.observedUnitPriceCentavos !== undefined && submitted.observedUnitPriceCentavos !== authorPrice) {
         priceVarianceDetected = true;
       }
 
-      const lineTotal = safeMultiply(authorPrice, qty);
-      authoritativeSubtotal = safeAdd(authoritativeSubtotal, lineTotal);
-      const newStock = product.currentStock - qty;
+      if (submitted.quantityMode === 'measured') {
+        const expectedUnit = (product.sellingUnit || product.unit || 'kg').toLowerCase().trim();
+        const submittedUnit = (submitted.sellingUnit || '').toLowerCase().trim();
+        if (submittedUnit !== expectedUnit) {
+          tamperingDetected = true;
+          tamperingReason = `Unit mismatch for product ${submitted.productId}: expected ${expectedUnit}, got ${submittedUnit}.`;
+          break;
+        }
 
-      receiptItems.push({
-        productId: submitted.productId,
-        name: product.name || 'Item',
-        unit: product.unit || 'pcs',
-        quantity: qty,
-        unitPriceCentavos: authorPrice,
-        lineTotalCentavos: lineTotal
-      });
+        const expectedScale = product.quantityScale || STANDARD_MEASURED_SCALE;
+        if (submitted.quantityScale !== expectedScale || submitted.quantityScale !== 3) {
+          tamperingDetected = true;
+          tamperingReason = `Scale mismatch for product ${submitted.productId}: expected ${expectedScale}, got ${submitted.quantityScale}.`;
+          break;
+        }
 
-      saleItems.push({
-        productId: submitted.productId,
-        name: product.name || 'Item',
-        unit: product.unit || 'pcs',
-        quantity: qty,
-        price: authorPrice,
-        costPrice,
-        lineTotal
-      });
+        if (product.stockQuantityMinor === undefined || product.stockQuantityMinor === null || !Number.isSafeInteger(product.stockQuantityMinor) || product.stockQuantityMinor < 0) {
+          tamperingDetected = true;
+          tamperingReason = `Missing or invalid authoritative measured stock for ${submitted.productId}.`;
+          break;
+        }
 
-      updates.push({
-        ref: productRefs[i],
-        stock: newStock,
-        movementRef: movementRefs[i]
+        const availableMinor = product.stockQuantityMinor;
+        if (availableMinor < submitted.quantityMinor) {
+          stockUnavailable = true;
+          stockUnavailableReason = `Insufficient stock for ${product.name}: requested ${submitted.quantityMinor / 1000} ${submitted.sellingUnit}, available ${availableMinor / 1000} ${submitted.sellingUnit}.`;
+          break;
+        }
+
+        const lineTotal = computeLineFinancials(authorPrice, submitted.quantityMinor, submitted.quantityScale);
+        const lineCost = computeLineFinancials(costPrice, submitted.quantityMinor, submitted.quantityScale);
+        authoritativeSubtotal = safeAdd(authoritativeSubtotal, lineTotal);
+        const newStockMinor = availableMinor - submitted.quantityMinor;
+
+        receiptItems.push({
+          productId: submitted.productId,
+          name: product.name || 'Item',
+          unit: submitted.sellingUnit || product.unit || 'kg',
+          quantity: 1,
+          quantityMinor: submitted.quantityMinor,
+          quantityScale: submitted.quantityScale,
+          sellingUnit: submitted.sellingUnit,
+          quantityMode: 'measured',
+          unitPriceCentavos: authorPrice,
+          lineTotalCentavos: lineTotal
+        });
+
+        saleItems.push({
+          productId: submitted.productId,
+          name: product.name || 'Item',
+          unit: submitted.sellingUnit || product.unit || 'kg',
+          quantity: 1,
+          quantityMinor: submitted.quantityMinor,
+          quantityScale: submitted.quantityScale,
+          sellingUnit: submitted.sellingUnit,
+          quantityMode: 'measured',
+          unitPriceCentavos: authorPrice,
+          unitCostCentavos: costPrice,
+          lineSubtotalCentavos: lineTotal,
+          lineCostCentavos: lineCost,
+          price: authorPrice,
+          costPrice,
+          lineCost,
+          lineTotal
+        });
+
+        updates.push({
+          ref: productRefs[i],
+          updateData: { stockQuantityMinor: newStockMinor, updatedAt: committedAt },
+          movementRef: movementRefs[i],
+          movementData: {
+            id: movementRefs[i].id,
+            tenantId,
+            productId: submitted.productId,
+            type: 'sale',
+            quantityMinorChange: -submitted.quantityMinor,
+            quantityMode: 'measured',
+            previousStockQuantityMinor: availableMinor,
+            newStockQuantityMinor: newStockMinor,
+            saleId: saleRef.id,
+            shiftId,
+            staffAccountId,
+            createdAt: committedAt
+          }
+        });
+      } else {
+        // Discrete mode
+        const qty = submitted.quantity;
+        const availableStock = Number.isSafeInteger(product.currentStock) ? product.currentStock : 0;
+        if (availableStock < qty) {
+          stockUnavailable = true;
+          stockUnavailableReason = `Insufficient stock for ${product.name}: requested ${qty}, available ${availableStock}.`;
+          break;
+        }
+
+        const lineTotal = safeMultiply(authorPrice, qty);
+        const lineCost = safeMultiply(costPrice, qty);
+        authoritativeSubtotal = safeAdd(authoritativeSubtotal, lineTotal);
+        const newStock = availableStock - qty;
+
+        receiptItems.push({
+          productId: submitted.productId,
+          name: product.name || 'Item',
+          unit: product.unit || 'pcs',
+          quantity: qty,
+          quantityMode: 'discrete',
+          unitPriceCentavos: authorPrice,
+          lineTotalCentavos: lineTotal
+        });
+
+        saleItems.push({
+          productId: submitted.productId,
+          name: product.name || 'Item',
+          unit: product.unit || 'pcs',
+          quantity: qty,
+          quantityMode: 'discrete',
+          unitPriceCentavos: authorPrice,
+          unitCostCentavos: costPrice,
+          lineSubtotalCentavos: lineTotal,
+          lineCostCentavos: lineCost,
+          price: authorPrice,
+          costPrice,
+          lineCost,
+          lineTotal
+        });
+
+        updates.push({
+          ref: productRefs[i],
+          updateData: { currentStock: newStock, updatedAt: committedAt },
+          movementRef: movementRefs[i],
+          movementData: {
+            id: movementRefs[i].id,
+            tenantId,
+            productId: submitted.productId,
+            type: 'sale',
+            quantityChange: -qty,
+            quantityMode: 'discrete',
+            previousStock: availableStock,
+            newStock,
+            saleId: saleRef.id,
+            shiftId,
+            staffAccountId,
+            createdAt: committedAt
+          }
+        });
+      }
+    }
+
+    if (tamperingDetected) {
+      transaction.update(intentRef, {
+        status: 'rejected_tampered',
+        'resolution.reason': tamperingReason,
+        'resolution.flaggedAt': committedAt,
+        updatedAt: committedAt
       });
+      return {
+        success: false,
+        status: 'rejected_tampered',
+        error: tamperingReason
+      };
     }
 
     // Handle stock insufficiency -> mark needs_review with zero financial writes
@@ -394,20 +596,9 @@ export async function finalizeCashierSaleIntent(
     });
 
     // 2. Inventory Deductions + Movements
-    updates.forEach((entry, idx) => {
-      transaction.update(entry.ref, { currentStock: entry.stock, updatedAt: committedAt });
-      transaction.create(entry.movementRef, {
-        id: entry.movementRef.id,
-        tenantId,
-        productId: receiptItems[idx].productId,
-        saleId: saleRef.id,
-        shiftId,
-        type: 'sale',
-        quantity: -receiptItems[idx].quantity,
-        balanceAfter: entry.stock,
-        performedBy: `staff_${staffAccountId}`,
-        createdAt: committedAt
-      });
+    updates.forEach((entry) => {
+      transaction.update(entry.ref, entry.updateData);
+      transaction.create(entry.movementRef, entry.movementData);
     });
 
     // 3. Shift Aggregates

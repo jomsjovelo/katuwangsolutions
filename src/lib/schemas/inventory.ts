@@ -12,6 +12,13 @@ export const ProductSchema = z.object({
   currentStock: z.number().int().default(0),
   minStock: z.number().int().default(5), // Reorder point
   
+  // Variable Quantity schema v2 extensions
+  quantityMode: z.enum(['discrete', 'measured']).default('discrete'),
+  sellingUnit: z.string().optional(),
+  quantityScale: z.number().int().default(3),
+  stockQuantityMinor: z.number().int().optional(),
+  minStockMinor: z.number().int().optional(),
+
   // Financials stored as integers (centavos/cents)
   costPrice: z.number().int().default(0),
   salePrice: z.number().int().default(0),

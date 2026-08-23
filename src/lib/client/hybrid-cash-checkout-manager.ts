@@ -4,13 +4,29 @@ import { doc, setDoc, onSnapshot, collection, query, where, Firestore, Unsubscri
 import { initializeFirebase, isFirestorePersistenceActive } from '@/firebase';
 import { CheckoutReceipt } from '@/lib/server/benta-cashier-checkout';
 
-export interface HybridCashItemInput {
+import { computeLineFinancials } from '@/lib/shared/quantity-math';
+
+export interface HybridCashDiscreteItemInput {
   productId: string;
   name: string;
   unit: string;
+  quantityMode?: 'discrete';
   quantity: number;
   salePriceCentavos: number;
 }
+
+export interface HybridCashMeasuredItemInput {
+  productId: string;
+  name: string;
+  unit: string;
+  quantityMode: 'measured';
+  quantityMinor: number;
+  quantityScale: number;
+  sellingUnit: string;
+  salePriceCentavos: number;
+}
+
+export type HybridCashItemInput = HybridCashDiscreteItemInput | HybridCashMeasuredItemInput;
 
 export interface HybridCashCheckoutParams {
   tenantId: string;
@@ -25,6 +41,26 @@ export interface HybridCashCheckoutParams {
   idempotencyKey?: string;
 }
 
+export interface HybridSaleIntentDiscreteItemDoc {
+  productId: string;
+  quantityMode?: 'discrete';
+  quantity: number;
+  observedUnitPriceCentavos: number;
+  observedSubtotalCentavos: number;
+}
+
+export interface HybridSaleIntentMeasuredItemDoc {
+  productId: string;
+  quantityMode: 'measured';
+  quantityMinor: number;
+  quantityScale: number;
+  sellingUnit: string;
+  observedUnitPriceCentavos: number;
+  observedSubtotalCentavos: number;
+}
+
+export type HybridSaleIntentItemDoc = HybridSaleIntentDiscreteItemDoc | HybridSaleIntentMeasuredItemDoc;
+
 export interface HybridSaleIntentDoc {
   schemaVersion: number;
   intentId: string;
@@ -33,12 +69,7 @@ export interface HybridSaleIntentDoc {
   staffAccountId: string;
   shiftId: string;
   tender: 'cash';
-  items: Array<{
-    productId: string;
-    quantity: number;
-    observedUnitPriceCentavos: number;
-    observedSubtotalCentavos: number;
-  }>;
+  items: HybridSaleIntentItemDoc[];
   itemCount: number;
   observedCatalogDigest?: string;
   observedTotalCentavos: number;
@@ -126,27 +157,45 @@ export async function submitHybridCashSale(
     ? crypto.randomUUID()
     : `intent_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
-  const observedSubtotalCentavos = params.items.reduce(
-    (acc, it) => acc + it.salePriceCentavos * it.quantity,
+  const mappedItems: HybridSaleIntentItemDoc[] = params.items.map((it) => {
+    if (it.quantityMode === 'measured') {
+      const subtotal = computeLineFinancials(it.salePriceCentavos, it.quantityMinor, it.quantityScale);
+      return {
+        productId: it.productId,
+        quantityMode: 'measured' as const,
+        quantityMinor: it.quantityMinor,
+        quantityScale: it.quantityScale,
+        sellingUnit: it.sellingUnit,
+        observedUnitPriceCentavos: it.salePriceCentavos,
+        observedSubtotalCentavos: subtotal
+      };
+    }
+    const subtotal = it.salePriceCentavos * it.quantity;
+    return {
+      productId: it.productId,
+      quantityMode: 'discrete' as const,
+      quantity: it.quantity,
+      observedUnitPriceCentavos: it.salePriceCentavos,
+      observedSubtotalCentavos: subtotal
+    };
+  });
+
+  const observedSubtotalCentavos = mappedItems.reduce(
+    (acc, it) => acc + it.observedSubtotalCentavos,
     0
   );
   const changeRequiredCentavos = Math.max(0, params.cashTenderedCentavos - observedSubtotalCentavos);
 
   const intentDoc: HybridSaleIntentDoc = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     intentId,
     tenantId: params.tenantId,
     authUid: params.authUid,
     staffAccountId: params.staffAccountId,
     shiftId: params.shiftId,
     tender: 'cash',
-    items: params.items.map((it) => ({
-      productId: it.productId,
-      quantity: it.quantity,
-      observedUnitPriceCentavos: it.salePriceCentavos,
-      observedSubtotalCentavos: it.salePriceCentavos * it.quantity
-    })),
-    itemCount: params.items.reduce((acc, it) => acc + it.quantity, 0),
+    items: mappedItems,
+    itemCount: params.items.length,
     observedCatalogDigest: params.catalogDigest || '',
     observedTotalCentavos: observedSubtotalCentavos,
     cashTenderedCentavos: params.cashTenderedCentavos,
@@ -163,14 +212,23 @@ export async function submitHybridCashSale(
     paymentMethod: 'cash',
     shiftId: params.shiftId,
     cashierDisplayName: params.cashierDisplayName,
-    items: params.items.map((it) => ({
-      productId: it.productId,
-      name: it.name,
-      unit: it.unit,
-      quantity: it.quantity,
-      unitPriceCentavos: it.salePriceCentavos,
-      lineTotalCentavos: it.salePriceCentavos * it.quantity
-    })),
+    items: params.items.map((it) => {
+      const lineTotal = it.quantityMode === 'measured'
+        ? computeLineFinancials(it.salePriceCentavos, it.quantityMinor, it.quantityScale)
+        : it.salePriceCentavos * it.quantity;
+      return {
+        productId: it.productId,
+        name: it.name,
+        unit: it.unit,
+        quantity: it.quantityMode === 'measured' ? 1 : it.quantity,
+        quantityMinor: it.quantityMode === 'measured' ? it.quantityMinor : undefined,
+        quantityScale: it.quantityMode === 'measured' ? it.quantityScale : undefined,
+        sellingUnit: it.quantityMode === 'measured' ? it.sellingUnit : undefined,
+        quantityMode: it.quantityMode || 'discrete',
+        unitPriceCentavos: it.salePriceCentavos,
+        lineTotalCentavos: lineTotal
+      };
+    }),
     subtotalCentavos: observedSubtotalCentavos,
     totalCentavos: observedSubtotalCentavos
   };
@@ -275,7 +333,15 @@ export function subscribeToCashierShiftIntents(
         const intents: CashierPendingIntentRecord[] = snapshot.docs.map((d) => {
           const data = d.data() as HybridSaleIntentDoc;
           const totalCentavos = Array.isArray(data.items)
-            ? data.items.reduce((sum, item) => sum + (item.observedSubtotalCentavos || (item.quantity * item.observedUnitPriceCentavos)), 0)
+            ? data.items.reduce((sum, item) => {
+                if (typeof item.observedSubtotalCentavos === 'number') {
+                  return sum + item.observedSubtotalCentavos;
+                }
+                if ('quantity' in item && typeof item.quantity === 'number') {
+                  return sum + (item.quantity * item.observedUnitPriceCentavos);
+                }
+                return sum;
+              }, 0)
             : 0;
           return {
             id: d.id,

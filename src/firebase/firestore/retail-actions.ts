@@ -4,6 +4,8 @@ import { ProductSchema } from '@/lib/schemas/inventory';
 import { runTransactionResilient } from './resilient-transaction';
 import { logAuditEvent } from './audit-actions';
 
+import { computeLineFinancials } from '@/lib/shared/quantity-math';
+
 // Always explicitly use the 'katuwang' database
 export const getKatuwangDb = () => initializeFirebase().db;
 
@@ -14,6 +16,10 @@ export interface CartItem {
   quantity: number;
   costPrice?: number;
   unit?: string;
+  quantityMode?: 'discrete' | 'measured';
+  quantityMinor?: number;
+  quantityScale?: number;
+  sellingUnit?: string;
 }
 
 export async function addProduct(tenantId: string, productData: any) {
@@ -62,17 +68,45 @@ export async function processCheckout(
     let secureTotalAmount = 0;
 
     // 1. Read Phase: Read all product documents, parent wholesale packs, and master cash account
-    const productDocs: Record<string, { ref: ReturnType<typeof doc>; newStock: number }> = {};
+    const productDocs: Record<string, {
+      ref: ReturnType<typeof doc>;
+      isMeasured: boolean;
+      newStock?: number;
+      newStockMinor?: number;
+      price: number;
+      costPrice: number;
+      lineTotal: number;
+      lineCost: number;
+      sellingUnit?: string;
+      quantityMinor?: number;
+      quantityScale?: number;
+      unit: string;
+    }> = {};
     const parentUpdates: Record<string, { ref: ReturnType<typeof doc>; newStock: number }> = {};
+    const finalizedSaleItems: Array<Record<string, unknown>> = [];
 
     for (const item of cart) {
-      if (item.quantity <= 0 || isNaN(item.quantity)) {
-        throw new Error(`Invalid quantity for ${item.name}.`);
-      }
-
       // Bypass inventory check for custom/misc items
       if (item.productId.startsWith('misc-')) {
-        secureTotalAmount += Math.round(item.price * item.quantity);
+        const miscQty = item.quantity > 0 ? item.quantity : 1;
+        const miscPrice = Number.isSafeInteger(item.price) && item.price >= 0 ? item.price : 0;
+        const miscTotal = Math.round(miscPrice * miscQty);
+        secureTotalAmount += miscTotal;
+        finalizedSaleItems.push({
+          productId: item.productId,
+          name: item.name || 'Misc Item',
+          quantityMode: 'discrete',
+          quantity: miscQty,
+          unitPriceCentavos: miscPrice,
+          unitCostCentavos: miscPrice,
+          lineSubtotalCentavos: miscTotal,
+          lineCostCentavos: miscTotal,
+          price: miscPrice,
+          costPrice: miscPrice,
+          lineTotal: miscTotal,
+          lineCost: miscTotal,
+          unit: item.unit || 'pcs'
+        });
         continue;
       }
 
@@ -84,39 +118,137 @@ export async function processCheckout(
       }
       
       const productData = productSnap.data();
-      let currentStock = productData.currentStock || 0;
-      const secureDbPrice = productData.salePrice || 0;
+      const productMode: 'discrete' | 'measured' = productData.quantityMode === 'measured' ? 'measured' : 'discrete';
+      const submittedMode = item.quantityMode || (item.quantityMinor !== undefined ? 'measured' : 'discrete');
 
-      // Auto Wholesale-to-Tingi unboxing read if stock is low
-      if (currentStock < item.quantity && productData.wholesaleParentId) {
-        const parentRef = doc(db, 'tenants', tenantId, 'products', productData.wholesaleParentId);
-        const parentSnap = await transaction.get(parentRef);
-        if (parentSnap.exists()) {
-          const parentData = parentSnap.data();
-          if ((parentData.currentStock || 0) > 0) {
-            const packQty = productData.packQuantity || 24;
-            const updatedParentStock = Math.max(0, (parentData.currentStock || 0) - 1);
-            parentUpdates[productData.wholesaleParentId] = {
-              ref: parentRef,
-              newStock: updatedParentStock
-            };
-            currentStock += packQty;
+      if (submittedMode !== productMode) {
+        throw new Error(`Quantity mode mismatch for ${item.name}: product is ${productMode} but submitted as ${submittedMode}.`);
+      }
+
+      const secureDbPrice = Number.isSafeInteger(productData.salePrice) && productData.salePrice >= 0 ? productData.salePrice : 0;
+      const secureDbCost = Number.isSafeInteger(productData.costPrice) && productData.costPrice >= 0 ? productData.costPrice : 0;
+
+      if (productMode === 'measured') {
+        const scale = item.quantityScale || productData.quantityScale || 3;
+        if (scale !== 3) {
+          throw new Error(`Unsupported quantity scale ${scale} for ${item.name}.`);
+        }
+
+        const sellingUnit = (item.sellingUnit || productData.sellingUnit || productData.unit || 'kg').toLowerCase().trim();
+        const expectedUnit = (productData.sellingUnit || productData.unit || 'kg').toLowerCase().trim();
+        if (sellingUnit !== expectedUnit) {
+          throw new Error(`Unit mismatch for ${item.name}: expected ${expectedUnit}, got ${sellingUnit}.`);
+        }
+
+        const qtyMinor = item.quantityMinor;
+        if (typeof qtyMinor !== 'number' || !Number.isSafeInteger(qtyMinor) || qtyMinor <= 0 || qtyMinor > 10_000_000) {
+          throw new Error(`Invalid measured quantity for ${item.name}.`);
+        }
+
+        const availableMinor = Number.isSafeInteger(productData.stockQuantityMinor) ? productData.stockQuantityMinor : 0;
+        if (availableMinor < qtyMinor) {
+          throw new Error(`Hindi sapat ang stock para sa ${item.name} (Available lang: ${availableMinor / 1000} ${sellingUnit}).`);
+        }
+
+        const lineTotal = computeLineFinancials(secureDbPrice, qtyMinor, scale);
+        const lineCost = computeLineFinancials(secureDbCost, qtyMinor, scale);
+        secureTotalAmount += lineTotal;
+        const newStockMinor = availableMinor - qtyMinor;
+
+        productDocs[item.productId] = {
+          ref: productRef,
+          isMeasured: true,
+          newStockMinor,
+          price: secureDbPrice,
+          costPrice: secureDbCost,
+          lineTotal,
+          lineCost,
+          sellingUnit,
+          quantityMinor: qtyMinor,
+          quantityScale: scale,
+          unit: sellingUnit
+        };
+
+        finalizedSaleItems.push({
+          productId: item.productId,
+          name: productData.name || item.name,
+          quantityMode: 'measured',
+          quantity: 1,
+          quantityMinor: qtyMinor,
+          quantityScale: scale,
+          sellingUnit,
+          unitPriceCentavos: secureDbPrice,
+          unitCostCentavos: secureDbCost,
+          lineSubtotalCentavos: lineTotal,
+          lineCostCentavos: lineCost,
+          price: secureDbPrice,
+          costPrice: secureDbCost,
+          lineTotal,
+          lineCost,
+          unit: sellingUnit
+        });
+      } else {
+        // Discrete mode
+        if (typeof item.quantity !== 'number' || !Number.isSafeInteger(item.quantity) || item.quantity <= 0 || item.quantity > 100_000) {
+          throw new Error(`Invalid quantity for ${item.name}.`);
+        }
+
+        let currentStock = Number.isSafeInteger(productData.currentStock) ? productData.currentStock : 0;
+
+        // Auto Wholesale-to-Tingi unboxing read if stock is low
+        if (currentStock < item.quantity && productData.wholesaleParentId) {
+          const parentRef = doc(db, 'tenants', tenantId, 'products', productData.wholesaleParentId);
+          const parentSnap = await transaction.get(parentRef);
+          if (parentSnap.exists()) {
+            const parentData = parentSnap.data();
+            if ((parentData.currentStock || 0) > 0) {
+              const packQty = productData.packQuantity || 24;
+              const updatedParentStock = Math.max(0, (parentData.currentStock || 0) - 1);
+              parentUpdates[productData.wholesaleParentId] = {
+                ref: parentRef,
+                newStock: updatedParentStock
+              };
+              currentStock += packQty;
+            }
           }
         }
-      }
 
-      if (currentStock < item.quantity) {
-        throw new Error(`Hindi sapat ang stock para sa ${item.name} (Available lang: ${currentStock}).`);
-      }
-      
-      // Use item.price if item was custom weighted / custom priced, otherwise use secure DB price
-      const priceToUse = (item.price && item.price !== secureDbPrice) ? item.price : secureDbPrice;
-      secureTotalAmount += Math.round(priceToUse * item.quantity);
+        if (currentStock < item.quantity) {
+          throw new Error(`Hindi sapat ang stock para sa ${item.name} (Available lang: ${currentStock}).`);
+        }
 
-      productDocs[item.productId] = {
-        ref: productRef,
-        newStock: currentStock - item.quantity
-      };
+        const lineTotal = secureDbPrice * item.quantity;
+        const lineCost = secureDbCost * item.quantity;
+        secureTotalAmount += lineTotal;
+        const newStock = currentStock - item.quantity;
+
+        productDocs[item.productId] = {
+          ref: productRef,
+          isMeasured: false,
+          newStock,
+          price: secureDbPrice,
+          costPrice: secureDbCost,
+          lineTotal,
+          lineCost,
+          unit: productData.unit || item.unit || 'pcs'
+        };
+
+        finalizedSaleItems.push({
+          productId: item.productId,
+          name: productData.name || item.name,
+          quantityMode: 'discrete',
+          quantity: item.quantity,
+          unitPriceCentavos: secureDbPrice,
+          unitCostCentavos: secureDbCost,
+          lineSubtotalCentavos: lineTotal,
+          lineCostCentavos: lineCost,
+          price: secureDbPrice,
+          costPrice: secureDbCost,
+          lineTotal,
+          lineCost,
+          unit: productData.unit || item.unit || 'pcs'
+        });
+      }
     }
 
     // 1.5 Read Phase: Payment Account Ledger (All reads MUST happen before any write)
@@ -147,24 +279,46 @@ export async function processCheckout(
 
     for (const item of cart) {
       if (!item.productId.startsWith('misc-') && productDocs[item.productId]) {
-        const newStock = productDocs[item.productId].newStock;
-        transaction.update(productDocs[item.productId].ref, {
-          currentStock: newStock,
-          updatedAt: serverTimestamp()
-        });
+        const prodInfo = productDocs[item.productId];
+        if (prodInfo.isMeasured && prodInfo.newStockMinor !== undefined) {
+          transaction.update(prodInfo.ref, {
+            stockQuantityMinor: prodInfo.newStockMinor,
+            updatedAt: serverTimestamp()
+          });
 
-        // Record stock movement history
-        const invTxRef = doc(collection(db, 'tenants', tenantId, 'inventory_transactions'));
-        transaction.set(invTxRef, {
-          tenantId,
-          productId: item.productId,
-          type: 'sale',
-          quantity: -item.quantity,
-          balanceAfter: newStock,
-          note: `POS Sale (${paymentMethod})`,
-          performedBy: userId || 'cashier',
-          createdAt: serverTimestamp()
-        });
+          // Record stock movement history
+          const invTxRef = doc(collection(db, 'tenants', tenantId, 'inventory_transactions'));
+          transaction.set(invTxRef, {
+            tenantId,
+            productId: item.productId,
+            type: 'sale',
+            quantityMinorChange: -(item.quantityMinor || 0),
+            quantityMode: 'measured',
+            balanceAfter: prodInfo.newStockMinor,
+            note: `POS Sale (${paymentMethod})`,
+            performedBy: userId || 'store-owner',
+            createdAt: serverTimestamp()
+          });
+        } else if (prodInfo.newStock !== undefined) {
+          transaction.update(prodInfo.ref, {
+            currentStock: prodInfo.newStock,
+            updatedAt: serverTimestamp()
+          });
+
+          // Record stock movement history
+          const invTxRef = doc(collection(db, 'tenants', tenantId, 'inventory_transactions'));
+          transaction.set(invTxRef, {
+            tenantId,
+            productId: item.productId,
+            type: 'sale',
+            quantity: -item.quantity,
+            quantityMode: 'discrete',
+            balanceAfter: prodInfo.newStock,
+            note: `POS Sale (${paymentMethod})`,
+            performedBy: userId || 'store-owner',
+            createdAt: serverTimestamp()
+          });
+        }
       }
     }
 
@@ -177,7 +331,7 @@ export async function processCheckout(
     const saleRecord: Record<string, unknown> = {
       id: newSaleRef.id,
       tenantId,
-      items: cart,
+      items: finalizedSaleItems,
       subtotalAmount: secureTotalAmount,
       discountAmount: discountCentavos,
       discountType: discountType || 'none',
@@ -280,15 +434,17 @@ export async function deleteSale(
     }
     
     // 2. Read products to restore stock
-    const productDocs: Record<string, { ref: ReturnType<typeof doc>; currentStock: number }> = {};
+    const productDocs: Record<string, { ref: ReturnType<typeof doc>; currentStock: number; stockQuantityMinor?: number }> = {};
     for (const item of items) {
       if (item.productId && !item.productId.startsWith('misc-')) {
         const productRef = doc(db, 'tenants', tenantId, 'products', item.productId);
         const productSnap = await transaction.get(productRef);
         if (productSnap.exists()) {
+          const pData = productSnap.data();
           productDocs[item.productId] = {
             ref: productRef,
-            currentStock: productSnap.data().currentStock || 0
+            currentStock: pData.currentStock || 0,
+            stockQuantityMinor: pData.stockQuantityMinor
           };
         }
       }
@@ -297,23 +453,48 @@ export async function deleteSale(
     // 3. Update stock & log inventory movement history
     for (const item of items) {
       if (item.productId && !item.productId.startsWith('misc-') && productDocs[item.productId]) {
-        const newStock = productDocs[item.productId].currentStock + item.quantity;
-        transaction.update(productDocs[item.productId].ref, {
-          currentStock: newStock,
-          updatedAt: serverTimestamp()
-        });
+        const prod = productDocs[item.productId];
+        const isMeasured = item.quantityMode === 'measured' || item.quantityMinor !== undefined;
 
-        const invTxRef = doc(collection(db, 'tenants', tenantId, 'inventory_transactions'));
-        transaction.set(invTxRef, {
-          tenantId,
-          productId: item.productId,
-          type: 'return',
-          quantity: item.quantity,
-          balanceAfter: newStock,
-          note: `Voided Sale Reversal`,
-          performedBy: userId || 'store-owner',
-          createdAt: serverTimestamp()
-        });
+        if (isMeasured && typeof item.quantityMinor === 'number') {
+          const currentMinor = prod.stockQuantityMinor || 0;
+          const restoredMinor = currentMinor + item.quantityMinor;
+          transaction.update(prod.ref, {
+            stockQuantityMinor: restoredMinor,
+            updatedAt: serverTimestamp()
+          });
+
+          const invTxRef = doc(collection(db, 'tenants', tenantId, 'inventory_transactions'));
+          transaction.set(invTxRef, {
+            tenantId,
+            productId: item.productId,
+            type: 'return',
+            quantityMinorChange: item.quantityMinor,
+            quantityMode: 'measured',
+            balanceAfter: restoredMinor,
+            note: `Voided Sale Reversal (Measured)`,
+            performedBy: userId || 'store-owner',
+            createdAt: serverTimestamp()
+          });
+        } else {
+          const newStock = prod.currentStock + item.quantity;
+          transaction.update(prod.ref, {
+            currentStock: newStock,
+            updatedAt: serverTimestamp()
+          });
+
+          const invTxRef = doc(collection(db, 'tenants', tenantId, 'inventory_transactions'));
+          transaction.set(invTxRef, {
+            tenantId,
+            productId: item.productId,
+            type: 'return',
+            quantity: item.quantity,
+            balanceAfter: newStock,
+            note: `Voided Sale Reversal`,
+            performedBy: userId || 'store-owner',
+            createdAt: serverTimestamp()
+          });
+        }
       }
     }
 

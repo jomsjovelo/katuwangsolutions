@@ -7,6 +7,7 @@ import {
   verifyBentaCashierIdentity
 } from './cashier-server-authorization';
 import { isSecureCashierSystemEnabled } from './secure-cashier-config';
+import { computeLineFinancials } from '../shared/quantity-math';
 
 export interface CashierShiftReportSummary {
   shiftId: string;
@@ -175,19 +176,38 @@ export async function fetchCashierShiftReport(
       discountTotalCentavos = safeAdd(discountTotalCentavos, saleData.discountAmount);
     }
 
-    // Historical COGS calculation: each finalized item stores its recorded costPrice
+    // Historical COGS calculation: each finalized item stores its recorded costPrice / lineCostCentavos
     if (!Array.isArray(saleData.items) || saleData.items.length === 0) {
       profitComplete = false;
     } else {
       for (const item of saleData.items) {
-        const qty = item.quantity;
-        const costPrice = item.costPrice;
-
-        if (!Number.isSafeInteger(qty) || qty <= 0 || !Number.isSafeInteger(costPrice) || costPrice < 0) {
-          profitComplete = false;
-        } else if (profitComplete) {
-          const itemCogs = safeMultiply(costPrice, qty);
-          runningCogsCentavos = safeAdd(runningCogsCentavos, itemCogs);
+        if (typeof item.lineCostCentavos === 'number' && Number.isSafeInteger(item.lineCostCentavos) && item.lineCostCentavos >= 0) {
+          if (profitComplete) {
+            runningCogsCentavos = safeAdd(runningCogsCentavos, item.lineCostCentavos);
+          }
+        } else if (typeof item.lineCost === 'number' && Number.isSafeInteger(item.lineCost) && item.lineCost >= 0) {
+          if (profitComplete) {
+            runningCogsCentavos = safeAdd(runningCogsCentavos, item.lineCost);
+          }
+        } else if (item.quantityMode === 'measured' || item.quantityMinor !== undefined) {
+          const qtyMinor = item.quantityMinor;
+          const costPrice = item.unitCostCentavos ?? item.costPrice;
+          const scale = item.quantityScale || 3;
+          if (!Number.isSafeInteger(qtyMinor) || qtyMinor <= 0 || !Number.isSafeInteger(costPrice) || costPrice < 0) {
+            profitComplete = false;
+          } else if (profitComplete) {
+            const itemCogs = computeLineFinancials(costPrice, qtyMinor, scale);
+            runningCogsCentavos = safeAdd(runningCogsCentavos, itemCogs);
+          }
+        } else {
+          const qty = item.quantity;
+          const costPrice = item.unitCostCentavos ?? item.costPrice;
+          if (!Number.isSafeInteger(qty) || qty <= 0 || !Number.isSafeInteger(costPrice) || costPrice < 0) {
+            profitComplete = false;
+          } else if (profitComplete) {
+            const itemCogs = safeMultiply(costPrice, qty);
+            runningCogsCentavos = safeAdd(runningCogsCentavos, itemCogs);
+          }
         }
       }
     }

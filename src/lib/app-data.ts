@@ -22,16 +22,42 @@ export type AppGroup = {
   apps: AppModule[];
 };
 
-export type BentaBusinessProfile = 'standard-retail' | 'fresh-goods' | 'hardware-supplies' | 'wholesale';
+export type BentaBusinessProfile =
+  | 'general_retail'
+  | 'fresh_goods'
+  | 'hardware_supply'
+  | 'standard-retail'
+  | 'hardware-supplies'
+  | 'wholesale';
 
 export const BENTA_PROFILES: { id: BentaBusinessProfile; label: string; description: string }[] = [
-  { id: 'standard-retail', label: 'General Retail / Sari-Sari', description: 'Para sa sari-sari store, grocery, mini mart, RTW, at general retail' },
-  { id: 'fresh-goods', label: 'Palengke / Fresh Goods', description: 'Basic POS at sales recording para sa paninda' },
-  { id: 'hardware-supplies', label: 'Hardware / Construction', description: 'POS, benta, inventory, at pautang tracking para sa hardware' },
-  { id: 'wholesale', label: 'Wholesale / Distribution', description: 'POS, benta, at inventory para sa wholesale selling' },
+  {
+    id: 'general_retail',
+    label: 'GENERAL RETAIL',
+    description: 'Sari-sari stores, minimarts, groceries, clothing, convenience stores, and general merchandise.'
+  },
+  {
+    id: 'fresh_goods',
+    label: 'FRESH GOODS',
+    description: 'Vegetables, fruit, meat, seafood, rice, grains, and other products commonly sold by weight or variable quantity.'
+  },
+  {
+    id: 'hardware_supply',
+    label: 'HARDWARE & SUPPLIES',
+    description: 'Hardware, construction materials, electrical and plumbing supplies, and products sold by piece, box, sack, meter, foot, or kilogram.'
+  },
 ];
 
-export const DEFAULT_BENTA_BUSINESS_PROFILE: BentaBusinessProfile = 'standard-retail';
+export const DEFAULT_BENTA_BUSINESS_PROFILE: BentaBusinessProfile = 'general_retail';
+
+export function normalizeBentaProfile(profile?: string | null): 'general_retail' | 'fresh_goods' | 'hardware_supply' {
+  if (!profile) return 'general_retail';
+  if (profile === 'fresh_goods' || profile === 'fresh-goods') return 'fresh_goods';
+  if (profile === 'hardware_supply' || profile === 'hardware-supplies') return 'hardware_supply';
+  return 'general_retail';
+}
+
+export const normalizeBentaBusinessProfile = normalizeBentaProfile;
 
 export const appGroups: AppGroup[] = [
   {
