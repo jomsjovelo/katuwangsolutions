@@ -3,7 +3,7 @@
  * Uses checked BigInt arithmetic with deterministic half-up rounding.
  */
 
-export const VALID_MEASURED_UNITS = ['kg', 'g', 'm', 'ft'] as const;
+export const VALID_MEASURED_UNITS = ['kg', 'g', 'm', 'ft', 'l', 'ml'] as const;
 export type MeasuredUnit = typeof VALID_MEASURED_UNITS[number];
 
 export const VALID_DISCRETE_UNITS = [
