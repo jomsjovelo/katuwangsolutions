@@ -23,6 +23,8 @@ interface StaffLoginModalProps {
 
 export function StaffLoginModal({ isOpen, onClose, initialBusinessCode = '', onLoginSuccess }: StaffLoginModalProps) {
   const { toast } = useToast();
+
+
   const router = useRouter();
 
   const [businessCode, setBusinessCode] = useState(initialBusinessCode);
@@ -106,6 +108,7 @@ export function StaffLoginModal({ isOpen, onClose, initialBusinessCode = '', onL
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="sm:max-w-[400px] rounded-[24px] p-6 bg-white shadow-2xl">
+
         <DialogHeader className="text-center space-y-2 pb-2">
           <div className="mx-auto w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600">
             <UserCheck className="w-6 h-6" />
@@ -115,6 +118,7 @@ export function StaffLoginModal({ isOpen, onClose, initialBusinessCode = '', onL
             Ilagay ang Business Code ng tindahan, inyong username, at 4-digit PIN.
           </DialogDescription>
         </DialogHeader>
+
 
         <form onSubmit={handleLogin} className="space-y-4 pt-2">
           <div className="space-y-1">
@@ -163,6 +167,7 @@ export function StaffLoginModal({ isOpen, onClose, initialBusinessCode = '', onL
 
           <Button
             type="submit"
+            data-testid="staff-login-submit-btn"
             disabled={isSubmitting || !businessCode || !username || pin.length !== 4}
             className="w-full h-12 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md transition-all active:scale-[0.98] mt-2"
           >

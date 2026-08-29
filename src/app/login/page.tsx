@@ -283,14 +283,18 @@ function LoginContent() {
             </Form>
 
             <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col items-center gap-3">
-              <button
+              <Button
                 type="button"
+                data-testid="cashier-login-toggle-btn"
                 onClick={() => setShowStaffModal(true)}
-                className="w-full h-12 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center gap-2 border border-blue-200 transition-colors"
+                className="w-full h-12 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center gap-2 border border-blue-200 transition-colors shadow-none"
               >
                 <UserCheck className="w-4 h-4" />
                 Cashier Login — Business Code + PIN
-              </button>
+              </Button>
+
+
+
 
               <p className="text-xs font-medium text-slate-500 pt-2">
                 Wala pang account?

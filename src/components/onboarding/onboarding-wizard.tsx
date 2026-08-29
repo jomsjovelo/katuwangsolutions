@@ -16,7 +16,7 @@ import { registerNewTenant } from '@/firebase/firestore/onboarding-actions';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-import { normalizeModuleId, isValidActiveModuleId } from '@/lib/app-data';
+import { normalizeModuleId, isValidActiveModuleId, normalizeBentaBusinessProfile } from '@/lib/app-data';
 import { trackMetaEvent, type MetaEventParameters } from '@/lib/meta-pixel';
 
 import { trackOnboardingStageView } from '@/lib/conversion-events';
@@ -80,9 +80,9 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
   const normalizedAppId = normalizeModuleId(rawAppId);
 
   const rawProfileParam = searchParams.get('profile') || searchParams.get('businessProfile') || '';
-  const initialProfile = ['standard-retail', 'fresh-goods', 'hardware-supplies', 'wholesale'].includes(rawProfileParam)
-    ? rawProfileParam
-    : (rawAppId === 'fresh-tally' ? 'fresh-goods' : (rawAppId === 'build-stack' ? 'hardware-supplies' : 'standard-retail'));
+  const initialProfile = rawProfileParam
+    ? normalizeBentaBusinessProfile(rawProfileParam)
+    : (rawAppId === 'fresh-tally' ? 'fresh_goods' : (rawAppId === 'build-stack' ? 'hardware_supply' : 'general_retail'));
 
   let resolvedAppId = '';
   let initialStep: OnboardingStep = 'mode';
@@ -151,9 +151,11 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
           } else {
             updatedData.appId = draftAppId;
             if (rawSavedAppId === 'fresh-tally' && !updatedData.businessProfile) {
-              updatedData.businessProfile = 'fresh-goods';
+              updatedData.businessProfile = 'fresh_goods';
             } else if (rawSavedAppId === 'build-stack' && !updatedData.businessProfile) {
-              updatedData.businessProfile = 'hardware-supplies';
+              updatedData.businessProfile = 'hardware_supply';
+            } else if (updatedData.businessProfile) {
+              updatedData.businessProfile = normalizeBentaBusinessProfile(updatedData.businessProfile);
             }
           }
 
@@ -167,8 +169,8 @@ export function OnboardingWizard({ initialAppId: initialAppIdProp, onComplete, o
           if (resolvedAppId) {
             updatedData.appId = resolvedAppId;
             if (resolvedAppId === 'benta-snap') {
-              if (rawProfileParam && ['standard-retail', 'fresh-goods', 'hardware-supplies', 'wholesale'].includes(rawProfileParam)) {
-                updatedData.businessProfile = rawProfileParam;
+              if (rawProfileParam) {
+                updatedData.businessProfile = normalizeBentaBusinessProfile(rawProfileParam);
               } else if (!updatedData.businessProfile) {
                 updatedData.businessProfile = initialProfile;
               }

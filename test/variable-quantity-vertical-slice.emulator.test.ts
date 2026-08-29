@@ -16,11 +16,13 @@ if (!PROJECT_ID.startsWith('demo-')) {
 process.env.FIRESTORE_EMULATOR_HOST = FIRESTORE_HOST;
 process.env.FIREBASE_AUTH_EMULATOR_HOST = AUTH_HOST;
 process.env.GCLOUD_PROJECT = PROJECT_ID;
+process.env.NO_GCE_CHECK = 'true';
 process.env.NEXT_PUBLIC_FIREBASE_API_KEY = 'demo-api-key';
 process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = PROJECT_ID;
 process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR = 'true';
 process.env.BENTA_CASHIER_CHECKOUT_ENABLED = 'true';
 process.env.BENTA_CASHIER_HYBRID_ENABLED = 'true';
+
 
 const appName = 'var-qty-slice-emulator-test';
 const adminApp = admin.apps.find((a) => a?.name === appName) || admin.initializeApp({ projectId: PROJECT_ID }, appName);
@@ -34,6 +36,9 @@ test('Variable Quantity Mixed-Cart & Adaptive Profile Vertical Slice Suite', asy
   const shiftId = `shift_varqty_${Date.now()}`;
 
   let cashierIdToken: string;
+  let clientAuthInstance: any;
+  let clientDbInstance: any;
+  let clientAppInstance: any;
 
   await t.test('1. Setup Isolated Fresh Goods Tenant, Staff, Shift & Products', async () => {
     // Tenant
@@ -106,9 +111,13 @@ test('Variable Quantity Mixed-Cart & Adaptive Profile Vertical Slice Suite', asy
     const ownerCustomToken = await auth.createCustomToken(ownerUid, { role: 'owner', tenantId });
 
     const { initializeFirebase } = await import('../src/firebase/index');
-    const { auth: clientAuth } = initializeFirebase();
+    const initRes = initializeFirebase();
+    clientAuthInstance = initRes.auth;
+    clientDbInstance = initRes.db;
+    clientAppInstance = initRes.app;
     const { signInWithCustomToken } = await import('firebase/auth');
-    await signInWithCustomToken(clientAuth, ownerCustomToken);
+    await signInWithCustomToken(clientAuthInstance, ownerCustomToken);
+
 
     // Shift
     await db.collection('tenants').doc(tenantId).collection('shifts').doc(shiftId).set({
@@ -539,4 +548,40 @@ test('Variable Quantity Mixed-Cart & Adaptive Profile Vertical Slice Suite', asy
     assert.equal(liempoSnap.data()?.stockQuantityMinor, 47500);
     assert.equal(liempoSnap.data()?.salePrice, 28000);
   });
+
+  // Resource Cleanup
+  try {
+    if (clientAuthInstance) {
+      const { signOut } = await import('firebase/auth');
+      await signOut(clientAuthInstance);
+    }
+  } catch {}
+
+  try {
+    if (clientDbInstance) {
+      const { terminate } = await import('firebase/firestore');
+      await terminate(clientDbInstance);
+    }
+  } catch {}
+
+  try {
+    if (clientAppInstance) {
+      const { deleteApp } = await import('firebase/app');
+      await deleteApp(clientAppInstance);
+    }
+  } catch {}
+
+  try {
+    if (typeof (db as any).terminate === 'function') {
+      await (db as any).terminate();
+    }
+    await adminApp.delete();
+  } catch {}
+
+  try {
+    const http = await import('http');
+    const https = await import('https');
+    http.globalAgent.destroy();
+    https.globalAgent.destroy();
+  } catch {}
 });

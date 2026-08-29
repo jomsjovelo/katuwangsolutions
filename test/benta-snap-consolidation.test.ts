@@ -10,6 +10,7 @@ import {
   getActiveAppById,
   BENTA_PROFILES,
   DEFAULT_BENTA_BUSINESS_PROFILE,
+  normalizeBentaProfile,
   type BentaBusinessProfile,
 } from '../src/lib/app-data';
 import { getBentaBusinessProfile, type Tenant } from '../src/store/use-tenant-store';
@@ -57,12 +58,25 @@ test('Benta Snap Consolidation & Business Profile Foundation Suite', async (t) =
   await t.test('3. Business Profile Foundation & Compatibility Contract', () => {
     const profileIds = BENTA_PROFILES.map(p => p.id);
     assert.deepEqual(profileIds, [
-      'standard-retail',
-      'fresh-goods',
-      'hardware-supplies',
-      'wholesale',
+      'general_retail',
+      'fresh_goods',
+      'hardware_supply',
     ]);
-    assert.equal(DEFAULT_BENTA_BUSINESS_PROFILE, 'standard-retail');
+    assert.equal(DEFAULT_BENTA_BUSINESS_PROFILE, 'general_retail');
+
+    // Canonical & Legacy Normalization Comprehensive Tests
+    assert.equal(normalizeBentaProfile('general_retail'), 'general_retail');
+    assert.equal(normalizeBentaProfile('fresh_goods'), 'fresh_goods');
+    assert.equal(normalizeBentaProfile('hardware_supply'), 'hardware_supply');
+    assert.equal(normalizeBentaProfile('standard-retail'), 'general_retail');
+    assert.equal(normalizeBentaProfile('fresh-goods'), 'fresh_goods');
+    assert.equal(normalizeBentaProfile('hardware-supplies'), 'hardware_supply');
+    assert.equal(normalizeBentaProfile('wholesale'), 'general_retail', 'Wholesale must map to general_retail');
+    assert.equal(normalizeBentaProfile('  FRESH-GOODS  '), 'fresh_goods');
+    assert.equal(normalizeBentaProfile('HARDWARE_SUPPLY'), 'hardware_supply');
+    assert.equal(normalizeBentaProfile(null), 'general_retail');
+    assert.equal(normalizeBentaProfile(undefined), 'general_retail');
+    assert.equal(normalizeBentaProfile('invalid-unknown'), 'general_retail');
 
     const legacyTenant: Partial<Tenant> = {
       id: 'tenant-123',
@@ -71,8 +85,8 @@ test('Benta Snap Consolidation & Business Profile Foundation Suite', async (t) =
     };
     assert.equal(
       getBentaBusinessProfile(legacyTenant as Tenant),
-      'standard-retail',
-      'Legacy Benta tenant with undefined profile must default to standard-retail'
+      'general_retail',
+      'Legacy Benta tenant with undefined profile must default to general_retail'
     );
 
     const freshTenant: Partial<Tenant> = {
@@ -81,7 +95,7 @@ test('Benta Snap Consolidation & Business Profile Foundation Suite', async (t) =
       moduleType: 'benta-snap',
       businessProfile: 'fresh-goods',
     };
-    assert.equal(getBentaBusinessProfile(freshTenant as Tenant), 'fresh-goods');
+    assert.equal(getBentaBusinessProfile(freshTenant as Tenant), 'fresh_goods');
 
     const hardwareTenant: Partial<Tenant> = {
       id: 'tenant-hw',
@@ -89,7 +103,7 @@ test('Benta Snap Consolidation & Business Profile Foundation Suite', async (t) =
       moduleType: 'benta-snap',
       businessProfile: 'hardware-supplies',
     };
-    assert.equal(getBentaBusinessProfile(hardwareTenant as Tenant), 'hardware-supplies');
+    assert.equal(getBentaBusinessProfile(hardwareTenant as Tenant), 'hardware_supply');
 
     const wholesaleTenant: Partial<Tenant> = {
       id: 'tenant-ws',
@@ -97,20 +111,23 @@ test('Benta Snap Consolidation & Business Profile Foundation Suite', async (t) =
       moduleType: 'benta-snap',
       businessProfile: 'wholesale',
     };
-    assert.equal(getBentaBusinessProfile(wholesaleTenant as Tenant), 'wholesale');
+    assert.equal(getBentaBusinessProfile(wholesaleTenant as Tenant), 'general_retail');
 
-    assert.equal(getBentaBusinessProfile(null), 'standard-retail');
-    assert.equal(getBentaBusinessProfile(undefined), 'standard-retail');
+    assert.equal(getBentaBusinessProfile(null), 'general_retail');
+    assert.equal(getBentaBusinessProfile(undefined), 'general_retail');
 
     const laundryTenant: Partial<Tenant> = {
       id: 'tenant-laundry',
       moduleType: 'spin-snap',
     };
-    assert.equal(getBentaBusinessProfile(laundryTenant as Tenant), 'standard-retail');
+    assert.equal(getBentaBusinessProfile(laundryTenant as Tenant), 'general_retail');
   });
 
   await t.test('4. Onboarding Schema & Profile Validation', () => {
     const validProfiles: BentaBusinessProfile[] = [
+      'general_retail',
+      'fresh_goods',
+      'hardware_supply',
       'standard-retail',
       'fresh-goods',
       'hardware-supplies',
@@ -168,12 +185,12 @@ test('Benta Snap Consolidation & Business Profile Foundation Suite', async (t) =
     ]);
 
     // Profiles descriptions must avoid unbacked batch/weighting claims
-    const freshProfile = BENTA_PROFILES.find(p => p.id === 'fresh-goods');
+    const freshProfile = BENTA_PROFILES.find(p => p.id === 'fresh_goods');
     assert.ok(freshProfile);
     assert.ok(!freshProfile?.description.includes('kilo'), 'Fresh profile must not claim kilos before weighted engine batch');
     assert.ok(!freshProfile?.description.includes('perishable batches'), 'Fresh profile must not claim perishable batch tracking');
 
-    const hardwareProfile = BENTA_PROFILES.find(p => p.id === 'hardware-supplies');
+    const hardwareProfile = BENTA_PROFILES.find(p => p.id === 'hardware_supply');
     assert.ok(hardwareProfile);
     assert.ok(!hardwareProfile?.description.includes('dispatch'), 'Hardware profile must not claim dispatch tracking');
   });
@@ -223,7 +240,7 @@ test('Benta Snap Consolidation & Business Profile Foundation Suite', async (t) =
       return { mockDeps, writtenDocs, getCreatedUser: () => createdAuthUser };
     };
 
-    // Test A: legacy fresh-tally without explicit profile -> writes benta-snap + fresh-goods
+    // Test A: legacy fresh-tally without explicit profile -> writes benta-snap + fresh_goods
     {
       const { mockDeps, writtenDocs } = createMockDependencies();
       const result = await registerNewTenant(
@@ -247,7 +264,7 @@ test('Benta Snap Consolidation & Business Profile Foundation Suite', async (t) =
       const tenantDoc = writtenDocs.find(d => d.data.businessProfile !== undefined);
       assert.ok(tenantDoc, 'Tenant document must be written');
       assert.equal(tenantDoc?.data.moduleType, 'benta-snap', 'moduleType on tenant must be canonical benta-snap');
-      assert.equal(tenantDoc?.data.businessProfile, 'fresh-goods', 'businessProfile must resolve to fresh-goods');
+      assert.equal(tenantDoc?.data.businessProfile, 'fresh_goods', 'businessProfile must resolve to fresh_goods');
       assert.equal(tenantDoc?.data.pricingTier, 'promo_99');
 
       const userDoc = writtenDocs.find(d => d.data.role === 'owner');
@@ -255,7 +272,7 @@ test('Benta Snap Consolidation & Business Profile Foundation Suite', async (t) =
       assert.equal(userDoc?.data.moduleType, 'benta-snap', 'moduleType on user must be canonical benta-snap');
     }
 
-    // Test B: legacy build-stack without explicit profile -> writes benta-snap + hardware-supplies
+    // Test B: legacy build-stack without explicit profile -> writes benta-snap + hardware_supply
     {
       const { mockDeps, writtenDocs } = createMockDependencies();
       await registerNewTenant(
@@ -275,10 +292,10 @@ test('Benta Snap Consolidation & Business Profile Foundation Suite', async (t) =
 
       const tenantDoc = writtenDocs.find(d => d.data.businessProfile !== undefined);
       assert.equal(tenantDoc?.data.moduleType, 'benta-snap');
-      assert.equal(tenantDoc?.data.businessProfile, 'hardware-supplies');
+      assert.equal(tenantDoc?.data.businessProfile, 'hardware_supply');
     }
 
-    // Test C: legacy fresh-tally with explicit wholesale profile -> preserves explicit profile
+    // Test C: legacy fresh-tally with explicit wholesale profile -> normalizes to canonical general_retail
     {
       const { mockDeps, writtenDocs } = createMockDependencies();
       await registerNewTenant(
@@ -299,7 +316,7 @@ test('Benta Snap Consolidation & Business Profile Foundation Suite', async (t) =
 
       const tenantDoc = writtenDocs.find(d => d.data.businessProfile !== undefined);
       assert.equal(tenantDoc?.data.moduleType, 'benta-snap');
-      assert.equal(tenantDoc?.data.businessProfile, 'wholesale', 'Explicit valid profile must be preserved');
+      assert.equal(tenantDoc?.data.businessProfile, 'general_retail', 'Explicit wholesale profile normalizes to general_retail');
     }
 
     // Test D: invalid/inactive module IDs (e.g. farm-master or unknown) rejected before write
@@ -365,9 +382,11 @@ test('Benta Snap Consolidation & Business Profile Foundation Suite', async (t) =
       } else {
         updatedData.appId = draftAppId;
         if (rawSavedAppId === 'fresh-tally' && !updatedData.businessProfile) {
-          updatedData.businessProfile = 'fresh-goods';
+          updatedData.businessProfile = 'fresh_goods';
         } else if (rawSavedAppId === 'build-stack' && !updatedData.businessProfile) {
-          updatedData.businessProfile = 'hardware-supplies';
+          updatedData.businessProfile = 'hardware_supply';
+        } else if (updatedData.businessProfile) {
+          updatedData.businessProfile = normalizeBentaProfile(updatedData.businessProfile);
         }
       }
 
@@ -387,7 +406,7 @@ test('Benta Snap Consolidation & Business Profile Foundation Suite', async (t) =
       };
       const normalizedFresh = normalizeDraft(freshDraft);
       assert.equal(normalizedFresh.data.appId, 'benta-snap');
-      assert.equal(normalizedFresh.data.businessProfile, 'fresh-goods');
+      assert.equal(normalizedFresh.data.businessProfile, 'fresh_goods');
       assert.equal(normalizedFresh.data.businessName, 'Palengke Fresh');
       assert.equal(normalizedFresh.step, stage);
 
@@ -401,7 +420,7 @@ test('Benta Snap Consolidation & Business Profile Foundation Suite', async (t) =
       };
       const normalizedBuild = normalizeDraft(buildDraft);
       assert.equal(normalizedBuild.data.appId, 'benta-snap');
-      assert.equal(normalizedBuild.data.businessProfile, 'hardware-supplies');
+      assert.equal(normalizedBuild.data.businessProfile, 'hardware_supply');
       assert.equal(normalizedBuild.data.businessName, 'Hardware Hub');
       assert.equal(normalizedBuild.step, stage);
 
@@ -415,7 +434,7 @@ test('Benta Snap Consolidation & Business Profile Foundation Suite', async (t) =
       };
       const normalizedExplicit = normalizeDraft(explicitProfileDraft);
       assert.equal(normalizedExplicit.data.appId, 'benta-snap');
-      assert.equal(normalizedExplicit.data.businessProfile, 'wholesale', 'Must preserve explicit profile');
+      assert.equal(normalizedExplicit.data.businessProfile, 'general_retail', 'Wholesale normalizes to general_retail');
     });
   });
 });

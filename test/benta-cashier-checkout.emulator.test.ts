@@ -99,7 +99,9 @@ async function main() {
   assert(sale.items[0].unitPriceCentavos === undefined && sale.items[0].costPriceCentavos === undefined, 'sale item does not persist a duplicate incompatible price schema');
   assert(!(cashReceipt.items[0] as any).costPrice && !(cashReceipt.items[0] as any).costPriceCentavos, 'cost remains server-side and absent from Cashier receipt');
   const currentCash = (await db.collection('tenants').doc(tenantId).collection('accounts').doc('master-cash').get()).data()!.balance;
-  assert(currentCash === 1000 + 200 + 250 + 250 + 175 + 175 + 1000, 'master-cash reflects every committed payment exactly once');
+  const currentGcash = (await db.collection('tenants').doc(tenantId).collection('accounts').doc('gcash-settlement').get()).data()!.balance;
+  const currentMaya = (await db.collection('tenants').doc(tenantId).collection('accounts').doc('maya-settlement').get()).data()!.balance;
+  assert(currentCash === 1000 + 200 + 175 + 175 + 1000 && currentGcash === 250 && currentMaya === 250, 'accounts reflect every committed cash and settlement payment exactly once');
   const shiftAggregates = (await db.collection('tenants').doc(tenantId).collection('shifts').doc('shift-1').get()).data()!;
   assert(shiftAggregates.cashSales === 1550 && shiftAggregates.gcashSales === 250 && shiftAggregates.mayaSales === 250 && shiftAggregates.totalShiftSales === 2050 && shiftAggregates.electronicReceipts === 500 && shiftAggregates.saleCount === 6, 'payment-specific shift aggregates reconcile exactly once per committed sale');
 

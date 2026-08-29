@@ -85,6 +85,48 @@ export class LifecycleError extends Error {
   }
 }
 
+// Firestore structured error representations we treat as "transaction was
+// aborted by concurrent contention" — this is the only case where we may
+// perform an authoritative read-only slot/username classification.
+const TRANSACTION_ABORTED_CODES = new Set(['ABORTED']);
+const TRANSACTION_ABORTED_GRPC_CODES = new Set([10]); // gRPC ABORTED = 10
+const TRANSACTION_INVALIDATED_MESSAGE = 'transaction is invalid or closed';
+
+function isTransactionAbortedError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const e = err as Record<string, unknown>;
+  // Structured Firestore code (string) — e.g. 'ABORTED' or Firestore 4-arg
+  // (code "ABORTED", details object, metadata).
+  if (typeof e.code === 'string' && TRANSACTION_ABORTED_CODES.has(e.code.toUpperCase())) {
+    return true;
+  }
+  // Numeric gRPC status code for ABORTED.
+  if (typeof e.code === 'number' && TRANSACTION_ABORTED_GRPC_CODES.has(e.code)) {
+    return true;
+  }
+  // gRPC status field.
+  if (typeof e.status === 'number' && TRANSACTION_ABORTED_GRPC_CODES.has(e.status)) {
+    return true;
+  }
+  if (typeof e.status === 'string' && TRANSACTION_ABORTED_CODES.has(e.status.toUpperCase())) {
+    return true;
+  }
+  // Firestore admin SDK sometimes serializes the gRPC code into the message
+  // as "code 3 INVALID_ARGUMENT: ..." or "code 10 ABORTED: ...". The
+  // INVALID_ARGUMENT form (code 3) is NOT a contention abort — it is the
+  // specific known "transaction is invalid or closed" condition that arises
+  // when a concurrent commit invalidates our transaction.
+  const msg = typeof e.message === 'string' ? e.message.toLowerCase() : '';
+  if (msg.includes(TRANSACTION_INVALIDATED_MESSAGE)) {
+    return true;
+  }
+  return false;
+}
+
+function isLifecycleError(err: unknown): err is LifecycleError {
+  return err instanceof LifecycleError;
+}
+
 export interface LifecycleServiceOptions {
   adminAuth?: admin.auth.Auth;
   adminFirestore?: admin.firestore.Firestore;
@@ -287,7 +329,8 @@ export async function createCashierAccount(
   const authUid = generateCashierAuthUid(cleanTenantId, newStaffRef.id);
   const sessionVersion = 1;
 
-  await db.runTransaction(async (txn) => {
+  try {
+    await db.runTransaction(async (txn) => {
     // 4a. Fresh read & tenant ownership check (prevent TOCTOU)
     const tenantDoc = await txn.get(tenantRef);
     if (!tenantDoc.exists) {
@@ -353,7 +396,63 @@ export async function createCashierAccount(
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       lastLoginAt: null
     });
-  });
+   });
+  } catch (txnErr) {
+    if (isLifecycleError(txnErr)) {
+      throw txnErr;
+    }
+
+    if (!isTransactionAbortedError(txnErr)) {
+      throw txnErr;
+    }
+
+    let slotSnap;
+    try {
+      slotSnap = await db
+        .collection('tenants')
+        .doc(cleanTenantId)
+        .collection('staff_slots')
+        .doc('cashier_primary')
+        .get();
+    } catch {
+      throw new LifecycleError(LifecycleErrorCode.INTERNAL_ERROR);
+    }
+
+    if (slotSnap.exists && slotSnap.data()?.staffAccountId) {
+      throw new LifecycleError(LifecycleErrorCode.SLOT_LIMIT_REACHED);
+    }
+
+    let existingSnap;
+    try {
+      existingSnap = await db
+        .collection('tenants')
+        .doc(cleanTenantId)
+        .collection('staff_accounts')
+        .get();
+    } catch {
+      throw new LifecycleError(LifecycleErrorCode.INTERNAL_ERROR);
+    }
+
+    if (existingSnap.docs.length >= 1) {
+      throw new LifecycleError(LifecycleErrorCode.SLOT_LIMIT_REACHED);
+    }
+
+    let usernameSnap;
+    try {
+      usernameSnap = await db
+        .collection('staff_usernames')
+        .doc(usernameLower)
+        .get();
+    } catch {
+      throw new LifecycleError(LifecycleErrorCode.INTERNAL_ERROR);
+    }
+
+    if (usernameSnap.exists) {
+      throw new LifecycleError(LifecycleErrorCode.USERNAME_UNAVAILABLE);
+    }
+
+    throw new LifecycleError(LifecycleErrorCode.INTERNAL_ERROR);
+  }
 
   return {
     id: newStaffRef.id,

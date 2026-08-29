@@ -59,7 +59,7 @@ async function main() {
   assert(response.products.length === 1 && response.products[0].id === 'p1', 'only active same-tenant valid Benta product is returned');
   const serialized = JSON.stringify(response);
   assert(!serialized.includes('costPrice') && !serialized.includes('pinHash') && !serialized.includes('sessionVersion') && !serialized.includes('authUid') && !serialized.includes('owner-secret') && !serialized.includes('supplier') && !serialized.includes('internalNote'), 'bootstrap excludes credential, cost, owner, subscription and internal metadata');
-  assert(Object.keys(response.products[0]).every((key) => ['id', 'name', 'sku', 'barcode', 'category', 'salePrice', 'currentStock', 'minStock', 'unit', 'isActive'].includes(key)), 'catalogue uses the strict response allowlist');
+  assert(Object.keys(response.products[0]).every((key) => ['id', 'name', 'sku', 'barcode', 'category', 'salePrice', 'currentStock', 'minStock', 'unit', 'isActive', 'quantityMode', 'sellingUnit', 'quantityScale', 'stockQuantityMinor', 'minStockMinor'].includes(key)), 'catalogue uses the strict response allowlist');
 
   const noShiftSeed: Record<string, any> = structuredClone(base); delete noShiftSeed[`tenants/${tenantId}/staff_accounts/${staffId}`].activeShiftId; delete noShiftSeed[`tenants/${tenantId}/shifts/shift-1`];
   assert((await getBentaCashierBootstrap('valid', { adminAuth: auth, adminFirestore: memory(noShiftSeed).db })).currentShift === null, 'consistent absence of an active shift returns null');

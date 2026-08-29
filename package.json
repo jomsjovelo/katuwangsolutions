@@ -12,7 +12,11 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "cypress": "cypress run",
-    "cypress:open": "cypress open"
+    "cypress:open": "cypress open",
+    "test:benta:unit": "tsx scripts/run-benta-unit-tests.ts",
+    "test:benta:emulator": "tsx scripts/run-benta-emulator-tests.ts",
+    "test:benta:e2e": "cypress run --spec cypress/e2e/secure-benta-cashier.cy.ts",
+    "verify:benta": "tsx scripts/verify-benta.ts"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.28.0",

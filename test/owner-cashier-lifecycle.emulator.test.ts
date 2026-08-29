@@ -110,8 +110,21 @@ async function runRealConcurrencyEmulatorSuite() {
     const winningSummary = (successes[0] as PromiseFulfilledResult<any>).value;
     const losingError = (rejections[0] as PromiseRejectedResult).reason;
 
+    const losingIsSlotLimit =
+      losingError instanceof LifecycleError && losingError.code === LifecycleErrorCode.SLOT_LIMIT_REACHED;
+
+    if (!losingIsSlotLimit) {
+      console.error('  [DIAG] Losing error details (type/code/sanitized message):', {
+        name: losingError instanceof Error ? losingError.name : typeof losingError,
+        code: (losingError as any)?.code ?? (losingError as any)?.status ?? '(none)',
+        message: losingError instanceof Error ? losingError.message : String(losingError),
+        isLifecycleError: losingError instanceof LifecycleError,
+        stack: losingError instanceof Error ? losingError.stack : undefined
+      });
+    }
+
     assert(
-      losingError instanceof LifecycleError && losingError.code === LifecycleErrorCode.SLOT_LIMIT_REACHED,
+      losingIsSlotLimit,
       'Losing request is rejected with SLOT_LIMIT_REACHED error'
     );
 

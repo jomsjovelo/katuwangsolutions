@@ -22,15 +22,16 @@ export type AppGroup = {
   apps: AppModule[];
 };
 
+export type CanonicalBentaBusinessProfile = 'general_retail' | 'fresh_goods' | 'hardware_supply';
+
 export type BentaBusinessProfile =
-  | 'general_retail'
-  | 'fresh_goods'
-  | 'hardware_supply'
+  | CanonicalBentaBusinessProfile
   | 'standard-retail'
+  | 'fresh-goods'
   | 'hardware-supplies'
   | 'wholesale';
 
-export const BENTA_PROFILES: { id: BentaBusinessProfile; label: string; description: string }[] = [
+export const BENTA_PROFILES: { id: CanonicalBentaBusinessProfile; label: string; description: string }[] = [
   {
     id: 'general_retail',
     label: 'GENERAL RETAIL',
@@ -48,12 +49,21 @@ export const BENTA_PROFILES: { id: BentaBusinessProfile; label: string; descript
   },
 ];
 
-export const DEFAULT_BENTA_BUSINESS_PROFILE: BentaBusinessProfile = 'general_retail';
+export const DEFAULT_BENTA_BUSINESS_PROFILE: CanonicalBentaBusinessProfile = 'general_retail';
 
-export function normalizeBentaProfile(profile?: string | null): 'general_retail' | 'fresh_goods' | 'hardware_supply' {
+/**
+ * Normalizes any canonical, legacy, or URL business profile identifier into a canonical profile.
+ * - 'general_retail', 'standard-retail', 'wholesale' -> 'general_retail' (wholesale uses general retail engine)
+ * - 'fresh_goods', 'fresh-goods' -> 'fresh_goods'
+ * - 'hardware_supply', 'hardware-supplies' -> 'hardware_supply'
+ * - null, undefined, invalid -> 'general_retail'
+ */
+export function normalizeBentaProfile(profile?: string | null): CanonicalBentaBusinessProfile {
   if (!profile) return 'general_retail';
-  if (profile === 'fresh_goods' || profile === 'fresh-goods') return 'fresh_goods';
-  if (profile === 'hardware_supply' || profile === 'hardware-supplies') return 'hardware_supply';
+  const trimmed = profile.trim().toLowerCase();
+  if (trimmed === 'fresh_goods' || trimmed === 'fresh-goods') return 'fresh_goods';
+  if (trimmed === 'hardware_supply' || trimmed === 'hardware-supplies') return 'hardware_supply';
+  if (trimmed === 'general_retail' || trimmed === 'standard-retail' || trimmed === 'wholesale') return 'general_retail';
   return 'general_retail';
 }
 
