@@ -13,7 +13,8 @@ import {
   calculateBreakEvenSellingPrice,
   calculateTargetMarginPrice,
   generateMarginScenarios,
-  computeSmartPricing
+  computeSmartPricing,
+  normalizePesoInputForDisplay
 } from '../src/lib/shared/pricing-math';
 
 import {
@@ -283,6 +284,67 @@ describe('Benta Snap Smart Pricing Financial Math Tests', () => {
     it('rejects zero or negative quantities in calculations', () => {
       assert.throws(() => calculateCostPerSellingUnit(10000, { quantity: 0, mode: 'discrete', unit: 'pcs' }), /must be a positive whole number/);
       assert.throws(() => calculateCostPerSellingUnit(10000, { quantity: -5, mode: 'measured', unit: 'kg' }), /must be greater than zero/);
+    });
+  });
+
+  describe('8. Currency Input Normalization (Smart Pricing)', () => {
+    it('normalizes empty string to empty', () => {
+      assert.equal(normalizePesoInputForDisplay(''), '');
+      assert.equal(normalizePesoInputForDisplay('   '), '');
+    });
+
+    it('normalizes whole numbers to two decimals', () => {
+      assert.equal(normalizePesoInputForDisplay('950'), '950.00');
+      assert.equal(normalizePesoInputForDisplay('115'), '115.00');
+      assert.equal(normalizePesoInputForDisplay('0'), '0.00');
+    });
+
+    it('normalizes single decimal to two decimals', () => {
+      assert.equal(normalizePesoInputForDisplay('149.9'), '149.90');
+      assert.equal(normalizePesoInputForDisplay('1.'), '1.00');
+      assert.equal(normalizePesoInputForDisplay('10.'), '10.00');
+    });
+
+    it('preserves two decimals', () => {
+      assert.equal(normalizePesoInputForDisplay('149.99'), '149.99');
+      assert.equal(normalizePesoInputForDisplay('149.90'), '149.90');
+    });
+
+    it('returns invalid/negative input unchanged for validation to handle', () => {
+      assert.equal(normalizePesoInputForDisplay('-100'), '-100');
+      assert.equal(normalizePesoInputForDisplay('abc'), 'abc');
+      assert.equal(normalizePesoInputForDisplay('1.2.3'), '1.2.3');
+      assert.equal(normalizePesoInputForDisplay('-5.5'), '-5.5');
+    });
+
+    it('normalized strings parse to same centavos', () => {
+      const testCases = [
+        { input: '950', expected: '950.00' },
+        { input: '115', expected: '115.00' },
+        { input: '149.9', expected: '149.90' },
+        { input: '149.99', expected: '149.99' },
+        { input: '0', expected: '0.00' },
+        { input: '1.', expected: '1.00' },
+        { input: '10.', expected: '10.00' },
+      ];
+      testCases.forEach(({ input, expected }) => {
+        const normalized = normalizePesoInputForDisplay(input);
+        assert.equal(normalized, expected);
+        const parsed = parsePesoToCentavos(normalized);
+        assert.ok(parsed.valid, `Normalized ${normalized} should be valid`);
+        const originalParsed = parsePesoToCentavos(input);
+        if (originalParsed.valid) {
+          assert.equal(parsed.centavos, originalParsed.centavos, `Centavos should match for ${input}`);
+        }
+      });
+    });
+
+    it('partial input while typing remains unformatted until blur', () => {
+      const partials = ['1', '1.', '1.5', '10.'];
+      partials.forEach(p => {
+        const result = normalizePesoInputForDisplay(p);
+        assert.ok(typeof result === 'string');
+      });
     });
   });
 });

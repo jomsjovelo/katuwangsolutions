@@ -266,7 +266,7 @@ export async function checkoutBenta(
   payload: {
     idempotencyKey: string;
     shiftId: string;
-    items: Array<{ productId: string; quantity: number }>;
+    items: import('@/store/use-secure-cashier-store').CheckoutIntentItem[];
     paymentMethod: CheckoutPaymentMethod;
     paymentReference?: string;
   },
@@ -401,14 +401,48 @@ export async function executeCashierLogoutCoordinator(
     firebaseSignOutFn?: () => Promise<void>;
     onLocalStateCleanup: () => void;
     onRedirect: () => void;
+    serverTimeoutMs?: number;
   }
 ): Promise<void> {
+  const TIMEOUT_MS = params.serverTimeoutMs ?? 15000;
+  const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
+
   // 1. Authoritative server revocation MUST complete first
-  const idToken = await params.getIdToken();
+  let idToken: string;
+  const t1 = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  try {
+    idToken = await withTimeout(params.getIdToken(), TIMEOUT_MS, 'Hindi nakukuha ang session token.');
+  } catch (err: any) {
+    const logoutErr: any = new Error(`Logout failed: ${err?.message || 'Token acquisition timed out'}`);
+    if (err?.code === 'timeout') logoutErr.code = 'logout_timeout';
+    throw logoutErr;
+  }
+  const t2 = typeof performance !== 'undefined' ? performance.now() : Date.now();
+
   const serverRevoke = params.serverLogoutFn || staffLogout;
-  await serverRevoke(idToken);
+
+  const t3 = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  try {
+    await withTimeout(
+      Promise.resolve().then(() => serverRevoke(idToken)),
+      TIMEOUT_MS,
+      'Hindi natapos ang logout sa server. Paki-check ang koneksyon at subukan muli.'
+    );
+  } catch (err: any) {
+    if (err?.status === 401 && err?.category === 'SESSION_INVALID') {
+      console.warn('Server session is already explicitly revoked (SESSION_INVALID), proceeding with local cleanup:', err);
+    } else {
+      const logoutErr: any = new Error(`Logout failed: ${err?.message || 'Server revocation timed out'}`);
+      if (err?.code === 'timeout') logoutErr.code = 'logout_timeout';
+      if (err?.status) logoutErr.status = err.status;
+      if (err?.category) logoutErr.category = err.category;
+      throw logoutErr;
+    }
+  }
+  const t4 = typeof performance !== 'undefined' ? performance.now() : Date.now();
 
   // 2. Complete Firebase client sign-out using genuine default or injected handler
+  const t5 = typeof performance !== 'undefined' ? performance.now() : Date.now();
   const signOutClient = params.firebaseSignOutFn || (async () => {
     const { signOut } = await import('firebase/auth');
     const { initializeFirebase } = await import('@/firebase');
@@ -420,12 +454,42 @@ export async function executeCashierLogoutCoordinator(
   } catch (signOutErr) {
     console.warn('Firebase signOut error after verified server revocation:', signOutErr);
   }
+  const t6 = typeof performance !== 'undefined' ? performance.now() : Date.now();
 
   // 3. Guaranteed local state cleanup
+  const t7 = typeof performance !== 'undefined' ? performance.now() : Date.now();
   params.onLocalStateCleanup();
+  const t8 = typeof performance !== 'undefined' ? performance.now() : Date.now();
 
   // 4. Safe navigation to login
+  const t9 = typeof performance !== 'undefined' ? performance.now() : Date.now();
   params.onRedirect();
+  const t10 = typeof performance !== 'undefined' ? performance.now() : Date.now();
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.info('[CASHIER_PERF_LOGOUT]', {
+      tokenAcquisitionMs: Number((t2 - t1).toFixed(2)),
+      serverRevocationMs: Number((t4 - t3).toFixed(2)),
+      firebaseSignOutMs: Number((t6 - t5).toFixed(2)),
+      localCleanupMs: Number((t8 - t7).toFixed(2)),
+      redirectMs: Number((t10 - t9).toFixed(2)),
+      totalLogoutMs: Number((t10 - t0).toFixed(2))
+    });
+  }
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, timeoutMessage: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      const timeoutErr: any = new Error(timeoutMessage);
+      timeoutErr.code = 'timeout';
+      reject(timeoutErr);
+    }, ms);
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); }
+    );
+  });
 }
 
 /**

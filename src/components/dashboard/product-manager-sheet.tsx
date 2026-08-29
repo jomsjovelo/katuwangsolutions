@@ -17,7 +17,8 @@ import {
   parsePesoToCentavos,
   formatCentavosToPeso,
   computeSmartPricing,
-  SmartPricingResult
+  SmartPricingResult,
+  normalizePesoInputForDisplay
 } from '@/lib/shared/pricing-math';
 import { Calculator, ChevronDown, ChevronUp, Sparkles, Check, ArrowRight } from 'lucide-react';
 
@@ -630,18 +631,24 @@ export function ProductManagerSheet({
 
                   {/* Supplier Cost & Optional Costs Disclosure */}
                   <div className="space-y-2">
-                    <div className="space-y-1">
-                      <Label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Total Supplier Cost (₱)</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={smartPricingForm.supplierCost}
-                        onChange={e => setSmartPricingForm({ ...smartPricingForm, supplierCost: e.target.value })}
-                        placeholder="950.00"
-                        className="h-11 min-h-[44px] rounded-xl border-slate-200 text-xs font-semibold bg-white"
-                      />
-                    </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Total Supplier Cost (₱)</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={smartPricingForm.supplierCost}
+                          onChange={e => setSmartPricingForm({ ...smartPricingForm, supplierCost: e.target.value })}
+                          onBlur={e => {
+                            setSmartPricingForm(prev => ({
+                              ...prev,
+                              supplierCost: normalizePesoInputForDisplay(e.target.value)
+                            }));
+                          }}
+                          placeholder="950.00"
+                          className="h-11 min-h-[44px] rounded-xl border-slate-200 text-xs font-semibold bg-white"
+                        />
+                      </div>
 
                     {/* Optional Costs Toggle */}
                     <div>
@@ -664,6 +671,12 @@ export function ProductManagerSheet({
                               step="0.01"
                               value={smartPricingForm.deliveryFreight}
                               onChange={e => setSmartPricingForm({ ...smartPricingForm, deliveryFreight: e.target.value })}
+                              onBlur={e => {
+                                setSmartPricingForm(prev => ({
+                                  ...prev,
+                                  deliveryFreight: normalizePesoInputForDisplay(e.target.value)
+                                }));
+                              }}
                               placeholder="0.00"
                               className="h-11 min-h-[44px] rounded-xl border-slate-200 text-xs font-semibold bg-white"
                             />
@@ -676,6 +689,12 @@ export function ProductManagerSheet({
                               step="0.01"
                               value={smartPricingForm.otherAcquisitionCost}
                               onChange={e => setSmartPricingForm({ ...smartPricingForm, otherAcquisitionCost: e.target.value })}
+                              onBlur={e => {
+                                setSmartPricingForm(prev => ({
+                                  ...prev,
+                                  otherAcquisitionCost: normalizePesoInputForDisplay(e.target.value)
+                                }));
+                              }}
                               placeholder="0.00"
                               className="h-11 min-h-[44px] rounded-xl border-slate-200 text-xs font-semibold bg-white"
                             />
@@ -685,21 +704,27 @@ export function ProductManagerSheet({
                     </div>
                   </div>
 
-                  {/* Selling Price - Primary Price Input */}
-                  <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                      Selling Price (₱ / {formData.unit})
-                    </Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={smartPricingForm.sellingPrice}
-                      onChange={e => setSmartPricingForm({ ...smartPricingForm, sellingPrice: e.target.value })}
-                      placeholder="115.00"
-                      className="h-11 min-h-[44px] rounded-xl border-slate-200 text-xs font-semibold bg-white"
-                    />
-                  </div>
+                    {/* Selling Price - Primary Price Input */}
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                        Selling Price (₱ / {formData.unit})
+                      </Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={smartPricingForm.sellingPrice}
+                        onChange={e => setSmartPricingForm({ ...smartPricingForm, sellingPrice: e.target.value })}
+                        onBlur={e => {
+                          setSmartPricingForm(prev => ({
+                            ...prev,
+                            sellingPrice: normalizePesoInputForDisplay(e.target.value)
+                          }));
+                        }}
+                        placeholder="115.00"
+                        className="h-11 min-h-[44px] rounded-xl border-slate-200 text-xs font-semibold bg-white"
+                      />
+                    </div>
 
                   {/* Real-time Calculation Breakdown Card */}
                   {smartPricingCalculation ? (

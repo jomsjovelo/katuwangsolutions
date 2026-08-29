@@ -71,7 +71,7 @@ export interface HybridSaleIntentDoc {
   tender: 'cash';
   items: HybridSaleIntentItemDoc[];
   itemCount: number;
-  observedCatalogDigest?: string;
+  offlineAuthorityDigest?: string;
   observedTotalCentavos: number;
   cashTenderedCentavos: number;
   changeRequiredCentavos: number;
@@ -95,6 +95,29 @@ export interface SubmitHybridCashSaleOptions {
   injectedDb?: Firestore;
   injectedSetIntent?: (tenantId: string, intentId: string, docData: HybridSaleIntentDoc) => Promise<void>;
   injectedLocalObserver?: (tenantId: string, intentId: string) => Promise<void>;
+}
+
+export interface SnapshotChange {
+  type: 'added' | 'removed' | 'modified';
+  doc: {
+    id: string;
+    data: () => HybridSaleIntentDoc;
+    metadata: {
+      hasPendingWrites: boolean;
+    };
+  };
+}
+
+export function shouldTriggerServerFinalization(
+  change: SnapshotChange,
+  hasIdToken: boolean
+): boolean {
+  if (change.type === 'removed') return false;
+  const data = change.doc.data();
+  if (data.status !== 'pending') return false;
+  if (change.doc.metadata.hasPendingWrites) return false;
+  if (!hasIdToken) return false;
+  return true;
 }
 
 // In-memory guard to suppress duplicate concurrent finalization calls
@@ -196,7 +219,7 @@ export async function submitHybridCashSale(
     tender: 'cash',
     items: mappedItems,
     itemCount: params.items.length,
-    observedCatalogDigest: params.catalogDigest || '',
+    offlineAuthorityDigest: params.catalogDigest || '',
     observedTotalCentavos: observedSubtotalCentavos,
     cashTenderedCentavos: params.cashTenderedCentavos,
     changeRequiredCentavos,
@@ -234,6 +257,8 @@ export async function submitHybridCashSale(
   };
 
   const timeoutMs = options.localAcceptanceTimeoutMs || 5000;
+
+  const tLocalStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
 
   // 1 & 2 & 3: Attach listener and await local cache observation
   if (options.injectedLocalObserver) {
@@ -284,6 +309,16 @@ export async function submitHybridCashSale(
 
     // Wait ONLY until the intent is confirmed in local cache
     await localObservationPromise;
+  }
+
+  const tLocalEnd = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  const durableLocalAcceptanceMs = tLocalEnd - tLocalStart;
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.info('[CASHIER_PERF_HYBRID_INTENT]', {
+      intentId,
+      durableLocalAcceptanceMs: Number(durableLocalAcceptanceMs.toFixed(2))
+    });
   }
 
   // 4. Return provisional receipt immediately once durable local acceptance is verified
@@ -354,6 +389,11 @@ export function subscribeToCashierShiftIntents(
       }
 
       snapshot.docChanges().forEach(async (change) => {
+        // Skip removed documents to prevent finalization of deleted/rolled-back intents
+        if (change.type === 'removed') {
+          return;
+        }
+
         const docSnap = change.doc;
         const data = docSnap.data() as HybridSaleIntentDoc;
         const intentId = docSnap.id;
@@ -363,8 +403,19 @@ export function subscribeToCashierShiftIntents(
         }
 
         // When document is server-acknowledged and pending, request finalization
-        if (!docSnap.metadata.hasPendingWrites && data.status === 'pending' && options.getIdToken) {
-          const res = await finalizeIntentOnServer(options.getIdToken, options.tenantId, intentId);
+        const snapshotChange: SnapshotChange = {
+          type: change.type,
+          doc: {
+            id: change.doc.id,
+            data: () => change.doc.data() as HybridSaleIntentDoc,
+            metadata: {
+              hasPendingWrites: change.doc.metadata.hasPendingWrites
+            }
+          }
+        };
+
+        if (shouldTriggerServerFinalization(snapshotChange, !!options.getIdToken)) {
+          const res = await finalizeIntentOnServer(options.getIdToken!, options.tenantId, intentId);
           if (res.receipt && options.onReceiptUpdated) {
             options.onReceiptUpdated(res.receipt);
           }

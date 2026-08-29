@@ -21,8 +21,11 @@ If you see a "waiting for permissions" error in the Firebase Console:
 ### 2. Finalize App Hosting Setup
 - **App Hosting ID:** Use `katuwang-prod`.
 - **Root Directory:** Keep it as `/`.
-- **Environment Variables:** Once the app is created, go to the **Settings** tab in App Hosting and add:
-  - `GEMINI_API_KEY`: `AIzaSyD5dZeMncsVFwkhNFtkH0jnYJSPBZozfYk`
+- **Secret Configuration:** Configure `GEMINI_API_KEY` securely via Google Cloud Secret Manager / Firebase App Hosting Secrets:
+  ```bash
+  firebase apphosting:secrets:set GEMINI_API_KEY
+  ```
+  Or add `GEMINI_API_KEY` under Firebase App Hosting / Cloud Secret Manager with Secret Accessor role granted to the App Hosting service account. Do not commit plaintext API keys.
 
 ### 3. Automatic "Joy-Glow" Updates
 Every time you run the following commands in your terminal, your live site will automatically rebuild and deploy:

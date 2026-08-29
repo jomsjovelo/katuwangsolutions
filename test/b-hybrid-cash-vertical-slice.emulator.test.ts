@@ -168,7 +168,7 @@ test('B-Hybrid Cash Vertical Slice Live Emulator Suite', async (t) => {
         { productId: 'prod_sardines', quantity: 1, observedUnitPriceCentavos: 2800, observedSubtotalCentavos: 2800 }
       ],
       itemCount: 3,
-      observedCatalogDigest: 'digest_test_123',
+      offlineAuthorityDigest: 'digest_test_123',
       observedTotalCentavos: 13800,
       cashTenderedCentavos: 15000,
       changeRequiredCentavos: 1200,
@@ -220,27 +220,27 @@ test('B-Hybrid Cash Vertical Slice Live Emulator Suite', async (t) => {
     assert.strictEqual(intentSnap.data()?.authoritativeSaleId, result.saleId);
   });
 
-  await t.test('4. Idempotent Replay of Already Finalized Intent Returns Exact Same Receipt Without Re-decrementing Stock', async () => {
-    const replayResult = await finalizeCashierSaleIntent(cashierIdToken, {
-      tenantId,
-      intentId: intentId1
-    }, { adminFirestore: db, adminAuth: auth });
+await t.test('4. Idempotent Replay of Already Finalized Intent Returns Exact Same Receipt Without Re-decrementing Stock', async () => {
+     const replayResult = await finalizeCashierSaleIntent(cashierIdToken, {
+       tenantId,
+       intentId: intentId1
+     }, { adminFirestore: db, adminAuth: auth });
 
-    assert.strictEqual(replayResult.success, true);
-    assert.strictEqual(replayResult.status, 'accepted');
+     assert.strictEqual(replayResult.success, true);
+     assert.strictEqual(replayResult.status, 'accepted');
 
-    // Re-verify stock remains exactly 48, not 46
-    const riceSnap = await db.collection('tenants').doc(tenantId).collection('products').doc('prod_rice').get();
-    assert.strictEqual(riceSnap.data()?.currentStock, 48);
+     // Re-verify stock remains exactly 48, not 46
+     const riceSnap = await db.collection('tenants').doc(tenantId).collection('products').doc('prod_rice').get();
+     assert.strictEqual(riceSnap.data()?.currentStock, 48);
 
-    // Re-verify shift count remains 1
-    const shiftSnap = await db.collection('tenants').doc(tenantId).collection('shifts').doc(shiftId).get();
-    assert.strictEqual(shiftSnap.data()?.saleCount, 1);
-  });
+     // Re-verify shift count remains 1
+     const shiftSnap = await db.collection('tenants').doc(tenantId).collection('shifts').doc(shiftId).get();
+     assert.strictEqual(shiftSnap.data()?.saleCount, 1);
+   });
 
-  const intentId2 = `intent_${Date.now()}_insufficient_stock`;
+   const intentId2 = `intent_${Date.now()}_insufficient_stock`;
 
-  await t.test('5. Stock Insufficiency: Marks Intent needs_review With Zero Financial Mutations', async () => {
+   await t.test('5. Stock Insufficiency: Marks Intent needs_review With Zero Financial Mutations', async () => {
     // Attempt to buy 100 sardines when only 9 left
     await db.collection('tenants').doc(tenantId).collection('cashier_sale_intents').doc(intentId2).set({
       schemaVersion: 1,
@@ -394,7 +394,56 @@ test('B-Hybrid Cash Vertical Slice Live Emulator Suite', async (t) => {
     assert.strictEqual(provisionalReceipt.totalCentavos, 5500);
   });
 
-  await t.test('10. Durable Local Acceptance: Local rejection or timeout fails closed', async () => {
+  await t.test('10. Generated intent shape includes offlineAuthorityDigest, excludes observedCatalogDigest, and handles discrete + measured items', async () => {
+    const { provisionalReceipt, intentId } = await submitHybridCashSale({
+      tenantId,
+      staffAccountId,
+      authUid: cashierAuthUid,
+      shiftId,
+      cashierDisplayName: 'Hybrid Cashier',
+      catalogDigest: 'digest_123',
+      items: [
+        { productId: 'prod_rice', name: 'Rice 1kg', unit: 'kg', quantity: 1, salePriceCentavos: 5500 },
+        { productId: 'prod_tomatoes', name: 'Tomatoes', unit: 'kg', quantityMode: 'measured', quantityMinor: 1250, quantityScale: 3, sellingUnit: 'kg', salePriceCentavos: 28000 }
+      ],
+      cashTenderedCentavos: 50000
+    }, {
+      injectedSetIntent: async (tId, iId, docData) => {
+        // Verify the document data contains offlineAuthorityDigest and not observedCatalogDigest
+        assert.ok(docData.offlineAuthorityDigest, 'Generated intent must contain offlineAuthorityDigest');
+        assert.equal(docData.offlineAuthorityDigest, 'digest_123', 'offlineAuthorityDigest should match catalogDigest');
+        assert.ok(!('observedCatalogDigest' in docData), 'Generated intent must not contain observedCatalogDigest');
+        assert.equal(docData.status, 'pending');
+        assert.equal(docData.items.length, 2);
+        // Discrete item
+        assert.equal(docData.items[0].productId, 'prod_rice');
+        assert.equal(docData.items[0].quantityMode, 'discrete');
+        assert.equal(docData.items[0].quantity, 1);
+        assert.equal(docData.items[0].observedUnitPriceCentavos, 5500);
+        assert.equal(docData.items[0].observedSubtotalCentavos, 5500);
+        // Measured item: 1250 minor at scale 3 = 1.25 units, 28,000/unit = 35,000 centavos
+        assert.equal(docData.items[1].productId, 'prod_tomatoes');
+        assert.equal(docData.items[1].quantityMode, 'measured');
+        assert.equal(docData.items[1].quantityMinor, 1250, 'Measured item quantityMinor should be 1250');
+        assert.equal(docData.items[1].quantityScale, 3, 'Measured item quantityScale should be 3');
+        assert.equal(docData.items[1].sellingUnit, 'kg', 'Measured item sellingUnit should be kg');
+        assert.equal(docData.items[1].observedUnitPriceCentavos, 28000, 'Measured item observedUnitPriceCentavos should be 28000');
+        assert.equal(docData.items[1].observedSubtotalCentavos, 35000, 'Measured item observedSubtotalCentavos should be 35000');
+        // Aggregate total: 5,500 + 35,000 = 40,500
+        assert.equal(docData.observedTotalCentavos, 40500, 'Aggregate observedTotalCentavos should be 40,500 centavos');
+      },
+      injectedLocalObserver: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+    });
+
+    assert.ok(intentId);
+    assert.ok(provisionalReceipt.receiptNumber.startsWith('PROV-'));
+    assert.strictEqual(provisionalReceipt.totalCentavos, 40500);
+    assert.strictEqual(provisionalReceipt.subtotalCentavos, 40500);
+  });
+
+  await t.test('11. Durable Local Acceptance: Local rejection or timeout fails closed', async () => {
     await assert.rejects(
       async () => {
         await submitHybridCashSale({

@@ -7,10 +7,14 @@ import {
   ShiftReconciliationSummary
 } from '@/lib/client/secure-benta-cashier-client';
 
+export type CheckoutIntentItem =
+  | { productId: string; quantityMode?: 'discrete'; quantity: number }
+  | { productId: string; quantityMode: 'measured'; quantityMinor: number; quantityScale: number; sellingUnit: string };
+
 export interface PendingCheckoutIntent {
   idempotencyKey: string;
   shiftId: string;
-  items: Array<{ productId: string; quantity: number }>;
+  items: CheckoutIntentItem[];
   paymentMethod: 'cash' | 'gcash' | 'maya';
   paymentReference?: string;
 }
@@ -222,3 +226,10 @@ export const useSecureCashierStore = create<SecureCashierState>((set, get) => ({
     });
   }
 }));
+
+export function shouldBlockCheckoutForCashierLock(
+  isCashier: boolean,
+  isLocalLocked: boolean
+): boolean {
+  return isCashier && isLocalLocked;
+}

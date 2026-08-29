@@ -86,16 +86,17 @@ import { HelpGuideDrawer } from '@/components/shell/help-guide-drawer';
 export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string, onTabChange?: (tab: string) => void }) {
   const { user } = useUser();
   const db = initializeFirebase().db;
-  
+  const isCashier = useSecureCashierStore(state => state.isCashierAuthenticated);
+
   // Phase 1: Safely subscribe to profile without raw onSnapshot
-  const { data: profile } = useFirestoreDocument(user ? doc(db, 'users', user.uid) : null);
-  
+  // Cashiers are denied access to users/{uid} by Firestore Rules; never subscribe for them
+  const { data: profile } = useFirestoreDocument(user && !isCashier ? doc(db, 'users', user.uid) : null);
+
   const { currentTenant, setCurrentTenant, allTenants, isLoading: storeLoading } = useTenant();
   const activeModuleOverride = useTenantStore(state => state.activeModuleOverride);
   const { loading: tenantsLoading } = useUserTenants();
   const [mounted, setMounted] = useState(false);
   const { isOnline, pendingCount, syncMessage, isSyncing } = useSyncStatus(currentTenant?.id);
-  const isCashier = useSecureCashierStore(state => state.isCashierAuthenticated);
 
   useEffect(() => {
     setMounted(true);

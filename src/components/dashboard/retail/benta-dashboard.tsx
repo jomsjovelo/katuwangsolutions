@@ -24,7 +24,7 @@ import { ProductManagerSheet } from '@/components/dashboard/product-manager-shee
 import { QuickExpenseModal } from '@/components/common/quick-expense-modal';
 import { DiscountInput } from '@/components/ui/discount-input';
 import { ThermalReceiptPreview } from '@/components/common/thermal-receipt-preview';
-import { useSecureCashierStore } from '@/store/use-secure-cashier-store';
+import { useSecureCashierStore, shouldBlockCheckoutForCashierLock } from '@/store/use-secure-cashier-store';
 import { fetchBentaBootstrap, checkoutBenta, CheckoutPaymentMethod } from '@/lib/client/secure-benta-cashier-client';
 import { getJournalDB } from '@/lib/offline/journal-db';
 import { CashierOfflineSyncCoordinator } from '@/lib/client/cashier-offline-sync-coordinator';
@@ -671,6 +671,11 @@ function BentaDashboardContent() {
 
     const staffAccountId = cashierBootstrap?.staffAccountId || user.uid;
 
+    const finalizedSaleIdsRef = new Set<string>();
+    const refreshingSaleIdsRef = new Set<string>();
+    const MAX_REFRESH_RETRIES = 2;
+    let effectDisposed = false;
+
     let unsubscribe: (() => void) | null = null;
     import('@/lib/client/hybrid-cash-checkout-manager').then(({ subscribeToCashierShiftIntents }) => {
       unsubscribe = subscribeToCashierShiftIntents({
@@ -679,16 +684,71 @@ function BentaDashboardContent() {
         authUid: user.uid,
         shiftId: activeShift.id,
         getIdToken: () => user.getIdToken(),
-        onReceiptUpdated: (finalReceipt) => {
+        onReceiptUpdated: async (finalReceipt) => {
+          const saleId = finalReceipt.saleId || finalReceipt.receiptNumber;
+          // Deduplicate simultaneous receipt callbacks for the same sale.
+          // The listener may surface the same finalized intent more than once.
+          if (!saleId || finalizedSaleIdsRef.has(saleId)) return;
+
           useSecureCashierStore.getState().setLastReceipt(finalReceipt);
           setCompletedSale((prev) =>
             prev
-              ? {
-                  ...prev,
-                  saleId: finalReceipt.receiptNumber || finalReceipt.saleId
-                }
+              ? { ...prev, saleId }
               : null
           );
+
+          // Skip if already refreshing this sale
+          if (refreshingSaleIdsRef.has(saleId)) return;
+
+          // Refresh authoritative restricted bootstrap inventory after
+          // hybrid intent acceptance. The standard online checkout already
+          // refreshes around lines 884-887; the durable-intent path returns
+          // earlier and never refreshed bootstrap. Fetch authoritative
+          // bootstrap data — never fabricate stock from receipt data.
+          if (!user?.getIdToken) return;
+
+          refreshingSaleIdsRef.add(saleId);
+          try {
+            let idToken: string;
+            try {
+              idToken = await user.getIdToken();
+            } catch {
+              // Cannot get token now; leave in-flight for a later callback to retry
+              return;
+            }
+
+            let lastErr: any;
+            for (let attempt = 0; attempt < MAX_REFRESH_RETRIES; attempt++) {
+              if (effectDisposed) return;
+              try {
+                const tBootStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
+                const freshBootstrap = await fetchBentaBootstrap(idToken);
+                const tBootEnd = typeof performance !== 'undefined' ? performance.now() : Date.now();
+                if (process.env.NODE_ENV !== 'production') {
+                  console.info('[CASHIER_PERF_BOOTSTRAP_REFRESH]', {
+                    saleId,
+                    bootstrapRefreshMs: Number((tBootEnd - tBootStart).toFixed(2))
+                  });
+                }
+                if (effectDisposed) return;
+                useSecureCashierStore.getState().setBootstrap(freshBootstrap);
+                finalizedSaleIdsRef.add(saleId);
+                return;
+              } catch (err: any) {
+                lastErr = err;
+              }
+              // Bounded delay before retry — do not poll indefinitely
+              if (attempt === 0 && !effectDisposed) {
+                await new Promise((resolve) => setTimeout(resolve, 1500));
+              }
+            }
+
+            // All retries exhausted — do NOT mark as reconciled so a later
+            // receipt/reconnect callback can retry. Log for manual intervention.
+            console.error('[HYBRID_BOOTSTRAP_REFRESH] Exhausted retries for sale', saleId, ':', lastErr?.message);
+          } finally {
+            refreshingSaleIdsRef.delete(saleId);
+          }
         },
         onStatusChanged: (intentId, status, reason) => {
           if (status === 'needs_review' || status === 'rejected_tampered') {
@@ -699,12 +759,15 @@ function BentaDashboardContent() {
     });
 
     return () => {
+      effectDisposed = true;
       if (unsubscribe) unsubscribe();
     };
   }, [isCashier, currentTenant?.id, user, cashierBootstrap?.staffAccountId, useSecureCashierStore.getState().activeShift?.id]);
 
   const handleCheckout = async (paymentMethod: string, gcashRef?: string) => {
     if (!currentTenant?.id || cart.length === 0) return;
+
+    const checkoutStartTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
 
     // Synchronous guard: prevents duplicate financial commits via double-click
     // or rapid re-invocation regardless of React async state timing.
@@ -713,7 +776,7 @@ function BentaDashboardContent() {
     }
 
     // Validation guards (synchronous, before lock is set — early returns do not need to release)
-    if (useSecureCashierStore.getState().isLocalLocked) {
+    if (shouldBlockCheckoutForCashierLock(isCashier, useSecureCashierStore.getState().isLocalLocked)) {
       setError("Naka-lock ang Cashier POS. Paki-unlock muna ang device bago mag-benta.");
       return;
     }
@@ -750,10 +813,22 @@ function BentaDashboardContent() {
       const shiftId = pendingIntent ? pendingIntent.shiftId : activeCashierShift.id;
       const items = pendingIntent
         ? pendingIntent.items
-        : cart.map(item => ({
-            productId: item.productId,
-            quantity: item.quantity
-          }));
+        : cart.map(item => {
+            if (item.quantityMode === 'measured') {
+              return {
+                productId: item.productId,
+                quantityMode: 'measured' as const,
+                quantityMinor: item.quantityMinor ?? 1000,
+                quantityScale: item.quantityScale ?? 3,
+                sellingUnit: item.sellingUnit || item.unit || 'kg'
+              };
+            }
+            return {
+              productId: item.productId,
+              quantity: item.quantity,
+              ...(item.quantityMode === 'discrete' ? { quantityMode: 'discrete' as const } : {})
+            };
+          });
       const effectivePaymentMethod = pendingIntent ? pendingIntent.paymentMethod : (paymentMethod as CheckoutPaymentMethod);
       const effectivePaymentReference = pendingIntent ? pendingIntent.paymentReference : (paymentMethod === 'gcash' || paymentMethod === 'maya' ? gcashRef : undefined);
 
@@ -840,6 +915,14 @@ function BentaDashboardContent() {
             setShowReceipt(true);
             setSuccessMsg(`Benta Kumpleto! ${provisionalReceipt.receiptNumber}`);
             setTimeout(() => setSuccessMsg(null), 4000);
+
+            const tUserVisible = typeof performance !== 'undefined' ? performance.now() - checkoutStartTime : 0;
+            if (process.env.NODE_ENV !== 'production') {
+              console.info('[CASHIER_PERF_CHECKOUT_USER_VISIBLE]', {
+                mode: 'hybrid_cash',
+                userVisibleCheckoutMs: Number(tUserVisible.toFixed(2))
+              });
+            }
             return;
           } catch (e: any) {
             console.error('[HYBRID_CHECKOUT_ERROR]', e);
@@ -869,7 +952,11 @@ function BentaDashboardContent() {
           setIsProcessing(true);
           setError(null);
 
+          const tTokenStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
           const idToken = await user.getIdToken();
+          const tTokenEnd = typeof performance !== 'undefined' ? performance.now() : Date.now();
+
+          const tServerStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
           const receipt = await checkoutBenta(idToken, {
             idempotencyKey,
             shiftId,
@@ -877,13 +964,24 @@ function BentaDashboardContent() {
             paymentMethod: effectivePaymentMethod,
             paymentReference: effectivePaymentReference
           });
+          const tServerEnd = typeof performance !== 'undefined' ? performance.now() : Date.now();
 
           useSecureCashierStore.getState().clearPendingCheckoutIntent();
           useSecureCashierStore.getState().setLastReceipt(receipt);
 
           // Non-blocking background bootstrap refresh
+          const tBootStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
           fetchBentaBootstrap(idToken)
-            .then(freshBootstrap => useSecureCashierStore.getState().setBootstrap(freshBootstrap))
+            .then(freshBootstrap => {
+              const tBootEnd = typeof performance !== 'undefined' ? performance.now() : Date.now();
+              if (process.env.NODE_ENV !== 'production') {
+                console.info('[CASHIER_PERF_BOOTSTRAP_REFRESH]', {
+                  mode: 'standard_online',
+                  bootstrapRefreshMs: Number((tBootEnd - tBootStart).toFixed(2))
+                });
+              }
+              useSecureCashierStore.getState().setBootstrap(freshBootstrap);
+            })
             .catch(refreshErr => console.warn('Post-checkout bootstrap refresh notice:', refreshErr?.message));
 
           setCompletedSale({
@@ -905,6 +1003,16 @@ function BentaDashboardContent() {
           setShowReceipt(true);
           setSuccessMsg("Benta Kumpleto! Naitala sa server.");
           setTimeout(() => setSuccessMsg(null), 4000);
+
+          const tUserVisible = typeof performance !== 'undefined' ? performance.now() - checkoutStartTime : 0;
+          if (process.env.NODE_ENV !== 'production') {
+            console.info('[CASHIER_PERF_CHECKOUT_USER_VISIBLE]', {
+              mode: 'standard_online',
+              tokenAcquisitionMs: Number((tTokenEnd - tTokenStart).toFixed(2)),
+              serverCheckoutMs: Number((tServerEnd - tServerStart).toFixed(2)),
+              userVisibleCheckoutMs: Number(tUserVisible.toFixed(2))
+            });
+          }
           return;
         } catch (e: any) {
           if (e?.status === 400 || e?.status === 422 || e?.category === 'invalid_payload') {

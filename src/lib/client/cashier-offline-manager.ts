@@ -10,12 +10,13 @@ import {
   SanitizedBootstrapProduct,
   SanitizedBootstrapShift
 } from './secure-benta-cashier-client';
+import { computeLineFinancials } from '../shared/quantity-math';
 
 export interface OfflineCheckoutParams {
   tenantId: string;
   staffAccountId: string;
   shiftId: string;
-  cartItems: Array<{ productId: string; quantity: number }>;
+  cartItems: import('@/store/use-secure-cashier-store').CheckoutIntentItem[];
   idempotencyKey: string;
 }
 
@@ -27,6 +28,10 @@ export interface ProvisionalReceiptResult {
     name: string;
     unitPriceCentavos: number;
     quantity: number;
+    quantityMode?: 'measured' | 'discrete';
+    quantityMinor?: number;
+    quantityScale?: number;
+    sellingUnit?: string;
     unit: string;
     lineTotalCentavos: number;
   }>;
@@ -354,21 +359,55 @@ export class CashierOfflineManager {
       if (!snapProd || !snapProd.isActive) {
         throw new Error(`Ang item na "${item.productId}" ay wala o hindi aktibo sa offline catalog snapshot.`);
       }
-      if (!Number.isSafeInteger(item.quantity) || item.quantity <= 0) {
-        throw new Error(`Maling dami para sa item na "${snapProd.name}".`);
+
+      const authoritativeQuantityMode = snapProd.quantityMode === 'measured' ? 'measured' : 'discrete';
+      let lineTotalCentavos = 0;
+      if (item.quantityMode === 'measured') {
+        if (authoritativeQuantityMode !== 'measured') {
+          throw new Error(`Ang item na "${snapProd.name}" ay hindi measured product.`);
+        }
+        if (!Number.isSafeInteger(item.quantityMinor) || item.quantityMinor <= 0) {
+          throw new Error(`Maling dami para sa item na "${snapProd.name}".`);
+        }
+        const authoritativeSellingUnit = snapProd.sellingUnit ?? snapProd.unit;
+        const authoritativeQuantityScale = snapProd.quantityScale ?? 3;
+        if (item.quantityScale !== authoritativeQuantityScale || item.sellingUnit !== authoritativeSellingUnit) {
+          throw new Error(`Maling scale o unit para sa "${snapProd.name}".`);
+        }
+        try {
+          lineTotalCentavos = computeLineFinancials(snapProd.salePriceCentavos, item.quantityMinor, authoritativeQuantityScale);
+        } catch {
+          throw new Error(`Hindi ma-compute ang presyo para sa "${snapProd.name}".`);
+        }
+        validatedItems.push({
+          productId: item.productId,
+          name: snapProd.name,
+          unitPriceCentavos: snapProd.salePriceCentavos,
+          quantity: 1,
+          quantityMode: 'measured' as const,
+          quantityMinor: item.quantityMinor,
+          quantityScale: authoritativeQuantityScale,
+          sellingUnit: authoritativeSellingUnit,
+          unit: authoritativeSellingUnit,
+          lineTotalCentavos
+        });
+      } else {
+        if (authoritativeQuantityMode !== 'discrete') {
+          throw new Error(`Ang item na "${snapProd.name}" ay measured product at kailangan ng timbang/sukat.`);
+        }
+        if (!Number.isSafeInteger(item.quantity) || item.quantity <= 0) {
+          throw new Error(`Maling dami para sa item na "${snapProd.name}".`);
+        }
+        lineTotalCentavos = snapProd.salePriceCentavos * item.quantity;
+        validatedItems.push({
+          productId: item.productId,
+          name: snapProd.name,
+          unitPriceCentavos: snapProd.salePriceCentavos,
+          quantity: item.quantity,
+          unit: snapProd.unit,
+          lineTotalCentavos
+        });
       }
-
-      const unitPriceCentavos = snapProd.salePriceCentavos;
-      const lineTotalCentavos = unitPriceCentavos * item.quantity;
-
-      validatedItems.push({
-        productId: item.productId,
-        name: snapProd.name,
-        unitPriceCentavos,
-        quantity: item.quantity,
-        unit: snapProd.unit,
-        lineTotalCentavos
-      });
     }
 
     const totalCentavos = validatedItems.reduce((sum, it) => sum + it.lineTotalCentavos, 0);

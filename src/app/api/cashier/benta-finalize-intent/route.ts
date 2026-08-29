@@ -5,6 +5,7 @@ import { isSecureCashierSystemEnabled, isBentaHybridCashierEnabled } from '@/lib
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
+  const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
   try {
     if (!isSecureCashierSystemEnabled() || !isBentaHybridCashierEnabled()) {
       return Response.json({ error: 'Hybrid cashier system is disabled.' }, { status: 503 });
@@ -17,7 +18,19 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
+    const tFinalizeStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const result = await finalizeCashierSaleIntent(idToken, body);
+    const tFinalizeEnd = typeof performance !== 'undefined' ? performance.now() : Date.now();
+
+    const tTotal = typeof performance !== 'undefined' ? performance.now() - t0 : 0;
+    if (process.env.NODE_ENV !== 'production') {
+      console.info('[SERVER_PERF_FINALIZE_INTENT]', {
+        intentId: body?.intentId,
+        finalizationMs: Number((tFinalizeEnd - tFinalizeStart).toFixed(2)),
+        totalDurationMs: Number(tTotal.toFixed(2))
+      });
+    }
+
     return Response.json(result, { status: 200 });
   } catch (error) {
     if (error instanceof CheckoutError) {

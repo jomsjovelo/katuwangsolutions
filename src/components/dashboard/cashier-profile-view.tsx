@@ -1,67 +1,74 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useUser } from '@/firebase/auth/use-user';
 import { useSecureCashierStore } from '@/store/use-secure-cashier-store';
 import { useTenantStore } from '@/store/use-tenant-store';
 import { executeCashierLogoutCoordinator } from '@/lib/client/secure-benta-cashier-client';
+import {
+  handleCashierLogoutClick,
+  performCashierLogoutAction
+} from '@/lib/client/cashier-profile-controller';
 import { StaffShiftCard } from './staff-shift-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { User, Store, LogOut, Loader2, Printer, CheckCircle2, AlertCircle } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog';
+import { User, Store, LogOut, Loader2, Printer, AlertCircle } from 'lucide-react';
 import { EscPosBluetoothDriver } from '@/lib/hardware/print-driver';
 
-export function CashierProfileView() {
+export interface CashierProfileViewProps {
+  logoutCoordinatorFn?: typeof executeCashierLogoutCoordinator;
+  onRedirect?: () => void;
+}
+
+export function CashierProfileView(props: CashierProfileViewProps = {}) {
   const { user } = useUser();
   const bootstrap = useSecureCashierStore(state => state.bootstrap);
   const cashierShift = useSecureCashierStore(state => state.activeShift);
   const resetTenantStore = useTenantStore(state => state.reset);
 
+  const isLoggingOutRef = useRef(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showShiftConfirmDialog, setShowShiftConfirmDialog] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const [btStatus, setBtStatus] = useState<string>('Not Connected');
 
   const cashierName = bootstrap?.cashierDisplayName || 'Cashier';
   const storeName = bootstrap?.tenantDisplayName || 'Katuwang Store';
 
-  const handleCashierLogout = async () => {
-    if (isLoggingOut) return;
-    setLogoutError(null);
+  const performLogout = () =>
+    performCashierLogoutAction({
+      user,
+      hasActiveShift: Boolean(cashierShift),
+      shiftId: cashierShift?.id,
+      isLoggingOutRef,
+      setIsLoggingOut,
+      setShowShiftConfirmDialog,
+      setLogoutError,
+      logoutCoordinatorFn: props.logoutCoordinatorFn,
+      clearCashierSession: () => useSecureCashierStore.getState().clearCashierSession(),
+      resetTenantStore: () => resetTenantStore(),
+      onRedirect: props.onRedirect
+    });
 
-    // 1. If shift is active, prompt warning
-    if (cashierShift) {
-      const confirmed = window.confirm(
-        'May bukas ka pang shift. Nais mo bang mag-logout pa rin? Ang inyong shift ay mananatiling bukas sa server para sa inyong pagbabalik.'
-      );
-      if (!confirmed) return;
-    }
-
-    try {
-      setIsLoggingOut(true);
-
-      await executeCashierLogoutCoordinator({
-        getIdToken: async () => {
-          if (!user) throw new Error('No active user session found.');
-          return user.getIdToken();
-        },
-        onLocalStateCleanup: () => {
-          useSecureCashierStore.getState().clearCashierSession();
-          resetTenantStore();
-          try {
-            localStorage.removeItem('katuwang-staff-session-storage');
-          } catch {}
-        },
-        onRedirect: () => {
-          window.location.href = '/login';
-        }
-      });
-    } catch (err: any) {
-      console.error('Cashier logout error:', err);
-      setIsLoggingOut(false);
-      setLogoutError(err?.message || 'Hindi natapos ang logout sa server. Paki-check ang koneksyon at subukan muli.');
-    }
-  };
+  const handleLogoutClick = () =>
+    handleCashierLogoutClick({
+      isLoggingOutRef,
+      hasActiveShift: Boolean(cashierShift),
+      setShowShiftConfirmDialog,
+      setLogoutError,
+      performLogout
+    });
 
   const handleTestPrinter = async () => {
     try {
@@ -148,7 +155,7 @@ export function CashierProfileView() {
 
       {/* Trusted Logout Button */}
       <Button
-        onClick={handleCashierLogout}
+        onClick={handleLogoutClick}
         disabled={isLoggingOut}
         variant="destructive"
         className="w-full h-14 rounded-2xl font-black text-base shadow-lg shadow-rose-600/20 active:scale-98 transition-transform flex items-center justify-center gap-2"
@@ -165,6 +172,38 @@ export function CashierProfileView() {
           </>
         )}
       </Button>
+
+      {/* Controlled In-App Shift Active Confirmation Dialog */}
+      <AlertDialog open={showShiftConfirmDialog} onOpenChange={setShowShiftConfirmDialog}>
+        <AlertDialogContent className="rounded-3xl max-w-md border-slate-200">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-lg font-black text-slate-900">
+              May Bukas Pang Shift
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-slate-600 font-medium leading-relaxed">
+              May bukas ka pang shift ({cashierShift?.id}). Nais mo bang mag-logout pa rin? Ang inyong shift ay mananatiling bukas sa server para sa inyong pagbabalik.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex flex-col-reverse sm:flex-row gap-2 mt-4">
+            <AlertDialogCancel
+              disabled={isLoggingOut}
+              className="rounded-xl font-bold border-slate-200 text-slate-700 hover:bg-slate-100"
+            >
+              Manatili (Cancel)
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                performLogout();
+              }}
+              disabled={isLoggingOut}
+              className="rounded-xl font-black bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              Ituloy ang Pag-logout
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

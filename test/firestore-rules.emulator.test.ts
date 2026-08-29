@@ -256,6 +256,38 @@ test('Firestore Security Rules Client Authorization Suite', async (t) => {
     }));
   });
 
+  await t.test('4e. authenticated Cashier intent with observedCatalogDigest must fail', async () => {
+    const intentId = `intent_observed_catalog_${Date.now()}`;
+    const intentRef = doc(cashier1Db, 'tenants', tenantId, 'cashier_sale_intents', intentId);
+    await assertFails(setDoc(intentRef, {
+      ...validIntentData,
+      intentId,
+      observedCatalogDigest: 'some_catalog_digest'
+    }));
+  });
+
+  await t.test('4f. exact schema-v2 Cashier intent with offlineAuthorityDigest must succeed', async () => {
+    const intentId = `intent_offline_auth_${Date.now()}`;
+    const intentRef = doc(cashier1Db, 'tenants', tenantId, 'cashier_sale_intents', intentId);
+    await assertSucceeds(setDoc(intentRef, {
+      schemaVersion: 2,
+      intentId,
+      tenantId,
+      authUid: cashier1Uid,
+      staffAccountId: staffAccount1Id,
+      shiftId: 'shift_1',
+      tender: 'cash',
+      items: [{ productId: 'prod_rice', quantity: 1, quantityMode: 'discrete', observedUnitPriceCentavos: 5000, observedSubtotalCentavos: 5000 }],
+      itemCount: 1,
+      offlineAuthorityDigest: 'some_offline_digest',
+      observedTotalCentavos: 5000,
+      cashTenderedCentavos: 5000,
+      changeRequiredCentavos: 0,
+      clientCreatedAt: new Date().toISOString(),
+      status: 'pending'
+    }));
+  });
+
   await t.test('5. Cashier cannot create intent for another tenant or another staff account', async () => {
     const intentId = `intent_spoofed_${Date.now()}`;
     const intentRef = doc(cashier1Db, 'tenants', tenantId, 'cashier_sale_intents', intentId);

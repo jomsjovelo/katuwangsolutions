@@ -13,14 +13,22 @@ import {
 import { getAuth, Auth, setPersistence, browserLocalPersistence, connectAuthEmulator } from 'firebase/auth';
 import { firebaseConfig } from './config';
 
+declare global {
+  interface Window {
+    __katuwang_firestore_persistence_active?: boolean;
+  }
+}
+
 let app: FirebaseApp;
 let db: Firestore;
 let auth: Auth;
 let emulatorsConnected = false;
-let isPersistenceActive = false;
 
 export function isFirestorePersistenceActive(): boolean {
-  return isPersistenceActive;
+  if (typeof window !== 'undefined') {
+    return window.__katuwang_firestore_persistence_active ?? false;
+  }
+  return false;
 }
 
 function connectClientEmulators(authInstance: Auth, dbInstance: Firestore) {
@@ -52,30 +60,85 @@ function connectClientEmulators(authInstance: Auth, dbInstance: Firestore) {
   }
 }
 
-export function initializeFirebase() {
+export interface FirestoreCacheInitDeps {
+  initializeFirestoreFn?: typeof initializeFirestore;
+  getFirestoreFn?: typeof getFirestore;
+  persistentCacheFactory?: () => any;
+  memoryCacheFactory?: () => any;
+  targetWindow?: (Window & typeof globalThis) | { __katuwang_firestore_persistence_active?: boolean };
+}
+
+export function initFirestoreCacheStrategy(
+  appInstance: FirebaseApp,
+  deps: FirestoreCacheInitDeps = {}
+): { db: Firestore; isPersistent: boolean } {
+  const initFn = deps.initializeFirestoreFn || initializeFirestore;
+  const getFn = deps.getFirestoreFn || getFirestore;
+  const persistentFactory = deps.persistentCacheFactory || (() => persistentLocalCache({ tabManager: persistentMultipleTabManager() }));
+  const memoryFactory = deps.memoryCacheFactory || (() => memoryLocalCache());
+  const win = deps.targetWindow !== undefined ? deps.targetWindow : (typeof window !== 'undefined' ? window : undefined);
+
+  let dbInstance: Firestore;
+  let isPersistent = false;
+
+  try {
+    dbInstance = initFn(appInstance, {
+      localCache: persistentFactory()
+    });
+    isPersistent = true;
+    if (win) {
+      win.__katuwang_firestore_persistence_active = true;
+    }
+  } catch (err) {
+    console.warn('[FIRESTORE_CACHE] Failed to initialize persistentLocalCache (multi-tab/IndexedDB), falling back to memoryLocalCache:', err);
+    try {
+      dbInstance = initFn(appInstance, {
+        localCache: memoryFactory()
+      });
+    } catch {
+      dbInstance = getFn(appInstance);
+    }
+    isPersistent = false;
+    if (win) {
+      win.__katuwang_firestore_persistence_active = false;
+    }
+  }
+
+  return { db: dbInstance, isPersistent };
+}
+
+export function handleHmrFirestoreState(
+  appInstance: FirebaseApp,
+  deps: FirestoreCacheInitDeps = {}
+): { db: Firestore; isPersistent: boolean } {
+  const getFn = deps.getFirestoreFn || getFirestore;
+  const win = deps.targetWindow !== undefined ? deps.targetWindow : (typeof window !== 'undefined' ? window : undefined);
+
+  let dbInstance: Firestore;
+  let isPersistent = false;
+
+  try {
+    dbInstance = getFn(appInstance);
+    if (win) {
+      if (win.__katuwang_firestore_persistence_active === undefined) {
+        win.__katuwang_firestore_persistence_active = false;
+      }
+      isPersistent = win.__katuwang_firestore_persistence_active === true;
+    }
+  } catch {
+    return initFirestoreCacheStrategy(appInstance, deps);
+  }
+
+  return { db: dbInstance, isPersistent };
+}
+
+export function initializeFirebase(deps?: FirestoreCacheInitDeps) {
   if (getApps().length === 0) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
 
-    // Initialize Firestore with Persistent Local Cache (IndexedDB) for web/PWA offline durability
-    try {
-      db = initializeFirestore(app, {
-        localCache: persistentLocalCache({
-          tabManager: persistentMultipleTabManager()
-        })
-      });
-      isPersistenceActive = true;
-    } catch (err) {
-      console.warn('[FIRESTORE_CACHE] Failed to initialize persistentLocalCache (multi-tab/IndexedDB), falling back to memoryLocalCache:', err);
-      try {
-        db = initializeFirestore(app, {
-          localCache: memoryLocalCache()
-        });
-      } catch {
-        db = getFirestore(app);
-      }
-      isPersistenceActive = false;
-    }
+    const cacheResult = initFirestoreCacheStrategy(app, deps);
+    db = cacheResult.db;
 
     connectClientEmulators(auth, db);
 
@@ -84,15 +147,8 @@ export function initializeFirebase() {
     }
   } else {
     app = getApps()[0];
-    try {
-      db = getFirestore(app);
-    } catch {
-      db = initializeFirestore(app, {
-        localCache: persistentLocalCache({
-          tabManager: persistentMultipleTabManager()
-        })
-      });
-    }
+    const hmrResult = handleHmrFirestoreState(app, deps);
+    db = hmrResult.db;
     auth = getAuth(app);
     connectClientEmulators(auth, db);
   }

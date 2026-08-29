@@ -8,7 +8,7 @@ import { OfflineGrantSigner } from '../src/lib/server/offline-grant-signer';
 import { CatalogSnapshotService } from '../src/lib/server/catalog-snapshot-service';
 import { CashierOfflineSyncCoordinator } from '../src/lib/client/cashier-offline-sync-coordinator';
 import { CashierOfflineManager } from '../src/lib/client/cashier-offline-manager';
-import { useSecureCashierStore } from '../src/store/use-secure-cashier-store';
+import { useSecureCashierStore, shouldBlockCheckoutForCashierLock } from '../src/store/use-secure-cashier-store';
 
 function createMockEnvironment(initialStore: Record<string, any> = {}) {
   const store: Record<string, any> = { ...initialStore };
@@ -651,4 +651,13 @@ test('Shift Close Gate: Unaccepted, in-flight, or needs-review claims block shif
     globalThis.fetch = originalFetch;
     coordinator.destroy();
   }
+});
+
+test('Checkout lock predicate: Owner not blocked by Cashier lock, Cashier blocked when locked', () => {
+  // Owner + Cashier store locked → allow
+  assert.equal(shouldBlockCheckoutForCashierLock(false, true), false, 'Owner should not be blocked by Cashier lock');
+  // Cashier + locked → blocked
+  assert.equal(shouldBlockCheckoutForCashierLock(true, true), true, 'Cashier should be blocked when locked');
+  // Cashier + unlocked → allow
+  assert.equal(shouldBlockCheckoutForCashierLock(true, false), false, 'Cashier should not be blocked when unlocked');
 });

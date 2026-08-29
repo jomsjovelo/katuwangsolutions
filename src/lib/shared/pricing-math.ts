@@ -102,6 +102,32 @@ export function formatCentavosToPeso(centavos: number): string {
 }
 
 /**
+ * Normalizes a peso input string to a display format with exactly two decimal places.
+ * Reuses parsePesoToCentavos and formatCentavosToPeso for consistency.
+ * Rules:
+ * - Empty or whitespace-only input returns empty string (preserves optional field behavior).
+ * - Valid non-negative numbers are formatted to exactly two decimal places.
+ *   Examples: "950" -> "950.00", "115" -> "115.00", "149.9" -> "149.90", "149.99" -> "149.99", "0" -> "0.00", "1." -> "1.00".
+ * - Invalid (non-numeric) or negative values are returned unchanged so that existing validation can reject them.
+ */
+export function normalizePesoInputForDisplay(input: string): string {
+  if (input === undefined || input === null) return '';
+  let trimmed = input.trim();
+  if (trimmed === '') return '';
+  // Handle trailing decimal point (e.g. "1." -> "1.00", "10." -> "10.00")
+  // The fixed-point parser requires at least one digit after the decimal point.
+  if (trimmed.endsWith('.')) {
+    trimmed = trimmed.slice(0, -1) + '.00';
+  }
+  const parsed = parsePesoToCentavos(trimmed);
+  if (!parsed.valid || parsed.centavos < 0) {
+    // Invalid or negative: return original input unchanged for validation to handle
+    return input;
+  }
+  return formatCentavosToPeso(parsed.centavos);
+}
+
+/**
  * Calculates Total Landed Cost:
  * Landed Cost = Supplier Cost + Delivery/Freight + Other Acquisition Cost
  */
