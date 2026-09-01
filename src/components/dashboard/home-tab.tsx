@@ -95,6 +95,12 @@ const getMockActivity = (module: string = 'benta-snap') => {
       { id: 2, type: 'stock', title: 'Restocked Coca-Cola', amount: null, time: '1 hour ago', icon: Package, color: 'text-blue-500', bg: 'bg-blue-50' },
       { id: 3, type: 'alert', title: 'Low Stock: Rice', amount: null, time: '2 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
     ],
+    'order-snap': [
+      { id: 1, type: 'sale', title: 'Order #102 Served', amount: 450, time: '5 mins ago', icon: Utensils, color: 'text-orange-500', bg: 'bg-orange-50' },
+      { id: 2, type: 'sale', title: 'Order: Iced Caramel Macchiato', amount: 180, time: '8 mins ago', icon: Utensils, color: 'text-amber-600', bg: 'bg-amber-50' },
+      { id: 3, type: 'stock', title: 'Restocked Coca-Cola', amount: null, time: '1 hour ago', icon: Package, color: 'text-blue-500', bg: 'bg-blue-50' },
+      { id: 4, type: 'alert', title: 'Low Stock: Rice', amount: null, time: '2 hours ago', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+    ],
     'timpla-track': [
       { id: 1, type: 'sale', title: 'Order: Iced Caramel Macchiato', amount: 180, time: '5 mins ago', icon: Utensils, color: 'text-amber-600', bg: 'bg-amber-50' },
       { id: 2, type: 'stock', title: 'Restocked Espresso Beans', amount: null, time: '2 hours ago', icon: Package, color: 'text-stone-600', bg: 'bg-stone-50' },

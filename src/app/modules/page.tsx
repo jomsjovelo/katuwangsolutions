@@ -9,7 +9,7 @@ import { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Lahat ng Modules | Katuwang Solutions',
-  description: 'Tingnan ang 18 modules (17 business modules + Budget Mo) ng Katuwang Solutions.',
+  description: 'Tingnan ang 17 modules (16 business modules + Budget Mo) ng Katuwang Solutions.',
   alternates: {
     canonical: 'https://katuwangsolutions.com/modules',
   },
@@ -36,7 +36,7 @@ export default function ModulesPage() {
             Lahat ng Modules
           </h1>
           <p className="text-lg text-slate-500 font-medium leading-relaxed">
-            Pumili mula sa {activeModulesCount} iba't-ibang Katuwang modules na eksaktong naka-disenyo para sa uri ng iyong negosyo. 17 business modules (Promo ₱99/mo, regular ₱199/mo) at Budget Mo (Promo ₱50/mo, regular ₱100/mo) bawat module.
+            Pumili mula sa {activeModulesCount} iba't-ibang Katuwang modules na eksaktong naka-disenyo para sa uri ng iyong negosyo. 16 business modules (Promo ₱99/mo, regular ₱199/mo) at Budget Mo (Promo ₱50/mo, regular ₱100/mo) bawat module.
           </p>
         </div>
 

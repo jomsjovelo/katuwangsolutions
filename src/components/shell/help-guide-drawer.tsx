@@ -38,6 +38,7 @@ import {
 import { getModuleTheme } from '@/lib/theme-utils';
 import { useHaptic } from '@/hooks/use-haptic';
 import { MODULE_GUIDES, DEFAULT_GUIDE } from '@/components/common/module-guide';
+import { normalizeModuleId } from '@/lib/app-data';
 import { usePWAInstall } from '@/hooks/use-pwa-install';
 import { useTenant } from '@/app/lib/tenant-context';
 
@@ -68,7 +69,7 @@ export function HelpGuideDrawer({
     if (!isControlled) setInternalIsOpen(open);
   };
 
-  const moduleType = activeModule || currentTenant?.moduleType || 'benta-snap';
+  const moduleType = normalizeModuleId(activeModule || currentTenant?.moduleType || '') || 'benta-snap';
   const theme = getModuleTheme(moduleType);
   const guide = MODULE_GUIDES[moduleType] || DEFAULT_GUIDE;
 

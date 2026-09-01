@@ -423,7 +423,7 @@ export default async function ModuleDedicatedPage({ params, searchParams }: Prop
               Tingnan ang iba pang Katuwang sa Negosyo
             </h3>
             <p className="text-xs sm:text-sm text-slate-500 max-w-lg mx-auto">
-              Pumili sa 17 na business modules para sa tindahan, kainan, at serbisyo — plus ang Budget Mo para sa personal mong Budget.
+              Pumili sa 16 na business modules para sa tindahan, kainan, at serbisyo — plus ang Budget Mo para sa personal mong Budget.
             </p>
           </div>
 

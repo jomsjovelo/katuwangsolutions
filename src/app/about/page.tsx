@@ -49,7 +49,7 @@ export default function AboutPage() {
           <h2 className="text-2xl font-black text-slate-900">Ano ang Katuwang Solutions?</h2>
           <div className="prose prose-slate max-w-none">
             <p className="text-slate-600 leading-relaxed text-lg">
-              Ang Katuwang Solutions ay isang software ecosystem na may 18 modules: 17 business modules at Budget Mo para sa personal budgeting.
+              Ang Katuwang Solutions ay isang software ecosystem na may 17 modules: 16 business modules at Budget Mo para sa personal budgeting.
             </p>
             <p className="text-slate-600 leading-relaxed text-lg mt-4">
               Pumili at mag-subscribe sa module na kailangan mo. Bawat module ay may hiwalay na subscription.

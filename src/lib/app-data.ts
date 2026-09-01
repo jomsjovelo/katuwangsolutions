@@ -1,5 +1,5 @@
 import {
-  ShoppingCart, Leaf, Hammer, Utensils, Coffee, CalendarHeart, RotateCcw,
+  ShoppingCart, Leaf, Hammer, Utensils, CalendarHeart, RotateCcw,
   Droplets, Sparkles, Sun, Scissors, Dumbbell, Wrench, Truck, Car, Banknote,
   BookText, HandCoins, Bed, LucideIcon
 } from 'lucide-react';
@@ -93,24 +93,14 @@ export const appGroups: AppGroup[] = [
     accentColor: '#F97316',
     apps: [
       {
-        id: 'bite-snap',
-        name: 'Bite Snap',
+        id: 'order-snap',
+        name: 'Order Snap',
         icon: Utensils,
-        tagline: 'Manage orders, tables, kitchen queue, and cashier workflow.',
+        tagline: 'POS, orders, tables, kitchen queue, recipes, inventory, cashier workflow, offline checkout, and auto-sync for food businesses.',
         imageSrc: '/apps/bite-snap.png',
-        features: ['Order Management', 'Table Management', 'Kitchen Queue', 'Cashier Workflow'],
-        description: 'Manage orders, tables, kitchen queue, and cashier workflow.',
-        targetUsers: ['Restaurants', 'Karinderya', 'Diners', 'Fast Food Kiosks']
-      },
-      {
-        id: 'timpla-track',
-        name: 'Timpla Track',
-        icon: Coffee,
-        tagline: 'Organize café orders and preparation queue.',
-        imageSrc: '/apps/timpla-track.png',
-        features: ['Café Orders', 'Preparation Queue'],
-        description: 'Organize café orders and preparation queue.',
-        targetUsers: ['Coffee Shops', 'Milk Tea Bars', 'Drink Kiosks']
+        features: ['Order Management', 'Table Management', 'Kitchen & Preparation Queue', 'Cashier Workflow', 'POS & Checkout', 'Recipes & Ingredients', 'Inventory Tracking', 'Offline Checkout', 'Automatic Synchronization'],
+        description: 'All-in-one POS and order management for restaurants, karinderyas, cafés, coffee shops, milk-tea shops, drink kiosks, and similar F&B businesses. Manage orders, tables, kitchen and preparation queues, recipes, inventory, cashier workflow, offline checkout, and automatic synchronization.',
+        targetUsers: ['Restaurants', 'Karinderya', 'Diners', 'Fast Food Kiosks', 'Coffee Shops', 'Cafés', 'Milk Tea Bars', 'Drink Kiosks']
       },
       {
         id: 'ganap-master',
@@ -322,5 +312,6 @@ export function normalizeModuleId(id: string): string {
   if (lower === 'fleet-sync') return 'biyahe-sync';
   if (lower === 'rental-track') return 'rental';
   if (lower === 'fresh-tally' || lower === 'build-stack') return 'benta-snap';
+  if (lower === 'bite-snap' || lower === 'timpla-track' || lower === 'order-snap') return 'order-snap';
   return lower;
 }

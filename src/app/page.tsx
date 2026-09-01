@@ -85,7 +85,7 @@ export default function Home() {
                     <BrandLogo theme="dark" />
                   </div>
                   <p className="text-slate-500 text-xs leading-relaxed max-w-[220px]">
-                    Ang all-in-one platform para sa Pilipinong negosyante. 18 modules (17 business modules + Budget Mo) · Promo ₱50–₱99/mo bawat module (regular ₱100–₱199/mo).
+                    Ang all-in-one platform para sa Pilipinong negosyante. 17 modules (16 business modules + Budget Mo) · Promo ₱50–₱99/mo bawat module (regular ₱100–₱199/mo).
                   </p>
                   {/* Social links */}
                   <div className="flex items-center gap-3 pt-1">

@@ -4,6 +4,7 @@ import React from 'react';
 import { X, Play, BookOpen, Star } from 'lucide-react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { getModuleTheme } from '@/lib/theme-utils';
+import { normalizeModuleId } from '@/lib/app-data';
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 export interface ModuleGuideProps {
@@ -106,30 +107,18 @@ export const MODULE_GUIDES: Record<string, GuideContent> = {
       result: 'Awtomatikong ibabawas ang ₱500 sa susunod na sahod ni Boyet pagdating ng payday.'
     }
   },
-  'bite-snap': {
-    tagline: 'POS at KDS para sa kainan. Order hanggang kusina, automated.',
+  'order-snap': {
+    tagline: 'POS, orders, tables, kitchen queue, recipes, at inventory para sa kainan at kape. Order hanggang kusina, automated.',
     steps: [
-      'Tanggapin ang order sa screen at ilagay ang table number ng mesa.',
+      'I-punch ang order sa screen at ilagay ang table number para sa dine-in, o piliin ang counter pickup para sa kape.',
       'Awtomatikong lilipad ang order sa Kitchen Display ng tagaluto.',
-      'Pindutin ang "Start Preparing" sa orders list pag lulutuin na, at "Serve" pag isisilbi na!'
+      'Pindutin ang "Start Preparing" sa orders list pag lulutuin na, at "Serve" / "Ready for Pickup" pag isisilbi na!',
+      'I-checkout ang bayad (Cash, GCash, Maya) at i-print ang resibo. Awtomatikong naka-sync ang transactions kahit offline.'
     ],
     example: {
-      scenario: 'Umorder ang Table 4 ng 2 Sisig at 1 Sinigang.',
-      action: 'I-punch ang order para sa Table 4. Pindutin ang "Send to Kitchen".',
-      result: 'Tutunog ang tablet sa kusina, at makikita ng cook ang order nang hindi na nagsusulat sa papel.'
-    }
-  },
-  'timpla-track': {
-    tagline: 'Cafe operations at counter orders, simplified.',
-    steps: [
-      'Piliin ang kape o pastries ng customer sa menu list.',
-      'I-checkout ang order para awtomatikong pumasok ang bayad sa Cash Register.',
-      'Tingnan ang active tickets para ihanda ang kape ng walang kalituhan.'
-    ],
-    example: {
-      scenario: 'Umorder si Customer ng 1 Iced Latte (Large) add-on oat milk.',
-      action: 'Piliin ang "Iced Latte", i-tap ang "Large" at "Oat Milk" modifiers, tapos Checkout.',
-      result: 'Print ang sticker para sa tasa at pumasok ang kumpletong detalye sa barista monitor.'
+      scenario: 'Umorder ang Table 4 ng 2 Sisig at 1 Sinigang, kasabay ng 1 Iced Latte para sa counter pickup.',
+      action: 'I-punch ang order para sa Table 4 (dine-in) at piliin ang "Send to Kitchen". I-add ang Iced Latte bilang counter pickup at i-checkout sa counter.',
+      result: 'Tutunog ang tablet sa kusina, at makikita ng cook ang orders nang hindi na nagsusulat sa papel. Nai-print ang resibo at na-sync ang sales sa cloud.'
     }
   },
   'ganap-master': {
@@ -334,7 +323,7 @@ export function ModuleGuide({ isOpen, onClose }: ModuleGuideProps) {
   const { currentTenant } = useTenant();
   const theme = getModuleTheme(currentTenant?.moduleType);
 
-  const moduleType = currentTenant?.moduleType || 'benta-snap';
+  const moduleType = normalizeModuleId(currentTenant?.moduleType || '') || currentTenant?.moduleType || 'benta-snap';
   const guide = MODULE_GUIDES[moduleType] || DEFAULT_GUIDE;
 
   return (

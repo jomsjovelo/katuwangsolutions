@@ -10,9 +10,9 @@ import Image from 'next/image';
 import { trackModuleDiscovery } from '@/lib/conversion-events';
 
 const CATEGORY_TABS = [
-  { id: 'all', label: '✨ Lahat ng Modules (18)' },
+  { id: 'all', label: '✨ Lahat ng Modules (17)' },
   { id: 'retail', label: '🛒 Retail (1)' },
-  { id: 'food', label: '🍽️ Food & Events (3)' },
+  { id: 'food', label: '🍽️ Food & Events (2)' },
   { id: 'service', label: '🛠️ Serbisyo (7)' },
   { id: 'logistics', label: '🚚 Logistics & Rental (2)' },
   { id: 'financial', label: '💼 Pinansyal & HR (4)' },
@@ -21,6 +21,7 @@ const CATEGORY_TABS = [
 
 const MODULE_COLORS: Record<string, string> = {
   'benta-snap': '#06B6D4',
+  'order-snap': '#F97316',
   'bite-snap': '#F97316',
   'timpla-track': '#D97706',
   'ganap-master': '#EC4899',
@@ -71,14 +72,14 @@ export function AppSuiteCarousel() {
         <div className="px-5 mb-6">
           <div className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1 rounded-full mb-2">
             <Sparkles className="h-3 w-3" />
-            <span className="text-[10px] font-black uppercase tracking-[0.2em]">17 Business Modules + Budget Mo</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.2em]">16 Business Modules + Budget Mo</span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-tight">
             Kahit anong negosyo,<br />
-            <span className="text-primary">may module para sa iyo.</span>
+            <span className="text-primary">may module para sa iya.</span>
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-2">
-            17 business modules at 1 personal budgeting helper · Promo ₱50–₱99/mo bawat module (regular ₱100–₱199/mo)
+            16 business modules at 1 personal budgeting helper · Promo ₱50–₱99/mo bawat module (regular ₱100–₱199/mo)
           </p>
         </div>
 
@@ -187,7 +188,7 @@ export function AppSuiteCarousel() {
         <div className="px-5 space-y-3">
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">
-              Pumili sa {filteredModules.length} Modules ({activeCategory === 'all' ? 'Lahat ng 18' : activeCategory})
+              Pumili sa {filteredModules.length} Modules ({activeCategory === 'all' ? 'Lahat ng 17' : activeCategory})
             </h4>
           </div>
 

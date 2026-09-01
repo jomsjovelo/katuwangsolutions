@@ -6,8 +6,8 @@ const FEATURES = [
     icon: LayoutGrid,
     iconBg: 'bg-emerald-100',
     iconColor: 'text-emerald-600',
-    title: '18 Specialized Modules',
-    desc: '17 business modules plus Budget Mo personal helper na mapagpipilian para sa uri ng iyong negosyo.',
+    title: '17 Specialized Modules',
+    desc: '16 business modules plus Budget Mo personal helper na mapagpipilian para sa uri ng iyong negosyo.',
     highlight: false,
   },
   {

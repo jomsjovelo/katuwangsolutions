@@ -123,6 +123,18 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
   },
   
   // 7. Food Diner
+  'order-snap': {
+    primary: '#F97316',
+    primaryBg: 'from-orange-500 to-orange-600',
+    primaryText: 'text-orange-600',
+    primaryBorder: 'border-orange-200',
+    secondary: '#EAB308',
+    secondaryBg: 'bg-yellow-400 hover:bg-yellow-500',
+    secondaryText: 'text-slate-900',
+    glowClass: 'joy-glow-orange',
+    name: 'Order Snap',
+    tagline: 'Malinamnam na pamamahala ng kusina at menu'
+  },
   'bite-snap': {
     primary: '#F97316',
     primaryBg: 'from-orange-500 to-orange-600',
@@ -132,7 +144,7 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
     secondaryBg: 'bg-yellow-400 hover:bg-yellow-500',
     secondaryText: 'text-slate-900',
     glowClass: 'joy-glow-orange',
-    name: 'Bite Snap',
+    name: 'Order Snap',
     tagline: 'Malinamnam na pamamahala ng kusina at menu'
   },
   
@@ -146,7 +158,7 @@ export const MODULE_THEMES: Record<string, ModuleTheme> = {
     secondaryBg: 'bg-yellow-200 hover:bg-yellow-300',
     secondaryText: 'text-slate-900',
     glowClass: 'joy-glow-red',
-    name: 'Timpla Track',
+    name: 'Order Snap',
     tagline: 'Mabilis na pamamahala ng kape at cafe menu'
   },
   

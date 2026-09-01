@@ -6,7 +6,7 @@ const STEPS = [
     number: '01',
     icon: AppWindow,
     title: 'Pumili ng Module',
-    desc: 'Pumili sa 18 modules. Bawat module ay may hiwalay na subscription.',
+    desc: 'Pumili sa 17 modules. Bawat module ay may hiwalay na subscription.',
     color: '#06B6D4',
     bg: 'bg-cyan-50',
   },

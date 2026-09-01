@@ -11,8 +11,8 @@ import { trackModuleDiscovery } from '@/lib/conversion-events';
 const INDUSTRIES = [
   { id: 'retail', label: 'Retail / Sari-Sari', icon: ShoppingCart, module: 'Benta Snap', moduleId: 'benta-snap', profile: 'general_retail', color: '#06B6D4' },
   { id: 'fresh', label: 'Fresh Goods & Produce', icon: Leaf, module: 'Benta Snap (Fresh Goods POS)', moduleId: 'benta-snap', profile: 'fresh_goods', color: '#10B981' },
-  { id: 'restaurant', label: 'Kainan / Restaurant', icon: Utensils, module: 'Bite Snap', moduleId: 'bite-snap', color: '#F97316' },
-  { id: 'cafe', label: 'Coffee Shop', icon: Coffee, module: 'Timpla Track', moduleId: 'timpla-track', color: '#EF4444' },
+  { id: 'restaurant', label: 'Kainan / Restaurant', icon: Utensils, module: 'Order Snap', moduleId: 'order-snap', color: '#F97316' },
+  { id: 'cafe', label: 'Coffee Shop', icon: Coffee, module: 'Order Snap', moduleId: 'order-snap', color: '#EF4444' },
   { id: 'laundry', label: 'Laundry Shop', icon: RotateCcw, module: 'Spin Snap', moduleId: 'spin-snap', color: '#22D3EE' },
   { id: 'salon', label: 'Salon / Barbershop', icon: Scissors, module: 'Trim Track', moduleId: 'trim-track', color: '#E11D48' },
   { id: 'trucking', label: 'Trucking', icon: Truck, module: 'Biyahe Sync', moduleId: 'biyahe-sync', color: '#3B82F6' },

@@ -19,10 +19,10 @@ import { getModulePricing } from '../src/lib/pricing';
 
 test('Benta Snap Consolidation & Business Profile Foundation Suite', async (t) => {
   await t.test('1. Active Modules Count & Canonical Catalogue Truth', () => {
-    assert.equal(activeModulesCount, 18, 'Expected exactly 18 active modules');
-    assert.equal(activeModules.length, 18, 'Expected activeModules array length to be 18');
-    assert.equal(standardModulesCount, 17, 'Expected 17 standard business modules');
-    assert.equal(businessModules.length, 17, 'Expected businessModules array length to be 17');
+    assert.equal(activeModulesCount, 17, 'Expected exactly 17 active modules');
+    assert.equal(activeModules.length, 17, 'Expected activeModules array length to be 17');
+    assert.equal(standardModulesCount, 16, 'Expected 16 standard business modules');
+    assert.equal(businessModules.length, 16, 'Expected businessModules array length to be 16');
 
     const benta = getActiveAppById('benta-snap');
     assert.ok(benta, 'Benta Snap should be present');

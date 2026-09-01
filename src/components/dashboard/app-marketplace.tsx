@@ -5,6 +5,7 @@ import { X, CheckCircle2, ChevronRight, Grid, CreditCard, Copy, Check } from 'lu
 import { useTenant } from '@/app/lib/tenant-context';
 import { useTenantStore } from '@/store/use-tenant-store';
 import { getModuleTheme } from '@/lib/theme-utils';
+import { normalizeModuleId } from '@/lib/app-data';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { useToast } from '@/hooks/use-toast';
@@ -26,8 +27,7 @@ const APPS = [
   
   { id: 'biyahe-sync', name: 'Biyahe Sync', category: 'Trucking', desc: 'Trucking service and hauling fee tracker', price: 199 },
 
-  { id: 'bite-snap', name: 'Bite Snap', category: 'Food', desc: 'Eatery POS with Kitchen Display (KDS)', price: 199 },
-  { id: 'timpla-track', name: 'Timpla Track', category: 'Food', desc: 'Cafe operations and counter orders', price: 199 },
+  { id: 'order-snap', name: 'Order Snap', category: 'Food', desc: 'Eatery & cafe POS with Kitchen Display (KDS), tables, recipes, inventory, and offline checkout', price: 199 },
   { id: 'ganap-master', name: 'Ganap Master', category: 'Events', desc: 'Catering and bulk order management', price: 199 },
   
   { id: 'spin-snap', name: 'Spin Snap', category: 'Service', desc: 'Laundry shop washer/dryer tracking', price: 199 },
@@ -108,7 +108,11 @@ export function AppMarketplace({ isOpen, onClose }: AppMarketplaceProps) {
   const unlocked = currentTenant.unlockedModules || [];
   
   // Is the specific app already available for the user?
-  const isUnlocked = (appId: string) => appId === currentTenant.moduleType || unlocked.includes(appId);
+  const isUnlocked = (appId: string) => {
+    const tenantModule = normalizeModuleId(currentTenant.moduleType);
+    const matchesTenant = appId === tenantModule || appId === currentTenant.moduleType;
+    return matchesTenant || unlocked.some(u => normalizeModuleId(u) === appId);
+  };
 
   const handleSimulatePayment = (appId: string, appName: string, price: number) => {
     setCheckoutApp({ id: appId, name: appName, price });
