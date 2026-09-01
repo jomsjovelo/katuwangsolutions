@@ -39,7 +39,13 @@ const bentaUnitTests = [
   'test/thermal-receipt-jpg.test.ts',
   'test/offline-grant-signer.test.ts',
   'test/benta-sync-claims-handler.test.ts',
-  'test/journal-db.test.ts'
+  'test/journal-db.test.ts',
+  'test/shared-inventory-costing.test.ts',
+  'test/benta-inventory-costing-adapter.test.ts',
+  'test/benta-inventory-restock.test.ts',
+  'test/benta-smart-restocking-integration.test.ts',
+  'test/benta-smart-po-protection.test.ts',
+  'test/benta-exact-pool-sales-consumption.test.ts',
 ];
 
 console.log(`\n======================================================`);
