@@ -81,3 +81,37 @@ env:
     secret: ADMIN_PRIVATE_KEY
     availability:
       - RUNTIME
+
+  # Production Origin & WebAuthn RP Configuration
+  - variable: NEXT_PUBLIC_APP_URL
+    value: "https://katuwangsolutions--studio-5538116689-bdfb2.asia-southeast1.hosted.app"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: WEBAUTHN_RP_ID
+    value: "katuwangsolutions--studio-5538116689-bdfb2.asia-southeast1.hosted.app"
+    availability:
+      - RUNTIME
+
+  - variable: WEBAUTHN_CHALLENGE_HMAC_SECRET_V1
+    secret: WEBAUTHN_CHALLENGE_HMAC_SECRET_V1
+    availability:
+      - RUNTIME
+
+  # Order Snap Authority & Offline Grant Configuration
+  - variable: ORDER_SNAP_OFFLINE_GRANT_SECRET_V1
+    secret: ORDER_SNAP_OFFLINE_GRANT_SECRET_V1
+    availability:
+      - RUNTIME
+
+  - variable: ORDER_SNAP_OFFLINE_CERTIFICATE_PRIVATE_KEY_V2
+    secret: ORDER_SNAP_OFFLINE_CERTIFICATE_PRIVATE_KEY_V2
+    availability:
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_ORDER_SNAP_AUTHORITY_PUBLIC_KEY_V2
+    value: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEQSZ0eL8vVzBx2BtnHZh7TGgpVrsvsGOlmaGhVKYTWq3N1stVXJYGleUAk9Bn4GQBYZ+cY6odHvVvP8YuvLqj3Q=="
+    availability:
+      - BUILD
+      - RUNTIME
