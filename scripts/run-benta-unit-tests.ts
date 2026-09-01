@@ -48,6 +48,7 @@ const bentaUnitTests = [
   'test/benta-exact-pool-sales-consumption.test.ts',
   'test/benta-sale-mutation-guard.test.ts',
   'test/benta-sale-reversal-engine.test.ts',
+  'test/benta-sale-reversal.test.ts',
 ];
 
 console.log(`\n======================================================`);
