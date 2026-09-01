@@ -30,6 +30,7 @@ import {
 } from './benta-cashier-checkout';
 import { recordTenantAuditEvent } from './audit-events';
 import { isSecureCashierOfflineEnabled, isSecureCashierSystemEnabled } from './secure-cashier-config';
+import { consumeBentaProductSale } from '../shared/benta-inventory-costing-adapter';
 
 export function claimDocFingerprintId(grantId: string, shiftId: string, idempotencyKey: string): string {
   return createHash('sha256').update(`claim:${grantId}:${shiftId}:${idempotencyKey}`, 'utf8').digest('hex');
@@ -1053,23 +1054,101 @@ export async function handleBentaSyncClaims(
         let hasInventoryVariance = false;
         const varianceNotes: string[] = [];
 
+        interface LineReconciliation {
+          requestedQuantity: number;
+          appliedQuantity: number;
+          unappliedQuantity: number;
+          balanceAfter: number;
+          signedHistoricalCogs: number;
+          inventoryCostReliefCentavos: number;
+          costVarianceCentavos: number;
+          reconciliationStatus: 'fully_applied' | 'unapplied_insufficient_stock' | 'unapplied_cost_projection_failed' | 'unapplied_product_missing';
+          previousPosition?: Record<string, unknown>;
+          resultingPosition?: Record<string, unknown>;
+        }
+
+        const lineReconciliations: LineReconciliation[] = [];
+
         productSnaps.forEach((pSnap, idx) => {
           const it = verifiedItems[idx];
+          const signedHistoricalCogs = safeMultiply(it.costPriceCentavos, it.quantity);
+
           if (pSnap.exists) {
             const pData = pSnap.data()!;
-            const currentStock = pData.currentStock || 0;
+            const currentStock = Number.isSafeInteger(pData.currentStock) ? pData.currentStock : 0;
             if (currentStock < it.quantity) {
               hasInventoryVariance = true;
               varianceNotes.push(`${it.name}: stock ${currentStock} < sold ${it.quantity}`);
+              lineReconciliations.push({
+                requestedQuantity: it.quantity,
+                appliedQuantity: 0,
+                unappliedQuantity: it.quantity,
+                balanceAfter: currentStock,
+                signedHistoricalCogs,
+                inventoryCostReliefCentavos: 0,
+                costVarianceCentavos: signedHistoricalCogs,
+                reconciliationStatus: 'unapplied_insufficient_stock'
+              });
+            } else {
+              try {
+                const consumptionRes = consumeBentaProductSale(
+                  {
+                    quantityMode: 'discrete',
+                    currentStock: pData.currentStock,
+                    costPrice: pData.costPrice ?? it.costPriceCentavos,
+                    inventoryValueCentavos: pData.inventoryValueCentavos,
+                    averageUnitCostCentavos: pData.averageUnitCostCentavos,
+                  },
+                  it.quantity,
+                );
+                transaction.update(pSnap.ref, {
+                  ...consumptionRes.productUpdates,
+                  updatedAt: nowTimestamp
+                });
+
+                const inventoryCostReliefCentavos = consumptionRes.historicalCogs.lineCostCentavos;
+                const costVarianceCentavos = signedHistoricalCogs - inventoryCostReliefCentavos;
+
+                lineReconciliations.push({
+                  requestedQuantity: it.quantity,
+                  appliedQuantity: it.quantity,
+                  unappliedQuantity: 0,
+                  balanceAfter: consumptionRes.productUpdates.currentStock ?? 0,
+                  signedHistoricalCogs,
+                  inventoryCostReliefCentavos,
+                  costVarianceCentavos,
+                  reconciliationStatus: 'fully_applied',
+                  previousPosition: consumptionRes.previousPosition as unknown as Record<string, unknown>,
+                  resultingPosition: consumptionRes.consumption.remainingPosition as unknown as Record<string, unknown>
+                });
+              } catch (err: unknown) {
+                hasInventoryVariance = true;
+                varianceNotes.push(`${it.name}: exact-pool projection failed`);
+                lineReconciliations.push({
+                  requestedQuantity: it.quantity,
+                  appliedQuantity: 0,
+                  unappliedQuantity: it.quantity,
+                  balanceAfter: currentStock,
+                  signedHistoricalCogs,
+                  inventoryCostReliefCentavos: 0,
+                  costVarianceCentavos: signedHistoricalCogs,
+                  reconciliationStatus: 'unapplied_cost_projection_failed'
+                });
+              }
             }
-            const newStock = currentStock - it.quantity;
-            transaction.update(pSnap.ref, {
-              currentStock: newStock,
-              updatedAt: nowTimestamp
-            });
           } else {
             hasInventoryVariance = true;
             varianceNotes.push(`${it.name}: product not found in live inventory`);
+            lineReconciliations.push({
+              requestedQuantity: it.quantity,
+              appliedQuantity: 0,
+              unappliedQuantity: it.quantity,
+              balanceAfter: 0,
+              signedHistoricalCogs,
+              inventoryCostReliefCentavos: 0,
+              costVarianceCentavos: signedHistoricalCogs,
+              reconciliationStatus: 'unapplied_product_missing'
+            });
           }
         });
 
@@ -1085,15 +1164,24 @@ export async function handleBentaSyncClaims(
         const ledgerRef = tenantRef.collection('transactions').doc();
         const finalStatus: ClaimReconciliationOutcome = hasInventoryVariance ? 'accepted_with_inventory_variance' : 'accepted';
 
-        const saleItems = verifiedItems.map((it) => ({
-          productId: it.productId,
-          name: it.name,
-          unit: it.unit,
-          quantity: it.quantity,
-          price: it.unitPriceCentavos,
-          costPrice: it.costPriceCentavos,
-          lineTotal: it.lineTotalCentavos
-        }));
+        const saleItems = verifiedItems.map((it, idx) => {
+          const recon = lineReconciliations[idx];
+          return {
+            productId: it.productId,
+            name: it.name,
+            unit: it.unit,
+            quantity: it.quantity,
+            price: it.unitPriceCentavos,
+            costPrice: it.costPriceCentavos,
+            unitCostCentavos: it.costPriceCentavos,
+            lineCostCentavos: recon.signedHistoricalCogs,
+            inventoryCostReliefCentavos: recon.inventoryCostReliefCentavos,
+            costVarianceCentavos: recon.costVarianceCentavos,
+            appliedQuantity: recon.appliedQuantity,
+            unappliedQuantity: recon.unappliedQuantity,
+            lineTotal: it.lineTotalCentavos
+          };
+        });
 
         // Sale
         transaction.set(saleRef, {
@@ -1119,9 +1207,7 @@ export async function handleBentaSyncClaims(
         // Inventory Movements per product
         verifiedItems.forEach((it, idx) => {
           const mRef = movementRefs[idx];
-          const pSnap = productSnaps[idx];
-          const currentStock = pSnap.exists ? pSnap.data()!.currentStock || 0 : 0;
-          const balanceAfter = currentStock - it.quantity;
+          const recon = lineReconciliations[idx];
 
           transaction.set(mRef, {
             id: mRef.id,
@@ -1130,8 +1216,16 @@ export async function handleBentaSyncClaims(
             saleId: saleRef.id,
             shiftId: grant.shiftId,
             type: 'sale',
-            quantity: -it.quantity,
-            balanceAfter,
+            quantity: -recon.appliedQuantity,
+            requestedQuantity: recon.requestedQuantity,
+            appliedQuantity: recon.appliedQuantity,
+            unappliedQuantity: recon.unappliedQuantity,
+            balanceAfter: recon.balanceAfter,
+            inventoryCostReliefCentavos: recon.inventoryCostReliefCentavos,
+            costVarianceCentavos: recon.costVarianceCentavos,
+            reconciliationStatus: recon.reconciliationStatus,
+            ...(recon.previousPosition ? { previousPosition: recon.previousPosition } : {}),
+            ...(recon.resultingPosition ? { resultingPosition: recon.resultingPosition } : {}),
             performedBy: identity.actorId,
             createdAt: nowTimestamp
           });

@@ -16,6 +16,7 @@ import {
   isValidQuantityScale,
   STANDARD_MEASURED_SCALE
 } from '../shared/quantity-math';
+import { consumeBentaProductSale } from '../shared/benta-inventory-costing-adapter';
 
 export interface FinalizeIntentRequest {
   tenantId: string;
@@ -384,10 +385,28 @@ export async function finalizeCashierSaleIntent(
           break;
         }
 
+        let consumptionRes;
+        try {
+          consumptionRes = consumeBentaProductSale(
+            {
+              quantityMode: 'measured',
+              currentStock: Number.isSafeInteger(product.currentStock) ? product.currentStock : 0,
+              stockQuantityMinor: product.stockQuantityMinor,
+              quantityScale: submitted.quantityScale,
+              costPrice: product.costPrice,
+              inventoryValueCentavos: product.inventoryValueCentavos,
+              averageUnitCostCentavos: product.averageUnitCostCentavos,
+            },
+            submitted.quantityMinor,
+          );
+        } catch (err: unknown) {
+          tamperingDetected = true;
+          tamperingReason = `Cost position projection failed for ${submitted.productId}.`;
+          break;
+        }
+
         const lineTotal = computeLineFinancials(authorPrice, submitted.quantityMinor, submitted.quantityScale);
-        const lineCost = computeLineFinancials(costPrice, submitted.quantityMinor, submitted.quantityScale);
         authoritativeSubtotal = safeAdd(authoritativeSubtotal, lineTotal);
-        const newStockMinor = availableMinor - submitted.quantityMinor;
 
         receiptItems.push({
           productId: submitted.productId,
@@ -412,18 +431,18 @@ export async function finalizeCashierSaleIntent(
           sellingUnit: submitted.sellingUnit,
           quantityMode: 'measured',
           unitPriceCentavos: authorPrice,
-          unitCostCentavos: costPrice,
+          unitCostCentavos: consumptionRes.historicalCogs.unitCostCentavos,
           lineSubtotalCentavos: lineTotal,
-          lineCostCentavos: lineCost,
+          lineCostCentavos: consumptionRes.historicalCogs.lineCostCentavos,
           price: authorPrice,
-          costPrice,
-          lineCost,
+          costPrice: consumptionRes.historicalCogs.costPrice,
+          lineCost: consumptionRes.historicalCogs.lineCostCentavos,
           lineTotal
         });
 
         updates.push({
           ref: productRefs[i],
-          updateData: { stockQuantityMinor: newStockMinor, updatedAt: committedAt },
+          updateData: { ...consumptionRes.productUpdates, updatedAt: committedAt },
           movementRef: movementRefs[i],
           movementData: {
             id: movementRefs[i].id,
@@ -433,7 +452,7 @@ export async function finalizeCashierSaleIntent(
             quantityMinorChange: -submitted.quantityMinor,
             quantityMode: 'measured',
             previousStockQuantityMinor: availableMinor,
-            newStockQuantityMinor: newStockMinor,
+            newStockQuantityMinor: consumptionRes.productUpdates.stockQuantityMinor,
             saleId: saleRef.id,
             shiftId,
             staffAccountId,
@@ -450,10 +469,26 @@ export async function finalizeCashierSaleIntent(
           break;
         }
 
+        let consumptionRes;
+        try {
+          consumptionRes = consumeBentaProductSale(
+            {
+              quantityMode: 'discrete',
+              currentStock: product.currentStock,
+              costPrice: product.costPrice,
+              inventoryValueCentavos: product.inventoryValueCentavos,
+              averageUnitCostCentavos: product.averageUnitCostCentavos,
+            },
+            qty,
+          );
+        } catch (err: unknown) {
+          tamperingDetected = true;
+          tamperingReason = `Cost position projection failed for ${submitted.productId}.`;
+          break;
+        }
+
         const lineTotal = safeMultiply(authorPrice, qty);
-        const lineCost = safeMultiply(costPrice, qty);
         authoritativeSubtotal = safeAdd(authoritativeSubtotal, lineTotal);
-        const newStock = availableStock - qty;
 
         receiptItems.push({
           productId: submitted.productId,
@@ -472,18 +507,18 @@ export async function finalizeCashierSaleIntent(
           quantity: qty,
           quantityMode: 'discrete',
           unitPriceCentavos: authorPrice,
-          unitCostCentavos: costPrice,
+          unitCostCentavos: consumptionRes.historicalCogs.unitCostCentavos,
           lineSubtotalCentavos: lineTotal,
-          lineCostCentavos: lineCost,
+          lineCostCentavos: consumptionRes.historicalCogs.lineCostCentavos,
           price: authorPrice,
-          costPrice,
-          lineCost,
+          costPrice: consumptionRes.historicalCogs.costPrice,
+          lineCost: consumptionRes.historicalCogs.lineCostCentavos,
           lineTotal
         });
 
         updates.push({
           ref: productRefs[i],
-          updateData: { currentStock: newStock, updatedAt: committedAt },
+          updateData: { ...consumptionRes.productUpdates, updatedAt: committedAt },
           movementRef: movementRefs[i],
           movementData: {
             id: movementRefs[i].id,
@@ -493,7 +528,7 @@ export async function finalizeCashierSaleIntent(
             quantityChange: -qty,
             quantityMode: 'discrete',
             previousStock: availableStock,
-            newStock,
+            newStock: consumptionRes.productUpdates.currentStock,
             saleId: saleRef.id,
             shiftId,
             staffAccountId,

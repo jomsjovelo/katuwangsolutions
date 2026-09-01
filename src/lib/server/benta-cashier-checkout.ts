@@ -9,6 +9,7 @@ import {
 } from './cashier-server-authorization';
 import { applySaleToShift, assertReconciliationShift } from './benta-cashier-shift-receipt';
 import { computeLineFinancials } from '../shared/quantity-math';
+import { consumeBentaProductSale } from '../shared/benta-inventory-costing-adapter';
 export { BENTA_SNAP_MODULE_ID, CheckoutError, CheckoutErrorCode } from './cashier-server-authorization';
 export type CheckoutPaymentMethod = 'cash' | 'gcash' | 'maya';
 
@@ -247,6 +248,27 @@ export async function completeBentaCashierCheckout(
           }
           if (product.stockQuantityMinor < submitted.quantityMinor) throw new CheckoutError(CheckoutErrorCode.INSUFFICIENT_STOCK);
 
+          let consumptionRes;
+          try {
+            consumptionRes = consumeBentaProductSale(
+              {
+                quantityMode: 'measured',
+                currentStock: Number.isSafeInteger(product.currentStock) ? product.currentStock : 0,
+                stockQuantityMinor: product.stockQuantityMinor,
+                quantityScale: authoritativeQuantityScale,
+                costPrice: product.costPrice,
+                inventoryValueCentavos: product.inventoryValueCentavos,
+                averageUnitCostCentavos: product.averageUnitCostCentavos,
+              },
+              submitted.quantityMinor,
+            );
+          } catch (err: unknown) {
+            if (err instanceof Error && err.message.includes('Consumption cannot exceed available inventory quantity')) {
+              throw new CheckoutError(CheckoutErrorCode.INSUFFICIENT_STOCK);
+            }
+            throw new CheckoutError(CheckoutErrorCode.PRODUCT_UNAVAILABLE);
+          }
+
           let lineTotalCentavos: number;
           try {
             lineTotalCentavos = computeLineFinancials(product.salePrice, submitted.quantityMinor, authoritativeQuantityScale);
@@ -255,7 +277,6 @@ export async function completeBentaCashierCheckout(
           }
           subtotal = safeAdd(subtotal, lineTotalCentavos);
 
-          const newStockMinor = product.stockQuantityMinor - submitted.quantityMinor;
           receiptItems.push({
             productId: submitted.productId, name: product.name, unit: authoritativeSellingUnit,
             quantity: 1, quantityMode: 'measured', quantityMinor: submitted.quantityMinor,
@@ -266,16 +287,20 @@ export async function completeBentaCashierCheckout(
             productId: submitted.productId, name: product.name, unit: authoritativeSellingUnit,
             quantity: 1, quantityMode: 'measured', quantityMinor: submitted.quantityMinor,
             quantityScale: authoritativeQuantityScale, sellingUnit: authoritativeSellingUnit,
-            price: product.salePrice, costPrice: product.costPrice, lineTotal: lineTotalCentavos
+            price: product.salePrice,
+            costPrice: consumptionRes.historicalCogs.costPrice,
+            unitCostCentavos: consumptionRes.historicalCogs.unitCostCentavos,
+            lineCostCentavos: consumptionRes.historicalCogs.lineCostCentavos,
+            lineTotal: lineTotalCentavos
           });
           updates.push({
             ref: productRefs[index],
-            updateFields: { stockQuantityMinor: newStockMinor, updatedAt: committedAt },
+            updateFields: { ...consumptionRes.productUpdates, updatedAt: committedAt },
             movementRef: movementRefs[index],
             movementDoc: {
               id: movementRefs[index].id, tenantId, productId: submitted.productId, saleId: saleRef.id, shiftId: request.shiftId, staffAccountId,
               type: 'sale', quantityMinorChange: -submitted.quantityMinor, quantityMode: 'measured',
-              previousStockQuantityMinor: product.stockQuantityMinor, newStockQuantityMinor: newStockMinor,
+              previousStockQuantityMinor: product.stockQuantityMinor, newStockQuantityMinor: consumptionRes.productUpdates.stockQuantityMinor,
               performedBy: `staff_${staffAccountId}`, createdAt: committedAt
             }
           });
@@ -285,18 +310,47 @@ export async function completeBentaCashierCheckout(
             throw new CheckoutError(CheckoutErrorCode.PRODUCT_UNAVAILABLE);
           }
           if (product.currentStock < submitted.quantity) throw new CheckoutError(CheckoutErrorCode.INSUFFICIENT_STOCK);
+
+          let consumptionRes;
+          try {
+            consumptionRes = consumeBentaProductSale(
+              {
+                quantityMode: 'discrete',
+                currentStock: product.currentStock,
+                costPrice: product.costPrice,
+                inventoryValueCentavos: product.inventoryValueCentavos,
+                averageUnitCostCentavos: product.averageUnitCostCentavos,
+              },
+              submitted.quantity,
+            );
+          } catch (err: unknown) {
+            if (err instanceof Error && err.message.includes('Consumption cannot exceed available inventory quantity')) {
+              throw new CheckoutError(CheckoutErrorCode.INSUFFICIENT_STOCK);
+            }
+            throw new CheckoutError(CheckoutErrorCode.PRODUCT_UNAVAILABLE);
+          }
+
           const lineTotal = safeMultiply(product.salePrice, submitted.quantity);
           subtotal = safeAdd(subtotal, lineTotal);
-          const newStock = product.currentStock - submitted.quantity;
           receiptItems.push({ productId: submitted.productId, name: product.name, unit: product.unit, quantity: submitted.quantity, unitPriceCentavos: product.salePrice, lineTotalCentavos: lineTotal });
-          saleItems.push({ productId: submitted.productId, name: product.name, unit: product.unit, quantity: submitted.quantity, price: product.salePrice, costPrice: product.costPrice, lineTotal });
+          saleItems.push({
+            productId: submitted.productId,
+            name: product.name,
+            unit: product.unit,
+            quantity: submitted.quantity,
+            price: product.salePrice,
+            costPrice: consumptionRes.historicalCogs.costPrice,
+            unitCostCentavos: consumptionRes.historicalCogs.unitCostCentavos,
+            lineCostCentavos: consumptionRes.historicalCogs.lineCostCentavos,
+            lineTotal
+          });
           updates.push({
             ref: productRefs[index],
-            updateFields: { currentStock: newStock, updatedAt: committedAt },
+            updateFields: { ...consumptionRes.productUpdates, updatedAt: committedAt },
             movementRef: movementRefs[index],
             movementDoc: {
               id: movementRefs[index].id, tenantId, productId: submitted.productId, saleId: saleRef.id, shiftId: request.shiftId, staffAccountId,
-              type: 'sale', quantityChange: -submitted.quantity, previousStock: product.currentStock, newStock: newStock, quantityMode: 'discrete',
+              type: 'sale', quantityChange: -submitted.quantity, previousStock: product.currentStock, newStock: consumptionRes.productUpdates.currentStock, quantityMode: 'discrete',
               performedBy: `staff_${staffAccountId}`, createdAt: committedAt
             }
           });
