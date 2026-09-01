@@ -31,6 +31,7 @@ import {
 import { recordTenantAuditEvent } from './audit-events';
 import { isSecureCashierOfflineEnabled, isSecureCashierSystemEnabled } from './secure-cashier-config';
 import { consumeBentaProductSale } from '../shared/benta-inventory-costing-adapter';
+import { BENTA_INVENTORY_COSTING_VERSION } from '../shared/benta-sale-mutation-guard';
 
 export function claimDocFingerprintId(grantId: string, shiftId: string, idempotencyKey: string): string {
   return createHash('sha256').update(`claim:${grantId}:${shiftId}:${idempotencyKey}`, 'utf8').digest('hex');
@@ -1201,7 +1202,8 @@ export async function handleBentaSyncClaims(
           isOfflineSync: true,
           clientClaimedTimestamp: claim.clientTimestamp,
           transactionDate: nowTimestamp,
-          createdAt: nowTimestamp
+          createdAt: nowTimestamp,
+          costingVersion: BENTA_INVENTORY_COSTING_VERSION
         });
 
         // Inventory Movements per product

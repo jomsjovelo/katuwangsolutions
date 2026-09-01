@@ -17,6 +17,7 @@ import {
   STANDARD_MEASURED_SCALE
 } from '../shared/quantity-math';
 import { consumeBentaProductSale } from '../shared/benta-inventory-costing-adapter';
+import { BENTA_INVENTORY_COSTING_VERSION } from '../shared/benta-sale-mutation-guard';
 
 export interface FinalizeIntentRequest {
   tenantId: string;
@@ -627,7 +628,8 @@ export async function finalizeCashierSaleIntent(
       totalAmount: authoritativeSubtotal,
       paymentMethod: 'cash',
       transactionDate: committedAt,
-      createdAt: committedAt
+      createdAt: committedAt,
+      costingVersion: BENTA_INVENTORY_COSTING_VERSION
     });
 
     // 2. Inventory Deductions + Movements

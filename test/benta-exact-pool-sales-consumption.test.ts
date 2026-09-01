@@ -586,6 +586,7 @@ test('Cashier Checkout: atomic exact-pool consumption on sale, immutable COGS, r
   // 4. Verify Immutable Sale Items in Firestore
   const saleDoc = Array.from(mockDb._store.entries()).find(([k]) => k.startsWith(`tenants/${tenantId}/sales/`))![1];
   assert.ok(saleDoc);
+  assert.equal(saleDoc.costingVersion, 'moving_average_v1');
   const itemsArray = saleDoc.items as Array<Record<string, unknown>>;
   assert.equal(itemsArray.length, 2);
 
@@ -848,6 +849,7 @@ test('Cashier Intent Finalizer: atomic exact-pool consumption on intent finaliza
   // Verify sale item historical COGS
   const saleDoc = Array.from(mockDb._store.entries()).find(([k]) => k.startsWith(`tenants/${tenantId}/sales/`))![1];
   assert.ok(saleDoc);
+  assert.equal(saleDoc.costingVersion, 'moving_average_v1');
   const itemsArray = saleDoc.items as Array<Record<string, unknown>>;
   const saleItem = itemsArray[0];
   assert.equal(saleItem.unitCostCentavos, 5000);
@@ -1078,6 +1080,11 @@ test('Offline Sync Claims: in-stock exact-pool consumption, insufficient stock v
   assert.equal(movementInstock.inventoryCostReliefCentavos, 6000);
   assert.equal(movementInstock.costVarianceCentavos, 0);
   assert.equal(movementInstock.reconciliationStatus, 'fully_applied');
+
+  // Verify offline sync sale document has costingVersion marker
+  const offlineSaleDoc = Array.from(mockDb._store.entries()).find(([k]) => k.startsWith(`tenants/${tenantId}/sales/`))![1];
+  assert.ok(offlineSaleDoc);
+  assert.equal(offlineSaleDoc.costingVersion, 'moving_average_v1');
 
   // Sync Request 2: Insufficient stock claim (5 * 6000 = 30000)
   const syncReq2: OfflineClaimSyncRequest = {

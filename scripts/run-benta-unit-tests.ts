@@ -46,6 +46,7 @@ const bentaUnitTests = [
   'test/benta-smart-restocking-integration.test.ts',
   'test/benta-smart-po-protection.test.ts',
   'test/benta-exact-pool-sales-consumption.test.ts',
+  'test/benta-sale-mutation-guard.test.ts',
 ];
 
 console.log(`\n======================================================`);

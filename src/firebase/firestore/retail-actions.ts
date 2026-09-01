@@ -3,8 +3,8 @@ import { initializeFirebase } from '../index';
 import { ProductSchema } from '@/lib/schemas/inventory';
 import { runTransactionResilient } from './resilient-transaction';
 import { logAuditEvent } from './audit-actions';
-
 import { computeLineFinancials } from '@/lib/shared/quantity-math';
+import { assertLegacyBentaSaleMutable } from '@/lib/shared/benta-sale-mutation-guard';
 
 // Always explicitly use the 'katuwang' database
 export const getKatuwangDb = () => initializeFirebase().db;
@@ -421,8 +421,9 @@ export async function deleteSale(
     // 1. Read the sale
     const saleSnap = await transaction.get(saleRef);
     if (!saleSnap.exists()) throw new Error("Sale not found.");
-    
+
     const saleData = saleSnap.data();
+    assertLegacyBentaSaleMutable(saleData, 'void');
     const items = saleData.items || [];
     const totalAmount = saleData.totalAmount || 0;
     const paymentMethod = saleData.paymentMethod || 'cash';
@@ -558,6 +559,7 @@ export async function updateSaleTransaction(
     if (!saleSnap.exists()) throw new Error("Transaksyon hindi nahanap.");
 
     const oldSale = saleSnap.data();
+    assertLegacyBentaSaleMutable(oldSale, 'edit');
     const oldItems: CartItem[] = oldSale.items || [];
     const oldPaymentMethod = oldSale.paymentMethod || 'cash';
     const oldTotalAmount = oldSale.totalAmount || 0;

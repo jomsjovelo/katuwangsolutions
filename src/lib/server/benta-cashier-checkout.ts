@@ -10,6 +10,7 @@ import {
 import { applySaleToShift, assertReconciliationShift } from './benta-cashier-shift-receipt';
 import { computeLineFinancials } from '../shared/quantity-math';
 import { consumeBentaProductSale } from '../shared/benta-inventory-costing-adapter';
+import { BENTA_INVENTORY_COSTING_VERSION } from '../shared/benta-sale-mutation-guard';
 export { BENTA_SNAP_MODULE_ID, CheckoutError, CheckoutErrorCode } from './cashier-server-authorization';
 export type CheckoutPaymentMethod = 'cash' | 'gcash' | 'maya';
 
@@ -371,7 +372,8 @@ export async function completeBentaCashierCheckout(
       transaction.create(saleRef, {
         id: saleRef.id, tenantId, moduleId: BENTA_SNAP_MODULE_ID, shiftId: request.shiftId, staffAccountId,
         actorId: `staff_${staffAccountId}`, items: saleItems, subtotalAmount: subtotal, discountAmount: 0, totalAmount: subtotal,
-        paymentMethod: request.paymentMethod, ...paymentFields, transactionDate: committedAt, createdAt: committedAt
+        paymentMethod: request.paymentMethod, ...paymentFields, transactionDate: committedAt, createdAt: committedAt,
+        costingVersion: BENTA_INVENTORY_COSTING_VERSION
       });
       updates.forEach((entry) => {
         transaction.update(entry.ref, entry.updateFields);
