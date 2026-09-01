@@ -21,6 +21,8 @@ export const ProductSchema = z.object({
 
   // Financials stored as integers (centavos/cents)
   costPrice: z.number().int().default(0),
+  inventoryValueCentavos: z.number().int().nonnegative().optional(),
+  averageUnitCostCentavos: z.number().int().nonnegative().optional(),
   salePrice: z.number().int().default(0),
   
   unit: z.string().default('pcs'),
