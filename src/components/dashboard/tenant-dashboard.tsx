@@ -25,7 +25,6 @@ const ServiceDashboard = dynamic(() => import('@/components/dashboard/service/se
 const LedgerDashboard = dynamic(() => import('@/components/dashboard/finance/ledger-dashboard').then(m => m.LedgerDashboard));
 const PayrollDashboard = dynamic(() => import('@/components/dashboard/finance/payroll-dashboard').then(m => m.PayrollDashboard));
 const BudgetMoDashboard = dynamic(() => import('@/components/dashboard/financial/budget-mo-dashboard').then(m => m.BudgetMoDashboard));
-const FoodDashboard = dynamic(() => import('@/components/dashboard/food/food-dashboard').then(m => m.FoodDashboard));
 const TimplaDashboard = dynamic(() => import('@/components/dashboard/food/timpla-dashboard').then(m => m.TimplaDashboard));
 const GanapDashboard = dynamic(() => import('@/components/dashboard/events/ganap-dashboard').then(m => m.GanapDashboard));
 const SpinDashboard = dynamic(() => import('@/components/dashboard/service/spin-dashboard').then(m => m.SpinDashboard));
@@ -186,13 +185,11 @@ export function TenantDashboard({ activeTab, onTabChange }: { activeTab?: string
     const serviceModules = ['unknown', 'service-master'];
     if (serviceModules.includes(activeModule || '')) return <ServiceDashboard />;
     
+    const orderSnapModules = ['order-snap', 'bite-snap', 'timpla-track'];
+    if (orderSnapModules.includes(activeModule || '')) return <TimplaDashboard />;
     if (activeModule === 'ledger-flow') return <LedgerDashboard />;
     if (activeModule === 'sahod-flow') return <PayrollDashboard />;
-    if (activeModule === 'timpla-track') return <TimplaDashboard />;
     if (activeModule === 'ganap-master') return <GanapDashboard />;
-    
-    const foodModules = ['bite-snap'];
-    if (foodModules.includes(activeModule || '')) return <FoodDashboard />;
     
     if (activeModule === 'farm-master') return <FarmDashboard />;
     

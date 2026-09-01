@@ -1,5 +1,15 @@
 "use client"
+import { OrderSnapRuntimeStatus } from './order-snap-runtime-status';
 import { usePinApproval } from '@/hooks/use-pin-approval';
+import { useOrderSnap } from '@/lib/order-snap/use-order-snap';
+import {
+  buildOrderSnapCashCheckoutRequest,
+  createTimplaCashCheckoutAttemptId,
+} from '@/lib/order-snap/timpla-cash-checkout-adapter';
+import type {
+   OrderSnapPublicProvisionalReceipt,
+  ProvisionalReceiptLine,
+} from '@/lib/order-snap/offline-types';
 
 import React, { useState } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
@@ -114,6 +124,8 @@ export function TimplaDashboard() {
   const db = useFirestore();
   const { toast } = useToast();
   const { requireApproval } = usePinApproval();
+
+  const orderSnap = useOrderSnap();
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [isVoiding, setIsVoiding] = useState(false);
@@ -137,6 +149,29 @@ export function TimplaDashboard() {
 
   // Menu State
   const { menuItems, availableItems, loading: menuLoading, error: menuError } = useMenu();
+
+  // --- Catalog-backed POS menu derivation ---
+  // The active Order Snap catalog is authoritative for the cashier POS grid.
+  // Owner menu/recipe administration continues to use Firestore availableItems.
+  const hasOrderSnapCatalog =
+    orderSnap.state?.catalog !== null && orderSnap.state?.catalog !== undefined;
+
+  const orderSnapPosItems = React.useMemo(() => {
+    if (!hasOrderSnapCatalog || !orderSnap.state?.catalog) return [];
+    return orderSnap.state.catalog.menuItems
+      .filter(item => item.isActive)
+      .map(item => ({
+        id: item.menuItemId,
+        name: item.name,
+        price: item.basePriceCentavos,
+      }));
+  }, [orderSnap.state?.catalog]);
+
+  const posMenuItems = hasOrderSnapCatalog
+    ? orderSnapPosItems
+    : orderSnap.state?.isOnline === false
+      ? []
+      : availableItems;
   
   // Ingredients State
   const { activeIngredients, loading: ingredientsLoading, error: ingredientsError } = useIngredients();
@@ -159,6 +194,17 @@ export function TimplaDashboard() {
   const [cart, setCart] = useState<{ menuItemId: string; name: string; quantity: number; price: number; notes?: string }[]>([]);
   const [selectedTable, setSelectedTable] = useState('');
 
+  // Stable Order Snap cash-checkout attempt key.
+  // Cleared whenever the cart reference changes; reused across retries until then.
+  const cashCheckoutAttemptIdRef = React.useRef<string | null>(null);
+
+  // Synchronous guard against concurrent Order Snap cash checkouts.
+  const cashCheckoutInFlightRef = React.useRef(false);
+
+  React.useEffect(() => {
+    cashCheckoutAttemptIdRef.current = null;
+  }, [cart]);
+
   // Loyalty Program
   const [customerPhone, setCustomerPhone] = useState('');
   const [pointsBalance, setPointsBalance] = useState(0);
@@ -177,6 +223,13 @@ export function TimplaDashboard() {
     discountType?: string;
     paymentMethod: string;
     saleId?: string;
+    isProvisional?: boolean;
+    syncStatus?: string;
+    cashTenderedCentavos?: number;
+    changeCentavos?: number;
+    provisionalReceiptNumber?: string;
+    receiptType?: string;
+    provisionalReceipt?: OrderSnapPublicProvisionalReceipt;
   } | null>(null);
 
   const [discountType, setDiscountType] = useState<'percentage'|'fixed'>('percentage');
@@ -346,6 +399,134 @@ export function TimplaDashboard() {
 
   const handleCheckout = async (paymentMethod: string = 'cash', gcashRef?: string) => {
     if (!currentTenant || cart.length === 0) return;
+
+    // GCash is online-only.
+    if (paymentMethod !== 'cash' && orderSnap.state?.isOnline === false) {
+      setError('GCash requires an online connection.');
+      toast({ title: 'Connection Required', description: 'GCash requires an online connection.', variant: 'destructive' });
+      return;
+    }
+
+    // --- Order Snap cash branch: runs before any legacy Firestore write. ---
+    if (paymentMethod === 'cash') {
+      if (cashCheckoutInFlightRef.current) {
+        return;
+      }
+      try {
+        setIsProcessing(true);
+        setError(null);
+
+        if (!orderSnap.controller) {
+          setError('Order Snap checkout is unavailable. Please try again.');
+          toast({ title: 'Unavailable', description: 'Order Snap checkout is unavailable. Please try again.', variant: 'destructive' });
+          return;
+        }
+
+        const status = orderSnap.status;
+        if (status === 'locked') {
+          setError('Offline checkout is locked. Unlock with your device authenticator.');
+          toast({ title: 'Locked', description: 'Offline checkout is locked. Unlock with your device authenticator.', variant: 'destructive' });
+          return;
+        }
+        if (status === 'loading' || status === 'unavailable') {
+          setError('Order Snap is still initializing. Please wait.');
+          toast({ title: 'Initializing', description: 'Order Snap is still initializing. Please wait.', variant: 'destructive' });
+          return;
+        }
+
+        if (!orderSnap.state?.catalog) {
+          setError('No cached Order Snap catalog is available.');
+          toast({ title: 'Catalog Unavailable', description: 'No cached Order Snap catalog is available.', variant: 'destructive' });
+          return;
+        }
+
+        if (activeTableIdForOrder) {
+          setError('Offline cash checkout does not support table orders yet.');
+          toast({ title: 'Unsupported', description: 'Offline cash checkout does not support table orders yet.', variant: 'destructive' });
+          return;
+        }
+
+        const parsedDiscount = parseFloat(discountValue) || 0;
+        let uiDiscountCentavos = 0;
+        if (discountType === 'percentage') {
+          uiDiscountCentavos = Math.round((cartTotal * parsedDiscount) / 100);
+        } else {
+          uiDiscountCentavos = Math.round(parsedDiscount * 100);
+        }
+        const loyaltyDiscount = isRedeeming ? 5000 : 0;
+
+        if (uiDiscountCentavos !== 0) {
+          setError('Offline cash checkout does not support discounts yet.');
+          toast({ title: 'Unsupported', description: 'Offline cash checkout does not support discounts yet.', variant: 'destructive' });
+          return;
+        }
+
+        if (loyaltyDiscount !== 0) {
+          setError('Offline cash checkout does not support loyalty redemption yet.');
+          toast({ title: 'Unsupported', description: 'Offline cash checkout does not support loyalty redemption yet.', variant: 'destructive' });
+          return;
+        }
+
+        cashCheckoutInFlightRef.current = true;
+
+        if (!cashCheckoutAttemptIdRef.current) {
+          cashCheckoutAttemptIdRef.current = createTimplaCashCheckoutAttemptId();
+        }
+
+        const request = buildOrderSnapCashCheckoutRequest({
+          cart,
+          cashTendered: cashTendered,
+          idempotencyKey: cashCheckoutAttemptIdRef.current,
+          paymentMethod: 'cash',
+          discountCentavos: uiDiscountCentavos,
+          loyaltyDiscountCentavos: loyaltyDiscount,
+          activeTableId: activeTableIdForOrder,
+        });
+
+        const result = await orderSnap.controller.acceptOfflineOrder(request);
+
+        const receipt: OrderSnapPublicProvisionalReceipt = result.provisionalReceipt;
+        setCompletedSale({
+          items: receipt.items.map((line: ProvisionalReceiptLine) => ({
+            productId: line.menuItemId,
+            name: line.menuItemName,
+            quantity: line.quantity,
+            price: line.unitPriceCentavos,
+          })),
+          total: receipt.totalRevenueCentavos,
+          discountCentavos: 0,
+          paymentMethod: 'cash',
+          saleId: receipt.provisionalReceiptNumber,
+          isProvisional: receipt.isProvisional,
+          syncStatus: receipt.status,
+          cashTenderedCentavos: receipt.cashTenderedCentavos,
+          changeCentavos: receipt.changeCentavos,
+          provisionalReceiptNumber: receipt.provisionalReceiptNumber,
+          receiptType: 'PROVISIONAL ORDER RECEIPT',
+          provisionalReceipt: receipt,
+        });
+        setShowReceipt(true);
+
+        setCart([]);
+        setSelectedTable('');
+        setCustomerPhone('');
+        setIsRedeeming(false);
+        setActiveTableIdForOrder(null);
+        setDiscountValue('');
+        setCashTendered('');
+        cashCheckoutAttemptIdRef.current = null;
+        toast({ title: 'Order Saved', description: 'Order saved on this device and pending synchronization.' });
+        return;
+      } catch (e) {
+        setError('Cash checkout could not be saved. Your cart is unchanged.');
+        toast({ title: 'Checkout Failed', description: 'Cash checkout could not be saved. Your cart is unchanged.', variant: 'destructive' });
+        return;
+      } finally {
+        setIsProcessing(false);
+        cashCheckoutInFlightRef.current = false;
+      }
+    }
+
     try {
       setIsProcessing(true);
       setError(null);
@@ -353,11 +534,11 @@ export function TimplaDashboard() {
         const { redeemPoints } = await import('@/firebase/firestore/loyalty-actions');
         await redeemPoints(currentTenant.id, customerPhone, 100);
       }
-      
+
       const isTableOrder = !!activeTableIdForOrder;
       const targetTable = tables.find((t: any) => t.id === activeTableIdForOrder);
       const tableName = isTableOrder ? targetTable?.name : (selectedTable.trim() || `Takeout ${new Date().getTime().toString().slice(-4)}`);
-      
+
       const parsedDiscount = parseFloat(discountValue) || 0;
       let uiDiscountCentavos = 0;
       if (discountType === 'percentage') {
@@ -365,14 +546,14 @@ export function TimplaDashboard() {
       } else {
         uiDiscountCentavos = Math.round(parsedDiscount * 100);
       }
-      
+
       const loyaltyDiscount = isRedeeming ? 5000 : 0;
       const totalDiscountCentavos = uiDiscountCentavos + loyaltyDiscount;
 
       const finalTotalCentavos = Math.max(0, cartTotal - totalDiscountCentavos);
-      
+
       const orderId = await addFoodOrder(
-        currentTenant.id, 
+        currentTenant.id,
         tableName || 'Unknown',
         cart,
         totalDiscountCentavos,
@@ -410,9 +591,9 @@ export function TimplaDashboard() {
       setActiveTableIdForOrder(null);
       setDiscountValue('');
       toast({ title: 'Order Submitted!', description: 'Sent to the Barista.' });
-    } catch (e: any) {
-      setError(e.message);
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } catch (e) {
+      setError('Checkout failed. Please try again.');
+      toast({ title: 'Error', description: 'Checkout failed. Please try again.', variant: 'destructive' });
     } finally {
       setIsProcessing(false);
     }
@@ -495,6 +676,8 @@ export function TimplaDashboard() {
           </div>
         )}
 
+        <OrderSnapRuntimeStatus orderSnap={orderSnap} />
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-4 mb-4 rounded-xl">
             <TabsTrigger value="tables" className="rounded-lg text-xs md:text-sm font-bold">Tables</TabsTrigger>
@@ -553,32 +736,53 @@ export function TimplaDashboard() {
                 <Button variant="ghost" size="sm" className="h-6 text-xs text-orange-600 hover:bg-orange-200" onClick={() => setActiveTableIdForOrder(null)}>Cancel</Button>
               </div>
             )}
-            {menuLoading ? (
-              <div className="text-center py-8 text-sm text-slate-400">Loading menu...</div>
-            ) : availableItems.length === 0 ? (
-              <div className="text-center py-8 border-2 border-dashed border-slate-200 rounded-xl text-slate-400">
-                <Coffee className="h-8 w-8 mx-auto mb-2 opacity-20" />
-                <p className="text-xs font-medium">Menu is empty. Add drinks in the Recipes tab.</p>
+            <div data-testid="order-snap-pos-menu" className="space-y-2">
+              <div data-testid="order-snap-menu-source" className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                {hasOrderSnapCatalog
+                  ? 'Order Snap catalog'
+                  : orderSnap.state?.isOnline === false
+                    ? 'Offline catalog unavailable'
+                    : 'Live menu fallback'}
               </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {availableItems.map(item => (
-                  <Button
-                    key={item.id}
-                    variant="outline"
-                    className="h-24 flex flex-col items-center justify-center gap-1 border-slate-200 shadow-sm active:scale-95 transition-transform"
-                    onClick={() => addToCart(item)}
-                  >
-                    <span className="font-bold text-sm truncate w-full text-center px-1">{item.name}</span>
-                    <span className="text-xs font-black" style={{ color: theme.primary }}>₱{(item.price / 100).toLocaleString()}</span>
-                  </Button>
-                ))}
-              </div>
-            )}
+              {posMenuItems.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {posMenuItems.map(item => (
+                    <Button
+                      key={item.id}
+                      data-testid="order-snap-menu-item"
+                      data-menu-item-id={item.id}
+                      variant="outline"
+                      className="h-24 flex flex-col items-center justify-center gap-1 border-slate-200 shadow-sm active:scale-95 transition-transform"
+                      onClick={() => addToCart(item)}
+                    >
+                      <span className="font-bold text-sm truncate w-full text-center px-1">{item.name}</span>
+                      <span className="text-xs font-black" style={{ color: theme.primary }}>₱{(item.price / 100).toLocaleString()}</span>
+                    </Button>
+                  ))}
+                </div>
+              ) : hasOrderSnapCatalog ? (
+                <div data-testid="order-snap-menu-empty" className="text-center py-8 border-2 border-dashed border-slate-200 rounded-xl text-slate-400">
+                  <Coffee className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                  <p className="text-xs font-medium">Order Snap catalog is empty.</p>
+                </div>
+              ) : orderSnap.state?.isOnline === false ? (
+                <div data-testid="order-snap-menu-empty" className="text-center py-8 border-2 border-dashed border-slate-200 rounded-xl text-slate-400">
+                  <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                  <p className="text-xs font-medium">Offline catalog unavailable. Reconnect to load the menu.</p>
+                </div>
+              ) : menuLoading ? (
+                <div className="text-center py-8 text-sm text-slate-400">Loading menu...</div>
+              ) : (
+                <div data-testid="order-snap-menu-empty" className="text-center py-8 border-2 border-dashed border-slate-200 rounded-xl text-slate-400">
+                  <Coffee className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                  <p className="text-xs font-medium">Menu is empty. Add drinks in the Recipes tab.</p>
+                </div>
+              )}
+            </div>
 
             {/* Cart View */}
             {cart.length > 0 && (
-              <Card className="fixed bottom-20 left-4 right-4 shadow-xl border-slate-200 z-50">
+              <Card data-testid="order-snap-cart" className="fixed bottom-20 left-4 right-4 shadow-xl border-slate-200 z-50">
                 <CardHeader className="p-3 bg-slate-50 border-b border-slate-100 flex flex-row items-center justify-between pb-3">
                   <CardTitle className="text-sm font-bold flex items-center gap-2">
                     <ShoppingCart className="h-4 w-4" /> Current Order
@@ -689,6 +893,7 @@ export function TimplaDashboard() {
 
                   <div className="flex gap-2">
                     <Button 
+                      data-testid="order-snap-cash-checkout-trigger"
                       className="h-12 flex-1 font-bold text-white shadow-md active:scale-95 border-none" 
                       style={{ backgroundColor: theme.primary }}
                       onClick={() => setShowCashModal(true)}
@@ -704,6 +909,11 @@ export function TimplaDashboard() {
                       GCash
                     </Button>
                   </div>
+                  {error && (
+                    <div data-testid="order-snap-checkout-error" className="mt-2 text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">
+                      {error}
+                    </div>
+                  )}
                 </div>
               </Card>
             )}
@@ -922,15 +1132,22 @@ export function TimplaDashboard() {
           open={showReceipt}
           onClose={() => setShowReceipt(false)}
           storeName={currentTenant?.name || "Cafe"}
-          receiptType="ORDER TICKET"
+          receiptType={completedSale?.receiptType || "ORDER TICKET"}
           items={completedSale?.items || []}
           totalAmountPesos={(completedSale?.total || 0) / 100}
+          cashReceivedPesos={completedSale?.cashTenderedCentavos !== undefined ? completedSale.cashTenderedCentavos / 100 : undefined}
+          changePesos={completedSale?.changeCentavos !== undefined ? completedSale.changeCentavos / 100 : undefined}
           paymentMethod={completedSale?.paymentMethod || "cash"}
-          transactionId={completedSale?.saleId}
+          transactionId={completedSale?.provisionalReceiptNumber || completedSale?.saleId}
           theme={theme}
-          onVoidSale={completedSale?.saleId ? () => handleDeleteOrder(completedSale.saleId!) : undefined}
+          onVoidSale={completedSale?.isProvisional ? undefined : (completedSale?.saleId ? () => handleDeleteOrder(completedSale.saleId!) : undefined)}
           isVoiding={isVoiding}
         />
+        {showReceipt && completedSale?.isProvisional && (
+          <div data-testid="order-snap-provisional-receipt-status" className="text-center text-[10px] font-bold uppercase tracking-widest text-amber-600 mt-2">
+            Pending synchronization
+          </div>
+        )}
 
       </main>
       {/* Drawers and Modals */}
