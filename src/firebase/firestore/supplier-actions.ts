@@ -14,7 +14,7 @@ import {
   setDoc
 } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
-import { SupplierProfile, PurchaseOrder } from '@/lib/schemas/supplier';
+import { SupplierProfile, PurchaseOrder, assertLegacyPurchaseOrderMutable } from '@/lib/schemas/supplier';
 import { runTransactionResilient } from './resilient-transaction';
 import { logAuditEvent } from './audit-actions';
 
@@ -242,7 +242,7 @@ export async function voidPurchaseOrder(
     if (!poSnap.exists()) throw new Error("Purchase order not found");
     const poData = poSnap.data();
 
-    if (poData.status === 'voided') throw new Error("Purchase order is already voided");
+    assertLegacyPurchaseOrderMutable(poData, 'void');
 
     // 1. Reverse product stock
     const items = poData.items || [];
@@ -326,7 +326,7 @@ export async function updatePurchaseOrder(
     if (!poSnap.exists()) throw new Error("Purchase order not found");
     const oldPoData = poSnap.data();
 
-    if (oldPoData.status === 'voided') throw new Error("Cannot edit a voided purchase order");
+    assertLegacyPurchaseOrderMutable(oldPoData, 'update');
 
     const oldItems: Array<{ productId: string; productName?: string; quantity: number; unitCostCentavos: number; unitSalePriceCentavos?: number }> = oldPoData.items || [];
     const newItems: Array<{ productId: string; productName?: string; quantity: number; unitCostCentavos: number; unitSalePriceCentavos?: number }> = updatedData.items || oldItems;

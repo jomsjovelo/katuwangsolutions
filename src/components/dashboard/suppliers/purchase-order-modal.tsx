@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { useInventory } from '@/hooks/use-inventory';
 import { useUser } from '@/firebase/auth/use-user';
@@ -19,20 +19,21 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import { ShoppingBag, Plus, Trash2, Loader2, CheckCircle2, AlertCircle, DollarSign, Save, Edit3 } from 'lucide-react';
+import {
+  validateAndProjectBentaRestockDraft,
+  submitBentaRestockPO,
+  computeBentaRestockDraftFingerprint,
+  generateSecureIdempotencyKey,
+  parseExactPositiveInteger,
+  type BentaDraftItemInput,
+} from '@/lib/client/benta-inventory-restock-client';
+import { parsePesoToCentavos } from '@/lib/shared/pricing-math';
 
 interface PurchaseOrderModalProps {
   isOpen: boolean;
   onClose: () => void;
   suppliers: SupplierProfile[];
   poToEdit?: PurchaseOrder | null;
-}
-
-interface DraftItem {
-  productId: string;
-  productName: string;
-  quantity: number;
-  unitCostPeso: string;
-  unitSalePricePeso?: string;
 }
 
 export function PurchaseOrderModal({ 
@@ -46,11 +47,16 @@ export function PurchaseOrderModal({
   const { products } = useInventory();
 
   const [supplierId, setSupplierId] = useState('');
-  const [items, setItems] = useState<DraftItem[]>([]);
+  const [items, setItems] = useState<BentaDraftItemInput[]>([]);
   const [paymentStatus, setPaymentStatus] = useState<'paid' | 'credit_unpaid'>('paid');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'cash_drawer' | 'gcash' | 'supplier_credit'>('cash_drawer');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Idempotency tracking
+  const idempotencyKeyRef = useRef<string>('');
+  const lastDraftFingerprintRef = useRef<string>('');
 
   // Selected item inputs
   const [selectedProductId, setSelectedProductId] = useState('');
@@ -61,18 +67,26 @@ export function PurchaseOrderModal({
 
   useEffect(() => {
     if (isOpen) {
+      setErrorMessage(null);
       if (poToEdit) {
         setSupplierId(poToEdit.supplierId || '');
-        setPaymentStatus(poToEdit.paymentStatus as any || 'paid');
-        setPaymentMethod(poToEdit.paymentMethod as any || 'cash_drawer');
+        setPaymentStatus(poToEdit.paymentStatus === 'credit_unpaid' ? 'credit_unpaid' : 'paid');
+        setPaymentMethod(
+          poToEdit.paymentMethod === 'gcash'
+            ? 'gcash'
+            : poToEdit.paymentMethod === 'supplier_credit'
+            ? 'supplier_credit'
+            : poToEdit.paymentMethod === 'cash'
+            ? 'cash_drawer'
+            : 'cash_drawer'
+        );
         setNotes(poToEdit.notes || '');
         
-        const mappedItems: DraftItem[] = (poToEdit.items || []).map(it => ({
+        const mappedItems: BentaDraftItemInput[] = (poToEdit.items || []).map(it => ({
           productId: it.productId,
           productName: it.productName,
           quantity: it.quantity,
           unitCostPeso: (it.unitCostCentavos / 100).toFixed(2),
-          unitSalePricePeso: it.unitSalePriceCentavos ? (it.unitSalePriceCentavos / 100).toFixed(2) : undefined,
         }));
         setItems(mappedItems);
       } else {
@@ -83,30 +97,43 @@ export function PurchaseOrderModal({
         setNotes('');
         setPaymentStatus('paid');
         setPaymentMethod('cash_drawer');
+        idempotencyKeyRef.current = '';
+        lastDraftFingerprintRef.current = '';
       }
     }
   }, [isOpen, suppliers, poToEdit]);
 
   const handleAddItem = () => {
+    setErrorMessage(null);
     const prod = products.find(p => p.id === selectedProductId);
     if (!prod) return;
 
-    const qty = parseInt(inputQty);
-    const cost = parseFloat(inputUnitCost);
-
-    if (isNaN(qty) || qty <= 0 || isNaN(cost) || cost < 0) {
-      alert("Maglagay ng tumpak na Dami at Cost Price.");
+    if (prod.quantityMode === 'measured') {
+      setErrorMessage(`Ang panindang "${prod.name}" ay measured (tinitimbang/sinusukat). Hindi pa suportado ang measured restocking sa modal na ito.`);
       return;
     }
+
+    const parsedQty = parseExactPositiveInteger(inputQty);
+    const parsedCost = parsePesoToCentavos(inputUnitCost);
+
+    if (!parsedQty.valid || !parsedCost.valid || parsedCost.centavos < 0) {
+      setErrorMessage(parsedQty.valid ? "Maglagay ng tumpak na Cost Price." : parsedQty.error);
+      return;
+    }
+
+    const qty = parsedQty.value;
+    const costPesoFormatted = (parsedCost.centavos / 100).toFixed(2);
 
     setItems(prev => {
       const existingIdx = prev.findIndex(item => item.productId === (prod.id || ''));
       if (existingIdx >= 0) {
+        const existingQtyParsed = parseExactPositiveInteger(prev[existingIdx].quantity);
+        const currentExistingQty = existingQtyParsed.valid ? existingQtyParsed.value : 0;
         const updated = [...prev];
         updated[existingIdx] = {
           ...updated[existingIdx],
-          quantity: updated[existingIdx].quantity + qty,
-          unitCostPeso: cost.toFixed(2),
+          quantity: currentExistingQty + qty,
+          unitCostPeso: costPesoFormatted,
         };
         return updated;
       }
@@ -116,8 +143,7 @@ export function PurchaseOrderModal({
           productId: prod.id || '',
           productName: prod.name,
           quantity: qty,
-          unitCostPeso: cost.toFixed(2),
-          unitSalePricePeso: (prod.salePrice / 100).toFixed(2),
+          unitCostPeso: costPesoFormatted,
         }
       ];
     });
@@ -129,41 +155,129 @@ export function PurchaseOrderModal({
   };
 
   const handleRemoveItem = (index: number) => {
+    setErrorMessage(null);
     setItems(prev => prev.filter((_, i) => i !== index));
   };
 
   const totalCostCentavos = items.reduce((sum, item) => {
-    return sum + Math.round(parseFloat(item.unitCostPeso || '0') * 100) * item.quantity;
+    const parsedCost = parsePesoToCentavos(item.unitCostPeso);
+    const parsedQty = parseExactPositiveInteger(item.quantity);
+    const qty = parsedQty.valid ? parsedQty.value : 0;
+    return sum + (parsedCost.valid ? parsedCost.centavos * qty : 0);
   }, 0);
 
   const handleSubmitPO = async () => {
-    if (!currentTenant || !supplierId || items.length === 0) return;
+    if (submitting) return;
+    setErrorMessage(null);
+
+    if (!currentTenant || !supplierId || items.length === 0) {
+      setErrorMessage('Maglagay ng kahit isang paninda at pumili ng supplier.');
+      return;
+    }
 
     const selectedSupplier = suppliers.find(s => s.id === supplierId);
-    if (!selectedSupplier) return;
+    if (!selectedSupplier || !selectedSupplier.id) {
+      setErrorMessage('Pumili ng wastong supplier.');
+      return;
+    }
 
+    const resolvedPaymentMethod = paymentStatus === 'credit_unpaid' ? 'supplier_credit' : paymentMethod;
+
+    // LIVE SMART RESTOCKING PATH FOR BENTA SNAP
+    if (currentTenant.moduleType === 'benta-snap' && !isEditing) {
+      if (!user) {
+        setErrorMessage('Kailangang mag-log in upang makapag-save ng purchase order.');
+        return;
+      }
+
+      // Compute draft fingerprint to check if draft changed
+      const currentFingerprint = computeBentaRestockDraftFingerprint({
+        tenantId: currentTenant.id,
+        supplierId: selectedSupplier.id,
+        paymentStatus,
+        paymentMethod: resolvedPaymentMethod,
+        notes,
+        items,
+      });
+
+      let currentIdempotencyKey = idempotencyKeyRef.current;
+      if (!currentIdempotencyKey || currentFingerprint !== lastDraftFingerprintRef.current) {
+        try {
+          currentIdempotencyKey = generateSecureIdempotencyKey();
+          idempotencyKeyRef.current = currentIdempotencyKey;
+          lastDraftFingerprintRef.current = currentFingerprint;
+        } catch {
+          setErrorMessage('Hindi makagawa ng secure idempotency key. Subukan muli.');
+          return;
+        }
+      }
+
+      const projection = validateAndProjectBentaRestockDraft({
+        tenantId: currentTenant.id,
+        supplierId: selectedSupplier.id,
+        supplierName: selectedSupplier.name,
+        paymentStatus,
+        paymentMethod: resolvedPaymentMethod,
+        notes,
+        idempotencyKey: currentIdempotencyKey,
+        items,
+        products,
+      });
+
+      if (!projection.valid) {
+        setErrorMessage(projection.error);
+        return;
+      }
+
+      try {
+        setSubmitting(true);
+        const token = await user.getIdToken();
+        const response = await submitBentaRestockPO({
+          token,
+          payload: projection.payload,
+        });
+
+        if (response.success) {
+          idempotencyKeyRef.current = '';
+          lastDraftFingerprintRef.current = '';
+          onClose();
+        } else {
+          setErrorMessage(response.error || 'Hindi ma-save ang Purchase Order. Subukan muli.');
+        }
+      } catch {
+        setErrorMessage('Hindi makakonekta sa server. Pakitingnan ang internet connection.');
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
+    // LEGACY CREATION / UPDATE PATH FOR OTHER MODULES
     try {
       setSubmitting(true);
 
-      const itemsPayload = items.map(it => ({
-        productId: it.productId,
-        productName: it.productName,
-        quantity: it.quantity,
-        unitCostCentavos: Math.round(parseFloat(it.unitCostPeso) * 100),
-        unitSalePriceCentavos: it.unitSalePricePeso ? Math.round(parseFloat(it.unitSalePricePeso) * 100) : undefined,
-      }));
+      const itemsPayload = items.map(it => {
+        const parsed = parsePesoToCentavos(it.unitCostPeso);
+        const qty = typeof it.quantity === 'number' ? it.quantity : parseInt(String(it.quantity), 10) || 0;
+        return {
+          productId: it.productId,
+          productName: it.productName || 'Paninda',
+          quantity: qty,
+          unitCostCentavos: parsed.valid ? parsed.centavos : 0,
+        };
+      });
 
       if (isEditing && poToEdit?.id) {
         await updatePurchaseOrder(
           currentTenant.id,
           poToEdit.id,
           {
-            supplierId: selectedSupplier.id!,
+            supplierId: selectedSupplier.id,
             supplierName: selectedSupplier.name,
             items: itemsPayload,
             totalAmountCentavos: totalCostCentavos,
             paymentStatus,
-            paymentMethod: paymentStatus === 'credit_unpaid' ? 'supplier_credit' : paymentMethod,
+            paymentMethod: resolvedPaymentMethod,
             notes,
           },
           user?.uid || 'unknown',
@@ -172,12 +286,12 @@ export function PurchaseOrderModal({
       } else {
         const poPayload = {
           poNumber: `PO-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`,
-          supplierId: selectedSupplier.id!,
+          supplierId: selectedSupplier.id,
           supplierName: selectedSupplier.name,
           items: itemsPayload,
           totalAmountCentavos: totalCostCentavos,
           paymentStatus,
-          paymentMethod: paymentStatus === 'credit_unpaid' ? 'supplier_credit' : paymentMethod,
+          paymentMethod: resolvedPaymentMethod,
           notes,
           createdByName: user?.displayName || user?.email || 'Store Owner',
           createdByUid: user?.uid,
@@ -192,9 +306,9 @@ export function PurchaseOrderModal({
       }
 
       onClose();
-    } catch (err: any) {
-      console.error(err);
-      alert(err.message || "May error sa pag-save ng Purchase Order.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'May error sa pag-save ng Purchase Order.';
+      setErrorMessage(msg);
     } finally {
       setSubmitting(false);
     }
@@ -208,220 +322,202 @@ export function PurchaseOrderModal({
             {isEditing ? <Edit3 className="h-5 w-5 text-cyan-600" /> : <ShoppingBag className="h-5 w-5 text-cyan-600" />}
             {isEditing ? `Edit Purchase Order (${poToEdit?.poNumber})` : 'Bumili ng Stock / Purchase Order (PO)'}
           </DialogTitle>
-          <DialogDescription className="text-xs text-slate-500">
-            {isEditing ? 'I-adjust ang paninda, presyo, o supplier. Awtomatikong magko-compute ang stock at Cash Drawer.' : 'Mag-log ng bagong delivery mula sa supplier. Awtomatikong madadagdagan ang iyong stock.'}
+          <DialogDescription className="text-xs font-semibold text-slate-400">
+            Itala ang bagong delivery mula sa supplier para awtomatikong tumaas ang inventory stock.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3.5 py-2 flex-1 min-h-0 overflow-y-auto pr-1">
-          {/* Supplier Selector */}
+        <div className="flex-1 overflow-y-auto py-3 space-y-4 pr-1">
+          {errorMessage && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-2 text-rose-800 text-xs font-bold">
+              <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
+          {/* Supplier Selection */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-bold text-slate-700">Pumili ng Supplier *</Label>
-            {suppliers.length === 0 ? (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
-                Wala pang rehistradong supplier. I-add muna ang supplier sa Supplier Directory.
-              </div>
-            ) : (
-              <select
-                value={supplierId}
-                onChange={(e) => setSupplierId(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-sm font-bold text-slate-800"
-              >
-                {suppliers.map(s => (
-                  <option key={s.id} value={s.id}>
-                    🏬 {s.name} {s.phone ? `(${s.phone})` : ''}
-                  </option>
-                ))}
-              </select>
-            )}
+            <Label className="text-xs font-bold text-slate-700">Piliin ang Supplier</Label>
+            <select
+              value={supplierId}
+              onChange={(e) => setSupplierId(e.target.value)}
+              className="w-full h-10 px-3 text-xs font-bold bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none"
+            >
+              {suppliers.map(s => (
+                <option key={s.id} value={s.id}>{s.name} ({s.paymentTerms})</option>
+              ))}
+            </select>
           </div>
 
-          {/* Add Item Row */}
-          <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2.5">
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Pumili ng Paninda na Idadagdag</span>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <div className="sm:col-span-3">
+          {/* Add Item Section */}
+          <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
+              Magdagdag ng Paninda sa Delivery
+            </span>
+
+            <div className="space-y-2">
+              <div>
+                <Label className="text-[10px] font-bold text-slate-600">Pumili ng Paninda</Label>
                 <select
                   value={selectedProductId}
                   onChange={(e) => {
-                    setSelectedProductId(e.target.value);
-                    const prod = products.find(p => p.id === e.target.value);
-                    if (prod && prod.costPrice) {
-                      setInputUnitCost((prod.costPrice / 100).toString());
+                    const id = e.target.value;
+                    setSelectedProductId(id);
+                    const prod = products.find(p => p.id === id);
+                    if (prod) {
+                      setInputUnitCost((prod.costPrice / 100).toFixed(2));
                     }
                   }}
-                  className="w-full rounded-xl border border-slate-200 bg-white p-2 text-xs font-bold text-slate-800"
+                  className="w-full h-9 px-2 text-xs font-bold bg-white border border-slate-200 rounded-lg outline-none"
                 >
-                  <option value="">-- Pumili ng Paninda --</option>
+                  <option value="">-- Piliin ang Item --</option>
                   {products.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} (Current Stock: {p.currentStock})
-                    </option>
+                    <option key={p.id} value={p.id}>{p.name} (Current: {p.currentStock || 0})</option>
                   ))}
                 </select>
               </div>
 
-              <div>
-                <Label className="text-[10px] font-bold text-slate-500">Dami (Qty)</Label>
-                <Input 
-                  type="number"
-                  min="1"
-                  value={inputQty}
-                  onChange={(e) => setInputQty(e.target.value)}
-                  className="rounded-xl border-slate-200 text-xs font-bold"
-                />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-[10px] font-bold text-slate-600">Dami (Qty)</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={inputQty}
+                    onChange={(e) => setInputQty(e.target.value)}
+                    className="h-9 text-xs font-bold bg-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[10px] font-bold text-slate-600">Unit Cost (₱)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={inputUnitCost}
+                    onChange={(e) => setInputUnitCost(e.target.value)}
+                    className="h-9 text-xs font-bold bg-white"
+                  />
+                </div>
               </div>
 
-              <div>
-                <Label className="text-[10px] font-bold text-slate-500">Unit Cost (₱)</Label>
-                <Input 
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={inputUnitCost}
-                  onChange={(e) => setInputUnitCost(e.target.value)}
-                  className="rounded-xl border-slate-200 text-xs font-bold"
-                />
-              </div>
-
-              <div className="flex items-end">
-                <Button
-                  type="button"
-                  onClick={handleAddItem}
-                  disabled={!selectedProductId}
-                  className="w-full rounded-xl text-xs font-black bg-slate-900 hover:bg-slate-800 text-white"
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Item
-                </Button>
-              </div>
+              <Button
+                type="button"
+                onClick={handleAddItem}
+                disabled={!selectedProductId}
+                size="sm"
+                className="w-full h-8 text-xs font-bold bg-slate-900 text-white rounded-lg gap-1 hover:bg-slate-800"
+              >
+                <Plus className="h-3.5 w-3.5" /> Isama sa Listahan
+              </Button>
             </div>
           </div>
 
-          {/* Draft Items Table */}
-          <div className="border border-slate-200 rounded-2xl overflow-hidden max-h-[160px] overflow-y-auto">
+          {/* Items Table List */}
+          <div className="space-y-2">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
+              Mga Kasamang Paninda ({items.length})
+            </span>
+
             {items.length === 0 ? (
-              <div className="p-4 text-center text-slate-400 text-xs font-medium">
-                Wala pang idinagdag na paninda. Pumili sa itaas para magdagdag.
-              </div>
+              <p className="text-xs text-slate-400 font-semibold italic text-center py-4">
+                Wala pang idinadagdag na paninda.
+              </p>
             ) : (
-              <table className="w-full text-xs text-left">
-                <thead className="bg-slate-100 text-slate-600 font-bold uppercase text-[9px] tracking-wider sticky top-0">
-                  <tr>
-                    <th className="p-2">Paninda</th>
-                    <th className="p-2 text-center">Dami</th>
-                    <th className="p-2 text-right">Cost</th>
-                    <th className="p-2 text-right">Total</th>
-                    <th className="p-2 text-center"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-semibold text-slate-800">
-                  {items.map((it, idx) => {
-                    const subtotal = (parseFloat(it.unitCostPeso || '0') * it.quantity).toFixed(2);
-                    return (
-                      <tr key={idx}>
-                        <td className="p-2">{it.productName}</td>
-                        <td className="p-2 text-center font-bold">{it.quantity}</td>
-                        <td className="p-2 text-right">₱{it.unitCostPeso}</td>
-                        <td className="p-2 text-right font-black">₱{subtotal}</td>
-                        <td className="p-2 text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveItem(idx)}
-                            className="text-red-500 hover:text-red-700 p-1"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                {items.map((it, idx) => (
+                  <div key={it.productId || idx} className="p-2.5 rounded-xl border border-slate-200 bg-white flex items-center justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-black text-slate-800 truncate">{it.productName}</p>
+                      <p className="text-[10px] font-bold text-slate-500">
+                        {it.quantity} pcs @ ₱{it.unitCostPeso} = ₱{(parseFloat(String(it.unitCostPeso) || '0') * (typeof it.quantity === 'number' ? it.quantity : parseInt(String(it.quantity), 10) || 0)).toFixed(2)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveItem(idx)}
+                      className="text-rose-500 hover:bg-rose-50 p-1.5 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
 
-          {/* Payment Terms & Summary */}
-          <div className="grid grid-cols-2 gap-3 pt-1">
+          {/* Payment Details */}
+          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
             <div className="space-y-1">
-              <Label className="text-xs font-bold text-slate-700">Status ng Bayad</Label>
+              <Label className="text-[10px] font-bold text-slate-600">Payment Status</Label>
               <select
                 value={paymentStatus}
-                onChange={(e: any) => {
-                  setPaymentStatus(e.target.value);
-                  if (e.target.value === 'credit_unpaid') setPaymentMethod('supplier_credit');
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setPaymentStatus(val === 'credit_unpaid' ? 'credit_unpaid' : 'paid');
                 }}
-                className="w-full rounded-xl border border-slate-200 bg-white p-2 text-xs font-bold text-slate-800"
+                className="w-full h-8 px-2 text-xs font-bold bg-slate-50 border border-slate-200 rounded-lg outline-none"
               >
-                <option value="paid">✅ Bayad Agad (Paid)</option>
-                <option value="credit_unpaid">💳 Utang muna (Supplier Credit)</option>
+                <option value="paid">Bayad Na (Paid)</option>
+                <option value="credit_unpaid">Utang (Supplier Credit)</option>
               </select>
             </div>
 
-            {paymentStatus === 'paid' && (
-              <div className="space-y-1">
-                <Label className="text-xs font-bold text-slate-700">Paraan ng Bayad</Label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e: any) => setPaymentMethod(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white p-2 text-xs font-bold text-slate-800"
-                >
-                  <option value="cash">💵 Cash (Drawer)</option>
-                  <option value="gcash">📱 GCash</option>
-                </select>
-              </div>
-            )}
+            <div className="space-y-1">
+              <Label className="text-[10px] font-bold text-slate-600">Payment Method</Label>
+              <select
+                value={paymentMethod}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === 'cash' || val === 'cash_drawer' || val === 'gcash' || val === 'supplier_credit') {
+                    setPaymentMethod(val);
+                  }
+                }}
+                disabled={paymentStatus === 'credit_unpaid'}
+                className="w-full h-8 px-2 text-xs font-bold bg-slate-50 border border-slate-200 rounded-lg outline-none disabled:opacity-50"
+              >
+                <option value="cash_drawer">Cash Drawer</option>
+                <option value="gcash">GCash</option>
+                <option value="supplier_credit">Supplier Credit</option>
+              </select>
+            </div>
           </div>
 
-          {/* Total Summary Banner */}
-          <div className="bg-slate-900 text-white p-3.5 rounded-2xl flex flex-col gap-1.5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-[9px] font-black uppercase tracking-widest text-cyan-400 block">KABUUANG GASTOS SA RESTOCK</span>
-                <span className="text-xs text-slate-300 font-medium">
-                  {paymentStatus === 'paid' ? 'Paid via Cash Drawer' : 'Nakarecord sa Utang sa Supplier (30-day)'}
-                </span>
-              </div>
-              <span className="text-xl font-black text-emerald-400">
-                ₱{(totalCostCentavos / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-            {paymentStatus === 'paid' && (
-              <p className="text-[10px] text-amber-300 font-semibold border-t border-slate-800 pt-1.5">
-                💡 Ang pagbiling ito ay awtomatikong magbabawas ng cash sa Cash Drawer at magdaragdag ng stock sa iyong imbentaryo.
-              </p>
-            )}
+          {/* Total Summary */}
+          <div className="p-3 rounded-2xl bg-cyan-50 border border-cyan-100 flex items-center justify-between">
+            <span className="text-xs font-bold text-cyan-900">Kabuuang Halaga (Total)</span>
+            <span className="text-base font-black text-cyan-950">
+              ₱{(totalCostCentavos / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+            </span>
           </div>
         </div>
 
-        <DialogFooter className="pt-2 border-t border-slate-100 flex gap-2 shrink-0 bg-white z-10 pt-2">
+        <DialogFooter className="pt-3 border-t border-slate-100 flex-row gap-2 justify-end shrink-0">
           <Button
             type="button"
             variant="outline"
             onClick={onClose}
-            className="flex-1 rounded-xl text-xs font-bold"
+            disabled={submitting}
+            className="flex-1 sm:flex-none text-xs font-bold rounded-xl"
           >
             Kanselahin
           </Button>
           <Button
             type="button"
             onClick={handleSubmitPO}
-            disabled={submitting || items.length === 0 || !supplierId}
-            className="flex-1 rounded-xl text-xs font-black text-white bg-cyan-600 hover:bg-cyan-700"
+            disabled={submitting || items.length === 0}
+            className="flex-1 sm:flex-none text-xs font-bold bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl gap-1.5"
           >
             {submitting ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                {isEditing ? 'Saving Changes...' : 'Executing PO...'}
-              </>
-            ) : isEditing ? (
-              <>
-                <Save className="h-4 w-4 mr-1" />
-                Save Changes
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <span>Sine-save...</span>
               </>
             ) : (
               <>
-                <CheckCircle2 className="h-4 w-4 mr-1" />
-                Execute Restock
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span>{isEditing ? 'I-update ang PO' : 'I-save at Tanggapin'}</span>
               </>
             )}
           </Button>

@@ -571,25 +571,33 @@ export function StockTab() {
 
                         {!isStaff && po.status !== 'voided' && (
                           <div className="flex items-center gap-1.5">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => { setPoToEdit(po); setIsPoModalOpen(true); }}
-                              className="h-7 px-2.5 text-[10px] font-bold text-cyan-700 border-cyan-200 hover:bg-cyan-50 rounded-lg gap-1 cursor-pointer"
-                            >
-                              <Pencil className="h-3 w-3 text-cyan-600" />
-                              Edit PO
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={voidingPoId === po.id}
-                              onClick={() => handleVoidPO(po)}
-                              className="h-7 px-2.5 text-[10px] font-bold text-rose-600 border-rose-200 hover:bg-rose-50 rounded-lg gap-1 cursor-pointer"
-                            >
-                              <Trash2 className="h-3 w-3 text-rose-600" />
-                              {voidingPoId === po.id ? 'Voiding...' : 'Void PO'}
-                            </Button>
+                            {po.costingVersion === 'moving_average_v1' ? (
+                              <Badge className="bg-cyan-50 text-cyan-800 border-cyan-200 text-[8px] font-black uppercase tracking-wider">
+                                Smart Costed
+                              </Badge>
+                            ) : (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => { setPoToEdit(po); setIsPoModalOpen(true); }}
+                                  className="h-7 px-2.5 text-[10px] font-bold text-cyan-700 border-cyan-200 hover:bg-cyan-50 rounded-lg gap-1 cursor-pointer"
+                                >
+                                  <Pencil className="h-3 w-3 text-cyan-600" />
+                                  Edit PO
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={voidingPoId === po.id}
+                                  onClick={() => handleVoidPO(po)}
+                                  className="h-7 px-2.5 text-[10px] font-bold text-rose-600 border-rose-200 hover:bg-rose-50 rounded-lg gap-1 cursor-pointer"
+                                >
+                                  <Trash2 className="h-3 w-3 text-rose-600" />
+                                  {voidingPoId === po.id ? 'Voiding...' : 'Void PO'}
+                                </Button>
+                              </>
+                            )}
                           </div>
                         )}
                       </div>
