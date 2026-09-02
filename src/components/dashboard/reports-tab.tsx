@@ -28,8 +28,8 @@ import { computeLineFinancials } from '@/lib/shared/quantity-math';
 import {
   isSaleVoided,
   isSaleReversalLedgerEntry,
-  isIncomeEntryForVoidedSale,
   isIncomeEntryExcluded,
+  selectActiveIncomeLedgerEntries,
   computeOwnerPnL,
 } from '@/lib/shared/benta-sale-report-aggregator';
 import { EditTransactionModal } from './retail/edit-transaction-modal';
@@ -580,8 +580,10 @@ export function ReportsTab() {
   // Uses isIncomeEntryExcluded which handles BOTH:
   //   • tx.saleId membership in voidedSaleIds (when saleId is present)
   //   • tx.id membership in excludedIncomeLedgerIds (originalIncomeLedgerId path)
-  const incomeTxs = transactions.filter(
-    (t) => !isIncomeEntryExcluded(t, voidedSaleIds, excludedIncomeLedgerIds),
+  const incomeTxs = selectActiveIncomeLedgerEntries(
+    transactions,
+    voidedSaleIds,
+    excludedIncomeLedgerIds,
   );
   // Operating expenses: exclude compensating Sale Reversal entries
   const expenseTxs = transactions.filter(

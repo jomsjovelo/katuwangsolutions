@@ -26,6 +26,9 @@ import {
   isSaleVoided,
   isSaleReversalLedgerEntry,
   isIncomeEntryForVoidedSale,
+  buildExcludedIncomeLedgerIds,
+  isIncomeEntryExcluded,
+  selectActiveIncomeLedgerEntries,
   computeOwnerPnL,
   type SaleRecord,
   type LedgerTransaction,
@@ -300,11 +303,6 @@ test('computeOwnerPnL: discounts from voided sales not counted', () => {
 // R11-R15 verify the id-based exclusion path.
 // ===========================================================================
 
-import {
-  buildExcludedIncomeLedgerIds,
-  isIncomeEntryExcluded,
-} from '../src/lib/shared/benta-sale-report-aggregator';
-
 // ---------------------------------------------------------------------------
 // R11 — buildExcludedIncomeLedgerIds collects ids from originalIncomeLedgerId
 // ---------------------------------------------------------------------------
@@ -500,5 +498,52 @@ test('buildExcludedIncomeLedgerIds: ordinary expense with originalIncomeLedgerId
   ];
   const result = buildExcludedIncomeLedgerIds(txs, new Set());
   assert.equal(result.has('tx_income_xyz'), false, 'Ordinary expense must not trigger exclusion');
+});
+
+test('selectActiveIncomeLedgerEntries: reversal expenses never appear in revenue charts', () => {
+  const transactions: LedgerTransaction[] = [
+    {
+      id: 'tx_income_voided',
+      type: 'income',
+      category: 'Sales',
+      totalPesos: 45,
+    },
+    {
+      id: 'tx_reversal',
+      type: 'expense',
+      category: 'Sale Reversal',
+      totalPesos: 45,
+      originalIncomeLedgerId: 'tx_income_voided',
+    },
+    {
+      id: 'tx_income_active',
+      type: 'income',
+      category: 'Sales',
+      totalPesos: 28,
+    },
+    {
+      id: 'tx_utility',
+      type: 'expense',
+      category: 'Utilities',
+      totalPesos: 10,
+    },
+  ];
+  const voidedSaleIds = new Set<string>();
+  const excludedIncomeLedgerIds = buildExcludedIncomeLedgerIds(
+    transactions,
+    voidedSaleIds,
+  );
+
+  const selected = selectActiveIncomeLedgerEntries(
+    transactions,
+    voidedSaleIds,
+    excludedIncomeLedgerIds,
+  );
+
+  assert.deepEqual(
+    selected.map((tx) => tx.id),
+    ['tx_income_active'],
+    'Only unrelated active income is eligible for revenue visualizations',
+  );
 });
 

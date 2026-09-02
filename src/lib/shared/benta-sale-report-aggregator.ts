@@ -162,6 +162,23 @@ export function isIncomeEntryExcluded(
 }
 
 /**
+ * Returns only active income ledger entries for revenue charts and category
+ * breakdowns. Expense records, including Sale Reversal compensation entries,
+ * can never enter a revenue visualization through this boundary.
+ */
+export function selectActiveIncomeLedgerEntries<T extends LedgerTransaction>(
+  allLedgerTxs: T[],
+  voidedSaleIds: ReadonlySet<string>,
+  excludedIncomeLedgerIds: ReadonlySet<string>,
+): T[] {
+  return allLedgerTxs.filter(
+    (tx) =>
+      tx.type === 'income' &&
+      !isIncomeEntryExcluded(tx, voidedSaleIds, excludedIncomeLedgerIds),
+  );
+}
+
+/**
  * @deprecated Use isIncomeEntryExcluded instead — it also handles entries
  * without a saleId field via originalIncomeLedgerId cross-reference.
  *
