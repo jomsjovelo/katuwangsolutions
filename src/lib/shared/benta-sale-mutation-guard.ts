@@ -12,22 +12,45 @@ function isBentaExactPoolCostedSaleInternal(value: Record<string, unknown>): boo
   const staffAccountId = value.staffAccountId;
   const items = value.items;
 
-  if (
-    moduleId !== 'benta-snap' ||
-    typeof shiftId !== 'string' || shiftId.trim().length === 0 ||
-    typeof staffAccountId !== 'string' || staffAccountId.trim().length === 0 ||
-    !Array.isArray(items) || items.length === 0
-  ) {
+  if (moduleId !== 'benta-snap') {
     return false;
   }
+
+  const hasShiftId = typeof shiftId === 'string' && shiftId.trim().length > 0;
+  const hasStaffAccountId = typeof staffAccountId === 'string' && staffAccountId.trim().length > 0;
+  const hasPartialSecureMetadata = hasShiftId || hasStaffAccountId;
+
+  if (!Array.isArray(items) || items.length === 0) {
+    if (hasPartialSecureMetadata) {
+      return true;
+    }
+    return false;
+  }
+
+  let hasNonMiscItem = false;
+  let hasCostEvidence = false;
 
   for (const item of items) {
     if (!item || typeof item !== 'object') continue;
     const record = item as Record<string, unknown>;
-    if (record.productId && typeof record.productId === 'string' && record.productId.startsWith('misc-')) continue;
+    const isMisc = record.productId && typeof record.productId === 'string' && record.productId.startsWith('misc-');
+    if (!isMisc) {
+      hasNonMiscItem = true;
+    }
     if (record.unitCostCentavos !== undefined || record.lineCostCentavos !== undefined) {
+      hasCostEvidence = true;
+    }
+  }
+
+  if (hasPartialSecureMetadata) {
+    if (hasNonMiscItem) {
       return true;
     }
+    return false;
+  }
+
+  if (hasNonMiscItem && hasCostEvidence) {
+    return false;
   }
 
   return false;

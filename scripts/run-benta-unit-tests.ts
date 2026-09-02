@@ -49,6 +49,8 @@ const bentaUnitTests = [
   'test/benta-sale-mutation-guard.test.ts',
   'test/benta-sale-reversal-engine.test.ts',
   'test/benta-sale-reversal.test.ts',
+  'test/benta-sale-reversal-client.test.ts',
+  'test/benta-sale-reversal-ui-behavior.test.ts',
 ];
 
 console.log(`\n======================================================`);

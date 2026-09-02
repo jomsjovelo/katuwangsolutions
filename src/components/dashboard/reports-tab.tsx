@@ -1,12 +1,14 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { collection, onSnapshot, query, where, orderBy, getDocs, Timestamp } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { useTenant } from '@/app/lib/tenant-context';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { cn } from '@/lib/utils';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
 import { TrendingUp, TrendingDown, Calendar, Building2, PieChart as PieChartIcon, Download, Gift, Trophy, Trash2, Edit3, ShoppingBag, ChevronDown, ChevronUp } from "lucide-react";
@@ -19,6 +21,9 @@ import { useUser } from '@/firebase/auth/use-user';
 import { usePinApproval } from '@/hooks/use-pin-approval';
 import { useToast } from '@/hooks/use-toast';
 import { deleteSale } from '@/firebase/firestore/retail-actions';
+import { submitSaleReversal, SaleReversalError, generateIdempotencyKey, validateReversalReason } from '@/lib/client/benta-sale-reversal-client';
+import { executeBentaVoid } from '@/lib/client/benta-void-orchestration';
+import { isBentaExactPoolCostedSale } from '@/lib/shared/benta-sale-mutation-guard';
 import { computeLineFinancials } from '@/lib/shared/quantity-math';
 import { EditTransactionModal } from './retail/edit-transaction-modal';
 import {
@@ -343,6 +348,9 @@ export function ReportsTab() {
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
   const [voidingSaleId, setVoidingSaleId] = useState<string | null>(null);
   const [saleToVoid, setSaleToVoid] = useState<any | null>(null);
+  const [voidReason, setVoidReason] = useState('');
+  const [voidIdempotencyKey, setVoidIdempotencyKey] = useState('');
+  const voidInFlightRef = useRef(false);
 
   const getRangeBounds = (range: string) => {
     const now = new Date();
@@ -469,36 +477,75 @@ export function ReportsTab() {
     const approved = await requireApproval("I-authorize ang pag-void ng benta sa Report Tab");
     if (!approved) return;
 
-    setSaleToVoid(sale);
+    const isProtected = isBentaExactPoolCostedSale(sale);
+    if (isProtected) {
+      setVoidIdempotencyKey(generateIdempotencyKey());
+      setVoidReason('');
+      setSaleToVoid(sale);
+    } else {
+      setVoidIdempotencyKey('');
+      setSaleToVoid(sale);
+    }
   };
 
   const confirmVoidTransaction = async () => {
     if (!saleToVoid || !currentTenant) return;
+
     const sale = saleToVoid;
-    setSaleToVoid(null);
 
     try {
       setVoidingSaleId(sale.id);
-      await deleteSale(
-        currentTenant.id,
-        sale.id,
-        user?.uid || 'system',
-        user?.displayName || user?.email || 'Manager'
-      );
-
-      toast({
-        title: "Na-void na ang sale",
-        description: `Na-void ang transaction at naibalik ang stock sa inventory.`,
+      const result = await executeBentaVoid({
+        tenantId: currentTenant.id,
+        sale,
+        reason: voidReason,
+        uid: user?.uid || 'system',
+        userName: user?.displayName || user?.email || 'Manager',
+        submitSaleReversal,
+        deleteSale: async (tenantId, saleId, uid, userName) => {
+          await deleteSale(tenantId, saleId, uid, userName);
+        },
+        idempotencyKey: voidIdempotencyKey || undefined,
+        onSuccess: () => {
+          toast({
+            title: "Na-void na ang sale",
+            description: `Na-void ang transaction at naibalik ang stock sa inventory.`,
+          });
+          setSaleToVoid(null);
+          setVoidingSaleId(null);
+          setVoidIdempotencyKey('');
+          setVoidReason('');
+        },
+        lockRef: voidInFlightRef,
       });
+
+      if (result.success) {
+      } else if (result.error?.code === 'INVALID_REQUEST') {
+        setSaleToVoid(null);
+        setVoidIdempotencyKey('');
+        setVoidReason('');
+        setVoidingSaleId(null);
+        toast({
+          variant: "destructive",
+          title: "Nagka-error sa pag-void",
+          description: result.error?.message,
+        });
+      } else {
+        setVoidingSaleId(null);
+        toast({
+          variant: "destructive",
+          title: "Nagka-error sa pag-void",
+          description: result.error?.message || "Hindi ma-void ang sales transaction.",
+        });
+      }
     } catch (err: any) {
       console.error("Error voiding transaction:", err);
+      setVoidingSaleId(null);
       toast({
         variant: "destructive",
         title: "Nagka-error sa pag-void",
-        description: err.message || "Hindi ma-void ang sales transaction.",
+        description: err?.message || "Hindi ma-void ang sales transaction.",
       });
-    } finally {
-      setVoidingSaleId(null);
     }
   };
 
@@ -1400,19 +1447,38 @@ export function ReportsTab() {
         )}
 
         {/* Void Transaction Confirmation Dialog */}
-        <AlertDialog open={!!saleToVoid} onOpenChange={(open) => !open && setSaleToVoid(null)}>
+        <AlertDialog open={!!saleToVoid} onOpenChange={(open) => { if (!open) { setSaleToVoid(null); setVoidReason(''); setVoidIdempotencyKey(''); } }}>
           <AlertDialogContent className="rounded-[24px]">
             <AlertDialogHeader>
               <AlertDialogTitle className="font-headline font-black text-slate-800 flex items-center gap-2">
                 <Trash2 className="w-5 h-5 text-rose-600 shrink-0" />
-                Sigurado ka bang gusto mong i-void ang sale?
+                {saleToVoid && isBentaExactPoolCostedSale(saleToVoid) ? 'Io-void ang Exact-Cost Sale' : 'Sigurado ka bang gusto mong i-void ang sale?'}
               </AlertDialogTitle>
               <AlertDialogDescription className="text-xs text-slate-600 mt-1">
-                Ito ay mag-aalis sa sales transaction #{saleToVoid?.id?.slice(-6).toUpperCase() || ''} at awtomatikong ibabalik ang lahat ng paninda sa inventory stock.
+                {saleToVoid && isBentaExactPoolCostedSale(saleToVoid)
+                  ? `Io-void ang sale #${saleToVoid?.id?.slice(-6).toUpperCase() || ''} gamit ang exact-cost reversal workflow. Kailangan ng dahilan.`
+                  : `Ito ay mag-aalis sa sales transaction #${saleToVoid?.id?.slice(-6).toUpperCase() || ''} at awtomatikong ibabalik ang lahat ng paninda sa inventory stock.`}
               </AlertDialogDescription>
             </AlertDialogHeader>
+            {saleToVoid && isBentaExactPoolCostedSale(saleToVoid) && (
+              <div className="mt-3 space-y-2">
+                <Label htmlFor="void-reason-report" className="text-xs font-bold uppercase text-slate-500 tracking-wider">
+                  Dahilan ng Pag-Void
+                </Label>
+                <Input
+                  id="void-reason-report"
+                  value={voidReason}
+                  onChange={(e) => setVoidReason(e.target.value)}
+                  placeholder="Hal. Customer return, wrong item, etc."
+                  className="h-11 rounded-xl border-slate-200 focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                  maxLength={500}
+                  autoFocus
+                />
+                <p className="text-[10px] text-slate-400 text-right">{voidReason.length}/500</p>
+              </div>
+            )}
             <AlertDialogFooter className="gap-2 sm:gap-0 mt-3">
-              <AlertDialogCancel className="rounded-xl font-bold text-xs border-slate-200">
+              <AlertDialogCancel className="rounded-xl font-bold text-xs border-slate-200" onClick={() => { setVoidReason(''); setVoidIdempotencyKey(''); }}>
                 Kanselahin
               </AlertDialogCancel>
               <AlertDialogAction

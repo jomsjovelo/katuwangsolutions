@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Trash2, Plus, Minus, Edit3, ShoppingBag, CreditCard, Tag } from 'lucide-react';
 import { updateSaleTransaction } from '@/firebase/firestore/retail-actions';
+import { isBentaExactPoolCostedSale } from '@/lib/shared/benta-sale-mutation-guard';
 import type { CartItem, Product } from '@/types/firestore';
 
 interface EditTransactionModalProps {
@@ -121,6 +122,15 @@ export function EditTransactionModal({
   };
 
   const handleSave = async () => {
+    if (isBentaExactPoolCostedSale(sale)) {
+      toast({
+        title: 'Hindi ma-edit ang Exact-Cost Sale',
+        description: 'Ang exact-cost sales ay hindi maaaring i-edit. Gamitin ang void workflow para ma-reverse ang sale.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (items.length === 0) {
       toast({
         title: 'Bawal ang Walang Item',

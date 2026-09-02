@@ -58,8 +58,8 @@ test('isBentaExactPoolCostedSale: offline-sync pre-marker shape is protected', (
   assert.equal(isBentaExactPoolCostedSale(syncPreMarkerSale), true);
 });
 
-test('isBentaExactPoolCostedSale: partial historical costing metadata fails closed', () => {
-  const partialMetadataSale = {
+test('Shape 3d: secure metadata with malformed cost evidence (non-misc items, no cost) → protected (fail-closed)', () => {
+  const malformedCostSale = {
     moduleId: 'benta-snap',
     shiftId: 'shift_partial',
     staffAccountId: 'staff_partial',
@@ -67,7 +67,14 @@ test('isBentaExactPoolCostedSale: partial historical costing metadata fails clos
       { productId: 'prod_test', quantity: 1 },
     ],
   };
-  assert.equal(isBentaExactPoolCostedSale(partialMetadataSale), false);
+  assert.equal(isBentaExactPoolCostedSale(malformedCostSale), true, 'Non-misc items without cost evidence must be protected (Phase 1 fail-closed)');
+  let thrown: unknown;
+  try {
+    assertLegacyBentaSaleMutable(malformedCostSale, 'edit');
+  } catch (e) {
+    thrown = e;
+  }
+  assert.ok(thrown instanceof BentaExactPoolSaleMutationError, 'Malformed cost evidence must throw');
 });
 
 test('isBentaExactPoolCostedSale: malformed secure-cashier costing metadata fails closed', () => {
@@ -197,7 +204,7 @@ test('assertLegacyBentaSaleMutable: pre-marker cashier sale with only misc items
   });
 });
 
-test('assertLegacyBentaSaleMutable: pre-marker sale missing shiftId is mutable', () => {
+test('Shape 3a: nonblank staffAccountId but missing shiftId → protected (fail-closed)', () => {
   const noShiftSale = {
     moduleId: 'benta-snap',
     staffAccountId: 'staff_test',
@@ -205,12 +212,17 @@ test('assertLegacyBentaSaleMutable: pre-marker sale missing shiftId is mutable',
       { productId: 'prod_test', quantity: 1, unitCostCentavos: 1000 },
     ],
   };
-  assert.doesNotThrow(() => {
+  assert.equal(isBentaExactPoolCostedSale(noShiftSale), true, 'Partial secure metadata must be protected');
+  let thrown: unknown;
+  try {
     assertLegacyBentaSaleMutable(noShiftSale, 'edit');
-  });
+  } catch (e) {
+    thrown = e;
+  }
+  assert.ok(thrown instanceof BentaExactPoolSaleMutationError, 'Missing shiftId with staffAccountId must throw');
 });
 
-test('assertLegacyBentaSaleMutable: pre-marker sale missing staffAccountId is mutable', () => {
+test('Shape 3b: nonblank shiftId but missing staffAccountId → protected (fail-closed)', () => {
   const noStaffSale = {
     moduleId: 'benta-snap',
     shiftId: 'shift_test',
@@ -218,24 +230,34 @@ test('assertLegacyBentaSaleMutable: pre-marker sale missing staffAccountId is mu
       { productId: 'prod_test', quantity: 1, lineCostCentavos: 1000 },
     ],
   };
-  assert.doesNotThrow(() => {
+  assert.equal(isBentaExactPoolCostedSale(noStaffSale), true, 'Partial secure metadata must be protected');
+  let thrown: unknown;
+  try {
     assertLegacyBentaSaleMutable(noStaffSale, 'void');
-  });
+  } catch (e) {
+    thrown = e;
+  }
+  assert.ok(thrown instanceof BentaExactPoolSaleMutationError, 'Missing staffAccountId with shiftId must throw');
 });
 
-test('assertLegacyBentaSaleMutable: empty items array is mutable', () => {
+test('Shape 3c: shiftId + staffAccountId with empty items → protected (fail-closed)', () => {
   const emptyItemsSale = {
     moduleId: 'benta-snap',
     shiftId: 'shift_empty',
     staffAccountId: 'staff_empty',
     items: [],
   };
-  assert.doesNotThrow(() => {
+  assert.equal(isBentaExactPoolCostedSale(emptyItemsSale), true, 'Empty items with secure metadata must be protected');
+  let thrown: unknown;
+  try {
     assertLegacyBentaSaleMutable(emptyItemsSale, 'edit');
-  });
+  } catch (e) {
+    thrown = e;
+  }
+  assert.ok(thrown instanceof BentaExactPoolSaleMutationError, 'Empty items with secure metadata must throw');
 });
 
-test('assertLegacyBentaSaleMutable: pre-marker with blank shiftId is mutable', () => {
+test('Shape 3d-partial: blank shiftId with nonblank staffAccountId → protected (fail-closed)', () => {
   const blankShiftSale = {
     moduleId: 'benta-snap',
     shiftId: '   ',
@@ -244,12 +266,17 @@ test('assertLegacyBentaSaleMutable: pre-marker with blank shiftId is mutable', (
       { productId: 'prod_test', quantity: 1, unitCostCentavos: 1000 },
     ],
   };
-  assert.doesNotThrow(() => {
+  assert.equal(isBentaExactPoolCostedSale(blankShiftSale), true, 'Blank shiftId with staffAccountId must be protected');
+  let thrown: unknown;
+  try {
     assertLegacyBentaSaleMutable(blankShiftSale, 'edit');
-  });
+  } catch (e) {
+    thrown = e;
+  }
+  assert.ok(thrown instanceof BentaExactPoolSaleMutationError, 'Blank shiftId with nonblank staffAccountId must throw');
 });
 
-test('assertLegacyBentaSaleMutable: pre-marker with blank staffAccountId is mutable', () => {
+test('Shape 3d-partial: blank staffAccountId with nonblank shiftId → protected (fail-closed)', () => {
   const blankStaffSale = {
     moduleId: 'benta-snap',
     shiftId: 'shift_test',
@@ -258,7 +285,12 @@ test('assertLegacyBentaSaleMutable: pre-marker with blank staffAccountId is muta
       { productId: 'prod_test', quantity: 1, unitCostCentavos: 1000 },
     ],
   };
-  assert.doesNotThrow(() => {
+  assert.equal(isBentaExactPoolCostedSale(blankStaffSale), true, 'Blank staffAccountId with shiftId must be protected');
+  let thrown: unknown;
+  try {
     assertLegacyBentaSaleMutable(blankStaffSale, 'void');
-  });
+  } catch (e) {
+    thrown = e;
+  }
+  assert.ok(thrown instanceof BentaExactPoolSaleMutationError, 'Blank staffAccountId with nonblank shiftId must throw');
 });

@@ -1,13 +1,16 @@
 "use client"
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { useTenant } from '@/app/lib/tenant-context';
 import { useInventory } from '@/hooks/use-inventory';
 import { useSyncStatus } from '@/hooks/use-sync-status';
 import { useCart } from '@/hooks/use-cart';
 import { processCheckout, processCreditCheckout, addProduct, deleteSale, CartItem } from '@/firebase/firestore/retail-actions';
+import { submitSaleReversal, SaleReversalError, generateIdempotencyKey, validateReversalReason } from '@/lib/client/benta-sale-reversal-client';
+import { executeBentaVoid } from '@/lib/client/benta-void-orchestration';
+import { isBentaExactPoolCostedSale } from '@/lib/shared/benta-sale-mutation-guard';
 import { usePinApproval } from '@/hooks/use-pin-approval';
 import { useShift } from '@/hooks/use-shift';
 import { Card, CardContent } from "@/components/ui/card";
@@ -485,6 +488,13 @@ function BentaDashboardContent() {
     pointsEarned?: number;
   } | null>(null);
 
+  const [showVoidReasonDialog, setShowVoidReasonDialog] = useState(false);
+  const [voidReason, setVoidReason] = useState('');
+  const [voidIdempotencyKey, setVoidIdempotencyKey] = useState<string>('');
+  const [voidAttemptSaleId, setVoidAttemptSaleId] = useState<string | null>(null);
+  const [voidAttemptSale, setVoidAttemptSale] = useState<Record<string, unknown> | null>(null);
+  const [voidIsProtected, setVoidIsProtected] = useState<boolean>(false);
+
   const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('fixed');
   const [discountValue, setDiscountValue] = useState<string>('');
   const [discountReason, setDiscountReason] = useState<string>('');
@@ -547,18 +557,87 @@ function BentaDashboardContent() {
       }
     }
 
+    const { db } = initializeFirebase();
+    const saleSnap = await getDoc(doc(db, 'tenants', currentTenant.id, 'sales', saleId));
+    if (!saleSnap.exists()) {
+      setError('Hindi mahanap ang sale.');
+      return;
+    }
+    const saleData = saleSnap.data() as Record<string, unknown>;
+    const isProtected = isBentaExactPoolCostedSale(saleData);
+
+    const key = generateIdempotencyKey();
+    setVoidAttemptSaleId(saleId);
+    setVoidAttemptSale({ ...saleData, id: saleId });
+    setVoidIdempotencyKey(key);
+    setVoidReason('');
+    setVoidIsProtected(isProtected);
+    setShowVoidReasonDialog(true);
+  };
+
+  const confirmVoidWithReversal = async () => {
+    if (!currentTenant?.id || !voidAttemptSaleId || !voidAttemptSale) return;
+
+    const keyToUse = voidIdempotencyKey;
+    const saleIdToUse = voidAttemptSaleId;
+    const saleData = voidAttemptSale;
+
     try {
       setIsVoiding(true);
       setError(null);
-      await deleteSale(currentTenant.id, saleId, effectiveUid, effectiveName);
-      setShowReceipt(false);
-      setSuccessMsg(`Na-void na ang transaksyon #${saleId.slice(0, 8)}.`);
-      setTimeout(() => setSuccessMsg(null), 4000);
-    } catch (err: any) {
-      setError(err.message || 'Pumalya ang pag-void ng transaksyon.');
+
+      const result = await executeBentaVoid({
+        tenantId: currentTenant.id,
+        sale: saleData,
+        reason: voidReason,
+        uid: effectiveUid,
+        userName: effectiveName,
+        submitSaleReversal,
+        deleteSale: async (tenantId, saleId, uid, userName) => {
+          await deleteSale(tenantId, saleId, uid, userName);
+        },
+        idempotencyKey: keyToUse,
+        onSuccess: () => {
+          setShowReceipt(false);
+          setSuccessMsg(`Na-void na ang transaksyon #${saleIdToUse.slice(0, 8)}.`);
+          setTimeout(() => setSuccessMsg(null), 4000);
+          setShowVoidReasonDialog(false);
+          setVoidAttemptSaleId(null);
+          setVoidAttemptSale(null);
+          setVoidIdempotencyKey('');
+          setVoidReason('');
+          setVoidIsProtected(false);
+        },
+        lockRef: voidInFlightRef,
+      });
+
+      if (result.success) {
+      } else if (result.error?.code === 'INVALID_REQUEST') {
+        setShowVoidReasonDialog(false);
+        setVoidAttemptSaleId(null);
+        setVoidAttemptSale(null);
+        setVoidIdempotencyKey('');
+        setVoidReason('');
+        setVoidIsProtected(false);
+        setError(result.error.message);
+      } else {
+        setError(result.error?.message || 'Pumalya ang pag-void ng transaksyon.');
+      }
+    } catch (err) {
+      setError('Pumalya ang pag-void ng transaksyon.');
     } finally {
       setIsVoiding(false);
     }
+  };
+
+  const cancelVoidReversal = () => {
+    setShowVoidReasonDialog(false);
+    setVoidAttemptSaleId(null);
+    setVoidAttemptSale(null);
+    setVoidIdempotencyKey('');
+    setVoidReason('');
+    setVoidIsProtected(false);
+    setIsVoiding(false);
   };
 
   const handlePalistaCheckout = async () => {
@@ -616,6 +695,7 @@ function BentaDashboardContent() {
   // even if React state updates race. Set before any async work, released on
   // defined result (success or terminal error).
   const checkoutLockRef = React.useRef(false);
+  const voidInFlightRef = React.useRef(false);
 
   useEffect(() => {
     const isHybridEnabled = process.env.NEXT_PUBLIC_BENTA_CASHIER_HYBRID_ENABLED === 'true';
@@ -2088,6 +2168,57 @@ function BentaDashboardContent() {
           themeColor={theme.primary}
         />
       )}
+
+      {/* Void Reason Dialog for Reversal */}
+      <Dialog open={showVoidReasonDialog} onOpenChange={(open) => { if (!open) cancelVoidReversal(); }}>
+        <DialogContent className="sm:max-w-md rounded-2xl p-0 overflow-hidden border-0">
+          <div className="p-6 bg-rose-50 border-b border-rose-100">
+            <DialogTitle className="text-lg font-black font-headline text-rose-800 flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-rose-600" />
+              Dahilan ng Pag-Void
+            </DialogTitle>
+            <DialogDescription className="text-xs text-rose-600 mt-1">
+              I-enter ang dahilan ng pag-void. Hindi ma-void kung walang dahilan.
+            </DialogDescription>
+          </div>
+          <div className="p-6 space-y-4 bg-white">
+            <div className="space-y-2">
+              <Label htmlFor="void-reason" className="text-xs font-bold uppercase text-slate-500 tracking-wider">
+                Dahilan
+              </Label>
+              <Input
+                id="void-reason"
+                value={voidReason}
+                onChange={(e) => setVoidReason(e.target.value)}
+                placeholder="Hal. Customer return, wrong item, etc."
+                className="h-12 rounded-xl border-slate-200 focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                autoFocus
+                maxLength={500}
+              />
+              <p className="text-[10px] text-slate-400 text-right">{voidReason.length}/500</p>
+            </div>
+            <DialogFooter className="flex gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={cancelVoidReversal}
+                className="h-12 min-h-[44px] rounded-xl font-bold flex-1"
+              >
+                Kanselahin
+              </Button>
+              <Button
+                type="button"
+                onClick={confirmVoidWithReversal}
+                disabled={voidReason.trim().length === 0 || isVoiding}
+                className="h-12 min-h-[44px] rounded-xl font-bold bg-rose-600 hover:bg-rose-700 text-white flex-1 shadow-md"
+              >
+                {isVoiding ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {isVoiding ? 'Nai-void...' : 'Io-void ang Sale'}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Cashier Locked Overlay (WebAuthn Offline Unlock Gate) */}
       {isCashier && <CashierLockedOverlay />}
