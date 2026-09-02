@@ -279,7 +279,11 @@ describe('Sprint 2 Package A — Comprehensive Acceptance Suite (Correction Pass
     it('executes successful and failed registration completion contracts', () => {
       runControlledTsx(`
         (async () => {
-        const { completeRegistrationAndAdvance } = await import('./src/components/onboarding/onboarding-wizard');
+        const importedWizard = await import('./src/components/onboarding/onboarding-wizard');
+        const wizard = 'completeRegistrationAndAdvance' in importedWizard
+          ? importedWizard
+          : importedWizard.default;
+        const { completeRegistrationAndAdvance } = wizard;
         const data = { appId: 'benta-snap' };
         const successOrder: string[] = [];
         let successStep = 'account';
@@ -329,7 +333,11 @@ describe('Sprint 2 Package A — Comprehensive Acceptance Suite (Correction Pass
 
       runControlledTsx(`
         (async () => {
-        const { completeRegistrationAndAdvance, getVerificationStepAfterPayment } = await import('./src/components/onboarding/onboarding-wizard');
+        const importedWizard = await import('./src/components/onboarding/onboarding-wizard');
+        const wizard = 'completeRegistrationAndAdvance' in importedWizard
+          ? importedWizard
+          : importedWizard.default;
+        const { completeRegistrationAndAdvance, getVerificationStepAfterPayment } = wizard;
         const order: string[] = [];
         let step = 'account';
         await completeRegistrationAndAdvance({
@@ -365,7 +373,7 @@ describe('Sprint 2 Package A — Comprehensive Acceptance Suite (Correction Pass
       window.sessionStorage.clear();
     });
 
-    it('preserves Meta track versus trackCustom queue methods and exact allowed payloads', () => {
+    it('suppresses standard Meta events locally and preserves exact trackCustom payloads', () => {
       const calls: unknown[][] = [];
       delete window.fbq;
 
@@ -379,7 +387,6 @@ describe('Sprint 2 Package A — Comprehensive Acceptance Suite (Correction Pass
       flushMetaEventQueue();
 
       expect(calls).to.deep.equal([
-        ['track', 'PageView', { content_type: 'website' }],
         ['trackCustom', 'ModuleDiscovery', {
           module_id: 'benta-snap',
           discovery_type: 'business_finder',
@@ -463,7 +470,11 @@ describe('Sprint 2 Package A — Comprehensive Acceptance Suite (Correction Pass
     it('executes controlled tenant/user persistence with sanitized acquisition and server timestamp', () => {
       runControlledTsx(`
         (async () => {
-        const { registerNewTenant } = await import('./src/firebase/firestore/onboarding-actions');
+        const importedActions = await import('./src/firebase/firestore/onboarding-actions');
+        const actions = 'registerNewTenant' in importedActions
+          ? importedActions
+          : importedActions.default;
+        const { registerNewTenant } = actions;
         const writes: Array<{ path: string; data: Record<string, any> }> = [];
         const timestampSentinel = { kind: 'controlled-server-timestamp' };
         let verificationRequests = 0;
