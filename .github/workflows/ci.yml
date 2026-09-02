@@ -34,10 +34,10 @@ jobs:
         run: pnpm tsx scripts/run-order-snap-unit-tests.ts
 
       - name: Run Benta emulator tests
-        run: pnpm firebase emulators:exec --only auth,firestore --project demo-katuwang-offline-test "pnpm tsx scripts/run-benta-emulator-tests.ts"
+        run: pnpm firebase emulators:exec --config firebase.emulators.json --only auth,firestore --project demo-katuwang-offline-test "pnpm tsx scripts/run-benta-emulator-tests.ts"
 
       - name: Run Order Snap emulator tests
-        run: pnpm firebase emulators:exec --only firestore --project demo-katuwang-ordersnap-test "pnpm tsx test/order-snap-transaction.emulator.test.ts && pnpm tsx test/order-snap-sync.emulator.test.ts"
+        run: pnpm firebase emulators:exec --config firebase.emulators.json --only firestore --project demo-katuwang-ordersnap-test "pnpm tsx test/order-snap-transaction.emulator.test.ts && pnpm tsx test/order-snap-sync.emulator.test.ts"
 
       - name: Typecheck
         run: pnpm run typecheck
