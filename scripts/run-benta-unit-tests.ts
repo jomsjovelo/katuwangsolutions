@@ -50,6 +50,7 @@ const bentaUnitTests = [
   'test/benta-sale-reversal-engine.test.ts',
   'test/benta-restock-reversal-engine.test.ts',
   'test/benta-sale-reversal.test.ts',
+  'test/benta-restock-reversal.test.ts',
   'test/benta-sale-reversal-client.test.ts',
   'test/benta-sale-reversal-ui-behavior.test.ts',
 ];

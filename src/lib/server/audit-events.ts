@@ -6,7 +6,8 @@ export type AuditEventType =
   | 'offline_grant_issued'
   | 'security_anomaly'
   | 'owner_claim_resolution'
-  | 'sale_reversal';
+  | 'sale_reversal'
+  | 'restock_reversal';
 
 export type AuditAction =
   | 'complete_checkout'
@@ -18,7 +19,8 @@ export type AuditAction =
   | 'grant_minted'
   | 'approved_by_owner'
   | 'rejected_by_owner'
-  | 'sale_reversed';
+  | 'sale_reversed'
+  | 'restock_reversed';
 
 export interface TenantAuditEvent {
   id: string;
@@ -32,6 +34,7 @@ export interface TenantAuditEvent {
   claimId?: string;
   grantId?: string;
   reversalId?: string;
+  purchaseOrderId?: string;
   amountCentavos?: number;
   paymentMethod?: 'cash' | 'gcash' | 'maya';
   hasVariance?: boolean;
@@ -90,6 +93,7 @@ export function recordTenantAuditEvent(
     ...(event.claimId ? { claimId: event.claimId } : {}),
     ...(event.grantId ? { grantId: event.grantId } : {}),
     ...(event.reversalId ? { reversalId: event.reversalId } : {}),
+    ...(event.purchaseOrderId ? { purchaseOrderId: event.purchaseOrderId } : {}),
     ...(typeof event.amountCentavos === 'number' ? { amountCentavos: event.amountCentavos } : {}),
     ...(event.paymentMethod ? { paymentMethod: event.paymentMethod } : {}),
     ...(typeof event.hasVariance === 'boolean' ? { hasVariance: event.hasVariance } : {}),
