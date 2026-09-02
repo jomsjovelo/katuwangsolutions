@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { useInventory } from '@/hooks/use-inventory';
 import { useTenant } from '@/app/lib/tenant-context';
@@ -18,19 +18,19 @@ import { ProductManagerSheet } from './product-manager-sheet';
 import { SupplierManagerSheet } from './suppliers/supplier-manager-sheet';
 import { PurchaseOrderModal } from './suppliers/purchase-order-modal';
 import { InventoryMovementSheet } from './retail/inventory-movement-sheet';
-import { 
-  subscribeTenantSuppliers, 
+import {
+  subscribeTenantSuppliers,
   subscribeTenantPurchaseOrders,
   voidPurchaseOrder
 } from '@/firebase/firestore/supplier-actions';
 import { SupplierProfile, PurchaseOrder } from '@/lib/schemas/supplier';
-import { 
-  Package, 
-  AlertTriangle, 
-  CheckCircle2, 
-  XCircle, 
-  Plus, 
-  Loader2, 
+import {
+  Package,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  Plus,
+  Loader2,
   ShoppingBag,
   Pencil,
   PackagePlus,
@@ -43,8 +43,27 @@ import {
   CreditCard,
   ShoppingBasket,
   History,
-  Trash2
+  Trash2,
+  Undo2,
+  AlertCircle
 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  generateIdempotencyKey,
+  submitRestockReversal,
+  RestockReversalError,
+} from '@/lib/client/benta-restock-reversal-client';
+import { executeBentaRestockReversalOrchestration } from '@/lib/client/benta-restock-reversal-orchestration';
 
 export function StockTab() {
   const db = useFirestore();
@@ -76,6 +95,13 @@ export function StockTab() {
   const [supplierToEdit, setSupplierToEdit] = useState<SupplierProfile | null>(null);
   const [isPoModalOpen, setIsPoModalOpen] = useState(false);
   const [poToEdit, setPoToEdit] = useState<PurchaseOrder | null>(null);
+
+  const [reversingPoId, setReversingPoId] = useState<string | null>(null);
+  const [reversalReason, setReversalReason] = useState('');
+  const [reversalIdempotencyKey, setReversalIdempotencyKey] = useState<string | null>(null);
+  const [isReversalSubmitting, setIsReversalSubmitting] = useState(false);
+  const [reversalError, setReversalError] = useState<string | null>(null);
+  const reversalLockRef = useRef(false);
 
   const theme = getModuleTheme(currentTenant?.moduleType);
 
@@ -180,6 +206,104 @@ export function StockTab() {
     } finally {
       setVoidingPoId(null);
     }
+  };
+
+  const handleReversePO = (po: PurchaseOrder) => {
+    if (!currentTenant || !po.id || po.status === 'voided') return;
+    if (po.costingVersion !== 'moving_average_v1') return;
+    setReversingPoId(po.id);
+    setReversalReason('');
+    setReversalError(null);
+  };
+
+  const resetReversalAttempt = () => {
+    setReversingPoId(null);
+    setReversalReason('');
+    setReversalIdempotencyKey(null);
+    setReversalError(null);
+  };
+
+  const handleReversalConfirm = async () => {
+    if (!currentTenant || !reversingPoId || !user) return;
+    if (reversalLockRef.current) return;
+
+    const reason = reversalReason.trim();
+    if (reason.length === 0) {
+      setReversalError('Kailangan ang dahilan ng pag-reverse.');
+      return;
+    }
+    if (reason.length > 500) {
+      setReversalError('Hindi dapat higit sa 500 character ang dahilan.');
+      return;
+    }
+
+    const po = purchaseOrders.find(p => p.id === reversingPoId);
+    if (!po) {
+      setReversalError('Hindi mahanap ang Purchase Order.');
+      return;
+    }
+
+    const key = reversalIdempotencyKey || generateIdempotencyKey();
+    if (!reversalIdempotencyKey) {
+      setReversalIdempotencyKey(key);
+    }
+
+    setIsReversalSubmitting(true);
+    setReversalError(null);
+
+    try {
+      const result = await executeBentaRestockReversalOrchestration({
+        tenantId: currentTenant.id,
+        purchaseOrder: po as { id: string; costingVersion?: string; paymentMethod?: string } | null,
+        reason,
+        uid: user.uid,
+        userName: user.displayName || user.email || 'Store Owner',
+        submitRestockReversal,
+        voidPurchaseOrder: (tenantId, poId, uid, userName) => voidPurchaseOrder(tenantId, poId, uid, userName),
+        idempotencyKey: key,
+        lockRef: reversalLockRef,
+      });
+
+      if (result.success) {
+        const receipt = result.receipt;
+        resetReversalAttempt();
+        alert(receipt?.paymentEffect === 'external_payment_unmodified'
+          ? 'Na-reverse ang PO. Tandaan: ang external payment ay kailangang i-reconcile nang manu-mano.'
+          : 'Tagumpay na na-reverse ang Purchase Order.');
+      } else {
+        if (result.error?.isRetryable) {
+          setReversalError(result.error.message + ' Maari mong subukan muli.');
+        } else {
+          const message = result.error?.message || 'May error sa pag-reverse.';
+          resetReversalAttempt();
+          alert(message);
+        }
+      }
+    } catch (err: unknown) {
+      const isRetryable = err instanceof RestockReversalError &&
+        (err.code === 'SERVICE_UNAVAILABLE' || err.code === 'NETWORK_ERROR');
+      if (isRetryable) {
+        setReversalError(err.message + ' Maari mong subukan muli.');
+      } else {
+        const message = err instanceof Error ? err.message : 'May error sa pag-reverse ng Purchase Order.';
+        resetReversalAttempt();
+        alert(message);
+      }
+    } finally {
+      setIsReversalSubmitting(false);
+    }
+  };
+
+  const handleReversalCancel = () => {
+    if (isReversalSubmitting) return;
+    resetReversalAttempt();
+  };
+
+  const getPaymentEffectWarning = (paymentMethod?: string): string | null => {
+    if (paymentMethod === 'gcash' || paymentMethod === 'maya') {
+      return 'Ang GCash/Maya payment ay hindi awtomatikong mare-refund. Kailangan ng manwal na reconciliation.';
+    }
+    return null;
   };
 
   const isStaff = profile?.role === 'staff';
@@ -572,9 +696,20 @@ export function StockTab() {
                         {!isStaff && po.status !== 'voided' && (
                           <div className="flex items-center gap-1.5">
                             {po.costingVersion === 'moving_average_v1' ? (
-                              <Badge className="bg-cyan-50 text-cyan-800 border-cyan-200 text-[8px] font-black uppercase tracking-wider">
-                                Smart Costed
-                              </Badge>
+                              <>
+                                <Badge className="bg-cyan-50 text-cyan-800 border-cyan-200 text-[8px] font-black uppercase tracking-wider">
+                                  Smart Costed
+                                </Badge>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleReversePO(po)}
+                                  className="h-7 px-2.5 text-[10px] font-bold text-cyan-700 border-cyan-200 hover:bg-cyan-50 rounded-lg gap-1 cursor-pointer"
+                                >
+                                  <Undo2 className="h-3 w-3 text-cyan-600" />
+                                  Reverse PO
+                                </Button>
+                              </>
                             ) : (
                               <>
                                 <Button
@@ -635,6 +770,80 @@ export function StockTab() {
         onClose={() => setSelectedMovementProduct(null)}
         product={selectedMovementProduct}
       />
+
+      <AlertDialog open={!!reversingPoId} onOpenChange={(open) => { if (!open) handleReversalCancel(); }}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Undo2 className="h-5 w-5 text-cyan-600" />
+              I-Reverse ang Smart Purchase Order
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800 flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span>Ang reversal ay maaring pwede lamang kung ang inventory ay hindi nagbago mula noong natanggap ang PO.</span>
+                </div>
+                {(() => {
+                  const po = purchaseOrders.find(p => p.id === reversingPoId);
+                  const warning = po ? getPaymentEffectWarning(po.paymentMethod) : null;
+                  if (!warning) return null;
+                  return (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800 flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                      <span>{warning}</span>
+                    </div>
+                  );
+                })()}
+                <div>
+                  <label className="text-sm font-medium text-slate-700 block mb-1.5">
+                    Dahilan ng reversal (required)
+                  </label>
+                  <Textarea
+                    value={reversalReason}
+                    onChange={(e) => { setReversalReason(e.target.value); setReversalError(null); }}
+                    placeholder="Halimbawa: Supplier delivered wrong items..."
+                    maxLength={500}
+                    rows={3}
+                    className="w-full text-sm"
+                    disabled={isReversalSubmitting}
+                  />
+                  <div className="text-xs text-slate-400 text-right mt-1">
+                    {reversalReason.length}/500
+                  </div>
+                </div>
+                {reversalError && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">
+                    {reversalError}
+                  </div>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isReversalSubmitting}>
+              Kanselahin
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleReversalConfirm(); }}
+              disabled={isReversalSubmitting}
+              className="bg-cyan-600 hover:bg-cyan-700 text-white"
+            >
+              {isReversalSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Nagrereverse...
+                </>
+              ) : (
+                <>
+                  <Undo2 className="h-4 w-4 mr-2" />
+                  I-Confirm ang Reverse
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
