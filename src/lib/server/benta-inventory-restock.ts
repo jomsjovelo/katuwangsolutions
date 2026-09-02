@@ -656,6 +656,16 @@ export async function executeBentaInventoryRestock(
         }
       }
 
+      if (
+        prodData.latestPurchaseUnitCostCentavos !== undefined &&
+        (typeof prodData.latestPurchaseUnitCostCentavos !== 'number' ||
+          !Number.isSafeInteger(prodData.latestPurchaseUnitCostCentavos) ||
+          prodData.latestPurchaseUnitCostCentavos < 0)
+      ) {
+        throw new BentaRestockError(BentaRestockErrorCode.PRODUCT_INVALID);
+      }
+      const previousLatestPurchaseUnitCostCentavos = prodData.latestPurchaseUnitCostCentavos as number | undefined;
+
       const costingInput: BentaProductCostingInput = {
         quantityMode: isStoredMeasured ? 'measured' : 'discrete',
         currentStock: isStoredMeasured ? 0 : prodData.currentStock,
@@ -748,6 +758,7 @@ export async function executeBentaInventoryRestock(
           inventoryValueCentavos: restockResult.resultingPosition.inventoryValueCentavos,
           averageUnitCostCentavos: restockResult.resultingPosition.averageUnitCostCentavos,
         },
+        ...(previousLatestPurchaseUnitCostCentavos !== undefined ? { previousLatestPurchaseUnitCostCentavos } : {}),
       });
 
       itemResults.push({

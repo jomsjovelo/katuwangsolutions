@@ -39,6 +39,7 @@ export const purchaseOrderItemSchema = z.object({
   restockEventId: z.string().optional(),
   previousPosition: purchaseOrderItemPositionSchema.optional(),
   resultingPosition: purchaseOrderItemPositionSchema.optional(),
+  previousLatestPurchaseUnitCostCentavos: z.number().int().nonnegative().safe().optional(),
 });
 
 export type PurchaseOrderItem = z.infer<typeof purchaseOrderItemSchema>;

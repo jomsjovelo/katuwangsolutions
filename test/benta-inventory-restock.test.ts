@@ -9,6 +9,7 @@ import {
   validateBentaRestockRequest,
   restockIdempotencyDocumentId,
   restockFingerprint,
+  sanitizeStoredRestockResult,
   BentaRestockError,
   BentaRestockErrorCode,
   type BentaRestockRequest,
@@ -1188,3 +1189,134 @@ test('Smart Restocking purchase order traceability, position snapshots, and retr
   assert.equal((result.items[0] as unknown as Record<string, unknown>).restockEventId, undefined);
 });
 
+test('New Smart PO stores previous latest purchase cost internally and does not expose it in public result', async () => {
+  const seedWithPriorLatestCost = {
+    ...baseSeed,
+    [`tenants/${TENANT_ID}/products/prod_discrete`]: {
+      ...baseSeed[`tenants/${TENANT_ID}/products/prod_discrete`],
+      latestPurchaseUnitCostCentavos: 1900,
+    },
+  };
+  const { db, store } = createMockFirestore(seedWithPriorLatestCost);
+  const options: BentaRestockServiceOptions = { adminAuth: mockAuth, adminFirestore: db, now: defaultNow };
+
+  const request: BentaRestockRequest = {
+    tenantId: TENANT_ID,
+    idempotencyKey: 'idemp-prev-cost-1',
+    supplierId: 'supp-1',
+    supplierName: 'San Miguel Corp',
+    paymentStatus: 'paid',
+    paymentMethod: 'cash',
+    items: [{ productId: 'prod_discrete', quantity: 10, supplierCostCentavos: 24000 }],
+  };
+
+  const result = await executeBentaInventoryRestock(TOKEN_VALID, request, options);
+
+  const poEntry = Object.entries(store).find(([k]) => k.includes('/purchase_orders/'));
+  assert.ok(poEntry, 'Purchase order document must be created');
+  const po = poEntry[1] as Record<string, unknown>;
+
+  const poItems = po.items as Array<Record<string, unknown>>;
+  assert.equal(poItems.length, 1);
+
+  assert.equal(poItems[0].previousLatestPurchaseUnitCostCentavos, 1900);
+
+  assert.equal((result.items[0] as unknown as Record<string, unknown>).previousLatestPurchaseUnitCostCentavos, undefined);
+});
+
+test('Old stored replay result without previousLatestPurchaseUnitCostCentavos remains valid', () => {
+  const sanitized = sanitizeStoredRestockResult({
+    success: true,
+    purchaseOrderId: 'po_old',
+    poNumber: 'PO-OLD',
+    committedAt: '2026-09-01T00:00:00.000Z',
+    supplierId: 'supp-1',
+    supplierName: 'San Miguel Corp',
+    paymentStatus: 'paid',
+    paymentMethod: 'cash',
+    totalAmountCentavos: 24000,
+    items: [{
+      productId: 'prod_discrete',
+      productName: 'Canned Goods',
+      quantityMode: 'discrete',
+      purchasedQuantity: 10,
+      quantityScale: 0,
+      landedCostCentavos: 24000,
+      latestPurchaseUnitCostCentavos: 2400,
+      costMovement: 'increased',
+      resultingPosition: {
+        quantityMinor: 15,
+        quantityScale: 0,
+        inventoryValueCentavos: 34000,
+        averageUnitCostCentavos: 2267,
+      },
+    }],
+  });
+
+  assert.ok(sanitized);
+  assert.equal(sanitized.purchaseOrderId, 'po_old');
+  assert.equal((sanitized.items[0] as unknown as Record<string, unknown>).previousLatestPurchaseUnitCostCentavos, undefined);
+});
+
+test('Malformed prior latest purchase cost fails closed before restock writes', async () => {
+  for (const malformed of [-1, 1.5, Number.MAX_SAFE_INTEGER + 1, Number.NaN]) {
+    const malformedSeed = {
+      ...baseSeed,
+      [`tenants/${TENANT_ID}/products/prod_discrete`]: {
+        ...baseSeed[`tenants/${TENANT_ID}/products/prod_discrete`],
+        latestPurchaseUnitCostCentavos: malformed,
+      },
+    };
+    const { db } = createMockFirestore(malformedSeed);
+    const options: BentaRestockServiceOptions = { adminAuth: mockAuth, adminFirestore: db, now: defaultNow };
+
+    await assert.rejects(
+      () => executeBentaInventoryRestock(TOKEN_VALID, {
+        tenantId: TENANT_ID,
+        idempotencyKey: `idemp-malformed-latest-${String(malformed)}`,
+        supplierId: 'supp-1',
+        supplierName: 'San Miguel Corp',
+        paymentStatus: 'paid',
+        paymentMethod: 'cash',
+        items: [{ productId: 'prod_discrete', quantity: 10, supplierCostCentavos: 24000 }],
+      }, options),
+      (err: unknown) => err instanceof BentaRestockError && err.code === BentaRestockErrorCode.PRODUCT_INVALID,
+    );
+  }
+});
+
+test('Product without prior latest purchase cost stores undefined previousLatestPurchaseUnitCostCentavos', async () => {
+  const seedWithoutLatestCost = {
+    ...baseSeed,
+    [`tenants/${TENANT_ID}/products/prod_discrete`]: {
+      name: 'Canned Goods',
+      tenantId: TENANT_ID,
+      isActive: true,
+      currentStock: 5,
+      costPrice: 2000,
+      salePrice: 3000,
+    },
+  };
+  const { db, store } = createMockFirestore(seedWithoutLatestCost);
+  const options: BentaRestockServiceOptions = { adminAuth: mockAuth, adminFirestore: db, now: defaultNow };
+
+  const request: BentaRestockRequest = {
+    tenantId: TENANT_ID,
+    idempotencyKey: 'idemp-no-prev-cost-1',
+    supplierId: 'supp-1',
+    supplierName: 'San Miguel Corp',
+    paymentStatus: 'paid',
+    paymentMethod: 'cash',
+    items: [{ productId: 'prod_discrete', quantity: 10, supplierCostCentavos: 24000 }],
+  };
+
+  const result = await executeBentaInventoryRestock(TOKEN_VALID, request, options);
+
+  const poEntry = Object.entries(store).find(([k]) => k.includes('/purchase_orders/'));
+  assert.ok(poEntry, 'Purchase order document must be created');
+  const po = poEntry[1] as Record<string, unknown>;
+  const poItems = po.items as Array<Record<string, unknown>>;
+
+  assert.equal(poItems[0].previousLatestPurchaseUnitCostCentavos, undefined);
+  assert.equal(result.success, true);
+});
