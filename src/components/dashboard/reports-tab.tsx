@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from '@/lib/utils';
 import { getModuleTheme, useDynamicThemeColor } from '@/lib/theme-utils';
-import { TrendingUp, TrendingDown, Calendar, Building2, PieChart as PieChartIcon, Download, Gift, Trophy, Trash2, Edit3, ShoppingBag, ChevronDown, ChevronUp } from "lucide-react";
+import { TrendingUp, TrendingDown, Calendar, Building2, PieChart as PieChartIcon, Download, Gift, Trophy, Trash2, Edit3, ShoppingBag, ChevronDown, ChevronUp, Ban } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis, Legend, BarChart, Bar, YAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 import { useSales } from '@/hooks/use-sales';
 import { startOfDay, endOfDay, subDays, format } from 'date-fns';
@@ -25,6 +25,13 @@ import { submitSaleReversal, SaleReversalError, generateIdempotencyKey, validate
 import { executeBentaVoid } from '@/lib/client/benta-void-orchestration';
 import { isBentaExactPoolCostedSale } from '@/lib/shared/benta-sale-mutation-guard';
 import { computeLineFinancials } from '@/lib/shared/quantity-math';
+import {
+  isSaleVoided,
+  isSaleReversalLedgerEntry,
+  isIncomeEntryForVoidedSale,
+  isIncomeEntryExcluded,
+  computeOwnerPnL,
+} from '@/lib/shared/benta-sale-report-aggregator';
 import { EditTransactionModal } from './retail/edit-transaction-modal';
 import {
   AlertDialog,
@@ -40,12 +47,15 @@ import {
 // Specialized Retail Metrics for benta-snap
 function RetailMetrics({ selectedDate }: { selectedDate: Date | { start: Date, end: Date } }) {
   const { sales, loading } = useSales(selectedDate);
-  const totalVolume = sales.length;
-  
+
+  // Exclude voided sales from retail metric aggregation
+  const activeSales = (sales as any[]).filter((tx) => !isSaleVoided(tx));
+  const totalVolume = activeSales.length;
+
   let totalCogsCentavos = 0;
   let missingCostSalesCount = 0;
 
-  sales.forEach((tx: any) => {
+  activeSales.forEach((tx: any) => {
     let saleMissing = false;
     if (!tx.items || !Array.isArray(tx.items) || tx.items.length === 0) {
       saleMissing = true;
@@ -93,7 +103,7 @@ function RetailMetrics({ selectedDate }: { selectedDate: Date | { start: Date, e
   });
 
   const actualCostPesos = totalCogsCentavos / 100;
-  const grossSalesPesos = sales.reduce((acc, tx) => acc + ((tx.totalAmount || 0) / 100), 0);
+  const grossSalesPesos = activeSales.reduce((acc: number, tx: any) => acc + ((tx.totalAmount || 0) / 100), 0);
   const isComplete = missingCostSalesCount === 0;
   const grossMarginPesos = grossSalesPesos - actualCostPesos;
 
@@ -376,8 +386,13 @@ export function ReportsTab() {
   
   // Load unified sales for gross sales vs discounts visualization
   const { sales } = useSales({ start: rangeStart, end: rangeEnd });
-  const totalDiscountsGivenPesos = sales.reduce((acc, sale) => acc + ((sale.discountAmount || 0) / 100), 0);
-  const grossSalesBeforeDiscountsPesos = sales.reduce((acc, sale) => acc + ((sale.subtotalAmount || sale.totalAmount || 0) / 100), 0);
+  // activeSales excludes voided; used for all financial aggregations
+  // (all-sales are still passed to computeOwnerPnL which does its own partitioning)
+  const _pnlIntermediate = React.useMemo(
+    () => computeOwnerPnL(sales as any[], transactions),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sales, transactions]
+  );
 
   // Load unified master ledger transactions
   useEffect(() => {
@@ -557,79 +572,34 @@ export function ReportsTab() {
     setIsEditModalOpen(true);
   };
 
-  // Aggregate unified metrics
-  const incomeTxs = transactions.filter(t => t.type === 'income');
-  const expenseTxs = transactions.filter(t => t.type === 'expense');
+  // Aggregate unified metrics — delegate to the voided-sale-aware aggregator
+  const pnl = _pnlIntermediate;
+  const { voidedSaleIds, excludedIncomeLedgerIds } = pnl;
 
-  const salesIncomePesos = sales.reduce((acc, sale) => acc + ((sale.totalAmount || 0) / 100), 0);
-  const ledgerIncomePesos = incomeTxs.reduce((acc, curr) => acc + (curr.totalPesos || 0), 0);
+  // Active (non-voided) ledger transactions for chart / category views.
+  // Uses isIncomeEntryExcluded which handles BOTH:
+  //   • tx.saleId membership in voidedSaleIds (when saleId is present)
+  //   • tx.id membership in excludedIncomeLedgerIds (originalIncomeLedgerId path)
+  const incomeTxs = transactions.filter(
+    (t) => !isIncomeEntryExcluded(t, voidedSaleIds, excludedIncomeLedgerIds),
+  );
+  // Operating expenses: exclude compensating Sale Reversal entries
+  const expenseTxs = transactions.filter(
+    (t) => t.type === 'expense' && !isSaleReversalLedgerEntry(t),
+  );
 
-  // Sync Gross Revenue directly with real-time sales collection
-  const grossIncomePesos = salesIncomePesos;
-  const totalExpensesPesos = expenseTxs.reduce((acc, curr) => acc + (curr.totalPesos || 0), 0);
+  const grossIncomePesos = pnl.grossIncomePesos;
+  const totalDiscountsGivenPesos = pnl.totalDiscountsGivenPesos;
+  const grossSalesBeforeDiscountsPesos = pnl.grossSalesBeforeDiscountsPesos;
+  const totalExpensesPesos = pnl.operatingExpensesPesos;
+  const totalCogsPesos = pnl.totalCogsPesos;
+  const isProfitComplete = pnl.isProfitComplete;
+  const missingCostSalesCount = pnl.missingCostSalesCount;
+  const missingCostItemsCount = pnl.missingCostItemsCount;
+  const grossProfitPesos = pnl.grossProfitPesos;
+  const netProfitPesos = pnl.netProfitPesos;
 
-  // Canonical historical COGS and Gross Profit calculation
-  let totalCogsCentavos = 0;
-  let missingCostItemsCount = 0;
-  let missingCostSalesCount = 0;
-
-  sales.forEach((sale: any) => {
-    let saleHasMissingCost = false;
-    if (sale.items && Array.isArray(sale.items) && sale.items.length > 0) {
-      sale.items.forEach((item: any) => {
-        if (typeof item.lineCostCentavos === 'number' && Number.isSafeInteger(item.lineCostCentavos) && item.lineCostCentavos >= 0) {
-          totalCogsCentavos += item.lineCostCentavos;
-        } else if (typeof item.lineCost === 'number' && Number.isSafeInteger(item.lineCost) && item.lineCost >= 0) {
-          totalCogsCentavos += item.lineCost;
-        } else if (item.quantityMode === 'measured' || item.quantityMinor !== undefined) {
-          const qtyMinor = item.quantityMinor;
-          const costPrice = item.unitCostCentavos ?? item.costPrice;
-          const scale = item.quantityScale || 3;
-          if (
-            Number.isSafeInteger(qtyMinor) &&
-            qtyMinor > 0 &&
-            costPrice !== undefined &&
-            costPrice !== null &&
-            Number.isSafeInteger(costPrice) &&
-            costPrice >= 0
-          ) {
-            totalCogsCentavos += computeLineFinancials(costPrice, qtyMinor, scale);
-          } else {
-            missingCostItemsCount++;
-            saleHasMissingCost = true;
-          }
-        } else {
-          const qty = item.quantity;
-          const costPrice = item.unitCostCentavos ?? item.costPrice;
-          if (
-            !Number.isSafeInteger(qty) ||
-            qty <= 0 ||
-            costPrice === undefined ||
-            costPrice === null ||
-            !Number.isSafeInteger(costPrice) ||
-            costPrice < 0
-          ) {
-            missingCostItemsCount++;
-            saleHasMissingCost = true;
-          } else {
-            totalCogsCentavos += costPrice * qty;
-          }
-        }
-      });
-    } else {
-      saleHasMissingCost = true;
-    }
-    if (saleHasMissingCost) {
-      missingCostSalesCount++;
-    }
-  });
-
-  const totalCogsPesos = totalCogsCentavos / 100;
-  const isProfitComplete = sales.length === 0 || missingCostSalesCount === 0;
-  const grossProfitPesos = grossIncomePesos - totalCogsPesos;
-  const netProfitPesos = grossProfitPesos - totalExpensesPesos;
-
-  // Group revenue by category
+  // Group revenue by category (voided-sale income entries already excluded above)
   const revenueByCategory = incomeTxs.reduce((acc, tx) => {
     const cat = tx.category || 'General';
     acc[cat] = (acc[cat] || 0) + (tx.totalPesos || 0);
@@ -1025,6 +995,7 @@ export function ReportsTab() {
                     const isExpanded = expandedSaleId === sale.id;
                     const items = sale.items || [];
                     const isVoiding = voidingSaleId === sale.id;
+                    const saleIsVoided = isSaleVoided(sale);
                     const formattedDate = sale.createdAt?.toDate
                       ? format(sale.createdAt.toDate(), 'h:mm a • MMM d')
                       : sale.createdAt
@@ -1034,34 +1005,54 @@ export function ReportsTab() {
                     return (
                       <div 
                         key={sale.id} 
-                        className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 transition-all hover:bg-slate-100/50 space-y-3"
+                        className={cn(
+                          "border rounded-2xl p-3.5 transition-all space-y-3",
+                          saleIsVoided
+                            ? "bg-slate-100/60 border-slate-300/60 opacity-75"
+                            : "bg-slate-50 border-slate-200/80 hover:bg-slate-100/50"
+                        )}
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                           {/* Left: Transaction Info */}
                           <div className="flex items-center justify-between sm:justify-start gap-3 w-full sm:w-auto">
                             <div className="flex items-center gap-3">
-                              <div className="h-10 w-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-800 font-headline font-black text-sm shrink-0 shadow-sm">
-                                ₱
+                              <div className={cn(
+                                "h-10 w-10 rounded-xl border flex items-center justify-center font-headline font-black text-sm shrink-0 shadow-sm",
+                                saleIsVoided
+                                  ? "bg-slate-200 border-slate-300 text-slate-400"
+                                  : "bg-white border-slate-200 text-slate-800"
+                              )}>
+                                {saleIsVoided ? <Ban className="h-4 w-4" /> : '₱'}
                               </div>
                               <div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-black text-slate-800">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className={cn(
+                                    "text-sm font-black",
+                                    saleIsVoided ? "text-slate-400 line-through" : "text-slate-800"
+                                  )}>
                                     ₱{((sale.totalAmount || 0) / 100).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                                   </span>
-                                  <Badge className={cn(
-                                    "text-[9px] font-black uppercase px-2 py-0.5 rounded-full border-none",
-                                    sale.paymentMethod === 'palista' 
-                                      ? "bg-amber-100 text-amber-800" 
-                                      : sale.paymentMethod === 'gcash' 
-                                      ? "bg-blue-100 text-blue-800" 
-                                      : "bg-emerald-100 text-emerald-800"
-                                  )}>
-                                    {sale.paymentMethod || 'cash'}
-                                  </Badge>
+                                  {saleIsVoided ? (
+                                    <Badge className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full border-none bg-rose-100 text-rose-700">
+                                      VOIDED
+                                    </Badge>
+                                  ) : (
+                                    <Badge className={cn(
+                                      "text-[9px] font-black uppercase px-2 py-0.5 rounded-full border-none",
+                                      sale.paymentMethod === 'palista'
+                                        ? "bg-amber-100 text-amber-800"
+                                        : sale.paymentMethod === 'gcash'
+                                        ? "bg-blue-100 text-blue-800"
+                                        : "bg-emerald-100 text-emerald-800"
+                                    )}>
+                                      {sale.paymentMethod || 'cash'}
+                                    </Badge>
+                                  )}
                                 </div>
                                 <p className="text-[10px] text-slate-400 font-bold mt-0.5">
                                   {formattedDate} • {items.length} item{items.length !== 1 ? 's' : ''}
                                   {sale.palistaName ? ` • ${sale.palistaName}` : ''}
+                                  {saleIsVoided && sale.reversalId ? ` • Rev: ${sale.reversalId.slice(-6).toUpperCase()}` : ''}
                                 </p>
                               </div>
                             </div>
@@ -1091,26 +1082,37 @@ export function ReportsTab() {
                               {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                             </Button>
 
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleOpenEditModal(sale)}
-                              className="h-8 px-3 rounded-xl border-slate-200 text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 text-xs font-bold gap-1 cursor-pointer flex-1 sm:flex-initial justify-center"
-                            >
-                              <Edit3 className="h-3.5 w-3.5 text-indigo-500" />
-                              Edit
-                            </Button>
+                            {!saleIsVoided && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleOpenEditModal(sale)}
+                                className="h-8 px-3 rounded-xl border-slate-200 text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 text-xs font-bold gap-1 cursor-pointer flex-1 sm:flex-initial justify-center"
+                              >
+                                <Edit3 className="h-3.5 w-3.5 text-indigo-500" />
+                                Edit
+                              </Button>
+                            )}
 
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={isVoiding}
-                              onClick={() => handleVoidTransaction(sale)}
-                              className="h-8 px-3 rounded-xl border-rose-300 bg-rose-50/80 hover:bg-rose-100 text-rose-700 text-xs font-black gap-1 cursor-pointer flex-1 sm:flex-initial justify-center shadow-xs"
-                            >
-                              <Trash2 className="h-3.5 w-3.5 text-rose-600" />
-                              {isVoiding ? 'Voiding...' : 'Void'}
-                            </Button>
+                            {!saleIsVoided && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={isVoiding}
+                                onClick={() => handleVoidTransaction(sale)}
+                                className="h-8 px-3 rounded-xl border-rose-300 bg-rose-50/80 hover:bg-rose-100 text-rose-700 text-xs font-black gap-1 cursor-pointer flex-1 sm:flex-initial justify-center shadow-xs"
+                              >
+                                <Trash2 className="h-3.5 w-3.5 text-rose-600" />
+                                {isVoiding ? 'Voiding...' : 'Void'}
+                              </Button>
+                            )}
+
+                            {saleIsVoided && (
+                              <span className="text-[10px] font-black uppercase text-rose-500 tracking-wider px-2 flex items-center gap-1">
+                                <Ban className="h-3 w-3" />
+                                Reversed
+                              </span>
+                            )}
                           </div>
                         </div>
 

@@ -55,6 +55,7 @@ const bentaUnitTests = [
   'test/benta-sale-reversal-ui-behavior.test.ts',
   'test/benta-restock-reversal-client.test.ts',
   'test/benta-restock-reversal-ui-behavior.test.ts',
+  'test/benta-void-report-aggregation.test.ts',
 ];
 
 console.log(`\n======================================================`);
