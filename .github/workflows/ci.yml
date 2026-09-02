@@ -49,7 +49,7 @@ jobs:
         uses: cypress-io/github-action@v6
         with:
           install: false
-          start: pnpm run start
+          start: pnpm exec next start -p 9002
           wait-on: 'http://localhost:9002'
           wait-on-timeout: 120
           command: pnpm run cypress
