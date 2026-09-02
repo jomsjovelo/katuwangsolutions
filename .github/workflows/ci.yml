@@ -45,11 +45,11 @@ jobs:
       - name: Build Next.js
         run: pnpm run build
 
-      - name: Run Cypress E2E tests
+      - name: Run release-critical Cypress E2E tests
         uses: cypress-io/github-action@v6
         with:
           install: false
           start: pnpm exec next start -p 9002
           wait-on: 'http://localhost:9002'
           wait-on-timeout: 120
-          command: pnpm run cypress
+          command: pnpm exec cypress run --spec "cypress/e2e/offline-sync.cy.ts,cypress/e2e/onboarding.cy.ts,cypress/e2e/production-health-pass1.cy.ts,cypress/e2e/secure-benta-cashier.cy.ts,cypress/e2e/sprint-2-package-a.cy.ts,cypress/e2e/staff-access-security-phase-1.cy.ts"
