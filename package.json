@@ -87,7 +87,8 @@
     "eslint": "^8.57.0",
     "eslint-config-next": "^15.2.6",
     "firebase-tools": "^13.35.1",
-    "genkit-cli": "^1.28.0"
+    "genkit-cli": "^1.28.0",
+    "tsx": "^4.23.13"
   },
   "overrides": {
     "qs": ">=6.15.2",
