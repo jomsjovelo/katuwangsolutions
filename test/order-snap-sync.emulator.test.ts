@@ -11,6 +11,7 @@
  */
 
 import * as admin from 'firebase-admin';
+import * as crypto from 'node:crypto';
 import {
   finalizeOrderSnapTransaction,
   OrderSnapErrorCode
@@ -21,7 +22,9 @@ import {
 import { OrderSnapOutboxDB } from '../src/lib/order-snap/order-snap-outbox-db';
 import { OrderSnapOfflineManager } from '../src/lib/order-snap/order-snap-offline-manager';
 import { OrderSnapSyncCoordinator } from '../src/lib/order-snap/order-snap-sync-coordinator';
+import { OrderSnapAuthorityManager } from '../src/lib/order-snap/order-snap-authority-manager';
 import { OfflineCatalogSnapshot } from '../src/lib/order-snap/offline-types';
+import { OrderSnapCertificateSigner } from '../src/lib/server/order-snap-certificate-signer';
 import { createMockIndexedDB } from './test-indexeddb-mock';
 
 // Safety checks
@@ -177,6 +180,86 @@ function getOfflineCatalog(): OfflineCatalogSnapshot {
   };
 }
 
+async function createAuthorizedOfflineManager(outboxDB: OrderSnapOutboxDB): Promise<{
+  authorityManager: OrderSnapAuthorityManager;
+  certificateSigner: OrderSnapCertificateSigner;
+}> {
+  const serverKeyPair = crypto.generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+  const privateKeyPem = serverKeyPair.privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
+  const publicKeySpki = Buffer.from(
+    serverKeyPair.publicKey.export({ type: 'spki', format: 'der' })
+  ).toString('base64');
+  const credentialKeyPair = crypto.generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+  const credentialPublicKeySpki = Buffer.from(
+    credentialKeyPair.publicKey.export({ type: 'spki', format: 'der' })
+  ).toString('base64');
+  const credentialId = 'ordersnap_sync_emulator_credential';
+  const credentialIdFingerprint = crypto
+    .createHash('sha256')
+    .update(Buffer.from(credentialId, 'base64url'))
+    .digest('hex');
+  const credentialPublicKeyFingerprint = crypto
+    .createHash('sha256')
+    .update(Buffer.from(credentialPublicKeySpki, 'base64'))
+    .digest('hex');
+  const deviceId = await outboxDB.getOrCreateDeviceId();
+  const nowSec = Math.floor(Date.now() / 1000);
+  const signer = new OrderSnapCertificateSigner({ privateKeys: { v2: privateKeyPem } });
+  const certificate = signer.signCertificate({
+    version: 2,
+    algorithm: 'ES256',
+    keyId: 'v2',
+    grantId: `grant_${runTag}`,
+    moduleId: 'order-snap',
+    tenantId,
+    staffAccountId: cashierStaffId,
+    actorId: `staff_${cashierStaffId}`,
+    authUid: cashierUid,
+    sessionVersion: 1,
+    role: 'cashier',
+    displayName: 'Cashier Maria',
+    deviceId,
+    catalogVersion: 'v1.0',
+    allowedTenders: ['cash'],
+    issuedAt: nowSec,
+    expiresAt: nowSec + 3600,
+    credentialIdFingerprint,
+    credentialPublicKeyFingerprint,
+    rpId: 'localhost',
+    expectedOrigin: 'http://localhost:9002',
+    requireUserPresence: true,
+    requireUserVerification: true
+  }, 'v2');
+  await db.collection('webauthn_credentials').doc(credentialIdFingerprint).set({
+    status: 'active',
+    tenantId,
+    staffAccountId: cashierStaffId,
+    installationId: deviceId,
+    publicKeySpki: credentialPublicKeySpki
+  });
+  const manager = new OrderSnapAuthorityManager(outboxDB, {
+    trustedRegistry: { v2: { algorithm: 'ES256', spki: publicKeySpki } }
+  });
+  const fetchFn: typeof fetch = async () => Response.json({
+    success: true,
+    grant: certificate,
+    webAuthnCredential: {
+      credentialId,
+      publicKeySpki: credentialPublicKeySpki,
+      rpId: 'localhost',
+      counter: 0
+    }
+  });
+  await manager.establishOnlineAuthority({
+    idToken: 'cashier_token',
+    tenantId,
+    deviceId,
+    catalogVersion: 'v1.0',
+    fetchFn
+  });
+  return { authorityManager: manager, certificateSigner: signer };
+}
+
 async function runEmulatorSyncTests() {
   console.log('\n======================================================');
   console.log('  ORDER SNAP OFFLINE-FIRST SYNC EMULATOR TESTS');
@@ -198,6 +281,7 @@ async function runEmulatorSyncTests() {
   const offlineMgr = new OrderSnapOfflineManager(outboxDB);
 
   await outboxDB.saveCatalogSnapshot(getOfflineCatalog());
+  const { authorityManager, certificateSigner } = await createAuthorizedOfflineManager(outboxDB);
 
   // Setup server route handler wired directly to the real Firestore emulator DB
   const mockAuth: any = {
@@ -219,6 +303,7 @@ async function runEmulatorSyncTests() {
     enabled: () => true,
     extractClientIp: () => '127.0.0.1',
     admitNetworkRequest: async () => ({ isLimited: false, retryAfterSeconds: 0 }),
+    certificateSigner,
     adminAuth: mockAuth,
     adminFirestore: db
   });
@@ -231,7 +316,11 @@ async function runEmulatorSyncTests() {
       headers: init?.headers,
       body: init?.body
     });
-    return routeHandler(req);
+    const response = await routeHandler(req);
+    if (!response.ok) {
+      console.error('Order Snap route diagnostic', response.status, await response.clone().json());
+    }
+    return response;
   }) as any;
 
   try {
@@ -247,6 +336,7 @@ async function runEmulatorSyncTests() {
       cashierDisplayName: 'Maria',
       paymentMethod: 'cash',
       cashTenderedCentavos: 20000,
+      authorityManager,
       request: {
         orderId: `ord_live_1_${runTag}`,
         tenantId,
@@ -266,6 +356,7 @@ async function runEmulatorSyncTests() {
       cashierDisplayName: 'Maria',
       paymentMethod: 'cash',
       cashTenderedCentavos: 30000,
+      authorityManager,
       request: {
         orderId: `ord_live_2_${runTag}`,
         tenantId,
@@ -291,6 +382,16 @@ async function runEmulatorSyncTests() {
     });
 
     const syncResult = await coordinator.syncNow();
+    if (syncResult.syncedCount !== 2) {
+      const firstOrder = await outboxDB.getOrder(tenantId, `ord_live_1_${runTag}`);
+      const secondOrder = await outboxDB.getOrder(tenantId, `ord_live_2_${runTag}`);
+      console.error('Order Snap sync diagnostics', {
+        firstState: firstOrder?.syncState,
+        firstDiagnostic: firstOrder?.conflictDiagnostic,
+        secondState: secondOrder?.syncState,
+        secondDiagnostic: secondOrder?.conflictDiagnostic
+      });
+    }
     assert(syncResult.syncedCount === 2, `Both orders synced successfully (synced: ${syncResult.syncedCount})`);
     assert(syncResult.remainingPending === 0, 'Zero pending orders remaining in outbox');
 
@@ -329,7 +430,11 @@ async function runEmulatorSyncTests() {
             committedAt: now,
             lines: [{ lineId: 'l1', menuItemId: menuLatteId, quantity: 1 }]
           },
-          paymentMethod: 'cash'
+          paymentMethod: 'cash',
+          mode: 'offline_sync',
+          authorityGrant: order1Res.outboxEntry.grant,
+          deviceId: order1Res.outboxEntry.deviceId,
+          catalogVersion: order1Res.outboxEntry.grant.payload.catalogVersion
         })
       })
     );

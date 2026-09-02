@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import admin from 'firebase-admin';
 import { isMasterAdminClaim } from '../src/lib/auth/admin-claim-resolver';
+import { seedDemoCashierScenario } from '../scripts/seed-emulator-cashier';
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'demo-katuwang-offline-test';
 const FIRESTORE_HOST = process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080';
@@ -23,6 +24,8 @@ test('Master Admin Command Center Authorization & Isolation Suite', async (t) =>
   const masterAdminEmail = 'jomsjovelo@gmail.com';
   const ownerUid = 'demo_owner_uid';
   const cashierUid = 'cashier_demo_uid_1';
+
+  await seedDemoCashierScenario();
 
   await t.test('1. Master Admin Auth user exists with verified email and canonical admin claims', async () => {
     const userRecord = await auth.getUser(masterAdminUid);

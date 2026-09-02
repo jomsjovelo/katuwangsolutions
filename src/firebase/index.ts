@@ -24,6 +24,15 @@ let db: Firestore;
 let auth: Auth;
 let emulatorsConnected = false;
 
+function parseLoopbackEmulatorEndpoint(value: string, label: string): { host: string; port: number } {
+  const match = /^(127\.0\.0\.1|localhost):(\d{1,5})$/.exec(value);
+  const port = match ? Number.parseInt(match[2], 10) : 0;
+  if (!match || port < 1 || port > 65535) {
+    throw new Error(`[SECURITY_FAIL_CLOSED] Invalid ${label} emulator endpoint.`);
+  }
+  return { host: match[1], port };
+}
+
 export function isFirestorePersistenceActive(): boolean {
   if (typeof window !== 'undefined') {
     return window.__katuwang_firestore_persistence_active ?? false;
@@ -46,10 +55,20 @@ function connectClientEmulators(authInstance: Auth, dbInstance: Firestore) {
     }
 
     try {
-      connectAuthEmulator(authInstance, 'http://127.0.0.1:9099', { disableWarnings: true });
-      connectFirestoreEmulator(dbInstance, '127.0.0.1', 8080);
+      const authEndpoint = parseLoopbackEmulatorEndpoint(
+        process.env.NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST || process.env.FIREBASE_AUTH_EMULATOR_HOST || '127.0.0.1:9099',
+        'Auth'
+      );
+      const firestoreEndpoint = parseLoopbackEmulatorEndpoint(
+        process.env.NEXT_PUBLIC_FIRESTORE_EMULATOR_HOST || process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080',
+        'Firestore'
+      );
+      connectAuthEmulator(authInstance, `http://${authEndpoint.host}:${authEndpoint.port}`, { disableWarnings: true });
+      connectFirestoreEmulator(dbInstance, firestoreEndpoint.host, firestoreEndpoint.port);
       emulatorsConnected = true;
-      console.info('[FIREBASE_EMULATOR] Connected client SDKs to local Auth (9099) and Firestore (8080).');
+      console.info(
+        `[FIREBASE_EMULATOR] Connected client SDKs to local Auth (${authEndpoint.port}) and Firestore (${firestoreEndpoint.port}).`
+      );
     } catch (err: any) {
       if (!err.message?.includes('already been called') && !err.message?.includes('already started')) {
         console.error('[FIREBASE_EMULATOR] Failed connecting to local emulators:', err);
