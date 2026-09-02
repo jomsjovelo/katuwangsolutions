@@ -26,8 +26,13 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
+      - name: Run Benta unit tests
+        run: pnpm tsx scripts/run-benta-unit-tests.ts
+
+      - name: Run Order Snap unit tests
+        run: pnpm tsx scripts/run-order-snap-unit-tests.ts
 
       - name: Typecheck
         run: pnpm run typecheck
