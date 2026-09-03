@@ -1,92 +1,73 @@
 import { useState, useEffect, useCallback } from 'react';
-import { collection, query, where, getCountFromServer } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
+import type { CommandCenterStats } from '@/lib/server/command-center-stats';
 
-export interface SystemStats {
-  totalTenants: number;
-  activeTenants: number;
-  suspendedTenants: number;
-  pendingTenants: number;
-  mrr: number;
-  promoCount: number;
-  standardCount: number;
-  enterpriseCount: number;
-  focCount: number;
+export type SystemStats = CommandCenterStats;
+
+function isSystemStats(value: unknown): value is SystemStats {
+  if (!value || typeof value !== 'object') return false;
+  const stats = value as Record<string, unknown>;
+  const keys: Array<keyof SystemStats> = [
+    'totalTenants',
+    'activeTenants',
+    'suspendedTenants',
+    'pendingTenants',
+    'mrr',
+    'promoCount',
+    'standardCount',
+    'enterpriseCount',
+    'focCount',
+  ];
+  return Object.keys(stats).length === keys.length && keys.every((key) => (
+    typeof stats[key] === 'number' && Number.isFinite(stats[key]) && stats[key] >= 0
+  ));
 }
 
 export function useAdminStats(enabled: boolean = true) {
   const [stats, setStats] = useState<SystemStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
     try {
-      const { db } = initializeFirebase();
-      const tenantsRef = collection(db, 'tenants');
+      const { auth } = initializeFirebase();
+      const user = auth.currentUser;
+      if (!user) throw new Error('Administrator authentication is required.');
 
-      // Execute extremely fast aggregation queries (Costs exactly 1 read per query regardless of collection size)
-      const [
-        totalSnap,
-        activeSnap,
-        suspendedSnap,
-        pendingSnap,
-        promoSnap,
-        promo50Snap,
-        standardSnap,
-        standard100Snap,
-        enterpriseSnap,
-        focSnap
-      ] = await Promise.all([
-        getCountFromServer(tenantsRef),
-        getCountFromServer(query(tenantsRef, where('subscriptionStatus', '==', 'active'))),
-        getCountFromServer(query(tenantsRef, where('subscriptionStatus', '==', 'suspended'))),
-        getCountFromServer(query(tenantsRef, where('subscriptionStatus', '==', 'pending'))),
-        getCountFromServer(query(tenantsRef, where('subscriptionStatus', '==', 'active'), where('pricingTier', '==', 'promo_99'))),
-        getCountFromServer(query(tenantsRef, where('subscriptionStatus', '==', 'active'), where('pricingTier', '==', 'promo_50'))),
-        getCountFromServer(query(tenantsRef, where('subscriptionStatus', '==', 'active'), where('pricingTier', '==', 'standard_199'))),
-        getCountFromServer(query(tenantsRef, where('subscriptionStatus', '==', 'active'), where('pricingTier', '==', 'standard_100'))),
-        getCountFromServer(query(tenantsRef, where('subscriptionStatus', '==', 'active'), where('pricingTier', '==', 'enterprise'))),
-        getCountFromServer(query(tenantsRef, where('subscriptionStatus', '==', 'active'), where('pricingTier', '==', 'foc')))
-      ]);
-
-      const promoCount = promoSnap.data().count;
-      const promo50Count = promo50Snap.data().count;
-      const standardCount = standardSnap.data().count;
-      const standard100Count = standard100Snap.data().count;
-      const enterpriseCount = enterpriseSnap.data().count;
-      const focCount = focSnap.data().count;
-
-      // Calculate MRR instantly based on live pricing tier counts
-      // Note: We use the default prices here. In a true enterprise setup, this would pull from system config.
-      const calculatedMrr = (promoCount * 99) + (promo50Count * 50) + (standardCount * 199) + (standard100Count * 100) + (enterpriseCount * 499) + (focCount * 0);
-
-      setStats({
-        totalTenants: totalSnap.data().count,
-        activeTenants: activeSnap.data().count,
-        suspendedTenants: suspendedSnap.data().count,
-        pendingTenants: pendingSnap.data().count,
-        mrr: calculatedMrr,
-        promoCount: promoCount + promo50Count,
-        standardCount: standardCount + standard100Count,
-        enterpriseCount,
-        focCount
+      const token = await user.getIdToken();
+      const response = await fetch('/api/admin/stats', {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
       });
+      const payload: unknown = await response.json().catch(() => null);
+
+      if (!response.ok || !isSystemStats(payload)) {
+        throw new Error(response.status === 403
+          ? 'Your administrator role cannot view system statistics.'
+          : 'System statistics are temporarily unavailable.');
+      }
+
+      setStats(payload);
       setError(null);
-    } catch (e) {
-      const err = e as Error & { code?: string };
-      console.error('Failed to load system stats:', err);
-      setError(err.message);
+    } catch (cause) {
+      setStats(null);
+      setError(cause instanceof Error ? cause.message : 'System statistics are temporarily unavailable.');
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (enabled) {
-      fetchStats();
+    if (!enabled) {
+      setStats(null);
+      setError(null);
+      setLoading(false);
+      return;
     }
-  }, [fetchStats, enabled]);
+    void fetchStats();
+  }, [enabled, fetchStats]);
 
   return { stats, loading, error, refreshStats: fetchStats };
 }

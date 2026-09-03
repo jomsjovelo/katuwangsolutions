@@ -86,7 +86,7 @@ export default function AdminKillSwitch() {
   const adminAccess = useVerifiedAdminAccess(user, authLoading);
   const adminDataEnabled = adminAccess === 'allowed';
   const { tenants, loading, error, fetchTenants, searchTenants, hasNextPage, hasPrevPage, updateTenantStatus, updateModuleStatus, updateTenantPricing, updateModulePricingTier, updateNextBillingDate, processTenantRenewal, toggleTenantModule, approvePendingModuleRequest, annihilateTenant, pendingCount } = useAdminTenants(adminDataEnabled);
-  const { stats, loading: statsLoading } = useAdminStats(adminDataEnabled);
+  const { stats, loading: statsLoading, error: statsError } = useAdminStats(adminDataEnabled);
   
   const [search, setSearch] = useState("");
   const [showPendingOnly, setShowPendingOnly] = useState(false);
@@ -370,10 +370,10 @@ export default function AdminKillSwitch() {
       {activeTab === 'dashboard' && (
         <>
           {/* Error State */}
-          {error && (
+          {statsError && (
             <div className="flex items-center gap-3 bg-destructive/10 border border-destructive/30 text-destructive p-4 rounded-xl mb-6 text-sm font-medium">
               <AlertCircle className="h-5 w-5 flex-shrink-0" />
-              <span>Failed to load system stats: {error}. Please check your Firestore permissions.</span>
+              <span>{statsError}</span>
             </div>
           )}
 
@@ -384,7 +384,7 @@ export default function AdminKillSwitch() {
             </div>
           )}
 
-          {!statsLoading && !error && (
+          {!statsLoading && !statsError && (
             <>
               {/* Analytics Row */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-12">
