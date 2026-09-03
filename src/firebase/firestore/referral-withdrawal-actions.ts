@@ -2,7 +2,6 @@ import { initializeFirebase } from '../index';
 import { 
   collection, 
   doc, 
-  updateDoc,
   serverTimestamp,
 } from 'firebase/firestore';
 import { runTransactionResilient } from './resilient-transaction';
@@ -73,55 +72,35 @@ export async function submitReferralWithdrawal(
   return newDocId;
 }
 
-export async function markWithdrawalPaid(
-  withdrawalId: string, 
-  adminEmail: string
+async function submitWithdrawalDecision(
+  withdrawalId: string,
+  action: 'mark_paid' | 'reject',
 ): Promise<void> {
-  const { db } = initializeFirebase();
-  const withdrawalRef = doc(db, 'referral_withdrawals', withdrawalId);
-  
-  await updateDoc(withdrawalRef, {
-    status: 'paid',
-    processedAt: serverTimestamp(),
-    processedBy: adminEmail
+  const { auth } = initializeFirebase();
+  const user = auth.currentUser;
+  if (!user) throw new Error('Administrator authentication is required.');
+
+  const token = await user.getIdToken();
+  const response = await fetch(`/api/admin/withdrawals/${encodeURIComponent(withdrawalId)}/decision`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ action }),
   });
+
+  if (!response.ok) {
+    throw new Error(response.status === 409
+      ? 'This withdrawal has already been resolved or requires review.'
+      : 'Withdrawal processing is temporarily unavailable.');
+  }
 }
 
-export async function rejectWithdrawal(
-  withdrawalId: string,
-  uid: string,
-  amountPesos: number,
-  adminEmail: string
-): Promise<void> {
-  const { db } = initializeFirebase();
+export async function markWithdrawalPaid(withdrawalId: string): Promise<void> {
+  await submitWithdrawalDecision(withdrawalId, 'mark_paid');
+}
 
-  await runTransactionResilient(db, async (transaction) => {
-    const withdrawalRef = doc(db, 'referral_withdrawals', withdrawalId);
-    const userRef = doc(db, 'users', uid);
-    
-    const [withdrawalSnap, userSnap] = await Promise.all([
-      transaction.get(withdrawalRef),
-      transaction.get(userRef)
-    ]);
-
-    if (!withdrawalSnap.exists()) throw new Error("Withdrawal request not found.");
-    if (!userSnap.exists()) throw new Error("User profile not found.");
-    if (withdrawalSnap.data()?.status !== 'pending') throw new Error("Only pending requests can be rejected.");
-
-    const currentEarnings = userSnap.data()?.referralEarnings || 0;
-    const currentAvailable = userSnap.data()?.availableBalance || currentEarnings; // Fallback to earnings if availableBalance is missing
-
-    // Refund the user's available balance
-    transaction.update(userRef, {
-      availableBalance: currentAvailable + amountPesos,
-      updatedAt: serverTimestamp()
-    });
-
-    // Mark withdrawal as rejected
-    transaction.update(withdrawalRef, {
-      status: 'rejected',
-      processedAt: serverTimestamp(),
-      processedBy: adminEmail
-    });
-  });
+export async function rejectWithdrawal(withdrawalId: string): Promise<void> {
+  await submitWithdrawalDecision(withdrawalId, 'reject');
 }

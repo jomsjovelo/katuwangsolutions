@@ -7,6 +7,7 @@ const tsxCli = require.resolve('tsx/cli');
 const tests = [
   'test/master-admin-authorization.test.ts',
   'test/command-center-stats.test.ts',
+  'test/command-center-withdrawals.test.ts',
 ];
 
 let passed = 0;

@@ -41,7 +41,7 @@ export function AdminWithdrawals() {
     if (!user?.email) return;
     setLoadingId(id);
     try {
-      await markWithdrawalPaid(id, user.email);
+      await markWithdrawalPaid(id);
     } catch (err) {
       console.error("Failed to mark paid", err);
       alert("Failed to mark as paid");
@@ -50,12 +50,12 @@ export function AdminWithdrawals() {
     }
   };
 
-  const handleReject = async (id: string, uid: string, amountPesos: number) => {
+  const handleReject = async (id: string, amountPesos: number) => {
     if (!user?.email) return;
     if (!window.confirm(`Are you sure you want to reject this request and refund ₱${amountPesos} back to the user's available balance?`)) return;
     setLoadingId(id);
     try {
-      await rejectWithdrawal(id, uid, amountPesos, user.email);
+      await rejectWithdrawal(id);
     } catch (err) {
       console.error("Failed to reject", err);
       alert("Failed to reject request");
@@ -154,7 +154,7 @@ export function AdminWithdrawals() {
                     </Button>
                     <Button 
                       variant="outline"
-                      onClick={() => handleReject(w.id, w.uid, w.amountPesos)}
+                      onClick={() => handleReject(w.id, w.amountPesos)}
                       disabled={loadingId === w.id}
                       className="font-bold border-destructive text-destructive hover:bg-destructive/10"
                     >
