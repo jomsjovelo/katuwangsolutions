@@ -24,6 +24,7 @@ import assert from 'node:assert/strict';
 
 import {
   isSaleVoided,
+  selectActiveSales,
   isSaleReversalLedgerEntry,
   isIncomeEntryForVoidedSale,
   buildExcludedIncomeLedgerIds,
@@ -59,6 +60,23 @@ test('isSaleVoided: all three evidence fields absent → active', () => {
 
 test('isSaleVoided: whitespace-only voidedAt is treated as absent', () => {
   assert.equal(isSaleVoided({ voidedAt: '   ' }), false);
+});
+
+test('selectActiveSales: home totals exclude voided sales without removing audit records', () => {
+  const sales: SaleRecord[] = [
+    { id: 'active', totalAmount: 2800 },
+    { id: 'voided-status', totalAmount: 4500, status: 'voided' },
+    { id: 'voided-reversal', totalAmount: 1500, reversalId: 'rev_1' },
+  ];
+
+  const activeSales = selectActiveSales(sales);
+
+  assert.deepEqual(activeSales.map((sale) => sale.id), ['active']);
+  assert.equal(
+    activeSales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0),
+    2800,
+  );
+  assert.equal(sales.length, 3, 'The audit-history input remains intact');
 });
 
 // ---------------------------------------------------------------------------

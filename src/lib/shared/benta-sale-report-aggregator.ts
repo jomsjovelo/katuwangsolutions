@@ -88,6 +88,11 @@ export function isSaleVoided(sale: SaleRecord): boolean {
   return false;
 }
 
+/** Returns only sales that still contribute to operational totals. */
+export function selectActiveSales<T extends SaleRecord>(sales: T[]): T[] {
+  return sales.filter((sale) => !isSaleVoided(sale));
+}
+
 // ---------------------------------------------------------------------------
 // Ledger entry filtering
 // ---------------------------------------------------------------------------

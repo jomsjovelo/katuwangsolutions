@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { useUser } from '@/firebase/auth/use-user';
 import { useSales } from '@/hooks/use-sales';
@@ -15,6 +15,7 @@ import { CreditTracker } from './credit-tracker';
 import { CashDrawerLedger } from './retail/cash-drawer-ledger';
 import { useActivityTimeline } from '@/hooks/use-activity-timeline';
 import { cn } from '@/lib/utils';
+import { selectActiveSales } from '@/lib/shared/benta-sale-report-aggregator';
 import {
   TrendingUp,
   Package,
@@ -158,7 +159,7 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
   const theme = getModuleTheme(currentTenant?.moduleType);
 
   const [selectedDate] = useState<Date>(new Date());
-  const { sales = [], dailyTotalPesos, loading: salesLoading } = useSales(selectedDate);
+  const { sales = [], loading: salesLoading } = useSales(selectedDate);
   const { products, lowStockItems, outOfStockItems, loading: inventoryLoading } = useInventory();
 
   // 5-6 Tracker custom state for transactions
@@ -194,9 +195,17 @@ export function HomeTab({ setTab }: { setTab?: (tab: string) => void }) {
     return () => unsubscribe();
   }, [currentTenant?.id]);
 
+  const activeSalesTotalPesos = useMemo(
+    () => selectActiveSales(sales).reduce(
+      (sum, sale) => sum + ((sale.totalAmount || 0) / 100),
+      0,
+    ),
+    [sales],
+  );
+
   const displayDailyTotalPesos = currentTenant?.moduleType === '5-6-tracker'
     ? creditTransactions.filter(tx => tx.type === 'payment').reduce((acc, curr) => acc + curr.amount, 0) / 100
-    : dailyTotalPesos;
+    : activeSalesTotalPesos;
 
   const displayLoading = currentTenant?.moduleType === '5-6-tracker' ? creditTransactionsLoading : salesLoading;
 
