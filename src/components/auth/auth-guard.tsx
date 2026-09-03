@@ -340,7 +340,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const isPublicRoute = isPublicPathname(pathname);
 
   // 1. Initial Loading/Hydration State
-  if (!isPublicRoute && !error && (authLoading || checking || (user && isAdmin === null && !isCashierUser))) {
+  const isAdminRouteResolving = pathname === '/admin' && (
+    authLoading || Boolean(user && (checking || isAdmin === null))
+  );
+  if (isAdminRouteResolving || (!isPublicRoute && !error && (authLoading || checking || (user && isAdmin === null && !isCashierUser)))) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-white">
         <div className="relative flex flex-col items-center gap-6">

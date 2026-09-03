@@ -12,13 +12,40 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/tenants/$(tenantId)).data;
     }
 
+    function hasMasterAdminClaim() {
+      return isAuthenticated() && (
+        request.auth.token.get('admin', false) == true ||
+        request.auth.token.get('role', '') == 'admin' ||
+        request.auth.token.get('role', '') == 'superadmin' ||
+        request.auth.token.get('isMasterAdmin', false) == true ||
+        request.auth.token.get('adminRole', '') == 'superadmin'
+      );
+    }
+
+    function hasValidAdminDocument() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.get('role', 'superadmin') in [
+          'superadmin', 'admin', 'billing', 'support', 'auditor'
+        ];
+    }
+
     function isMasterAdmin() {
-      // Security: Verify user exists in the admins collection
-      return isAuthenticated() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      // Signed server-issued claims and authoritative administrator documents
+      // intentionally follow the same contract as the Command Center UI.
+      return hasMasterAdminClaim() || hasValidAdminDocument();
     }
 
     function isSuperAdmin() {
-      return isMasterAdmin() && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.get('role', 'superadmin') == 'superadmin';
+      return isAuthenticated() && (
+        request.auth.token.get('role', '') == 'superadmin' ||
+        request.auth.token.get('isMasterAdmin', false) == true ||
+        request.auth.token.get('adminRole', '') == 'superadmin' ||
+        (
+          exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.get('role', 'superadmin') == 'superadmin'
+        )
+      );
     }
 
     function isTenantOwner(tenantId) {

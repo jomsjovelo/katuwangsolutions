@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { isMasterAdminClaim, isMasterAdminDocData, resolveAdminStatus } from '../src/lib/auth/admin-claim-resolver';
+import { isAdminRole, isMasterAdminClaim, isMasterAdminDocData, isSuperAdminClaim, resolveAdminStatus } from '../src/lib/auth/admin-claim-resolver';
 
 test('Master Admin Authorization & Fallback Resolution Suite', async (t) => {
   const adminUid = 'admin_uid_live_123';
@@ -86,10 +86,25 @@ test('Master Admin Authorization & Fallback Resolution Suite', async (t) => {
   await t.test('7. Admin document data validator accepts valid admin roles and rejects invalid roles', async () => {
     assert.strictEqual(isMasterAdminDocData({ role: 'superadmin' }), true);
     assert.strictEqual(isMasterAdminDocData({ role: 'admin' }), true);
+    assert.strictEqual(isMasterAdminDocData({ role: 'billing' }), true);
+    assert.strictEqual(isMasterAdminDocData({ role: 'support' }), true);
+    assert.strictEqual(isMasterAdminDocData({ role: 'auditor' }), true);
     assert.strictEqual(isMasterAdminDocData({}), true, 'Omitted role defaults to master admin on existing doc');
     assert.strictEqual(isMasterAdminDocData({ role: 'cashier' }), false);
     assert.strictEqual(isMasterAdminDocData({ role: 'member' }), false);
     assert.strictEqual(isMasterAdminDocData({ role: 'owner' }), false);
     assert.strictEqual(isMasterAdminDocData(null), false);
+  });
+
+  await t.test('8. Canonical roles and explicit superadmin claims remain distinguishable', async () => {
+    assert.strictEqual(isAdminRole('support'), true);
+    assert.strictEqual(isAdminRole('billing'), true);
+    assert.strictEqual(isAdminRole('auditor'), true);
+    assert.strictEqual(isAdminRole('owner'), false);
+    assert.strictEqual(isSuperAdminClaim({ role: 'superadmin' }), true);
+    assert.strictEqual(isSuperAdminClaim({ adminRole: 'superadmin' }), true);
+    assert.strictEqual(isSuperAdminClaim({ admin: true }), false);
+    assert.strictEqual(isSuperAdminClaim({ role: 'admin' }), false);
+    assert.strictEqual(isSuperAdminClaim({ role: 'support' }), false);
   });
 });

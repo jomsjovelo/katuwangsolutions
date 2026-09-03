@@ -3,6 +3,13 @@
  * Evaluates Firebase Auth custom token claims and authoritative Firestore /admins/{uid} documents.
  */
 
+export const ADMIN_ROLES = ['superadmin', 'admin', 'billing', 'support', 'auditor'] as const;
+export type AdminRole = typeof ADMIN_ROLES[number];
+
+export function isAdminRole(value: unknown): value is AdminRole {
+  return typeof value === 'string' && (ADMIN_ROLES as readonly string[]).includes(value);
+}
+
 export function isMasterAdminClaim(claims: Record<string, any> | undefined | null): boolean {
   if (!claims || typeof claims !== 'object') return false;
   return (
@@ -14,12 +21,21 @@ export function isMasterAdminClaim(claims: Record<string, any> | undefined | nul
   );
 }
 
+export function isSuperAdminClaim(claims: Record<string, any> | undefined | null): boolean {
+  if (!claims || typeof claims !== 'object') return false;
+  return (
+    claims.role === 'superadmin' ||
+    claims.isMasterAdmin === true ||
+    claims.adminRole === 'superadmin'
+  );
+}
+
 export function isMasterAdminDocData(data: Record<string, any> | undefined | null): boolean {
   if (!data || typeof data !== 'object') return false;
-  // If role is present, it must be 'superadmin' or 'admin'. If omitted on an existing admin doc, defaults to superadmin.
+  // Legacy administrator documents omitted role and historically meant superadmin.
   const role = data.role;
   if (role === undefined || role === null || role === '') return true;
-  return role === 'superadmin' || role === 'admin';
+  return isAdminRole(role);
 }
 
 export async function resolveAdminStatus(

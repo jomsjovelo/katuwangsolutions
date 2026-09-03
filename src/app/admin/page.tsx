@@ -7,6 +7,7 @@ import { initializeFirebase } from '@/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useAdminTenants } from '@/hooks/use-admin-tenants';
 import { useAdminStats } from '@/hooks/use-admin-stats';
+import { useVerifiedAdminAccess } from '@/hooks/use-verified-admin-access';
 import { useTenantStore, PricingTier } from '@/store/use-tenant-store';
 import { useUser } from '@/firebase/auth/use-user';
 import { loginUser } from '@/firebase/firestore/staff-actions';
@@ -82,8 +83,10 @@ interface SystemConfig {
 
 export default function AdminKillSwitch() {
   const { user, loading: authLoading } = useUser();
-  const { tenants, loading, error, fetchTenants, searchTenants, hasNextPage, hasPrevPage, updateTenantStatus, updateModuleStatus, updateTenantPricing, updateModulePricingTier, updateNextBillingDate, processTenantRenewal, toggleTenantModule, approvePendingModuleRequest, annihilateTenant, pendingCount } = useAdminTenants(!!user);
-  const { stats, loading: statsLoading } = useAdminStats(!!user);
+  const adminAccess = useVerifiedAdminAccess(user, authLoading);
+  const adminDataEnabled = adminAccess === 'allowed';
+  const { tenants, loading, error, fetchTenants, searchTenants, hasNextPage, hasPrevPage, updateTenantStatus, updateModuleStatus, updateTenantPricing, updateModulePricingTier, updateNextBillingDate, processTenantRenewal, toggleTenantModule, approvePendingModuleRequest, annihilateTenant, pendingCount } = useAdminTenants(adminDataEnabled);
+  const { stats, loading: statsLoading } = useAdminStats(adminDataEnabled);
   
   const [search, setSearch] = useState("");
   const [showPendingOnly, setShowPendingOnly] = useState(false);

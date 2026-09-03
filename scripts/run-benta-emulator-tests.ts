@@ -17,7 +17,8 @@ const bentaEmulatorTests = [
   'test/staff-logout-route.emulator.test.ts',
   'test/staff-logout.emulator.test.ts',
   'test/variable-quantity-vertical-slice.emulator.test.ts',
-  'test/master-admin-authorization.emulator.test.ts'
+  'test/master-admin-authorization.emulator.test.ts',
+  'test/command-center-authorization.emulator.test.ts'
 ];
 
 console.log(`\n======================================================`);
