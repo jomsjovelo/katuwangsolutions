@@ -46,6 +46,9 @@ export interface SaleItemSnapshot {
 
 export interface SaleRecord {
   id?: string;
+  tenantId?: string;
+  module?: string;
+  moduleId?: string;
   totalAmount?: number;       // centavos
   subtotalAmount?: number;    // centavos (pre-discount)
   discountAmount?: number;    // centavos
@@ -53,6 +56,9 @@ export interface SaleRecord {
   voidedAt?: string | null;
   reversalId?: string | null;
   items?: SaleItemSnapshot[];
+  createdAt?: any;
+  paymentMethod?: string;
+  orderId?: string;
 }
 
 export interface LedgerTransaction {
@@ -91,6 +97,139 @@ export function isSaleVoided(sale: SaleRecord): boolean {
 /** Returns only sales that still contribute to operational totals. */
 export function selectActiveSales<T extends SaleRecord>(sales: T[]): T[] {
   return sales.filter((sale) => !isSaleVoided(sale));
+}
+
+// ---------------------------------------------------------------------------
+// Order Snap shape normalization
+// ---------------------------------------------------------------------------
+
+/**
+ * Normalizes a production Order Snap sale document into the common SaleRecord
+ * shape consumed by the report aggregator.
+ *
+ * Order Snap finalizer writes:
+ *   - totalRevenueCentavos  (instead of totalAmount)
+ *   - totalCogsCentavos     (authoritative line-level COGS)
+ *   - saleLines             (instead of items)
+ *   - moduleId              (canonical module identifier)
+ *
+ * This mapper is intentionally pure and does not mutate the input.
+ *
+ * Returns null for malformed data. Any invalid line causes the entire sale
+ * to be rejected. Malformed records must not increase checkout count.
+ */
+export function normalizeOrderSnapSale(sale: Record<string, any>): SaleRecord | null {
+  const saleId = sale.id ?? sale.saleId;
+  if (!saleId || typeof saleId !== 'string') {
+    return null;
+  }
+
+  const moduleId = sale.moduleId;
+  if (!moduleId || typeof moduleId !== 'string') {
+    return null;
+  }
+
+  const totalRevenueCentavos = sale.totalRevenueCentavos;
+  const totalCogsCentavos = sale.totalCogsCentavos;
+
+  if (
+    typeof totalRevenueCentavos !== 'number' ||
+    !Number.isSafeInteger(totalRevenueCentavos) ||
+    totalRevenueCentavos < 0
+  ) {
+    return null;
+  }
+
+  if (
+    typeof totalCogsCentavos !== 'number' ||
+    !Number.isSafeInteger(totalCogsCentavos) ||
+    totalCogsCentavos < 0
+  ) {
+    return null;
+  }
+
+  const saleLines = Array.isArray(sale.saleLines) ? sale.saleLines : [];
+  const items: SaleItemSnapshot[] = [];
+  let lineRevenueSum = 0;
+  let lineCogsSum = 0;
+
+  for (const line of saleLines) {
+    const menuItemId = line.menuItemId;
+    const quantity = line.quantity;
+    const finalUnitPriceCentavos = line.finalUnitPriceCentavos;
+    const lineCogsCentavos = line.lineCogsCentavos;
+    const lineRevenueCentavos = line.lineRevenueCentavos;
+
+    if (
+      !menuItemId ||
+      typeof menuItemId !== 'string' ||
+      typeof quantity !== 'number' ||
+      !Number.isSafeInteger(quantity) ||
+      quantity <= 0
+    ) {
+      return null;
+    }
+
+    if (
+      typeof finalUnitPriceCentavos !== 'number' ||
+      !Number.isSafeInteger(finalUnitPriceCentavos) ||
+      finalUnitPriceCentavos < 0
+    ) {
+      return null;
+    }
+
+    if (
+      typeof lineCogsCentavos !== 'number' ||
+      !Number.isSafeInteger(lineCogsCentavos) ||
+      lineCogsCentavos < 0
+    ) {
+      return null;
+    }
+
+    if (
+      typeof lineRevenueCentavos !== 'number' ||
+      !Number.isSafeInteger(lineRevenueCentavos) ||
+      lineRevenueCentavos < 0
+    ) {
+      return null;
+    }
+
+    const expectedLineRevenue = quantity * finalUnitPriceCentavos;
+    if (lineRevenueCentavos !== expectedLineRevenue) {
+      return null;
+    }
+
+    lineRevenueSum += lineRevenueCentavos;
+    lineCogsSum += lineCogsCentavos;
+
+    items.push({
+      productId: menuItemId,
+      name: line.menuItemName || menuItemId,
+      quantity,
+      price: finalUnitPriceCentavos,
+      lineCostCentavos: lineCogsCentavos,
+      costPrice: line.unitCogsCentavos ?? lineCogsCentavos,
+      lineCost: lineCogsCentavos,
+    });
+  }
+
+  if (lineRevenueSum !== totalRevenueCentavos || lineCogsSum !== totalCogsCentavos) {
+    return null;
+  }
+
+  return {
+    id: saleId,
+    tenantId: sale.tenantId,
+    module: moduleId,
+    moduleId,
+    totalAmount: totalRevenueCentavos,
+    subtotalAmount: totalRevenueCentavos,
+    discountAmount: 0,
+    status: sale.status || 'completed',
+    voidedAt: sale.voidedAt,
+    reversalId: sale.reversalId,
+    items,
+  };
 }
 
 // ---------------------------------------------------------------------------

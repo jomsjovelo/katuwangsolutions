@@ -25,13 +25,19 @@ import { submitSaleReversal, SaleReversalError, generateIdempotencyKey, validate
 import { executeBentaVoid } from '@/lib/client/benta-void-orchestration';
 import { isBentaExactPoolCostedSale } from '@/lib/shared/benta-sale-mutation-guard';
 import { computeLineFinancials } from '@/lib/shared/quantity-math';
-import {
-  isSaleVoided,
+import { isSaleVoided,
   isSaleReversalLedgerEntry,
   isIncomeEntryExcluded,
   selectActiveIncomeLedgerEntries,
   computeOwnerPnL,
+  type SaleRecord,
+  type LedgerTransaction,
 } from '@/lib/shared/benta-sale-report-aggregator';
+import {
+  filterTransactionsByModule,
+  prepareSalesForModule,
+  canMutateSaleFromReports,
+} from '@/lib/shared/sale-module-filter';
 import { EditTransactionModal } from './retail/edit-transaction-modal';
 import {
   AlertDialog,
@@ -384,14 +390,26 @@ export function ReportsTab() {
 
   const { start: rangeStart, end: rangeEnd } = React.useMemo(() => getRangeBounds(dateRangeStr), [dateRangeStr]);
   
-  // Load unified sales for gross sales vs discounts visualization
+  // Load unified sales for gross sales vs discounts visualization.
+  // useSales already returns module-prepared, normalized sales.
   const { sales } = useSales({ start: rangeStart, end: rangeEnd });
+
+  const sameModuleSaleIds = React.useMemo(() => {
+    return new Set(sales.map(s => s.id).filter((id): id is string => typeof id === 'string'));
+  }, [sales]);
+
+  const isPrimaryModule = currentTenant?.moduleType === currentTenant?.primaryModuleType;
+
+  const moduleFilteredTransactions = React.useMemo(() => {
+    return filterTransactionsByModule(transactions, sameModuleSaleIds, isPrimaryModule);
+  }, [transactions, sameModuleSaleIds, isPrimaryModule]);
+
   // activeSales excludes voided; used for all financial aggregations
   // (all-sales are still passed to computeOwnerPnL which does its own partitioning)
   const _pnlIntermediate = React.useMemo(
-    () => computeOwnerPnL(sales as any[], transactions),
+    () => computeOwnerPnL(sales as any[], moduleFilteredTransactions as any[]),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sales, transactions]
+    [sales, moduleFilteredTransactions]
   );
 
   // Load unified master ledger transactions
@@ -439,29 +457,54 @@ export function ReportsTab() {
       });
     }
 
+    // Stale-request protection: cancelled flag prevents old requests from
+    // calling setState after cleanup or re-run.
+    let cancelled = false;
+    const salesRef = collection(db, 'tenants', currentTenant.id, 'sales');
+    const ySalesQuery = query(
+      salesRef,
+      where('createdAt', '>=', Timestamp.fromDate(yesterdayStart)),
+      where('createdAt', '<=', Timestamp.fromDate(yesterdayEnd)),
+    );
+
     const yQuery = query(
       txRef,
       where('createdAt', '>=', Timestamp.fromDate(yesterdayStart)),
       where('createdAt', '<=', Timestamp.fromDate(yesterdayEnd))
     );
-    
-    getDocs(yQuery).then(ySnap => {
-      let yTotal = 0;
-      ySnap.forEach(d => {
-        const data = d.data();
-        if (data.type === 'income') {
-          yTotal += (data.amount || 0) / 100;
-        }
+
+    getDocs(ySalesQuery).then(ySalesSnap => {
+      if (cancelled) return;
+      const ySales = ySalesSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+      const preparedYSales = prepareSalesForModule(ySales, currentTenant?.moduleType, currentTenant?.primaryModuleType);
+
+      const yesterdaySameModuleSaleIds = new Set(preparedYSales.map(s => s.id).filter((id): id is string => typeof id === 'string'));
+
+      return getDocs(yQuery).then(ySnap => {
+        if (cancelled) return;
+
+        const ySaleLinked = filterTransactionsByModule(
+          ySnap.docs.map((d: any) => {
+            const data = d.data();
+            return { id: d.id, ...data, totalPesos: (data.amount || 0) / 100, timestamp: data.createdAt || data.date };
+          }),
+          yesterdaySameModuleSaleIds,
+          currentTenant?.moduleType === currentTenant?.primaryModuleType,
+        );
+        const yesterdayPnl = computeOwnerPnL(preparedYSales, ySaleLinked);
+        setYesterdayIncomePesos(yesterdayPnl.grossIncomePesos);
       });
-      setYesterdayIncomePesos(yTotal);
-    }).catch(e => console.error("Error fetching yesterday transactions", e));
+    }).catch(e => {
+      if (!cancelled) console.error("Error fetching yesterday transactions", e);
+    });
 
     return () => {
       if (unsubscribe) {
         unsubscribe();
       }
+      cancelled = true;
     };
-  }, [currentTenant?.id, dateRangeStr, rangeStart, rangeEnd]);
+  }, [currentTenant?.id, dateRangeStr, rangeStart, rangeEnd, currentTenant?.moduleType, currentTenant?.primaryModuleType]);
 
   // Load Top Referrers
   useEffect(() => {
@@ -488,6 +531,7 @@ export function ReportsTab() {
 
   const handleVoidTransaction = async (sale: any) => {
     if (!currentTenant || !sale?.id) return;
+    if (!canMutateSaleFromReports(sale, currentTenant.moduleType, currentTenant.primaryModuleType)) return;
 
     const approved = await requireApproval("I-authorize ang pag-void ng benta sa Report Tab");
     if (!approved) return;
@@ -565,6 +609,7 @@ export function ReportsTab() {
   };
 
   const handleOpenEditModal = async (sale: any) => {
+    if (!canMutateSaleFromReports(sale, currentTenant?.moduleType, currentTenant?.primaryModuleType)) return;
     const approved = await requireApproval("I-authorize ang pag-edit ng benta sa Report Tab");
     if (!approved) return;
 
@@ -581,12 +626,12 @@ export function ReportsTab() {
   //   • tx.saleId membership in voidedSaleIds (when saleId is present)
   //   • tx.id membership in excludedIncomeLedgerIds (originalIncomeLedgerId path)
   const incomeTxs = selectActiveIncomeLedgerEntries(
-    transactions,
+    moduleFilteredTransactions,
     voidedSaleIds,
     excludedIncomeLedgerIds,
   );
   // Operating expenses: exclude compensating Sale Reversal entries
-  const expenseTxs = transactions.filter(
+  const expenseTxs = moduleFilteredTransactions.filter(
     (t) => t.type === 'expense' && !isSaleReversalLedgerEntry(t),
   );
 
@@ -624,16 +669,22 @@ export function ReportsTab() {
       return { name: hourLabel, income: 0, expense: 0 };
     });
 
-    transactions.forEach(t => {
+    incomeTxs.forEach(t => {
       if (t.timestamp) {
         const dateObj = t.timestamp.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
         const hour = dateObj.getHours();
         if (hour >= 8 && hour <= 22) {
-          if (t.type === 'income') {
-            dualChartData[hour - 8].income += t.totalPesos || 0;
-          } else if (t.type === 'expense') {
-            dualChartData[hour - 8].expense += t.totalPesos || 0;
-          }
+          dualChartData[hour - 8].income += t.totalPesos || 0;
+        }
+      }
+    });
+
+    expenseTxs.forEach(t => {
+      if (t.timestamp) {
+        const dateObj = t.timestamp.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
+        const hour = dateObj.getHours();
+        if (hour >= 8 && hour <= 22) {
+          dualChartData[hour - 8].expense += t.totalPesos || 0;
         }
       }
     });
@@ -650,16 +701,22 @@ export function ReportsTab() {
       daysMap[dateKey] = { name: label, income: 0, expense: 0 };
     }
 
-    transactions.forEach(t => {
+    incomeTxs.forEach(t => {
       if (t.timestamp) {
         const dateObj = t.timestamp.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
         const dateKey = format(dateObj, 'yyyy-MM-dd');
         if (daysMap[dateKey]) {
-          if (t.type === 'income') {
-            daysMap[dateKey].income += t.totalPesos || 0;
-          } else if (t.type === 'expense') {
-            daysMap[dateKey].expense += t.totalPesos || 0;
-          }
+          daysMap[dateKey].income += t.totalPesos || 0;
+        }
+      }
+    });
+
+    expenseTxs.forEach(t => {
+      if (t.timestamp) {
+        const dateObj = t.timestamp.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
+        const dateKey = format(dateObj, 'yyyy-MM-dd');
+        if (daysMap[dateKey]) {
+          daysMap[dateKey].expense += t.totalPesos || 0;
         }
       }
     });
@@ -703,13 +760,13 @@ export function ReportsTab() {
   const isTsekIn = currentTenant?.moduleType === 'tsek-in' || currentTenant?.moduleType === 'hospitality';
 
   const handleExportCSV = () => {
-    if (transactions.length === 0) {
+    if (moduleFilteredTransactions.length === 0) {
       alert("No data to export for this date.");
       return;
     }
 
     const headers = ["Date", "Type", "Amount", "Payment Method", "Category"];
-    const rows = transactions.map(t => {
+    const rows = moduleFilteredTransactions.map(t => {
       const dateStr = t.timestamp ? (t.timestamp.toDate ? t.timestamp.toDate() : new Date(t.timestamp)).toLocaleString() : "";
       return [
         `"${dateStr}"`,
@@ -1084,7 +1141,7 @@ export function ReportsTab() {
                               {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                             </Button>
 
-                            {!saleIsVoided && (
+                            {!saleIsVoided && canMutateSaleFromReports(sale, currentTenant?.moduleType, currentTenant?.primaryModuleType) && (
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -1096,7 +1153,7 @@ export function ReportsTab() {
                               </Button>
                             )}
 
-                            {!saleIsVoided && (
+                            {!saleIsVoided && canMutateSaleFromReports(sale, currentTenant?.moduleType, currentTenant?.primaryModuleType) && (
                               <Button
                                 variant="outline"
                                 size="sm"

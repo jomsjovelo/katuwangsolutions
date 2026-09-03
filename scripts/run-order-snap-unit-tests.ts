@@ -19,6 +19,7 @@ const orderSnapUnitTests = [
   'test/order-snap/order-snap-lifecycle-foundation.test.ts',
   'test/order-snap-timpla-cash-checkout-adapter.test.ts',
   'test/order-snap-public-module-consolidation.test.ts',
+  'test/order-snap-report-isolation.test.ts',
   'test/shared-inventory-costing.test.ts',
 ];
 

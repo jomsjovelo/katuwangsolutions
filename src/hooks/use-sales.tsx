@@ -6,6 +6,7 @@ import { useFirestore } from '@/firebase/provider';
 import { useTenant } from '@/app/lib/tenant-context';
 import { Sale } from '@/lib/schemas/sales';
 import { startOfDay, endOfDay } from 'date-fns';
+import { prepareSalesForModule } from '@/lib/shared/sale-module-filter';
 
 export type DateRangeOrDate = Date | { start: Date; end: Date };
 
@@ -34,15 +35,19 @@ export function useSales(selectedDate: DateRangeOrDate = new Date()) {
 
   const { data, loading, error } = useCollection<Sale>(salesQuery as any);
 
+  const moduleFilteredSales = useMemo(() => {
+    return prepareSalesForModule(data, currentTenant?.moduleType, currentTenant?.primaryModuleType);
+  }, [data, currentTenant?.moduleType, currentTenant?.primaryModuleType]);
+
   // Calculate daily total in centavos
-  const dailyTotalCentavos = data.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
+  const dailyTotalCentavos = moduleFilteredSales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
   const dailyTotalPesos = dailyTotalCentavos / 100;
 
-  return { 
-    sales: data, 
+  return {
+    sales: moduleFilteredSales,
     dailyTotalPesos,
     dailyTotalCentavos,
-    loading, 
-    error 
+    loading,
+    error
   };
 }
