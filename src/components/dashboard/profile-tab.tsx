@@ -30,7 +30,7 @@ import {
 import { useSecureCashierStore } from '@/store/use-secure-cashier-store';
 import { staffLogout } from '@/lib/client/secure-benta-cashier-client';
 import { useToast } from '@/hooks/use-toast';
-import { getModuleTheme, MODULE_THEMES, ModuleTheme } from '@/lib/theme-utils';
+import { getModuleTheme } from '@/lib/theme-utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -50,6 +50,8 @@ import { BluetoothPrinterModal } from '@/components/common/bluetooth-printer-mod
 import { EscPosBluetoothDriver } from '@/lib/hardware/print-driver';
 import { cn } from '@/lib/utils';
 import { normalizeBentaBusinessProfile } from '@/lib/app-data';
+import { marketplaceApps } from '@/lib/app-marketplace-catalog';
+import { isOfficialDemoIdentity } from '@/lib/demo-access';
 import {
   User,
   Users,
@@ -102,6 +104,7 @@ export function ProfileTab() {
   const reset = useTenantStore(state => state.reset);
   const switchActiveModule = useTenantStore(state => state.switchActiveModule);
   const activeModuleOverride = useTenantStore(state => state.activeModuleOverride);
+  const rootTenant = useTenantStore(state => state.activeTenant);
   const { deferredPrompt, isInstalled, triggerInstall, isIOS } = usePWAInstall();
 
   const [profile, setProfile] = useState<any>(null);
@@ -806,7 +809,21 @@ export function ProfileTab() {
         )}
 
         {/* Unlocked Modules Switcher */}
-        {currentTenant && ((currentTenant.unlockedModules?.length ?? 0) > 0 || currentTenant.id === 'demo') && (
+        {currentTenant && (() => {
+          const isOfficialDemo = isOfficialDemoIdentity({
+            email: user?.email,
+            authUid: user?.uid,
+            tenantId: rootTenant?.id,
+            ownerUid: rootTenant?.ownerUid,
+          });
+          const visibleModules = marketplaceApps.filter((app) =>
+            isOfficialDemo
+            || app.id === currentTenant.moduleType
+            || app.id === currentTenant.primaryModuleType
+            || currentTenant.unlockedModules?.includes(app.id),
+          );
+          if (visibleModules.length <= 1 && !isOfficialDemo) return null;
+          return (
           <Card className="bg-white border-slate-200 shadow-sm overflow-hidden rounded-[24px]">
             <CardHeader className="p-4 pb-2 flex flex-row items-center gap-2">
               <PlusSquare className="h-4 w-4" style={{ color: theme.primary }} />
@@ -814,18 +831,13 @@ export function ProfileTab() {
             </CardHeader>
             <CardContent className="p-0">
               <div className="divide-y divide-slate-100">
-                {Object.entries(MODULE_THEMES).filter(([key]) =>
-                  currentTenant.id === 'demo' ||
-                  key === currentTenant.moduleType ||
-                  key === currentTenant.primaryModuleType ||
-                  currentTenant.unlockedModules?.includes(key)
-                ).map(([key, modTheme]) => {
-                  const themeObj = modTheme as ModuleTheme;
-                  const isActiveModule = (activeModuleOverride || currentTenant.moduleType) === key;
+                {visibleModules.map((app) => {
+                  const themeObj = getModuleTheme(app.id);
+                  const isActiveModule = (activeModuleOverride || currentTenant.moduleType) === app.id;
                   return (
                     <button
-                      key={key}
-                      onClick={() => switchActiveModule(key)}
+                      key={app.id}
+                      onClick={() => switchActiveModule(app.id)}
                       disabled={isActiveModule}
                       className="w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors hover:bg-slate-50 disabled:cursor-default"
                     >
@@ -838,7 +850,7 @@ export function ProfileTab() {
                         </div>
                         <div>
                           <p className="text-sm font-bold text-slate-800 leading-tight">
-                            {themeObj.name}
+                            {app.name}
                           </p>
                           <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-0.5">{themeObj.tagline}</p>
                         </div>
@@ -856,7 +868,8 @@ export function ProfileTab() {
               </div>
             </CardContent>
           </Card>
-        )}
+          );
+        })()}
 
         {/* POS Printer Settings */}
         <Card className="bg-white border-slate-200 shadow-sm rounded-[24px]">

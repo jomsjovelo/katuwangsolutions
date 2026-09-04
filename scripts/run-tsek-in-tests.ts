@@ -11,6 +11,7 @@ const tsekInTests = [
   'test/tsek-in-manage-stay-ui-integration.test.ts',
   'test/tsek-in-admin-service.test.ts',
   'test/app-marketplace-catalog.test.ts',
+  'test/demo-module-access.test.ts',
 ];
 
 console.log(`\n======================================================`);

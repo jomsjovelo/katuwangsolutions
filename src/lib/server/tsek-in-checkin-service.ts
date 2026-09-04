@@ -2,6 +2,11 @@ import { createHash } from 'crypto';
 import * as admin from 'firebase-admin';
 import { z } from 'zod';
 import { getAdminAuth, getAdminFirestore } from '@/firebase/admin';
+import {
+  DEMO_ROOT_TENANT_ID,
+  demoTenantIdForModule,
+  isOfficialDemoIdentity,
+} from '@/lib/demo-access';
 import { TsekInEngine, TsekInError, validateIdempotencyKey, computeFingerprint } from '@/lib/tsek-in/domain';
 
 // ==========================================
@@ -246,9 +251,22 @@ export async function verifyTsekInIdentity(
   }
 
   if (role === 'owner') {
-    const tenantId = decoded.tenantId;
+    let tenantId = decoded.tenantId;
     if (!tenantId || typeof tenantId !== 'string' || !SERVER_IDENTIFIER.test(tenantId)) {
       throw new CheckinError(CheckinErrorCode.FORBIDDEN);
+    }
+    if (tenantId === DEMO_ROOT_TENANT_ID) {
+      const rootSnap = await firestore.collection('tenants').doc(DEMO_ROOT_TENANT_ID).get();
+      const rootData = rootSnap.exists ? rootSnap.data() : undefined;
+      if (!rootData || !isOfficialDemoIdentity({
+        email: decoded.email,
+        authUid: uid,
+        tenantId,
+        ownerUid: rootData.ownerUid,
+      })) {
+        throw new CheckinError(CheckinErrorCode.FORBIDDEN);
+      }
+      tenantId = demoTenantIdForModule(TSEK_IN_MODULE_ID);
     }
     const { ownerUid } = await loadTenantForAuth(firestore, tenantId);
     if (ownerUid !== uid) {

@@ -108,7 +108,15 @@ service cloud.firestore {
         isMasterAdmin()
       );
       
-      allow create: if isAuthenticated() && request.auth.token.get('role', '') != 'cashier' && request.auth.uid == request.resource.data.ownerUid;
+      allow create: if isAuthenticated()
+        && request.auth.token.get('role', '') != 'cashier'
+        && request.auth.uid == request.resource.data.ownerUid
+        && request.resource.data.subscriptionStatus == 'pending'
+        && !request.resource.data.keys().hasAny([
+          'unlockedModules',
+          'moduleStatuses',
+          'modulePricingTiers'
+        ]);
       
       allow update: if isAuthenticated() && request.auth.token.get('role', '') != 'cashier' && (
         request.auth.uid == resource.data.ownerUid || 
@@ -119,6 +127,21 @@ service cloud.firestore {
       ) && (
         isMasterAdmin() ||
         (!('ownerUid' in request.resource.data) || request.resource.data.ownerUid == resource.data.ownerUid)
+      ) && (
+        isMasterAdmin() ||
+        request.resource.data.subscriptionStatus == resource.data.subscriptionStatus ||
+        request.resource.data.subscriptionStatus == 'pending'
+      ) && (
+        isMasterAdmin() ||
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'moduleType',
+          'unlockedModules',
+          'moduleStatuses',
+          'pricingTier',
+          'modulePricingTiers',
+          'nextBillingDate',
+          'trialEndsAt'
+        ])
       );
 
       allow delete: if isAuthenticated() && request.auth.token.get('role', '') != 'cashier' && (

@@ -1,5 +1,5 @@
 import { initializeFirebase } from '../index';
-import { collection, doc, writeBatch, getDocs, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, writeBatch, getDocs, serverTimestamp } from 'firebase/firestore';
 
 interface SeedProduct {
   name: string;
@@ -141,55 +141,29 @@ export async function seedDemoAccountIfNeeded(tenantId: string, moduleType: stri
   try {
     isSeeding = true;
     
-    // Check if tenant exists. If it does, we assume it's already seeded.
-    // We do this instead of checking products to avoid permission errors
-    // since we haven't created the tenant document (and thus ownerUid) yet!
-    const tenantRef = doc(db, 'tenants', tenantId);
-    const tenantSnap = await getDoc(tenantRef);
-    
-    if (tenantSnap.exists()) {
-      isSeeding = false;
-      return; // Already seeded
-    }
-    
     console.log(`[DemoSeeder] Seeding module: ${moduleType} for tenant: ${tenantId}...`);
-    
-    // First, create the tenant document itself so Firestore Rules pass for subcollections
-    await setDoc(tenantRef, {
-      name: `Demo - ${moduleType.replace('-', ' ').toUpperCase()}`,
-      moduleType,
-      ownerUid: actualUid, // Allow current user to read/write!
-      createdAt: serverTimestamp(),
-    }, { merge: true });
+
+    const idToken = await auth.currentUser?.getIdToken();
+    if (!idToken) throw new Error('Official demo authentication is required.');
+    const bootstrapResponse = await fetch('/api/demo/module-bootstrap', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ moduleId: moduleType }),
+    });
+    if (!bootstrapResponse.ok) throw new Error('Unable to prepare this demo module.');
     
     if (moduleType === 'tsek-in') {
-      const mockRooms = [
-        { roomNumber: '101', type: 'Standard', rate: 1500, capacity: 2, bedType: '1 Queen', status: 'Available' },
-        { roomNumber: '102', type: 'Standard', rate: 1500, capacity: 2, bedType: '1 Queen', status: 'Occupied' },
-        { roomNumber: '103', type: 'Standard', rate: 1500, capacity: 2, bedType: '1 Queen', status: 'Cleaning' },
-        { roomNumber: '201', type: 'Deluxe', rate: 2500, capacity: 3, bedType: '1 Queen, 1 Single', status: 'Available' },
-        { roomNumber: '202', type: 'Deluxe', rate: 2500, capacity: 3, bedType: '1 Queen, 1 Single', status: 'Available' },
-        { roomNumber: '301', type: 'Suite', rate: 4500, capacity: 4, bedType: '2 Queens', status: 'Available' },
-        { roomNumber: 'Villa A', type: 'Villa', rate: 8000, capacity: 6, bedType: '3 Queens', status: 'Available' }
-      ];
-      const roomsBatch = writeBatch(db);
-      const roomsRef = collection(db, 'tenants', tenantId, 'rooms');
-      mockRooms.forEach((room) => {
-        const newRoomRef = doc(roomsRef);
-        roomsBatch.set(newRoomRef, {
-          id: newRoomRef.id,
-          ...room,
-          createdAt: serverTimestamp(),
-        });
-      });
-      await roomsBatch.commit();
-      console.log(`[DemoSeeder] Successfully seeded ${mockRooms.length} rooms for Tsek-In.`);
+      console.log('[DemoSeeder] Tsek-In tenant and rooms prepared securely by the server.');
     } else {
       // Seed products
       const seedProducts = MODULE_SEED_DATA[moduleType] || MODULE_SEED_DATA['benta-snap'];
-      const batch = writeBatch(db);
-      
       const productsRef = collection(db, 'tenants', tenantId, 'products');
+      const existingProducts = await getDocs(productsRef);
+      if (!existingProducts.empty) return;
+      const batch = writeBatch(db);
       
       seedProducts.forEach((prod) => {
         const newProdRef = doc(productsRef);

@@ -4,9 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { X, CheckCircle2, ChevronRight, Grid, CreditCard, Copy, Check } from 'lucide-react';
 import { useTenant } from '@/app/lib/tenant-context';
 import { useTenantStore } from '@/store/use-tenant-store';
+import { useUser } from '@/firebase/auth/use-user';
 import { getModuleTheme } from '@/lib/theme-utils';
 import { normalizeModuleId } from '@/lib/app-data';
 import { marketplaceApps } from '@/lib/app-marketplace-catalog';
+import { isOfficialDemoIdentity } from '@/lib/demo-access';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { useToast } from '@/hooks/use-toast';
@@ -20,11 +22,12 @@ interface AppMarketplaceProps {
 
 export function AppMarketplace({ isOpen, onClose }: AppMarketplaceProps) {
   const { currentTenant } = useTenant();
+  const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
   
   const switchActiveModule = useTenantStore(state => state.switchActiveModule);
-  const unlockModule = useTenantStore(state => state.unlockModule);
+  const rootTenant = useTenantStore(state => state.activeTenant);
   const [checkoutApp, setCheckoutApp] = useState<{id: string, name: string, price: number} | null>(null);
   const { getAppPrice } = useAppStoreConfig();
   const [isMounted, setIsMounted] = useState(false);
@@ -80,17 +83,27 @@ export function AppMarketplace({ isOpen, onClose }: AppMarketplaceProps) {
 
   if (!isMounted || !isOpen || !currentTenant) return null;
 
-  const baseTheme = getModuleTheme(currentTenant.moduleType);
   const unlocked = currentTenant.unlockedModules || [];
+  const isOfficialDemo = isOfficialDemoIdentity({
+    email: user?.email,
+    authUid: user?.uid,
+    tenantId: rootTenant?.id,
+    ownerUid: rootTenant?.ownerUid,
+  });
   
   // Is the specific app already available for the user?
   const isUnlocked = (appId: string) => {
+    if (isOfficialDemo) return true;
     const tenantModule = normalizeModuleId(currentTenant.moduleType);
     const matchesTenant = appId === tenantModule || appId === currentTenant.moduleType;
     return matchesTenant || unlocked.some(u => normalizeModuleId(u) === appId);
   };
 
   const handleSimulatePayment = (appId: string, appName: string, price: number) => {
+    if (isOfficialDemo) {
+      handleOpenApp(appId);
+      return;
+    }
     setCheckoutApp({ id: appId, name: appName, price });
   };
 
@@ -147,14 +160,18 @@ export function AppMarketplace({ isOpen, onClose }: AppMarketplaceProps) {
           </button>
         </div>
 
-        {/* Urgency Banner */}
-        <div className="bg-gradient-to-r from-red-500 to-rose-600 p-3 rounded-xl mb-4 shrink-0 shadow-md animate-in slide-in-from-top-2">
+        {/* Promo / Demo Banner */}
+        <div className={`${isOfficialDemo ? 'bg-gradient-to-r from-indigo-500 to-violet-600' : 'bg-gradient-to-r from-red-500 to-rose-600'} p-3 rounded-xl mb-4 shrink-0 shadow-md animate-in slide-in-from-top-2`}>
           <div className="flex items-start gap-2">
-            <span className="text-xl">🔥</span>
+            <span className="text-xl">{isOfficialDemo ? '✨' : '🔥'}</span>
             <div>
-              <p className="text-white text-xs font-black uppercase tracking-widest mb-0.5">Early Adopter Promo!</p>
-              <p className="text-red-100 text-[10px] font-medium leading-snug">
-                Get Budget Mo for ₱50/mo, and other modules for just ₱99/mo instead of ₱199.
+              <p className="text-white text-xs font-black uppercase tracking-widest mb-0.5">
+                {isOfficialDemo ? 'Official Demo Access' : 'Early Adopter Promo!'}
+              </p>
+              <p className={`${isOfficialDemo ? 'text-indigo-100' : 'text-red-100'} text-[10px] font-medium leading-snug`}>
+                {isOfficialDemo
+                  ? 'All modules are unlocked. Open any app without payment.'
+                  : 'Get Budget Mo for ₱50/mo, and other modules for just ₱99/mo instead of ₱199.'}
               </p>
             </div>
           </div>
