@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { PosCurrencyInput } from '@/components/ui/pos-currency-input';
-import { updateCategoryRates, RoomData } from '@/firebase/firestore/tsek-in-actions';
+import type { RoomData } from '@/firebase/firestore/tsek-in-actions';
 import { useToast } from '@/hooks/use-toast';
-import { initializeFirebase } from '@/firebase';
+import { generateIdempotencyKey, submitTsekInAdminMutation, TsekInClientError, type ShortTimeRates } from '@/lib/client/tsek-in-client';
+import { resolveTsekInAdminIntent, type TsekInAdminIntent } from '@/lib/client/tsek-in-admin-intent';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -27,6 +28,9 @@ export function SettingsModal({
 }: SettingsModalProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const inFlightRef = useRef(false);
+  const ratesIntentRef = useRef<TsekInAdminIntent | null>(null);
+  const settingsIntentRef = useRef<TsekInAdminIntent | null>(null);
   const [settingsTab, setSettingsTab] = useState<'rates'|'global'>('rates');
 
   // Rates Form State
@@ -53,11 +57,15 @@ export function SettingsModal({
   const [globalCheckOutTime, setGlobalCheckOutTime] = useState('');
 
   useEffect(() => {
-    if (currentTenant) {
+    if (isOpen && currentTenant) {
       setGlobalCheckInTime(currentTenant.standardCheckInTime || '');
       setGlobalCheckOutTime(currentTenant.standardCheckOutTime || '');
+      inFlightRef.current = false;
+      ratesIntentRef.current = null;
+      settingsIntentRef.current = null;
+      setIsSubmitting(false);
     }
-  }, [currentTenant]);
+  }, [isOpen, currentTenant]);
 
   const uniqueCategories = Array.from(new Set(rooms.map(r => r.type)));
 
@@ -85,38 +93,52 @@ export function SettingsModal({
 
   const handleUpdateRates = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentTenant || !rateForm.category) return;
+    if (!currentTenant || !rateForm.category || isSubmitting || inFlightRef.current) return;
     setIsSubmitting(true);
+    inFlightRef.current = true;
     try {
-      const shortTimeRatesCentavos: any = {};
+      const shortTimeRatesCentavos: ShortTimeRates = {};
       if (rateForm.rate3h) shortTimeRatesCentavos['3h'] = Math.round(parseFloat(rateForm.rate3h) * 100);
       if (rateForm.rate6h) shortTimeRatesCentavos['6h'] = Math.round(parseFloat(rateForm.rate6h) * 100);
       if (rateForm.rate8h) shortTimeRatesCentavos['8h'] = Math.round(parseFloat(rateForm.rate8h) * 100);
       if (rateForm.rate12h) shortTimeRatesCentavos['12h'] = Math.round(parseFloat(rateForm.rate12h) * 100);
-      const paxFeeCentavos = rateForm.extraPaxFee ? Math.round(parseFloat(rateForm.extraPaxFee) * 100) : undefined;
-      await updateCategoryRates(currentTenant.id, rateForm.category, Math.round(parseFloat(rateForm.rate) * 100), shortTimeRatesCentavos, paxFeeCentavos);
+      const payload = {
+        operation: 'update-category-rates' as const,
+        category: rateForm.category,
+        rateCentavos: Math.round(parseFloat(rateForm.rate) * 100),
+        shortTimeRatesCentavos,
+        ...(rateForm.extraPaxFee ? { extraPaxFeeCentavos: Math.round(parseFloat(rateForm.extraPaxFee) * 100) } : {}),
+      };
+      const { request, nextIntent } = resolveTsekInAdminIntent(payload, ratesIntentRef.current, generateIdempotencyKey);
+      ratesIntentRef.current = nextIntent;
+      await submitTsekInAdminMutation(request);
+      ratesIntentRef.current = null;
       onOpenChange(false);
       setRateForm({ category: '', rate: '', rate3h: '', rate6h: '', rate8h: '', rate12h: '', extraPaxFee: '' });
       toast({ title: "Success", description: `Rates updated for ${rateForm.category}.` });
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } catch (error) {
+      toast({ title: "Error", description: error instanceof TsekInClientError ? error.message : 'An unexpected error occurred. Please try again.', variant: "destructive" });
     } finally {
       setIsSubmitting(false);
+      inFlightRef.current = false;
     }
   };
 
   const handleSaveGlobalSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentTenant) return;
+    if (!currentTenant || isSubmitting || inFlightRef.current) return;
     setIsSubmitting(true);
+    inFlightRef.current = true;
     try {
-      const { doc, setDoc } = await import('firebase/firestore');
-      const { db } = initializeFirebase();
-      const tenantRef = doc(db, 'tenants', currentTenant.id);
-      await setDoc(tenantRef, {
+      const payload = {
+        operation: 'update-global-settings' as const,
         standardCheckInTime: globalCheckInTime,
-        standardCheckOutTime: globalCheckOutTime
-      }, { merge: true });
+        standardCheckOutTime: globalCheckOutTime,
+      };
+      const { request, nextIntent } = resolveTsekInAdminIntent(payload, settingsIntentRef.current, generateIdempotencyKey);
+      settingsIntentRef.current = nextIntent;
+      await submitTsekInAdminMutation(request);
+      settingsIntentRef.current = null;
       
       setCurrentTenant({
         ...currentTenant,
@@ -126,10 +148,11 @@ export function SettingsModal({
       
       onOpenChange(false);
       toast({ title: "Success", description: "Global check-in settings saved!" });
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } catch (error) {
+      toast({ title: "Error", description: error instanceof TsekInClientError ? error.message : 'An unexpected error occurred. Please try again.', variant: "destructive" });
     } finally {
       setIsSubmitting(false);
+      inFlightRef.current = false;
     }
   };
 

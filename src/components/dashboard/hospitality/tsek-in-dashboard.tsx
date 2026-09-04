@@ -1,10 +1,9 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTenant } from '@/app/lib/tenant-context';
-import { doc, collection, onSnapshot, query, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
-import { useUser } from '@/firebase/auth/use-user';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -14,8 +13,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { getModuleTheme } from '@/lib/theme-utils';
-import { addRoom, updateRoomStatus, deleteRoom, checkInGuest, checkOutGuest, extendGuestStay, updateCategoryRates, RoomData, BookingData } from '@/firebase/firestore/tsek-in-actions';
 import { useToast } from '@/hooks/use-toast';
+import { generateIdempotencyKey, submitTsekInAdminMutation, TsekInClientError } from '@/lib/client/tsek-in-client';
+import { resolveTsekInAdminIntent, type TsekInAdminIntent } from '@/lib/client/tsek-in-admin-intent';
 import { Bed, Users, Plus, CheckCircle2, XCircle, MoreVertical, LogIn, LogOut, Brush, Trash2, Search } from 'lucide-react';
 import { VerificationPrompt } from '@/components/common/verification-prompt';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -30,7 +30,6 @@ export function TsekInRoomsDashboard() {
   const { currentTenant, setCurrentTenant } = useTenant();
   const theme = getModuleTheme(currentTenant?.moduleType);
   const { toast } = useToast();
-  const { user } = useUser();
   const [rooms, setRooms] = useState<any[]>([]);
   const [bookings, setBookings] = useState<any[]>([]);
   const [isCheckInModalOpen, setIsCheckInModalOpen] = useState(false);
@@ -39,6 +38,7 @@ export function TsekInRoomsDashboard() {
   const [isRateModalOpen, setIsRateModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [roomToDelete, setRoomToDelete] = useState<string | null>(null);
+  const roomMutationIntentRef = useRef<TsekInAdminIntent | null>(null);
 
 
   // Check In Form state moved to CheckInModal
@@ -59,25 +59,42 @@ export function TsekInRoomsDashboard() {
 
 
   const handleDelete = async () => {
-    if (!currentTenant || !roomToDelete) return;
+    if (!roomToDelete || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      await deleteRoom(currentTenant.id, roomToDelete);
+      const { request, nextIntent } = resolveTsekInAdminIntent(
+        { operation: 'delete-room', roomId: roomToDelete },
+        roomMutationIntentRef.current,
+        generateIdempotencyKey,
+      );
+      roomMutationIntentRef.current = nextIntent;
+      await submitTsekInAdminMutation(request);
+      roomMutationIntentRef.current = null;
       toast({ title: "Deleted", description: "Room removed." });
       setRoomToDelete(null);
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } catch (error) {
+      toast({ title: "Error", description: error instanceof TsekInClientError ? error.message : 'An unexpected error occurred. Please try again.', variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleStatusChange = async (roomId: string, status: 'Available'|'Occupied'|'Cleaning') => {
-    if (!currentTenant) return;
+    if (status !== 'Available' || isSubmitting) return;
+    setIsSubmitting(true);
     try {
-      await updateRoomStatus(currentTenant.id, roomId, status);
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+      const { request, nextIntent } = resolveTsekInAdminIntent(
+        { operation: 'mark-room-ready', roomId },
+        roomMutationIntentRef.current,
+        generateIdempotencyKey,
+      );
+      roomMutationIntentRef.current = nextIntent;
+      await submitTsekInAdminMutation(request);
+      roomMutationIntentRef.current = null;
+    } catch (error) {
+      toast({ title: "Error", description: error instanceof TsekInClientError ? error.message : 'An unexpected error occurred. Please try again.', variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -85,64 +102,6 @@ export function TsekInRoomsDashboard() {
     if (status === 'Available') return 'bg-emerald-100 text-emerald-700';
     if (status === 'Occupied') return 'bg-rose-100 text-rose-700';
     return 'bg-amber-100 text-amber-700';
-  };
-
-
-
-
-
-  const handleMigrate = async () => {
-    if (!currentTenant) return;
-    setIsSubmitting(true);
-    try {
-      const { collection, getDocs, writeBatch } = await import('firebase/firestore');
-      const { db } = initializeFirebase();
-      const batch = writeBatch(db);
-      
-      const roomsSnap = await getDocs(collection(db, 'tenants', currentTenant.id, 'rooms'));
-      roomsSnap.docs.forEach(d => {
-        const data = d.data();
-        const updates: any = {};
-        if (data.rate !== undefined && data.rateCentavos === undefined) updates.rateCentavos = Math.round(data.rate * 100);
-        if (data.extraPaxFee !== undefined && data.extraPaxFeeCentavos === undefined) updates.extraPaxFeeCentavos = Math.round(data.extraPaxFee * 100);
-        if (data.shortTimeRates && !data.shortTimeRatesCentavos) {
-          const st: any = {};
-          if (data.shortTimeRates['3h']) st['3h'] = Math.round(data.shortTimeRates['3h'] * 100);
-          if (data.shortTimeRates['6h']) st['6h'] = Math.round(data.shortTimeRates['6h'] * 100);
-          if (data.shortTimeRates['8h']) st['8h'] = Math.round(data.shortTimeRates['8h'] * 100);
-          if (data.shortTimeRates['12h']) st['12h'] = Math.round(data.shortTimeRates['12h'] * 100);
-          updates.shortTimeRatesCentavos = st;
-        }
-        if (Object.keys(updates).length > 0) batch.update(d.ref, updates);
-      });
-      
-      const bookingsSnap = await getDocs(collection(db, 'tenants', currentTenant.id, 'bookings'));
-      bookingsSnap.docs.forEach(d => {
-        const data = d.data();
-        const updates: any = {};
-        if (data.initialPayment !== undefined && data.initialPaymentCentavos === undefined) updates.initialPaymentCentavos = Math.round(data.initialPayment * 100);
-        if (data.rate !== undefined && data.rateCentavos === undefined) updates.rateCentavos = Math.round(data.rate * 100);
-        if (data.extraPaxCost !== undefined && data.extraPaxCostCentavos === undefined) updates.extraPaxCostCentavos = Math.round(data.extraPaxCost * 100);
-        if (data.totalRoomCost !== undefined && data.totalRoomCostCentavos === undefined) updates.totalRoomCostCentavos = Math.round(data.totalRoomCost * 100);
-        if (data.finalPayment !== undefined && data.finalPaymentCentavos === undefined) updates.finalPaymentCentavos = Math.round(data.finalPayment * 100);
-        if (data.extraCharges !== undefined && data.extraChargesCentavos === undefined) updates.extraChargesCentavos = Math.round(data.extraCharges * 100);
-        
-        if (data.extraChargesList && Array.isArray(data.extraChargesList)) {
-           updates.extraChargesList = data.extraChargesList.map((c: any) => ({
-             description: c.description,
-             amountCentavos: c.amountCentavos !== undefined ? c.amountCentavos : Math.round((c.amount || 0) * 100)
-           }));
-        }
-        if (Object.keys(updates).length > 0) batch.update(d.ref, updates);
-      });
-      
-      await batch.commit();
-      toast({ title: "Migration Complete", description: "All database records have been converted to centavos." });
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   const activeBookings = bookings.filter(b => b.status === 'Active');
@@ -250,7 +209,6 @@ export function TsekInRoomsDashboard() {
       <AddRoomModal
         isOpen={isAddModalOpen}
         onOpenChange={setIsAddModalOpen}
-        currentTenantId={currentTenant?.id || ''}
         theme={theme}
         roomsCount={rooms.length}
       />
@@ -269,36 +227,16 @@ export function TsekInRoomsDashboard() {
         onOpenChange={setIsCheckInModalOpen}
         selectedRoomId={selectedRoomId}
         rooms={rooms}
-        currentTenantId={currentTenant?.id || ''}
         theme={theme}
-        user={user}
         tenantStandardCheckOutTime={currentTenant?.standardCheckOutTime}
       />
 
       <ManageStayModal 
         selectedBooking={selectedBooking}
         onOpenChange={(open) => !open && setSelectedBooking(null)}
-        rooms={rooms}
-        currentTenantId={currentTenant?.id || ''}
         theme={theme}
-        user={user}
-        tenantStandardCheckOutTime={currentTenant?.standardCheckOutTime}
       />
 
-      <Dialog open={!!roomToDelete} onOpenChange={(open) => !open && setRoomToDelete(null)}>
-        <DialogContent className="rounded-2xl max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Delete Room?</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm text-slate-600">Are you sure you want to delete this room? This action cannot be undone.</p>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setRoomToDelete(null)}>Cancel</Button>
-            <Button type="button" disabled={isSubmitting} variant="destructive" onClick={handleDelete}>Delete</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

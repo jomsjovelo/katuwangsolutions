@@ -202,6 +202,29 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
+      // Tsek-In operational records are readable by authorized tenant users,
+      // but all mutations must pass through the authenticated server services.
+      match /rooms/{roomId} {
+        allow get, list: if hasTenantAccess(tenantId);
+        allow create, update, delete: if false;
+      }
+      match /bookings/{bookingId} {
+        allow get, list: if hasTenantAccess(tenantId);
+        allow create, update, delete: if false;
+      }
+      match /tsek_in_checkin_idempotency/{key} {
+        allow read, write: if false;
+      }
+      match /tsek_in_checkout_idempotency/{key} {
+        allow read, write: if false;
+      }
+      match /tsek_in_extension_idempotency/{key} {
+        allow read, write: if false;
+      }
+      match /tsek_in_admin_idempotency/{key} {
+        allow read, write: if false;
+      }
+
       // 15. Cashier Sale Intents (B-Hybrid Firestore-Native Queue)
       match /cashier_sale_intents/{intentId} {
         // Read: Owner/admin, or the Cashier who created it

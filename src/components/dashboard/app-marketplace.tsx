@@ -6,6 +6,7 @@ import { useTenant } from '@/app/lib/tenant-context';
 import { useTenantStore } from '@/store/use-tenant-store';
 import { getModuleTheme } from '@/lib/theme-utils';
 import { normalizeModuleId } from '@/lib/app-data';
+import { marketplaceApps } from '@/lib/app-marketplace-catalog';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { useToast } from '@/hooks/use-toast';
@@ -16,31 +17,6 @@ interface AppMarketplaceProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
-const APPS = [
-  { id: 'budget-mo', name: 'Budget Mo', category: 'Finance', desc: 'Personal finance & cash flow management', price: 100 },
-  { id: 'benta-snap', name: 'Benta Snap', category: 'Retail', desc: 'POS, Sales & Inventory para sa sari-sari, grocery, hardware at retail', price: 199 },
-  { id: '5-6-tracker', name: '5-6 Tracker', category: 'Finance', desc: 'Micro-lending and collection tracker', price: 199 },
-  
-  { id: 'ledger-flow', name: 'Ledger Flow', category: 'Corporate', desc: 'Simple, clear accounting and main cash', price: 199 },
-  { id: 'sahod-flow', name: 'Sahod Flow', category: 'Corporate', desc: 'Automated staff payroll and timesheets', price: 199 },
-  
-  { id: 'biyahe-sync', name: 'Biyahe Sync', category: 'Trucking', desc: 'Trucking service and hauling fee tracker', price: 199 },
-
-  { id: 'order-snap', name: 'Order Snap', category: 'Food', desc: 'Eatery & cafe POS with Kitchen Display (KDS), tables, recipes, inventory, and offline checkout', price: 199 },
-  { id: 'ganap-master', name: 'Ganap Master', category: 'Events', desc: 'Catering and bulk order management', price: 199 },
-  
-  { id: 'spin-snap', name: 'Spin Snap', category: 'Service', desc: 'Laundry shop washer/dryer tracking', price: 199 },
-  { id: 'hydro-sync', name: 'Hydro Sync', category: 'Service', desc: 'Water station delivery queue management', price: 199 },
-  { id: 'auto-boss', name: 'Auto Boss', category: 'Service', desc: 'Car wash slots and package detailing', price: 199 },
-  { id: 'wellness-pro', name: 'Wellness', category: 'Service', desc: 'Spa and wellness booking center', price: 199 },
-  { id: 'trim-track', name: 'Trim Track', category: 'Service', desc: 'Salon and barbershop chair tracking', price: 199 },
-  { id: 'rep-sync', name: 'Rep Sync', category: 'Service', desc: 'Gym membership and daily walk-ins', price: 199 },
-  { id: 'service-master', name: 'Service Master', category: 'Service', desc: 'General repair and handyman tracking', price: 199 },
-  
-  { id: 'rental', name: 'Rental', category: 'Service', desc: 'Equipment and vehicle rentals', price: 199 },
-  { id: 'farm-track', name: 'Farm Track', category: 'Agriculture', desc: 'Agricultural crop & livestock tracker', price: 199 },
-];
 
 export function AppMarketplace({ isOpen, onClose }: AppMarketplaceProps) {
   const { currentTenant } = useTenant();
@@ -286,7 +262,7 @@ export function AppMarketplace({ isOpen, onClose }: AppMarketplaceProps) {
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto min-h-0 space-y-4 pr-1 pb-10">
-            {APPS.map((app) => {
+            {marketplaceApps.map((app) => {
               const hasApp = isUnlocked(app.id);
               const appTheme = getModuleTheme(app.id);
               

@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { PosCurrencyInput } from '@/components/ui/pos-currency-input';
-import { addRoom } from '@/firebase/firestore/tsek-in-actions';
 import { useToast } from '@/hooks/use-toast';
+import { generateIdempotencyKey, submitTsekInAdminMutation, TsekInClientError, type ShortTimeRates } from '@/lib/client/tsek-in-client';
+import { resolveTsekInAdminIntent, type TsekInAdminIntent } from '@/lib/client/tsek-in-admin-intent';
 
 interface AddRoomModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  currentTenantId: string;
   theme: { primary: string };
   roomsCount: number;
 }
@@ -18,12 +18,13 @@ interface AddRoomModalProps {
 export function AddRoomModal({
   isOpen,
   onOpenChange,
-  currentTenantId,
   theme,
   roomsCount
 }: AddRoomModalProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const inFlightRef = useRef(false);
+  const intentRef = useRef<TsekInAdminIntent | null>(null);
 
   // Form State
   const [roomNumber, setRoomNumber] = useState('');
@@ -37,31 +38,44 @@ export function AddRoomModal({
   const [rate8h, setRate8h] = useState('');
   const [rate12h, setRate12h] = useState('');
 
+  useEffect(() => {
+    if (isOpen) {
+      intentRef.current = null;
+      inFlightRef.current = false;
+      setIsSubmitting(false);
+    }
+  }, [isOpen]);
+
   const handleAddRoom = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentTenantId) return;
+    if (isSubmitting || inFlightRef.current) return;
     if (roomsCount >= 25) {
       toast({ title: "Limit Reached", description: "You can only have up to 25 rooms.", variant: "destructive" });
       return;
     }
     
     setIsSubmitting(true);
+    inFlightRef.current = true;
     try {
-      await addRoom(currentTenantId, {
+      const shortTimeRatesCentavos: ShortTimeRates = {};
+      if (rate3h) shortTimeRatesCentavos['3h'] = Math.round(parseFloat(rate3h) * 100);
+      if (rate6h) shortTimeRatesCentavos['6h'] = Math.round(parseFloat(rate6h) * 100);
+      if (rate8h) shortTimeRatesCentavos['8h'] = Math.round(parseFloat(rate8h) * 100);
+      if (rate12h) shortTimeRatesCentavos['12h'] = Math.round(parseFloat(rate12h) * 100);
+      const payload = {
+        operation: 'create-room' as const,
         roomNumber,
         type: roomType,
         rateCentavos: Math.round(parseFloat(rate) * 100),
-        shortTimeRatesCentavos: {
-          '3h': rate3h ? Math.round(parseFloat(rate3h) * 100) : undefined,
-          '6h': rate6h ? Math.round(parseFloat(rate6h) * 100) : undefined,
-          '8h': rate8h ? Math.round(parseFloat(rate8h) * 100) : undefined,
-          '12h': rate12h ? Math.round(parseFloat(rate12h) * 100) : undefined,
-        },
+        shortTimeRatesCentavos,
         capacity: parseInt(capacity),
         bedType,
-        status: 'Available',
-        extraPaxFeeCentavos: extraPaxFee ? Math.round(parseFloat(extraPaxFee) * 100) : undefined
-      });
+        ...(extraPaxFee ? { extraPaxFeeCentavos: Math.round(parseFloat(extraPaxFee) * 100) } : {}),
+      };
+      const { request, nextIntent } = resolveTsekInAdminIntent(payload, intentRef.current, generateIdempotencyKey);
+      intentRef.current = nextIntent;
+      await submitTsekInAdminMutation(request);
+      intentRef.current = null;
       onOpenChange(false);
       setRoomNumber('');
       setRate('');
@@ -71,10 +85,11 @@ export function AddRoomModal({
       setRate12h('');
       setExtraPaxFee('');
       toast({ title: "Success", description: "Room added successfully." });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error) {
+      toast({ title: "Error", description: error instanceof TsekInClientError ? error.message : 'An unexpected error occurred. Please try again.', variant: "destructive" });
     } finally {
       setIsSubmitting(false);
+      inFlightRef.current = false;
     }
   };
 
