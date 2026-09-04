@@ -15,9 +15,8 @@ import { verifyTsekInIdentity } from '@/lib/server/tsek-in-checkin-service';
 const demoToken = {
   uid: 'official-demo-uid',
   email: 'demo@katuwangsolutions.com',
-  tenantId: 'demo',
-  role: 'owner',
 };
+const rootTenantId = 'demo-benta-snap-example';
 
 function fakeFirestore() {
   const writes: Array<{ path: string; value: Record<string, unknown> }> = [];
@@ -25,8 +24,9 @@ function fakeFirestore() {
     path,
     id: path.split('/').at(-1),
     get: async () => {
-      if (path === 'tenants/demo') return { exists: true, data: () => ({ ownerUid: 'official-demo-uid' }) };
-      if (path === 'tenants/demo_tsek-in') return {
+      if (path === 'users/official-demo-uid') return { exists: true, data: () => ({ role: 'owner', tenantId: rootTenantId }) };
+      if (path === `tenants/${rootTenantId}`) return { exists: true, data: () => ({ ownerUid: 'official-demo-uid' }) };
+      if (path === `tenants/${rootTenantId}_tsek-in`) return {
         exists: true,
         data: () => ({
           ownerUid: 'official-demo-uid',
@@ -53,15 +53,15 @@ function fakeFirestore() {
 }
 
 test('official demo identity requires exact email, root tenant, uid and owner match', () => {
-  assert.equal(isOfficialDemoIdentity({ email: demoToken.email, authUid: demoToken.uid, tenantId: 'demo', ownerUid: demoToken.uid }), true);
-  assert.equal(isOfficialDemoIdentity({ email: 'customer@example.com', authUid: demoToken.uid, tenantId: 'demo', ownerUid: demoToken.uid }), false);
-  assert.equal(isOfficialDemoIdentity({ email: demoToken.email, authUid: demoToken.uid, tenantId: 'demo_fake', ownerUid: demoToken.uid }), false);
-  assert.equal(isOfficialDemoIdentity({ email: demoToken.email, authUid: demoToken.uid, tenantId: 'demo', ownerUid: 'another-uid' }), false);
+  assert.equal(isOfficialDemoIdentity({ email: demoToken.email, authUid: demoToken.uid, tenantId: rootTenantId, ownerUid: demoToken.uid }), true);
+  assert.equal(isOfficialDemoIdentity({ email: 'customer@example.com', authUid: demoToken.uid, tenantId: rootTenantId, ownerUid: demoToken.uid }), false);
+  assert.equal(isOfficialDemoIdentity({ email: demoToken.email, authUid: demoToken.uid, tenantId: '', ownerUid: demoToken.uid }), false);
+  assert.equal(isOfficialDemoIdentity({ email: demoToken.email, authUid: demoToken.uid, tenantId: rootTenantId, ownerUid: 'another-uid' }), false);
 });
 
 test('demo module ids are deterministic and scoped beneath the demo root', () => {
-  assert.equal(demoTenantIdForModule('tsek-in'), 'demo_tsek-in');
-  assert.equal(demoTenantIdForModule('order-snap'), 'demo_order-snap');
+  assert.equal(demoTenantIdForModule(rootTenantId, 'tsek-in'), `${rootTenantId}_tsek-in`);
+  assert.equal(demoTenantIdForModule(rootTenantId, 'order-snap'), `${rootTenantId}_order-snap`);
 });
 
 test('server bootstrap rejects non-canonical and non-demo requests', async () => {
@@ -87,8 +87,8 @@ test('official demo bootstrap activates canonical Tsek-In and seeds authoritativ
     adminFirestore: memory.db,
     now: () => timestamp,
   });
-  assert.deepEqual(receipt, { moduleId: 'tsek-in', tenantId: 'demo_tsek-in', status: 'ready' });
-  const target = memory.writes.find((write) => write.path === 'tenants/demo_tsek-in');
+  assert.deepEqual(receipt, { moduleId: 'tsek-in', tenantId: `${rootTenantId}_tsek-in`, status: 'ready' });
+  const target = memory.writes.find((write) => write.path === `tenants/${rootTenantId}_tsek-in`);
   assert.equal(target?.value.subscriptionStatus, 'active');
   assert.equal(target?.value.pricingTier, 'foc');
   assert.deepEqual(target?.value.unlockedModules, activeModules.map((module) => module.id));
@@ -98,7 +98,7 @@ test('official demo bootstrap activates canonical Tsek-In and seeds authoritativ
 test('Tsek-In server identity routes only the official demo to its isolated tenant', async () => {
   const memory = fakeFirestore();
   const identity = await verifyTsekInIdentity('token', { verifyIdToken: async () => demoToken } as any, memory.db);
-  assert.equal(identity.tenantId, 'demo_tsek-in');
+  assert.equal(identity.tenantId, `${rootTenantId}_tsek-in`);
   assert.equal(identity.uid, demoToken.uid);
 });
 

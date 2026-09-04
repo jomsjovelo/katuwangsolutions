@@ -126,4 +126,20 @@ describe('Exact-ID Demo Authority & Seeding Boundary Suite (Production Coupled)'
     assert.equal(result.needsSeeding, true);
     assert.equal(result.effectiveTenantId, 'demo_service-tap');
   });
+
+  it('8. official demo login uses its authoritative production tenant as the isolated module prefix', () => {
+    const activeTenant = createMockTenant('demo-benta-snap-8p9AU', 'Official Demo', 'benta-snap');
+    activeTenant.ownerUid = 'official-demo-uid';
+    const result = resolveEffectiveTenant({
+      activeTenant,
+      activeModuleOverride: 'tsek-in',
+      seededTenants: [],
+      authenticatedEmail: 'demo@katuwangsolutions.com',
+      authenticatedUid: 'official-demo-uid',
+    });
+
+    assert.equal(result.isDemo, true);
+    assert.equal(result.needsSeeding, true);
+    assert.equal(result.effectiveTenantId, 'demo-benta-snap-8p9AU_tsek-in');
+  });
 });

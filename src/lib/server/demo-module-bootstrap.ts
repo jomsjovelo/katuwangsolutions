@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { getAdminAuth, getAdminFirestore } from '@/firebase/admin';
 import { activeModules, isValidActiveModuleId } from '@/lib/app-data';
 import {
-  DEMO_ROOT_TENANT_ID,
   demoTenantIdForModule,
   isOfficialDemoIdentity,
 } from '@/lib/demo-access';
@@ -71,19 +70,21 @@ export async function bootstrapOfficialDemoModule(
     throw new DemoModuleBootstrapError('UNAUTHENTICATED', 401);
   }
 
-  if (decoded.role !== 'owner') {
-    throw new DemoModuleBootstrapError('FORBIDDEN', 403);
-  }
-
   try {
-    const rootRef = db.collection('tenants').doc(DEMO_ROOT_TENANT_ID);
+    const profileSnap = await db.collection('users').doc(decoded.uid).get();
+    const profile = profileSnap.exists ? profileSnap.data() : undefined;
+    const rootTenantId = typeof profile?.tenantId === 'string' ? profile.tenantId : '';
+    if (profile?.role !== 'owner' || !rootTenantId) {
+      throw new DemoModuleBootstrapError('FORBIDDEN', 403);
+    }
+    const rootRef = db.collection('tenants').doc(rootTenantId);
     const rootSnap = await rootRef.get();
     const rootData = rootSnap.exists ? rootSnap.data() : undefined;
 
     if (!rootData || !isOfficialDemoIdentity({
       email: decoded.email,
       authUid: decoded.uid,
-      tenantId: decoded.tenantId,
+      tenantId: rootTenantId,
       ownerUid: rootData.ownerUid,
     })) {
       throw new DemoModuleBootstrapError('FORBIDDEN', 403);
@@ -93,7 +94,7 @@ export async function bootstrapOfficialDemoModule(
     const module = activeModules.find((entry) => entry.id === moduleId);
     if (!module) throw new DemoModuleBootstrapError('INVALID_REQUEST', 400);
 
-    const tenantId = demoTenantIdForModule(moduleId);
+    const tenantId = demoTenantIdForModule(rootTenantId, moduleId);
     const targetRef = db.collection('tenants').doc(tenantId);
     const targetSnap = await targetRef.get();
     const committedAt = now();

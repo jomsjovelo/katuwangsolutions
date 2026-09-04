@@ -2,12 +2,16 @@
 
 import React, { ReactNode, useMemo } from 'react';
 import { useTenantStore, Tenant, SubscriptionStatus, PricingTier } from '@/store/use-tenant-store';
+import { useUser } from '@/firebase/auth/use-user';
+import { demoTenantIdForModule, isOfficialDemoIdentity } from '@/lib/demo-access';
 
 export interface ResolveTenantParams {
   activeTenant: Tenant | null;
   activeModuleOverride?: string | null;
   seededTenants: string[];
   allTenants?: Tenant[];
+  authenticatedEmail?: string | null;
+  authenticatedUid?: string | null;
 }
 
 export interface ResolvedTenantState {
@@ -28,12 +32,17 @@ export function resolveEffectiveTenant(params: ResolveTenantParams): ResolvedTen
     };
   }
 
-  const isDemo = activeTenant.id === 'demo';
+  const isDemo = activeTenant.id === 'demo' || isOfficialDemoIdentity({
+    email: params.authenticatedEmail,
+    authUid: params.authenticatedUid,
+    tenantId: activeTenant.id,
+    ownerUid: activeTenant.ownerUid,
+  });
   const moduleType = activeModuleOverride || activeTenant.moduleType;
 
   // For demo accounts, route database queries to a module-specific demo tenant ID
   const effectiveTenantId = isDemo && activeModuleOverride
-    ? `demo_${activeModuleOverride}`
+    ? demoTenantIdForModule(activeTenant.id, activeModuleOverride)
     : activeTenant.id;
 
   // If it's a demo tenant and it's currently being seeded (or about to be seeded),
@@ -73,6 +82,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
 }
 
 export function useTenant() {
+  const { user } = useUser();
   const activeTenant = useTenantStore(state => state.activeTenant);
   const setActiveTenant = useTenantStore(state => state.setActiveTenant);
   const allTenants = useTenantStore(state => state.allTenants);
@@ -87,9 +97,11 @@ export function useTenant() {
       activeTenant,
       activeModuleOverride,
       seededTenants,
-      allTenants
+      allTenants,
+      authenticatedEmail: user?.email,
+      authenticatedUid: user?.uid,
     });
-  }, [activeTenant, activeModuleOverride, seededTenants, allTenants]);
+  }, [activeTenant, activeModuleOverride, seededTenants, allTenants, user?.email, user?.uid]);
 
   const currentTenant = resolution.currentTenant;
 
@@ -121,4 +133,3 @@ export function useTenant() {
     isLoading
   }), [currentTenant, setActiveTenant, allTenants, updateTenantStatus, updateTenantPricing, isLoading]);
 }
-

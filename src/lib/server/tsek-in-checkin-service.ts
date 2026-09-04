@@ -3,7 +3,7 @@ import * as admin from 'firebase-admin';
 import { z } from 'zod';
 import { getAdminAuth, getAdminFirestore } from '@/firebase/admin';
 import {
-  DEMO_ROOT_TENANT_ID,
+  OFFICIAL_DEMO_EMAIL,
   demoTenantIdForModule,
   isOfficialDemoIdentity,
 } from '@/lib/demo-access';
@@ -246,27 +246,36 @@ export async function verifyTsekInIdentity(
   const role = decoded.role;
   const uid = decoded.uid;
 
+  if (decoded.email?.trim().toLowerCase() === OFFICIAL_DEMO_EMAIL) {
+    const profileSnap = await firestore.collection('users').doc(uid).get();
+    const profile = profileSnap.exists ? profileSnap.data() : undefined;
+    const rootTenantId = typeof profile?.tenantId === 'string' ? profile.tenantId : '';
+    const rootSnap = rootTenantId
+      ? await firestore.collection('tenants').doc(rootTenantId).get()
+      : null;
+    const rootData = rootSnap?.exists ? rootSnap.data() : undefined;
+    if (profile?.role !== 'owner' || !rootData || !isOfficialDemoIdentity({
+      email: decoded.email,
+      authUid: uid,
+      tenantId: rootTenantId,
+      ownerUid: rootData.ownerUid,
+    })) {
+      throw new CheckinError(CheckinErrorCode.FORBIDDEN);
+    }
+    const tenantId = demoTenantIdForModule(rootTenantId, TSEK_IN_MODULE_ID);
+    const { ownerUid } = await loadTenantForAuth(firestore, tenantId);
+    if (ownerUid !== uid) throw new CheckinError(CheckinErrorCode.FORBIDDEN);
+    return { uid, tenantId, sessionVersion: 0, actorId: `owner_${uid}`, role: 'owner' };
+  }
+
   if (role === 'cashier') {
     throw new CheckinError(CheckinErrorCode.FORBIDDEN);
   }
 
   if (role === 'owner') {
-    let tenantId = decoded.tenantId;
+    const tenantId = decoded.tenantId;
     if (!tenantId || typeof tenantId !== 'string' || !SERVER_IDENTIFIER.test(tenantId)) {
       throw new CheckinError(CheckinErrorCode.FORBIDDEN);
-    }
-    if (tenantId === DEMO_ROOT_TENANT_ID) {
-      const rootSnap = await firestore.collection('tenants').doc(DEMO_ROOT_TENANT_ID).get();
-      const rootData = rootSnap.exists ? rootSnap.data() : undefined;
-      if (!rootData || !isOfficialDemoIdentity({
-        email: decoded.email,
-        authUid: uid,
-        tenantId,
-        ownerUid: rootData.ownerUid,
-      })) {
-        throw new CheckinError(CheckinErrorCode.FORBIDDEN);
-      }
-      tenantId = demoTenantIdForModule(TSEK_IN_MODULE_ID);
     }
     const { ownerUid } = await loadTenantForAuth(firestore, tenantId);
     if (ownerUid !== uid) {

@@ -53,7 +53,7 @@ test('ordinary owners can still submit a payment activation request', async () =
 });
 
 test('new customer tenants must start pending and cannot pre-seed entitlements', async () => {
-  const db = testEnv.authenticatedContext('owner-2', { role: 'owner' }).firestore();
+  const db = testEnv.authenticatedContext('owner-2', { role: 'owner', email: 'owner2@example.com' }).firestore();
   const base = {
     ownerUid: 'owner-2',
     ownerEmail: 'owner2@example.com',

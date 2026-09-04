@@ -111,6 +111,7 @@ service cloud.firestore {
       allow create: if isAuthenticated()
         && request.auth.token.get('role', '') != 'cashier'
         && request.auth.uid == request.resource.data.ownerUid
+        && request.resource.data.ownerEmail == request.auth.token.email
         && request.resource.data.subscriptionStatus == 'pending'
         && !request.resource.data.keys().hasAny([
           'unlockedModules',
@@ -135,6 +136,7 @@ service cloud.firestore {
         isMasterAdmin() ||
         !request.resource.data.diff(resource.data).affectedKeys().hasAny([
           'moduleType',
+          'ownerEmail',
           'unlockedModules',
           'moduleStatuses',
           'pricingTier',

@@ -131,7 +131,7 @@ const MODULE_SEED_DATA: Record<string, SeedProduct[]> = {
 let isSeeding = false;
 
 export async function seedDemoAccountIfNeeded(tenantId: string, moduleType: string, authUid: string) {
-  if (isSeeding || !tenantId.startsWith('demo_')) return;
+  if (isSeeding || !tenantId.endsWith(`_${moduleType}`)) return;
   
     const { db } = initializeFirebase();
   const { getAuth } = await import('firebase/auth');
